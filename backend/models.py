@@ -63,6 +63,7 @@ class User(UserBase):
     created_at: datetime = Field(default_factory=now_utc)
     onboarding_completed: bool = False
     tenant_id: str = ""
+    account_type: str = "individual"  # individual, agency
 
 class UserResponse(BaseModel):
     id: str
