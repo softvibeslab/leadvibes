@@ -54,7 +54,7 @@ export const Sidebar = () => {
           <Leaf className="w-6 h-6 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="font-bold text-lg font-['Outfit'] text-foreground">SelvaVibes</h1>
+          <h1 className="font-bold text-lg font-['Outfit'] text-foreground">LeadVibes</h1>
           <p className="text-xs text-muted-foreground">CRM</p>
         </div>
       </div>
