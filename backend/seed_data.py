@@ -49,7 +49,7 @@ SEED_BROKERS = [
     },
     {
         "id": "broker-004",
-        "email": "ana.lopez@selvavibes.mx",
+        "email": "ana.lopez@leadvibes.mx",
         "name": "Ana López",
         "role": "manager",
         "avatar_url": AVATAR_URLS[3],
