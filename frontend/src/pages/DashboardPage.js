@@ -159,7 +159,7 @@ const GamificationRule = ({ rule }) => {
 };
 
 export const DashboardPage = () => {
-  const { api } = useAuth();
+  const { api, isIndividual } = useAuth();
   const [stats, setStats] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -172,16 +172,24 @@ export const DashboardPage = () => {
 
   const loadDashboard = async () => {
     try {
-      const [statsRes, leaderRes, activityRes, rulesRes] = await Promise.all([
+      const requests = [
         api.get('/dashboard/stats'),
-        api.get('/dashboard/leaderboard'),
         api.get('/dashboard/recent-activity?limit=10'),
         api.get('/gamification/rules'),
-      ]);
-      setStats(statsRes.data);
-      setLeaderboard(leaderRes.data);
-      setActivities(activityRes.data);
-      setRules(rulesRes.data);
+      ];
+      
+      // Only load leaderboard for agency users
+      if (!isIndividual) {
+        requests.push(api.get('/dashboard/leaderboard'));
+      }
+      
+      const results = await Promise.all(requests);
+      setStats(results[0].data);
+      setActivities(results[1].data);
+      setRules(results[2].data);
+      if (!isIndividual && results[3]) {
+        setLeaderboard(results[3].data);
+      }
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
