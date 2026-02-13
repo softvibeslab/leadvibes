@@ -232,7 +232,7 @@ export const LoginPage = () => {
           {/* Demo credentials hint */}
           <div className="mt-6 p-4 bg-muted/50 rounded-xl text-center">
             <p className="text-xs text-muted-foreground">
-              Demo: carlos.mendoza@selvavibes.mx / demo123
+              Demo: carlos.mendoza@leadvibes.mx / demo123
             </p>
           </div>
         </div>
