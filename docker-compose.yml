@@ -32,7 +32,7 @@ services:
     environment:
       MONGO_URL: mongodb://mongo:27017
       DB_NAME: leadvibes
-      JWT_SECRET: selvavibes-secret-key-2025-min-32-chars
+      JWT_SECRET: 1e1ba0ce89fb6bfd0d2fa9c025a6d333e8533703f7927611f79fa6fe5a3c4787
       JWT_EXPIRATION_HOURS: 24
       EMERGENT_LLM_KEY: 6422740a283342afa95d4ded10fbb5ea.njMvimW35vveFkyT
       CORS_ORIGINS: http://31.97.145.53
