@@ -74,6 +74,7 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     is_active: bool
     onboarding_completed: bool
+    account_type: str = "individual"
 
 # Goals/KPIs Models
 class GoalCreate(BaseModel):
