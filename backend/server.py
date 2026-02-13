@@ -17,7 +17,8 @@ from models import (
     GamificationRule, GamificationRuleCreate, BrokerStats, PointLedger,
     ChatMessage, ChatMessageCreate,
     Script, ScriptCreate,
-    DashboardStats
+    DashboardStats,
+    CalendarEventCreate, CalendarEvent
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
