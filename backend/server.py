@@ -91,6 +91,7 @@ async def register(user_data: UserCreate):
         "is_active": True,
         "onboarding_completed": False,
         "tenant_id": tenant_id,
+        "account_type": user_data.account_type,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
