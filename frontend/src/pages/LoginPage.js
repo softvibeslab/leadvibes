@@ -68,7 +68,7 @@ export const LoginPage = () => {
               <Leaf className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white font-['Outfit']">SelvaVibes</h1>
+              <h1 className="text-2xl font-bold text-white font-['Outfit']">LeadVibes</h1>
               <p className="text-sm text-emerald-200">CRM Inmobiliario</p>
             </div>
           </div>
