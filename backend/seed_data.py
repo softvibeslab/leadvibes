@@ -34,7 +34,7 @@ SEED_BROKERS = [
         "phone": "+52 984 234 5678",
         "is_active": True,
         "onboarding_completed": True,
-        "password_hash": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.qQzE2Aw8kQvKGe"
+        "password_hash": "$2b$12$rDN14AQ8Q0llgaI2SvYLv.Zidvj6SyJPLdnMIG7qrrM5QZnfmBAvq"
     },
     {
         "id": "broker-003",
@@ -45,7 +45,7 @@ SEED_BROKERS = [
         "phone": "+52 984 345 6789",
         "is_active": True,
         "onboarding_completed": True,
-        "password_hash": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.qQzE2Aw8kQvKGe"
+        "password_hash": "$2b$12$rDN14AQ8Q0llgaI2SvYLv.Zidvj6SyJPLdnMIG7qrrM5QZnfmBAvq"
     },
     {
         "id": "broker-004",
@@ -56,7 +56,7 @@ SEED_BROKERS = [
         "phone": "+52 984 456 7890",
         "is_active": True,
         "onboarding_completed": True,
-        "password_hash": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.qQzE2Aw8kQvKGe"
+        "password_hash": "$2b$12$rDN14AQ8Q0llgaI2SvYLv.Zidvj6SyJPLdnMIG7qrrM5QZnfmBAvq"
     },
     {
         "id": "broker-005",
@@ -67,7 +67,7 @@ SEED_BROKERS = [
         "phone": "+52 984 567 8901",
         "is_active": True,
         "onboarding_completed": True,
-        "password_hash": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.qQzE2Aw8kQvKGe"
+        "password_hash": "$2b$12$rDN14AQ8Q0llgaI2SvYLv.Zidvj6SyJPLdnMIG7qrrM5QZnfmBAvq"
     }
 ]
 
