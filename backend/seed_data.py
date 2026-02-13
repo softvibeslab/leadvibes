@@ -23,7 +23,7 @@ SEED_BROKERS = [
         "phone": "+52 984 123 4567",
         "is_active": True,
         "onboarding_completed": True,
-        "password_hash": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.qQzE2Aw8kQvKGe"  # password: demo123
+        "password_hash": "$2b$12$rDN14AQ8Q0llgaI2SvYLv.Zidvj6SyJPLdnMIG7qrrM5QZnfmBAvq"  # password: demo123
     },
     {
         "id": "broker-002",
