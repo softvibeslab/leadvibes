@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     const { access_token, user: userData } = response.data;
-    localStorage.setItem('selvavibes_token', access_token);
+    localStorage.setItem('leadvibes_token', access_token);
     setToken(access_token);
     setUser(userData);
     return userData;
@@ -77,14 +77,14 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password, role = 'broker') => {
     const response = await api.post('/auth/register', { name, email, password, role });
     const { access_token, user: userData } = response.data;
-    localStorage.setItem('selvavibes_token', access_token);
+    localStorage.setItem('leadvibes_token', access_token);
     setToken(access_token);
     setUser(userData);
     return userData;
   };
 
   const logout = () => {
-    localStorage.removeItem('selvavibes_token');
+    localStorage.removeItem('leadvibes_token');
     setToken(null);
     setUser(null);
   };
