@@ -60,7 +60,7 @@ SEED_BROKERS = [
     },
     {
         "id": "broker-005",
-        "email": "diego.ramirez@selvavibes.mx",
+        "email": "diego.ramirez@leadvibes.mx",
         "name": "Diego Ramírez",
         "role": "broker",
         "avatar_url": AVATAR_URLS[4],
