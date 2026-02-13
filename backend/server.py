@@ -140,7 +140,8 @@ async def register(user_data: UserCreate):
             role=user_data.role,
             phone=user_data.phone,
             is_active=True,
-            onboarding_completed=False
+            onboarding_completed=False,
+            account_type=user_data.account_type
         )
     )
 
