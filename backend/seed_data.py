@@ -38,7 +38,7 @@ SEED_BROKERS = [
     },
     {
         "id": "broker-003",
-        "email": "roberto.garcia@selvavibes.mx",
+        "email": "roberto.garcia@leadvibes.mx",
         "name": "Roberto García",
         "role": "broker",
         "avatar_url": AVATAR_URLS[2],
