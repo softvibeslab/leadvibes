@@ -51,6 +51,7 @@ class UserCreate(BaseModel):
     name: str
     role: str = "broker"
     phone: Optional[str] = None
+    account_type: str = "individual"  # individual, agency
 
 class UserLogin(BaseModel):
     email: EmailStr
