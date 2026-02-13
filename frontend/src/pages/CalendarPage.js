@@ -186,12 +186,12 @@ const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads })
           </div>
           <div className="space-y-2">
             <Label>Lead asociado</Label>
-            <Select value={form.lead_id} onValueChange={(v) => setForm({ ...form, lead_id: v })}>
+            <Select value={form.lead_id || "none"} onValueChange={(v) => setForm({ ...form, lead_id: v === "none" ? "" : v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar lead (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sin lead</SelectItem>
+                <SelectItem value="none">Sin lead</SelectItem>
                 {leads.map((lead) => (
                   <SelectItem key={lead.id} value={lead.id}>{lead.name}</SelectItem>
                 ))}
