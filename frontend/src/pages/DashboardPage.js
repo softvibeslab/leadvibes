@@ -258,31 +258,33 @@ export const DashboardPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Leaderboard */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Crown className="w-5 h-5 text-yellow-500" />
-              Leaderboard Mensual
-            </CardTitle>
-            <CardDescription>Top brokers por puntos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[320px] pr-4">
-              <div className="space-y-2">
-                {leaderboard.map((broker, idx) => (
-                  <LeaderboardItem key={broker.broker_id} broker={broker} rank={idx + 1} />
-                ))}
-                {leaderboard.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    No hay datos de leaderboard
-                  </p>
-                )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+      <div className={`grid grid-cols-1 ${isIndividual ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
+        {/* Leaderboard - Only for Agency */}
+        {!isIndividual && (
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-yellow-500" />
+                Leaderboard Mensual
+              </CardTitle>
+              <CardDescription>Top brokers por puntos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[320px] pr-4">
+                <div className="space-y-2">
+                  {leaderboard.map((broker, idx) => (
+                    <LeaderboardItem key={broker.broker_id} broker={broker} rank={idx + 1} />
+                  ))}
+                  {leaderboard.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      No hay datos de leaderboard
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Activity */}
         <Card className="lg:col-span-1">
@@ -291,7 +293,9 @@ export const DashboardPage = () => {
               <Activity className="w-5 h-5 text-primary" />
               Actividad Reciente
             </CardTitle>
-            <CardDescription>Últimas acciones del equipo</CardDescription>
+            <CardDescription>
+              {isIndividual ? 'Tus últimas acciones' : 'Últimas acciones del equipo'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[320px] pr-4">
