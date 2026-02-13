@@ -537,7 +537,7 @@ Además, ofrecemos:
         "category": "post-venta",
         "content": """¡Felicidades [NOMBRE]! 🎉
 
-¡Ya eres parte de la familia SelvaVibes!
+¡Ya eres parte de la familia LeadVibes!
 
 Quiero confirmarte que tu lote [NÚMERO] en [DESARROLLO] ya está registrado a tu nombre.
 
