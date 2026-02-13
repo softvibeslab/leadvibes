@@ -27,7 +27,7 @@ SEED_BROKERS = [
     },
     {
         "id": "broker-002",
-        "email": "maria.santos@selvavibes.mx",
+        "email": "maria.santos@leadvibes.mx",
         "name": "María Santos",
         "role": "broker",
         "avatar_url": AVATAR_URLS[1],
