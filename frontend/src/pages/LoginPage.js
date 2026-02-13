@@ -105,7 +105,7 @@ export const LoginPage = () => {
               <Leaf className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-['Outfit']">SelvaVibes</h1>
+              <h1 className="text-2xl font-bold font-['Outfit']">LeadVibes</h1>
               <p className="text-sm text-muted-foreground">CRM</p>
             </div>
           </div>
