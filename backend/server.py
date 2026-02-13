@@ -173,7 +173,8 @@ async def login(credentials: UserLogin):
             avatar_url=user.get("avatar_url"),
             phone=user.get("phone"),
             is_active=user["is_active"],
-            onboarding_completed=user.get("onboarding_completed", False)
+            onboarding_completed=user.get("onboarding_completed", False),
+            account_type=user.get("account_type", "individual")
         )
     )
 
