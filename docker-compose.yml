@@ -24,9 +24,7 @@ services:
 
   # FastAPI Backend
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: leadvibes-backend:latest
     container_name: leadvibes-backend
     restart: unless-stopped
     environment:
@@ -43,18 +41,10 @@ services:
         condition: service_healthy
     networks:
       - leadvibes-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   # React Frontend (Nginx)
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: leadvibes-frontend:latest
     container_name: leadvibes-frontend
     restart: unless-stopped
     ports:
@@ -64,12 +54,6 @@ services:
         condition: service_healthy
     networks:
       - leadvibes-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
 
 networks:
   leadvibes-network:
