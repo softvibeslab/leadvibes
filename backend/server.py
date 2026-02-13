@@ -842,6 +842,103 @@ async def seed_demo_data(current_user: dict = Depends(get_current_user)):
     
     return {"message": "Datos de demo cargados exitosamente", "brokers": 5, "leads": 20}
 
+# ==================== CALENDAR ROUTES ====================
+
+@api_router.get("/calendar/events", response_model=List[dict])
+async def get_calendar_events(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get calendar events"""
+    query = {"user_id": current_user["user_id"]}
+    
+    if start_date:
+        query["start_time"] = {"$gte": start_date}
+    if end_date:
+        if "start_time" in query:
+            query["start_time"]["$lte"] = end_date
+        else:
+            query["start_time"] = {"$lte": end_date}
+    
+    events = await db.calendar_events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
+    
+    # Enrich with lead info if available
+    for event in events:
+        if event.get("lead_id"):
+            lead = await db.leads.find_one({"id": event["lead_id"]}, {"_id": 0, "name": 1, "phone": 1})
+            event["lead"] = lead
+    
+    return [serialize_doc(e) for e in events]
+
+@api_router.post("/calendar/events", response_model=dict)
+async def create_calendar_event(event_data: CalendarEventCreate, current_user: dict = Depends(get_current_user)):
+    """Create calendar event"""
+    event_id = str(uuid.uuid4())
+    
+    event_doc = {
+        "id": event_id,
+        "user_id": current_user["user_id"],
+        "tenant_id": current_user["tenant_id"],
+        **event_data.model_dump(),
+        "start_time": event_data.start_time.isoformat(),
+        "end_time": event_data.end_time.isoformat() if event_data.end_time else None,
+        "completed": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.calendar_events.insert_one(event_doc)
+    return {"message": "Evento creado exitosamente", "id": event_id}
+
+@api_router.put("/calendar/events/{event_id}", response_model=dict)
+async def update_calendar_event(event_id: str, completed: bool = None, current_user: dict = Depends(get_current_user)):
+    """Update calendar event"""
+    update_dict = {}
+    if completed is not None:
+        update_dict["completed"] = completed
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No hay datos para actualizar")
+    
+    result = await db.calendar_events.update_one(
+        {"id": event_id, "user_id": current_user["user_id"]},
+        {"$set": update_dict}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    return {"message": "Evento actualizado"}
+
+@api_router.delete("/calendar/events/{event_id}", response_model=dict)
+async def delete_calendar_event(event_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete calendar event"""
+    result = await db.calendar_events.delete_one({"id": event_id, "user_id": current_user["user_id"]})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    return {"message": "Evento eliminado"}
+
+@api_router.get("/calendar/today", response_model=List[dict])
+async def get_today_events(current_user: dict = Depends(get_current_user)):
+    """Get today's events"""
+    today = datetime.now(timezone.utc).date()
+    start = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc).isoformat()
+    end = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc).isoformat()
+    
+    events = await db.calendar_events.find({
+        "user_id": current_user["user_id"],
+        "start_time": {"$gte": start, "$lte": end}
+    }, {"_id": 0}).sort("start_time", 1).to_list(50)
+    
+    for event in events:
+        if event.get("lead_id"):
+            lead = await db.leads.find_one({"id": event["lead_id"]}, {"_id": 0, "name": 1, "phone": 1})
+            event["lead"] = lead
+    
+    return [serialize_doc(e) for e in events]
+
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/")
