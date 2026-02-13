@@ -342,19 +342,21 @@ class SelvaVibesCRMTester:
         self.test_health_check()
         
         # Test with new user registration first
+        user_authenticated = False
         if self.test_register():
             print("\n📝 Testing with NEW USER account")
-            if self.test_save_goals():
-                pass  # Onboarding completed
+            self.test_save_goals()  # Complete onboarding
+            user_authenticated = True
         else:
             print("\n⚠️  Registration failed, trying demo login")
-            
-        # Try demo login
-        if self.test_login():
-            print("\n👤 Using DEMO USER account")
-        else:
-            print("\n❌ Both registration and demo login failed!")
-            return
+            # Try demo login as backup
+            if self.test_login():
+                print("\n👤 Using DEMO USER account")
+                user_authenticated = True
+
+        if not user_authenticated:
+            print("\n❌ Authentication failed completely!")
+            return False
 
         self.test_get_me()
 
