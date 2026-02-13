@@ -1,0 +1,175 @@
+{
+  "identity": {
+    "name": "SelvaVibes CRM",
+    "mission": "To empower high-end real estate teams in Tulum/Latam with a gamified, AI-driven sales assistant that feels like a breath of fresh jungle air.",
+    "vibe": "Tropical Modern, Professional, Energetic, Gamified",
+    "target_audience": "Real estate brokers, sales managers, high-ticket closers in Mexico/Latam"
+  },
+  "typography": {
+    "font_family_heading": "Outfit, sans-serif",
+    "font_family_body": "Plus Jakarta Sans, sans-serif",
+    "heading_scale": {
+      "h1": "text-4xl md:text-5xl font-bold tracking-tight",
+      "h2": "text-3xl font-bold tracking-tight",
+      "h3": "text-2xl font-semibold",
+      "h4": "text-xl font-semibold"
+    },
+    "body_scale": {
+      "base": "text-base leading-relaxed",
+      "sm": "text-sm leading-relaxed",
+      "xs": "text-xs font-medium uppercase tracking-wider"
+    }
+  },
+  "colors": {
+    "palette_name": "Tulum Jungle",
+    "primary": {
+      "DEFAULT": "#059669",
+      "foreground": "#ffffff",
+      "50": "#ecfdf5",
+      "100": "#d1fae5",
+      "200": "#a7f3d0",
+      "300": "#6ee7b7",
+      "400": "#34d399",
+      "500": "#10b981",
+      "600": "#059669",
+      "700": "#047857",
+      "800": "#065f46",
+      "900": "#064e3b",
+      "950": "#022c22"
+    },
+    "secondary": {
+      "DEFAULT": "#0e7490",
+      "foreground": "#ffffff",
+      "50": "#ecfeff",
+      "500": "#06b6d4",
+      "900": "#164e63"
+    },
+    "accent": {
+      "DEFAULT": "#d97706",
+      "foreground": "#ffffff",
+      "gold": "#f59e0b",
+      "bronze": "#92400e"
+    },
+    "background": {
+      "light": "#f8fafc",
+      "dark": "#022c22"
+    },
+    "surface": {
+      "light": "#ffffff",
+      "dark": "#064e3b"
+    },
+    "semantic": {
+      "success": "#10b981",
+      "warning": "#f59e0b",
+      "error": "#ef4444",
+      "info": "#3b82f6"
+    }
+  },
+  "visual_enhancers": {
+    "border_radius": {
+      "default": "rounded-xl",
+      "card": "rounded-2xl",
+      "button": "rounded-full"
+    },
+    "shadows": {
+      "soft": "shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)]",
+      "glow": "shadow-[0_0_15px_rgba(16,185,129,0.3)]",
+      "inner": "shadow-inner"
+    },
+    "glassmorphism": {
+      "light": "bg-white/70 backdrop-blur-lg border border-white/20",
+      "dark": "bg-emerald-950/60 backdrop-blur-xl border border-emerald-800/30"
+    },
+    "textures": {
+      "leaf_pattern": "url('https://images.unsplash.com/photo-1613753205772-37142bcf5e49?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTB8MHwxfHNlYXJjaHwxfHx0cm9waWNhbCUyMGxlYWYlMjB0ZXh0dXJlJTIwYWVzdGhldGljfGVufDB8fHx8MTc3MDk0MzU1NXww&ixlib=rb-4.1.0&q=85')"
+    }
+  },
+  "layout": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "grid_dashboard": "grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-6",
+    "sidebar_width": "w-64",
+    "spacing_scale": {
+      "section_gap": "gap-8",
+      "widget_gap": "gap-6",
+      "item_gap": "gap-3"
+    }
+  },
+  "components": {
+    "Button": {
+      "style": "rounded-full font-semibold transition-all duration-300",
+      "variants": {
+        "primary": "bg-primary text-primary-foreground hover:bg-primary-700 hover:shadow-lg hover:scale-105",
+        "secondary": "bg-white text-primary border-2 border-primary/20 hover:border-primary/50 hover:bg-primary-50",
+        "ghost": "hover:bg-primary/10 text-primary-800 dark:text-primary-100"
+      }
+    },
+    "Card": {
+      "style": "bg-card text-card-foreground rounded-2xl border-none shadow-soft hover:shadow-md transition-shadow duration-300 overflow-hidden relative"
+    },
+    "Badge": {
+      "style": "rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider",
+      "variants": {
+        "gold": "bg-yellow-100 text-yellow-800 border border-yellow-200",
+        "green": "bg-emerald-100 text-emerald-800 border border-emerald-200"
+      }
+    }
+  },
+  "gamification": {
+    "leaderboard": {
+      "top_3_highlight": "True",
+      "gold_color": "text-yellow-500",
+      "silver_color": "text-gray-400",
+      "bronze_color": "text-orange-400"
+    },
+    "points_name": "Semillas",
+    "badges": [
+      {
+        "name": "King of the Jungle",
+        "icon": "Crown",
+        "color": "text-yellow-500"
+      },
+      {
+        "name": "Early Bird",
+        "icon": "Sun",
+        "color": "text-orange-400"
+      },
+      {
+        "name": "Deal Closer",
+        "icon": "Handshake",
+        "color": "text-emerald-500"
+      }
+    ]
+  },
+  "image_urls": {
+    "backgrounds": {
+      "tropical_leaf": "https://images.unsplash.com/photo-1613753205772-37142bcf5e49?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTB8MHwxfHNlYXJjaHwxfHx0cm9waWNhbCUyMGxlYWYlMjB0ZXh0dXJlJTIwYWVzdGhldGljfGVufDB8fHx8MTc3MDk0MzU1NXww&ixlib=rb-4.1.0&q=85",
+      "login_cover": "https://images.unsplash.com/photo-1692726293166-7d1f95a4319d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHx0dWx1bSUyMGx1eHVyeSUyMGp1bmdsZSUyMHJlYWwlMjBlc3RhdGUlMjB2aWxsYXxlbnwwfHx8fDE3NzA5NDM1NTN8MA&ixlib=rb-4.1.0&q=85"
+    },
+    "avatars": [
+      "https://images.unsplash.com/photo-1650784854790-fb6c2ed400d3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBvcnRyYWl0JTIwZGl2ZXJzZXxlbnwwfHx8fDE3NzA5NDM1NTR8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1659353221237-6a1cfb73fd90?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBvcnRyYWl0JTIwZGl2ZXJzZXxlbnwwfHx8fDE3NzA5NDM1NTR8MA&ixlib=rb-4.1.0&q=85"
+    ],
+    "properties": [
+      "https://images.unsplash.com/photo-1683914791878-4d3132794594?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwyfHx0dWx1bSUyMGx1eHVyeSUyMGp1bmdsZSUyMHJlYWwlMjBlc3RhdGUlMjB2aWxsYXxlbnwwfHx8fDE3NzA5NDM1NTN8MA&ixlib=rb-4.1.0&q=85"
+    ]
+  },
+  "universal_guidelines": [
+    "Always use 'Outfit' for headings and 'Plus Jakarta Sans' for body text.",
+    "Buttons should be pill-shaped (rounded-full) for a modern, friendly feel.",
+    "Use 2-3x more padding than standard to create a 'luxurious' expansive feel.",
+    "Implement the 'Selva Green' (#059669) as the primary brand color.",
+    "Use glassmorphism effects for the AI Assistant chat widget.",
+    "Ensure the Leaderboard is visually distinct with Gold/Silver/Bronze accents.",
+    "Do NOT use generic gradients. Use the specific emerald-to-teal gradients if needed.",
+    "Images must be high-quality, aspirational, and reflect the Tulum/Jungle aesthetic."
+  ],
+  "instructions_to_main_agent": [
+    "1. Setup Tailwind theme extending colors with the 'Tulum Jungle' palette.",
+    "2. Install 'Outfit' and 'Plus Jakarta Sans' fonts.",
+    "3. Create the 'Sidebar' component with a tropical touch (maybe a leaf logo).",
+    "4. Build the 'Dashboard' with a Bento Grid layout using the defined cards.",
+    "5. Implement the 'AI Assistant' as a floating widget with glassmorphism.",
+    "6. Use 'recharts' for the sales charts, styled with the theme colors.",
+    "7. Create the 'Gamification' components (Leaderboard, Badges) with high visual impact."
+  ]
+}
