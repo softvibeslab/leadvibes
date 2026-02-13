@@ -222,7 +222,7 @@ export const DashboardPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${isIndividual ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6`}>
         <StatCard
           title="Puntos del Mes"
           value={stats?.total_points || 0}
@@ -247,12 +247,14 @@ export const DashboardPage = () => {
           color="bg-accent"
           progress={(stats?.ventas / stats?.ventas_goal) * 100}
         />
-        <StatCard
-          title="Brokers Activos"
-          value={stats?.brokers_activos || 0}
-          icon={Users}
-          color="bg-emerald-600"
-        />
+        {!isIndividual && (
+          <StatCard
+            title="Brokers Activos"
+            value={stats?.brokers_activos || 0}
+            icon={Users}
+            color="bg-emerald-600"
+          />
+        )}
       </div>
 
       {/* Main Content */}
