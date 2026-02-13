@@ -16,7 +16,7 @@ AVATAR_URLS = [
 SEED_BROKERS = [
     {
         "id": "broker-001",
-        "email": "carlos.mendoza@selvavibes.mx",
+        "email": "carlos.mendoza@leadvibes.mx",
         "name": "Carlos Mendoza",
         "role": "broker",
         "avatar_url": AVATAR_URLS[0],
