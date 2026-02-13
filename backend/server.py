@@ -841,7 +841,7 @@ async def seed_demo_data(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/")
 async def root():
-    return {"message": "SelvaVibes CRM API v1.0", "status": "running"}
+    return {"message": "LeadVibes CRM API v1.0", "status": "running"}
 
 @api_router.get("/health")
 async def health_check():
