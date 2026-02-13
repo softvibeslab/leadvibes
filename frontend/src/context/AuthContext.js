@@ -74,8 +74,8 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
-  const register = async (name, email, password, role = 'broker') => {
-    const response = await api.post('/auth/register', { name, email, password, role });
+  const register = async (name, email, password, role = 'broker', account_type = 'individual') => {
+    const response = await api.post('/auth/register', { name, email, password, role, account_type });
     const { access_token, user: userData } = response.data;
     localStorage.setItem('leadvibes_token', access_token);
     setToken(access_token);
@@ -93,6 +93,10 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
+  // Helper to check if user is individual
+  const isIndividual = user?.account_type === 'individual';
+  const isAgency = user?.account_type === 'agency';
+
   const value = {
     user,
     token,
@@ -103,6 +107,8 @@ export const AuthProvider = ({ children }) => {
     updateUser,
     api,
     isAuthenticated: !!token && !!user,
+    isIndividual,
+    isAgency,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
