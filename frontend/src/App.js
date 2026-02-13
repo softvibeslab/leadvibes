@@ -12,6 +12,7 @@ import { BrokersPage } from './pages/BrokersPage';
 import { GamificationPage } from './pages/GamificationPage';
 import { ScriptsPage } from './pages/ScriptsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CalendarPage } from './pages/CalendarPage';
 import './App.css';
 
 // Protected Route component
@@ -95,6 +96,7 @@ function AppRoutes() {
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/brokers" element={<BrokersPage />} />
         <Route path="/gamification" element={<GamificationPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
