@@ -132,7 +132,7 @@ Notas: {lead_data.get('notes', 'Sin notas')}
             "sentiment": "neutral",
             "key_points": ["Requiere más información"],
             "next_action": "Contactar para calificar interés",
-            "opening_script": f"Hola {lead_data.get('name', '')}, soy de SelvaVibes Real Estate..."
+            "opening_script": f"Hola {lead_data.get('name', '')}, soy de LeadVibes Real Estate..."
         }
         
     except Exception as e:
