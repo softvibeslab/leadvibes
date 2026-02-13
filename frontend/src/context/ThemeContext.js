@@ -21,7 +21,7 @@ export const ThemeProvider = ({ children }) => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
-    localStorage.setItem('selvavibes_theme', theme);
+    localStorage.setItem('leadvibes_theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
