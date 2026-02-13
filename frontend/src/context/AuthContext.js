@@ -15,7 +15,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('selvavibes_token'));
+  const [token, setToken] = useState(localStorage.getItem('leadvibes_token'));
   const [loading, setLoading] = useState(true);
 
   const api = axios.create({
@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   // Add token to requests
   api.interceptors.request.use((config) => {
-    const storedToken = localStorage.getItem('selvavibes_token');
+    const storedToken = localStorage.getItem('leadvibes_token');
     if (storedToken) {
       config.headers.Authorization = `Bearer ${storedToken}`;
     }
