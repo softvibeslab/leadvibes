@@ -9,7 +9,6 @@ import {
   CalendarDays,
   BarChart3,
   FileText,
-  Plug,
   Settings,
   LogOut,
   Sun,
@@ -27,17 +26,28 @@ import {
   TooltipTrigger,
 } from '../components/ui/tooltip';
 
-const navItems = [
+// Navigation items for individual users
+const individualNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/leads', icon: Users, label: 'Leads' },
+  { to: '/leads', icon: Users, label: 'Pipeline' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
+  { to: '/scripts', icon: FileText, label: 'Scripts' },
+  { to: '/settings', icon: Settings, label: 'Configuración' },
+];
+
+// Navigation items for agency users
+const agencyNavItems = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/leads', icon: Users, label: 'Pipeline' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/gamification', icon: Trophy, label: 'Gamificación' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
 ];
 
 export const Sidebar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isIndividual } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -45,6 +55,9 @@ export const Sidebar = () => {
     logout();
     navigate('/login');
   };
+
+  // Choose nav items based on account type
+  const navItems = isIndividual ? individualNavItems : agencyNavItems;
 
   return (
     <div className="flex flex-col h-full w-64 bg-card border-r border-border">
@@ -55,7 +68,9 @@ export const Sidebar = () => {
         </div>
         <div>
           <h1 className="font-bold text-lg font-['Outfit'] text-foreground">LeadVibes</h1>
-          <p className="text-xs text-muted-foreground">CRM</p>
+          <p className="text-xs text-muted-foreground">
+            {isIndividual ? 'Broker' : 'Inmobiliaria'}
+          </p>
         </div>
       </div>
       
@@ -101,7 +116,7 @@ export const Sidebar = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate text-foreground">{user?.name || 'Usuario'}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.role || 'broker'}</p>
+            <p className="text-xs text-muted-foreground truncate capitalize">{user?.role || 'broker'}</p>
           </div>
         </div>
         
