@@ -241,3 +241,22 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+# Calendar Event Models
+class CalendarEventCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_type: str = "seguimiento"  # seguimiento, llamada, zoom, visita, otro
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    lead_id: Optional[str] = None
+    reminder_minutes: int = 30
+    color: Optional[str] = None
+
+class CalendarEvent(CalendarEventCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    completed: bool = False
+    created_at: datetime = Field(default_factory=now_utc)
