@@ -825,21 +825,21 @@ export const LeadsPage = () => {
   const activeLead = activeId ? findLeadById(activeId) : null;
 
   return (
-    <div className="p-8 space-y-6 h-full flex flex-col" data-testid="leads-page">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 h-full flex flex-col" data-testid="leads-page">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold font-['Outfit']">Pipeline de Leads</h1>
-          <p className="text-muted-foreground">{leads.length} prospectos • Arrastra para cambiar estado</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Pipeline de Leads</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">{leads.length} prospectos • Arrastra para cambiar estado</p>
         </div>
-        <Button onClick={() => setShowNewModal(true)} className="rounded-full" data-testid="new-lead-btn">
+        <Button onClick={() => setShowNewModal(true)} className="rounded-full w-full sm:w-auto" data-testid="new-lead-btn">
           <Plus className="w-4 h-4 mr-2" /> Nuevo Lead
         </Button>
       </div>
 
       {/* Search */}
       <div className="flex-shrink-0">
-        <div className="relative max-w-md">
+        <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nombre, teléfono o email..."
@@ -853,12 +853,12 @@ export const LeadsPage = () => {
 
       {/* Kanban with Drag & Drop */}
       {loading ? (
-        <div className="grid grid-cols-6 gap-4 flex-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 flex-1">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="space-y-3">
               <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-28 sm:h-32 w-full" />
+              <Skeleton className="h-28 sm:h-32 w-full" />
             </div>
           ))}
         </div>
@@ -870,8 +870,8 @@ export const LeadsPage = () => {
           onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
         >
-          <div className="flex-1 overflow-x-auto">
-            <div className="flex gap-4 min-w-max h-full pb-4">
+          <div className="flex-1 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <div className="flex gap-3 sm:gap-4 min-w-max h-full pb-4">
               {Object.entries(groupedLeads).map(([status, statusLeads]) => (
                 <DroppableColumn
                   key={status}
