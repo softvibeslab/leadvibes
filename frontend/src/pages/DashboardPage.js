@@ -258,25 +258,25 @@ export const DashboardPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className={`grid grid-cols-1 ${isIndividual ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
+      <div className={`grid grid-cols-1 ${isIndividual ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
         {/* Leaderboard - Only for Agency */}
         {!isIndividual && (
           <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Crown className="w-5 h-5 text-yellow-500" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
                 Leaderboard Mensual
               </CardTitle>
-              <CardDescription>Top brokers por puntos</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Top brokers por puntos</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[320px] pr-4">
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <ScrollArea className="h-[280px] sm:h-[320px] pr-4">
                 <div className="space-y-2">
                   {leaderboard.map((broker, idx) => (
                     <LeaderboardItem key={broker.broker_id} broker={broker} rank={idx + 1} />
                   ))}
                   {leaderboard.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
+                    <p className="text-center text-muted-foreground py-8 text-sm">
                       No hay datos de leaderboard
                     </p>
                   )}
@@ -288,23 +288,23 @@ export const DashboardPage = () => {
 
         {/* Recent Activity */}
         <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-primary" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               Actividad Reciente
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               {isIndividual ? 'Tus últimas acciones' : 'Últimas acciones del equipo'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[320px] pr-4">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <ScrollArea className="h-[280px] sm:h-[320px] pr-4">
               <div className="divide-y divide-border">
                 {activities.map((activity) => (
                   <ActivityItem key={activity.id} activity={activity} />
                 ))}
                 {activities.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
+                  <p className="text-center text-muted-foreground py-8 text-sm">
                     No hay actividad reciente
                   </p>
                 )}
@@ -315,15 +315,15 @@ export const DashboardPage = () => {
 
         {/* Gamification Rules */}
         <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-accent" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
               Sistema de Puntos
             </CardTitle>
-            <CardDescription>Gana puntos por cada acción</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Gana puntos por cada acción</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[320px] pr-4">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <ScrollArea className="h-[280px] sm:h-[320px] pr-4">
               <div className="space-y-1">
                 {rules.map((rule) => (
                   <GamificationRule key={rule.id} rule={rule} />
@@ -335,9 +335,9 @@ export const DashboardPage = () => {
       </div>
 
       {/* Conversion Rate & Goals Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <Card>
-          <CardHeader>
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle>Tasa de Conversión</CardTitle>
             <CardDescription>Leads que se convierten en ventas</CardDescription>
           </CardHeader>
