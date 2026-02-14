@@ -14,7 +14,8 @@ import {
   Sun,
   Moon,
   Leaf,
-  Trophy
+  Trophy,
+  X
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { ScrollArea } from '../components/ui/scroll-area';
@@ -46,7 +47,7 @@ const agencyNavItems = [
   { to: '/settings', icon: Settings, label: 'Configuración' },
 ];
 
-export const Sidebar = () => {
+export const Sidebar = ({ onClose }) => {
   const { user, logout, isIndividual } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -62,16 +63,30 @@ export const Sidebar = () => {
   return (
     <div className="flex flex-col h-full w-64 bg-card border-r border-border">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5">
-        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-          <Leaf className="w-6 h-6 text-primary-foreground" />
+      <div className="flex items-center justify-between px-6 py-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <Leaf className="w-6 h-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg font-['Outfit'] text-foreground">LeadVibes</h1>
+            <p className="text-xs text-muted-foreground">
+              {isIndividual ? 'Broker' : 'Inmobiliaria'}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-bold text-lg font-['Outfit'] text-foreground">LeadVibes</h1>
-          <p className="text-xs text-muted-foreground">
-            {isIndividual ? 'Broker' : 'Inmobiliaria'}
-          </p>
-        </div>
+        {/* Close button - only on mobile */}
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="lg:hidden"
+            data-testid="close-sidebar-btn"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        )}
       </div>
       
       <Separator />
@@ -98,7 +113,7 @@ export const Sidebar = () => {
                     <span>{item.label}</span>
                   </NavLink>
                 </TooltipTrigger>
-                <TooltipContent side="right">
+                <TooltipContent side="right" className="hidden lg:block">
                   <p>{item.label}</p>
                 </TooltipContent>
               </Tooltip>
@@ -111,7 +126,7 @@ export const Sidebar = () => {
       <div className="p-4 border-t border-border">
         {/* User info */}
         <div className="flex items-center gap-3 px-3 py-2 mb-3 rounded-xl bg-muted/50">
-          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
             <UserCircle className="w-5 h-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
