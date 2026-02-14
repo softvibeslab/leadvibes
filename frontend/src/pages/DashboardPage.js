@@ -199,12 +199,12 @@ export const DashboardPage = () => {
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6" data-testid="dashboard-loading">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6" data-testid="dashboard-loading">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-20 w-full" />
+              <CardContent className="p-4 sm:p-6">
+                <Skeleton className="h-16 sm:h-20 w-full" />
               </CardContent>
             </Card>
           ))}
@@ -214,15 +214,15 @@ export const DashboardPage = () => {
   }
 
   return (
-    <div className="p-8 space-y-6" data-testid="dashboard-page">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6" data-testid="dashboard-page">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold font-['Outfit']">Dashboard</h1>
-        <p className="text-muted-foreground">Tu resumen de rendimiento</p>
+        <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Tu resumen de rendimiento</p>
       </div>
 
       {/* Stats Cards */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 ${isIndividual ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isIndividual ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-3 sm:gap-4 lg:gap-6`}>
         <StatCard
           title="Puntos del Mes"
           value={stats?.total_points || 0}
