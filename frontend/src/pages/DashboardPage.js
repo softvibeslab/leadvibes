@@ -24,22 +24,22 @@ const activityIcons = {
 
 const StatCard = ({ title, value, goal, icon: Icon, color, progress }) => (
   <Card className="relative overflow-hidden group hover:shadow-lg transition-shadow">
-    <CardContent className="p-6">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold font-['Outfit']">{value}</h3>
+    <CardContent className="p-4 sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">{title}</p>
+          <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap">
+            <h3 className="text-2xl sm:text-3xl font-bold font-['Outfit']">{value}</h3>
             {goal && (
-              <span className="text-sm text-muted-foreground">/ {goal}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">/ {goal}</span>
             )}
           </div>
           {progress !== undefined && (
-            <Progress value={Math.min(progress, 100)} className="h-1.5 w-24" />
+            <Progress value={Math.min(progress, 100)} className="h-1.5 w-full sm:w-24" />
           )}
         </div>
-        <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
-          <Icon className="w-6 h-6 text-white" />
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${color} flex items-center justify-center flex-shrink-0`}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
       </div>
       {progress !== undefined && (
