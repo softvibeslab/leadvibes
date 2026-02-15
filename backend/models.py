@@ -238,3 +238,58 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+# Import/Export Enums
+class ImportStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class ExportFormat(str, Enum):
+    PDF = "pdf"
+    XLSX = "xlsx"
+    CSV = "csv"
+    JSON = "json"
+
+# Import/Export Models
+class ImportJobCreate(BaseModel):
+    filename: str
+    file_type: str  # csv, xlsx
+
+class ImportJob(ImportJobCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str = ""
+    user_id: str
+    status: ImportStatus = ImportStatus.PENDING
+    total_leads: int = 0
+    successful_leads: int = 0
+    failed_leads: int = 0
+    duplicate_leads: int = 0
+    created_at: datetime = Field(default_factory=now_utc)
+    completed_at: Optional[datetime] = None
+
+class ImportLogCreate(BaseModel):
+    import_job_id: str
+    lead_data: Dict[str, Any]
+    status: str  # success, failed, duplicate
+    error_message: Optional[str] = None
+
+class ImportLog(ImportLogCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    created_at: datetime = Field(default_factory=now_utc)
+
+class ExportTemplateCreate(BaseModel):
+    name: str
+    format: ExportFormat
+    columns: List[str]
+    filters: Optional[Dict[str, Any]] = None
+
+class ExportTemplate(ExportTemplateCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str = ""
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
