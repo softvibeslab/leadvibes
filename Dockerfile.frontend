@@ -1,0 +1,28 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install curl and git for moai
+RUN apk add --no-cache curl git bash
+
+# Install MoAI-ADK
+RUN curl -fsSL https://raw.githubusercontent.com/modu-ai/moai-adk/main/install.sh | bash \
+    && export PATH="$HOME/.local/bin:$PATH"
+
+# Ensure PATH is set for all subsequent commands
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Copy package files (no yarn.lock exists)
+COPY frontend/package.json ./
+
+# Install dependencies
+RUN yarn install --frozen-lockfile
+
+# Copy frontend code
+COPY frontend/ .
+
+# Expose port
+EXPOSE 3000
+
+# Start the application
+CMD ["yarn", "start"]

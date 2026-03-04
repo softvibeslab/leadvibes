@@ -1,0 +1,50 @@
+
+services:
+  mongodb:
+    image: mongo:8
+    container_name: leadvibes-mongo
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: leadvibes
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: leadvibes-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017/leadvibes
+      - MONGODB_URL=mongodb://mongodb:27017/leadvibes
+      - DB_NAME=leadvibes
+      - PORT=8000
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: leadvibes-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mongodb_data:
