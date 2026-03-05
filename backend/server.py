@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import uuid
+import random
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse,
@@ -18,7 +19,12 @@ from models import (
     ChatMessage, ChatMessageCreate,
     Script, ScriptCreate,
     DashboardStats,
-    CalendarEventCreate, CalendarEvent
+    CalendarEventCreate, CalendarEvent,
+    IntegrationSettings, IntegrationSettingsUpdate,
+    Campaign, CampaignCreate, CampaignType, CampaignStatus,
+    CallRecord, CallRecordCreate, CallStatus,
+    SMSRecord, SMSRecordCreate, SMSStatus,
+    ConversationAnalysis
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
@@ -948,6 +954,509 @@ async def root():
 @api_router.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+# ==================== INTEGRATION SETTINGS ====================
+
+@api_router.get("/settings/integrations")
+async def get_integration_settings(current_user: dict = Depends(get_current_user)):
+    """Get integration settings for the current user"""
+    settings = await db.integration_settings.find_one(
+        {"user_id": current_user["id"]},
+        {"_id": 0}
+    )
+    if not settings:
+        # Return empty settings
+        return {
+            "vapi_api_key": "",
+            "vapi_phone_number_id": "",
+            "vapi_assistant_id": "",
+            "twilio_account_sid": "",
+            "twilio_auth_token": "",
+            "twilio_phone_number": "",
+            "vapi_enabled": False,
+            "twilio_enabled": False
+        }
+    # Mask sensitive data
+    result = serialize_doc(settings)
+    if result.get("vapi_api_key"):
+        result["vapi_api_key"] = "••••••••" + result["vapi_api_key"][-4:]
+    if result.get("twilio_auth_token"):
+        result["twilio_auth_token"] = "••••••••" + result["twilio_auth_token"][-4:]
+    return result
+
+@api_router.put("/settings/integrations")
+async def update_integration_settings(
+    update_data: IntegrationSettingsUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update integration settings"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    
+    # Get existing settings
+    existing = await db.integration_settings.find_one({"user_id": current_user["id"]})
+    
+    update_dict = {}
+    data = update_data.model_dump(exclude_unset=True)
+    
+    for key, value in data.items():
+        if value is not None and value != "":
+            # Don't update if masked value
+            if "••••" not in str(value):
+                update_dict[key] = value
+    
+    # Check if integrations are enabled
+    if existing:
+        current = {k: v for k, v in existing.items() if k != "_id"}
+        current.update(update_dict)
+    else:
+        current = update_dict
+    
+    # Set enabled flags
+    update_dict["vapi_enabled"] = bool(
+        current.get("vapi_api_key") and 
+        current.get("vapi_phone_number_id")
+    )
+    update_dict["twilio_enabled"] = bool(
+        current.get("twilio_account_sid") and 
+        current.get("twilio_auth_token") and 
+        current.get("twilio_phone_number")
+    )
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+    
+    if existing:
+        await db.integration_settings.update_one(
+            {"user_id": current_user["id"]},
+            {"$set": update_dict}
+        )
+    else:
+        new_settings = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["id"],
+            "tenant_id": tenant_id,
+            **update_dict
+        }
+        await db.integration_settings.insert_one(new_settings)
+    
+    return {"message": "Configuración actualizada", "vapi_enabled": update_dict["vapi_enabled"], "twilio_enabled": update_dict["twilio_enabled"]}
+
+@api_router.post("/settings/integrations/test-vapi")
+async def test_vapi_connection(current_user: dict = Depends(get_current_user)):
+    """Test VAPI connection"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    if not settings or not settings.get("vapi_api_key"):
+        raise HTTPException(status_code=400, detail="VAPI no configurado")
+    
+    try:
+        from vapi import Vapi
+        vapi_client = Vapi(token=settings["vapi_api_key"])
+        # Try to list calls to verify connection
+        calls = vapi_client.calls.list(limit=1)
+        return {"status": "success", "message": "Conexión exitosa con VAPI"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+
+@api_router.post("/settings/integrations/test-twilio")
+async def test_twilio_connection(current_user: dict = Depends(get_current_user)):
+    """Test Twilio connection"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    if not settings or not settings.get("twilio_account_sid"):
+        raise HTTPException(status_code=400, detail="Twilio no configurado")
+    
+    try:
+        from twilio.rest import Client
+        client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+        # Verify account
+        account = client.api.accounts(settings["twilio_account_sid"]).fetch()
+        return {"status": "success", "message": f"Conexión exitosa - Cuenta: {account.friendly_name}"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+
+# ==================== CAMPAIGNS ====================
+
+@api_router.get("/campaigns")
+async def get_campaigns(
+    campaign_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all campaigns"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    query = {"tenant_id": tenant_id}
+    if campaign_type:
+        query["campaign_type"] = campaign_type
+    
+    campaigns = await db.campaigns.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return [serialize_doc(c) for c in campaigns]
+
+@api_router.post("/campaigns")
+async def create_campaign(
+    campaign_data: CampaignCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new campaign"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    
+    # Get leads count
+    lead_count = len(campaign_data.lead_ids)
+    if campaign_data.lead_filter:
+        # Count leads matching filter
+        filter_query = {"tenant_id": tenant_id}
+        if campaign_data.lead_filter.get("status"):
+            filter_query["status"] = {"$in": campaign_data.lead_filter["status"]}
+        if campaign_data.lead_filter.get("priority"):
+            filter_query["priority"] = {"$in": campaign_data.lead_filter["priority"]}
+        lead_count = await db.leads.count_documents(filter_query)
+    
+    campaign = Campaign(
+        **campaign_data.model_dump(),
+        user_id=current_user["id"],
+        tenant_id=tenant_id,
+        total_recipients=lead_count
+    )
+    
+    await db.campaigns.insert_one(campaign.model_dump())
+    return serialize_doc(campaign.model_dump())
+
+@api_router.post("/campaigns/{campaign_id}/start")
+async def start_campaign(
+    campaign_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Start a campaign - sends calls or SMS"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    
+    campaign = await db.campaigns.find_one({"id": campaign_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    
+    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    
+    # Get leads
+    leads = []
+    if campaign.get("lead_ids"):
+        leads = await db.leads.find(
+            {"id": {"$in": campaign["lead_ids"]}, "tenant_id": tenant_id},
+            {"_id": 0}
+        ).to_list(1000)
+    elif campaign.get("lead_filter"):
+        filter_query = {"tenant_id": tenant_id}
+        if campaign["lead_filter"].get("status"):
+            filter_query["status"] = {"$in": campaign["lead_filter"]["status"]}
+        if campaign["lead_filter"].get("priority"):
+            filter_query["priority"] = {"$in": campaign["lead_filter"]["priority"]}
+        leads = await db.leads.find(filter_query, {"_id": 0}).to_list(1000)
+    
+    if not leads:
+        raise HTTPException(status_code=400, detail="No hay leads para esta campaña")
+    
+    # Update campaign status
+    await db.campaigns.update_one(
+        {"id": campaign_id},
+        {"$set": {"status": CampaignStatus.RUNNING.value, "started_at": datetime.now(timezone.utc)}}
+    )
+    
+    results = {"success": 0, "failed": 0, "errors": []}
+    
+    if campaign["campaign_type"] == CampaignType.CALL.value:
+        # Process calls with VAPI
+        if not settings or not settings.get("vapi_enabled"):
+            raise HTTPException(status_code=400, detail="VAPI no está configurado")
+        
+        try:
+            from vapi import Vapi
+            vapi_client = Vapi(token=settings["vapi_api_key"])
+            
+            for lead in leads:
+                try:
+                    call_response = vapi_client.calls.create(
+                        assistant_id=settings["vapi_assistant_id"],
+                        phone_number_id=settings["vapi_phone_number_id"],
+                        customer={"number": lead["phone"]}
+                    )
+                    
+                    call_record = CallRecord(
+                        user_id=current_user["id"],
+                        tenant_id=tenant_id,
+                        lead_id=lead["id"],
+                        lead_name=lead["name"],
+                        phone_number=lead["phone"],
+                        campaign_id=campaign_id,
+                        vapi_call_id=call_response.id if hasattr(call_response, 'id') else str(call_response),
+                        status=CallStatus.QUEUED
+                    )
+                    await db.call_records.insert_one(call_record.model_dump())
+                    results["success"] += 1
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error VAPI: {str(e)}")
+    
+    elif campaign["campaign_type"] == CampaignType.SMS.value:
+        # Process SMS with Twilio
+        if not settings or not settings.get("twilio_enabled"):
+            raise HTTPException(status_code=400, detail="Twilio no está configurado")
+        
+        try:
+            from twilio.rest import Client
+            twilio_client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+            
+            for lead in leads:
+                try:
+                    # Personalize message
+                    message_body = campaign.get("message_template", "").replace("{nombre}", lead["name"])
+                    
+                    message = twilio_client.messages.create(
+                        body=message_body,
+                        from_=settings["twilio_phone_number"],
+                        to=lead["phone"]
+                    )
+                    
+                    sms_record = SMSRecord(
+                        user_id=current_user["id"],
+                        tenant_id=tenant_id,
+                        lead_id=lead["id"],
+                        lead_name=lead["name"],
+                        phone_number=lead["phone"],
+                        message=message_body,
+                        campaign_id=campaign_id,
+                        twilio_sid=message.sid,
+                        status=SMSStatus.SENT,
+                        sent_at=datetime.now(timezone.utc)
+                    )
+                    await db.sms_records.insert_one(sms_record.model_dump())
+                    results["success"] += 1
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error Twilio: {str(e)}")
+    
+    # Update campaign
+    await db.campaigns.update_one(
+        {"id": campaign_id},
+        {"$set": {
+            "status": CampaignStatus.COMPLETED.value,
+            "completed_at": datetime.now(timezone.utc),
+            "sent_count": results["success"],
+            "failed_count": results["failed"]
+        }}
+    )
+    
+    return results
+
+# ==================== CALL RECORDS ====================
+
+@api_router.get("/calls")
+async def get_call_records(
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get call history"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    calls = await db.call_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(c) for c in calls]
+
+@api_router.post("/calls/single")
+async def create_single_call(
+    call_data: CallRecordCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a single call to a lead"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("vapi_enabled"):
+        raise HTTPException(status_code=400, detail="VAPI no está configurado")
+    
+    # Get lead info
+    lead = await db.leads.find_one({"id": call_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    
+    try:
+        from vapi import Vapi
+        vapi_client = Vapi(token=settings["vapi_api_key"])
+        
+        call_params = {
+            "assistant_id": settings["vapi_assistant_id"],
+            "phone_number_id": settings["vapi_phone_number_id"],
+            "customer": {"number": call_data.phone_number}
+        }
+        
+        if call_data.scheduled_at:
+            call_params["schedule_plan"] = {"earliest_at": call_data.scheduled_at.isoformat()}
+        
+        call_response = vapi_client.calls.create(**call_params)
+        
+        call_record = CallRecord(
+            user_id=current_user["id"],
+            tenant_id=tenant_id,
+            lead_id=call_data.lead_id,
+            lead_name=lead["name"],
+            phone_number=call_data.phone_number,
+            vapi_call_id=call_response.id if hasattr(call_response, 'id') else str(call_response),
+            status=CallStatus.SCHEDULED if call_data.scheduled_at else CallStatus.QUEUED,
+            scheduled_at=call_data.scheduled_at
+        )
+        await db.call_records.insert_one(call_record.model_dump())
+        
+        return serialize_doc(call_record.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear llamada: {str(e)}")
+
+# ==================== SMS RECORDS ====================
+
+@api_router.get("/sms")
+async def get_sms_records(
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get SMS history"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    sms_list = await db.sms_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(s) for s in sms_list]
+
+@api_router.post("/sms/single")
+async def send_single_sms(
+    sms_data: SMSRecordCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send a single SMS to a lead"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("twilio_enabled"):
+        raise HTTPException(status_code=400, detail="Twilio no está configurado")
+    
+    # Get lead info
+    lead = await db.leads.find_one({"id": sms_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    
+    try:
+        from twilio.rest import Client
+        twilio_client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+        
+        message = twilio_client.messages.create(
+            body=sms_data.message,
+            from_=settings["twilio_phone_number"],
+            to=sms_data.phone_number
+        )
+        
+        sms_record = SMSRecord(
+            user_id=current_user["id"],
+            tenant_id=tenant_id,
+            lead_id=sms_data.lead_id,
+            lead_name=lead["name"],
+            phone_number=sms_data.phone_number,
+            message=sms_data.message,
+            twilio_sid=message.sid,
+            status=SMSStatus.SENT,
+            sent_at=datetime.now(timezone.utc)
+        )
+        await db.sms_records.insert_one(sms_record.model_dump())
+        
+        return serialize_doc(sms_record.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar SMS: {str(e)}")
+
+# ==================== CONVERSATION ANALYSIS (DEMO/MOCKUP) ====================
+
+@api_router.get("/calls/{call_id}/analysis")
+async def get_call_analysis(
+    call_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get conversation analysis for a call (DEMO - returns mock data)"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    
+    call = await db.call_records.find_one({"id": call_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not call:
+        raise HTTPException(status_code=404, detail="Llamada no encontrada")
+    
+    # Return mock analysis data
+    sentiments = ["positivo", "neutral", "negativo"]
+    intents = ["interesado en comprar", "buscando información", "comparando opciones", "listo para decidir", "solo curiosidad"]
+    topics = [
+        ["precio", "ubicación", "amenidades"],
+        ["financiamiento", "enganche", "mensualidades"],
+        ["fecha de entrega", "acabados", "garantía"],
+        ["seguridad", "plusvalía", "rentabilidad"]
+    ]
+    actions = [
+        ["Enviar brochure por WhatsApp", "Agendar visita presencial"],
+        ["Enviar cotización personalizada", "Llamar en 2 días"],
+        ["Compartir opciones de financiamiento", "Agendar llamada con asesor"],
+        ["Enviar video del desarrollo", "Invitar a evento de preventa"]
+    ]
+    
+    mock_analysis = ConversationAnalysis(
+        call_id=call_id,
+        lead_name=call.get("lead_name", "Lead"),
+        duration_seconds=call.get("duration_seconds", random.randint(60, 300)),
+        sentiment=random.choice(sentiments),
+        intent_detected=random.choice(intents),
+        key_topics=random.choice(topics),
+        action_items=random.choice(actions),
+        follow_up_recommended=random.choice([True, True, False]),
+        follow_up_reason="El prospecto mostró alto interés en la propiedad" if random.choice([True, False]) else None,
+        confidence_score=round(random.uniform(0.75, 0.98), 2)
+    )
+    
+    return serialize_doc(mock_analysis.model_dump())
+
+@api_router.get("/analytics/communications")
+async def get_communications_analytics(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get communications analytics (calls + SMS)"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    
+    # Get call stats
+    total_calls = await db.call_records.count_documents({"tenant_id": tenant_id})
+    completed_calls = await db.call_records.count_documents({"tenant_id": tenant_id, "status": "completed"})
+    
+    # Get SMS stats
+    total_sms = await db.sms_records.count_documents({"tenant_id": tenant_id})
+    delivered_sms = await db.sms_records.count_documents({"tenant_id": tenant_id, "status": "delivered"})
+    
+    # Get campaign stats
+    total_campaigns = await db.campaigns.count_documents({"tenant_id": tenant_id})
+    
+    # Recent activity
+    recent_calls = await db.call_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5)
+    
+    recent_sms = await db.sms_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5)
+    
+    return {
+        "calls": {
+            "total": total_calls,
+            "completed": completed_calls,
+            "success_rate": round((completed_calls / total_calls * 100) if total_calls > 0 else 0, 1)
+        },
+        "sms": {
+            "total": total_sms,
+            "delivered": delivered_sms,
+            "delivery_rate": round((delivered_sms / total_sms * 100) if total_sms > 0 else 0, 1)
+        },
+        "campaigns": {
+            "total": total_campaigns
+        },
+        "recent_calls": [serialize_doc(c) for c in recent_calls],
+        "recent_sms": [serialize_doc(s) for s in recent_sms]
+    }
 
 # Include the router in the main app
 app.include_router(api_router)

@@ -260,3 +260,163 @@ class CalendarEvent(CalendarEventCreate):
     tenant_id: str
     completed: bool = False
     created_at: datetime = Field(default_factory=now_utc)
+
+
+
+# ==================== INTEGRATION SETTINGS ====================
+
+class IntegrationSettings(BaseModel):
+    """Settings for external integrations (VAPI, Twilio)"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    # VAPI Settings
+    vapi_api_key: Optional[str] = None
+    vapi_phone_number_id: Optional[str] = None
+    vapi_assistant_id: Optional[str] = None
+    # Twilio Settings
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_phone_number: Optional[str] = None
+    # Status
+    vapi_enabled: bool = False
+    twilio_enabled: bool = False
+    updated_at: datetime = Field(default_factory=now_utc)
+
+class IntegrationSettingsUpdate(BaseModel):
+    """Update model for integration settings"""
+    vapi_api_key: Optional[str] = None
+    vapi_phone_number_id: Optional[str] = None
+    vapi_assistant_id: Optional[str] = None
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_phone_number: Optional[str] = None
+
+# ==================== CAMPAIGNS ====================
+
+class CampaignType(str, Enum):
+    CALL = "call"
+    SMS = "sms"
+
+class CampaignStatus(str, Enum):
+    DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    PAUSED = "paused"
+    FAILED = "failed"
+
+class CampaignCreate(BaseModel):
+    """Create a new campaign"""
+    name: str
+    campaign_type: CampaignType
+    message_template: Optional[str] = None  # For SMS
+    lead_ids: List[str] = []
+    lead_filter: Optional[Dict[str, Any]] = None  # Filter criteria
+    scheduled_at: Optional[datetime] = None
+
+class Campaign(CampaignCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    status: CampaignStatus = CampaignStatus.DRAFT
+    total_recipients: int = 0
+    sent_count: int = 0
+    delivered_count: int = 0
+    failed_count: int = 0
+    created_at: datetime = Field(default_factory=now_utc)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+# ==================== CALL RECORDS ====================
+
+class CallStatus(str, Enum):
+    QUEUED = "queued"
+    RINGING = "ringing"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    NO_ANSWER = "no_answer"
+    BUSY = "busy"
+
+class CallRecordCreate(BaseModel):
+    """Create a call record"""
+    lead_id: str
+    phone_number: str
+    campaign_id: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+
+class CallRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    lead_id: str
+    lead_name: Optional[str] = None
+    phone_number: str
+    campaign_id: Optional[str] = None
+    vapi_call_id: Optional[str] = None
+    status: CallStatus = CallStatus.QUEUED
+    duration_seconds: Optional[float] = None
+    transcript: Optional[str] = None
+    recording_url: Optional[str] = None
+    summary: Optional[str] = None
+    sentiment: Optional[str] = None
+    outcome: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+# ==================== SMS RECORDS ====================
+
+class SMSStatus(str, Enum):
+    QUEUED = "queued"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    UNDELIVERED = "undelivered"
+
+class SMSRecordCreate(BaseModel):
+    """Create an SMS record"""
+    lead_id: str
+    phone_number: str
+    message: str
+    campaign_id: Optional[str] = None
+
+class SMSRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    lead_id: str
+    lead_name: Optional[str] = None
+    phone_number: str
+    message: str
+    campaign_id: Optional[str] = None
+    twilio_sid: Optional[str] = None
+    status: SMSStatus = SMSStatus.QUEUED
+    error_message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+# ==================== CONVERSATION ANALYSIS (DEMO) ====================
+
+class ConversationAnalysis(BaseModel):
+    """Mock conversation analysis model"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    call_id: str
+    lead_name: str
+    duration_seconds: float
+    sentiment: str  # positive, neutral, negative
+    intent_detected: str
+    key_topics: List[str] = []
+    action_items: List[str] = []
+    follow_up_recommended: bool = False
+    follow_up_reason: Optional[str] = None
+    confidence_score: float = 0.0
+    created_at: datetime = Field(default_factory=now_utc)

@@ -1,5 +1,6 @@
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
+aiohttp-retry==2.9.1
 aiosignal==1.4.0
 annotated-types==0.7.0
 anyio==4.12.1
@@ -109,6 +110,7 @@ tenacity==9.1.2
 tiktoken==0.12.0
 tokenizers==0.22.2
 tqdm==4.67.3
+twilio==9.10.2
 typer==0.21.1
 typer-slim==0.21.1
 typing-inspection==0.4.2
@@ -117,6 +119,7 @@ tzdata==2025.3
 uritemplate==4.2.0
 urllib3==2.6.3
 uvicorn==0.25.0
+vapi-server-sdk==1.9.0
 watchfiles==1.1.1
 websockets==15.0.1
 yarl==1.22.0

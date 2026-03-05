@@ -1,19 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Settings, User, Target, Moon, Sun, Save, Loader2 } from 'lucide-react';
+import { 
+  Settings, User, Target, Moon, Sun, Save, Loader2, 
+  Phone, MessageSquare, CheckCircle, XCircle, Eye, EyeOff,
+  TestTube, Zap
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Separator } from '../components/ui/separator';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 
 export const SettingsPage = () => {
   const { api, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
+  const [testingVapi, setTestingVapi] = useState(false);
+  const [testingTwilio, setTestingTwilio] = useState(false);
+  const [showVapiKey, setShowVapiKey] = useState(false);
+  const [showTwilioToken, setShowTwilioToken] = useState(false);
+  
   const [goals, setGoals] = useState({
     ventas_mes: 5,
     ingresos_objetivo: 500000,
@@ -23,8 +34,20 @@ export const SettingsPage = () => {
     periodo: 'mensual',
   });
 
+  const [integrations, setIntegrations] = useState({
+    vapi_api_key: '',
+    vapi_phone_number_id: '',
+    vapi_assistant_id: '',
+    twilio_account_sid: '',
+    twilio_auth_token: '',
+    twilio_phone_number: '',
+    vapi_enabled: false,
+    twilio_enabled: false
+  });
+
   useEffect(() => {
     loadGoals();
+    loadIntegrations();
   }, []);
 
   const loadGoals = async () => {
@@ -33,6 +56,15 @@ export const SettingsPage = () => {
       setGoals(res.data);
     } catch (error) {
       console.error('Error loading goals:', error);
+    }
+  };
+
+  const loadIntegrations = async () => {
+    try {
+      const res = await api.get('/settings/integrations');
+      setIntegrations(res.data);
+    } catch (error) {
+      console.error('Error loading integrations:', error);
     }
   };
 
@@ -48,147 +80,371 @@ export const SettingsPage = () => {
     }
   };
 
+  const handleSaveIntegrations = async () => {
+    setLoading(true);
+    try {
+      const res = await api.put('/settings/integrations', integrations);
+      toast.success('Integraciones actualizadas');
+      setIntegrations(prev => ({
+        ...prev,
+        vapi_enabled: res.data.vapi_enabled,
+        twilio_enabled: res.data.twilio_enabled
+      }));
+      loadIntegrations();
+    } catch (error) {
+      toast.error('Error al guardar integraciones');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestVapi = async () => {
+    setTestingVapi(true);
+    try {
+      await api.post('/settings/integrations/test-vapi');
+      toast.success('Conexión VAPI exitosa');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error de conexión VAPI');
+    } finally {
+      setTestingVapi(false);
+    }
+  };
+
+  const handleTestTwilio = async () => {
+    setTestingTwilio(true);
+    try {
+      const res = await api.post('/settings/integrations/test-twilio');
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error de conexión Twilio');
+    } finally {
+      setTestingTwilio(false);
+    }
+  };
+
   return (
-    <div className="p-8 space-y-6" data-testid="settings-page">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6" data-testid="settings-page">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold font-['Outfit']">Configuración</h1>
-        <p className="text-muted-foreground">Personaliza tu experiencia</p>
+        <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Configuración</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Personaliza tu experiencia e integraciones</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Profile */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Perfil</CardTitle>
-                <CardDescription>Tu información de cuenta</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input value={user?.name || ''} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={user?.email || ''} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label>Rol</Label>
-              <Input value={user?.role || ''} disabled className="capitalize" />
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="general" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="general" className="gap-2">
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="gap-2">
+            <Zap className="w-4 h-4" />
+            <span className="hidden sm:inline">Integraciones</span>
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Appearance */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                {theme === 'dark' ? <Moon className="w-5 h-5 text-accent" /> : <Sun className="w-5 h-5 text-accent" />}
-              </div>
-              <div>
-                <CardTitle>Apariencia</CardTitle>
-                <CardDescription>Personaliza el tema</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Modo Oscuro</p>
-                <p className="text-sm text-muted-foreground">
-                  Cambia entre tema claro y oscuro
-                </p>
-              </div>
-              <Switch
-                checked={theme === 'dark'}
-                onCheckedChange={toggleTheme}
-                data-testid="theme-switch"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* General Settings */}
+        <TabsContent value="general" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Profile */}
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Perfil</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Tu información de cuenta</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Nombre</Label>
+                  <Input value={user?.name || ''} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Email</Label>
+                  <Input value={user?.email || ''} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Rol</Label>
+                  <Input value={user?.role || ''} disabled className="capitalize" />
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Goals */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-                <Target className="w-5 h-5 text-secondary" />
+            {/* Appearance */}
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+                    {theme === 'dark' ? <Moon className="w-5 h-5 text-accent" /> : <Sun className="w-5 h-5 text-accent" />}
+                  </div>
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Apariencia</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Personaliza el tema</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm sm:text-base">Modo Oscuro</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Cambia entre tema claro y oscuro
+                    </p>
+                  </div>
+                  <Switch
+                    checked={theme === 'dark'}
+                    onCheckedChange={toggleTheme}
+                    data-testid="theme-switch"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Goals */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-secondary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Metas y KPIs</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Define tus objetivos mensuales</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Ventas por mes</Label>
+                    <Input
+                      type="number"
+                      value={goals.ventas_mes}
+                      onChange={(e) => setGoals({ ...goals, ventas_mes: parseInt(e.target.value) || 0 })}
+                      min={1}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Apartados por mes</Label>
+                    <Input
+                      type="number"
+                      value={goals.apartados_mes}
+                      onChange={(e) => setGoals({ ...goals, apartados_mes: parseInt(e.target.value) || 0 })}
+                      min={1}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Leads a contactar</Label>
+                    <Input
+                      type="number"
+                      value={goals.leads_contactados}
+                      onChange={(e) => setGoals({ ...goals, leads_contactados: parseInt(e.target.value) || 0 })}
+                      min={1}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Ingresos objetivo (MXN)</Label>
+                    <Input
+                      type="number"
+                      value={goals.ingresos_objetivo}
+                      onChange={(e) => setGoals({ ...goals, ingresos_objetivo: parseFloat(e.target.value) || 0 })}
+                      min={0}
+                      step={50000}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Tasa de conversión objetivo (%)</Label>
+                    <Input
+                      type="number"
+                      value={goals.tasa_conversion}
+                      onChange={(e) => setGoals({ ...goals, tasa_conversion: parseFloat(e.target.value) || 0 })}
+                      min={1}
+                      max={100}
+                    />
+                  </div>
+                </div>
+                <Separator />
+                <Button onClick={handleSaveGoals} disabled={loading} className="rounded-full w-full sm:w-auto">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  Guardar Metas
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Integrations */}
+        <TabsContent value="integrations" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* VAPI */}
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base sm:text-lg">VAPI</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Llamadas con IA</CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant={integrations.vapi_enabled ? "default" : "secondary"}>
+                    {integrations.vapi_enabled ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Activo</>
+                    ) : (
+                      <><XCircle className="w-3 h-3 mr-1" /> Inactivo</>
+                    )}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">API Key</Label>
+                  <div className="relative">
+                    <Input
+                      type={showVapiKey ? "text" : "password"}
+                      value={integrations.vapi_api_key}
+                      onChange={(e) => setIntegrations({ ...integrations, vapi_api_key: e.target.value })}
+                      placeholder="vapi_xxxxxxxxxxxx"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setShowVapiKey(!showVapiKey)}
+                    >
+                      {showVapiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Phone Number ID</Label>
+                  <Input
+                    value={integrations.vapi_phone_number_id}
+                    onChange={(e) => setIntegrations({ ...integrations, vapi_phone_number_id: e.target.value })}
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Assistant ID</Label>
+                  <Input
+                    value={integrations.vapi_assistant_id}
+                    onChange={(e) => setIntegrations({ ...integrations, vapi_assistant_id: e.target.value })}
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  />
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleTestVapi}
+                  disabled={testingVapi || !integrations.vapi_api_key}
+                  className="w-full"
+                >
+                  {testingVapi ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TestTube className="w-4 h-4 mr-2" />}
+                  Probar Conexión
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Twilio */}
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                      <MessageSquare className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base sm:text-lg">Twilio</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">SMS Masivos</CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant={integrations.twilio_enabled ? "default" : "secondary"}>
+                    {integrations.twilio_enabled ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Activo</>
+                    ) : (
+                      <><XCircle className="w-3 h-3 mr-1" /> Inactivo</>
+                    )}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Account SID</Label>
+                  <Input
+                    value={integrations.twilio_account_sid}
+                    onChange={(e) => setIntegrations({ ...integrations, twilio_account_sid: e.target.value })}
+                    placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Auth Token</Label>
+                  <div className="relative">
+                    <Input
+                      type={showTwilioToken ? "text" : "password"}
+                      value={integrations.twilio_auth_token}
+                      onChange={(e) => setIntegrations({ ...integrations, twilio_auth_token: e.target.value })}
+                      placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setShowTwilioToken(!showTwilioToken)}
+                    >
+                      {showTwilioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Número de Teléfono</Label>
+                  <Input
+                    value={integrations.twilio_phone_number}
+                    onChange={(e) => setIntegrations({ ...integrations, twilio_phone_number: e.target.value })}
+                    placeholder="+1234567890"
+                  />
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleTestTwilio}
+                  disabled={testingTwilio || !integrations.twilio_account_sid}
+                  className="w-full"
+                >
+                  {testingTwilio ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TestTube className="w-4 h-4 mr-2" />}
+                  Probar Conexión
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-sm sm:text-base">Guardar Configuración de Integraciones</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Las credenciales se guardan de forma segura
+                  </p>
+                </div>
+                <Button onClick={handleSaveIntegrations} disabled={loading} className="rounded-full w-full sm:w-auto">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  Guardar Integraciones
+                </Button>
               </div>
-              <div>
-                <CardTitle>Metas y KPIs</CardTitle>
-                <CardDescription>Define tus objetivos mensuales</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Ventas por mes</Label>
-                <Input
-                  type="number"
-                  value={goals.ventas_mes}
-                  onChange={(e) => setGoals({ ...goals, ventas_mes: parseInt(e.target.value) || 0 })}
-                  min={1}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Apartados por mes</Label>
-                <Input
-                  type="number"
-                  value={goals.apartados_mes}
-                  onChange={(e) => setGoals({ ...goals, apartados_mes: parseInt(e.target.value) || 0 })}
-                  min={1}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Leads a contactar</Label>
-                <Input
-                  type="number"
-                  value={goals.leads_contactados}
-                  onChange={(e) => setGoals({ ...goals, leads_contactados: parseInt(e.target.value) || 0 })}
-                  min={1}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Ingresos objetivo (MXN)</Label>
-                <Input
-                  type="number"
-                  value={goals.ingresos_objetivo}
-                  onChange={(e) => setGoals({ ...goals, ingresos_objetivo: parseFloat(e.target.value) || 0 })}
-                  min={0}
-                  step={50000}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Tasa de conversión objetivo (%)</Label>
-                <Input
-                  type="number"
-                  value={goals.tasa_conversion}
-                  onChange={(e) => setGoals({ ...goals, tasa_conversion: parseFloat(e.target.value) || 0 })}
-                  min={1}
-                  max={100}
-                />
-              </div>
-            </div>
-            <Separator />
-            <Button onClick={handleSaveGoals} disabled={loading} className="rounded-full">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-              Guardar Metas
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

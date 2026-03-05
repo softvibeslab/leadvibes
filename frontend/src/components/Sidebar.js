@@ -14,7 +14,8 @@ import {
   Moon,
   Leaf,
   Trophy,
-  X
+  X,
+  Radio
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -24,6 +25,7 @@ const individualNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
+  { to: '/campaigns', icon: Radio, label: 'Campañas' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
 ];
@@ -34,6 +36,7 @@ const agencyNavItems = [
   { to: '/leads', icon: Users, label: 'Pipeline' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
+  { to: '/campaigns', icon: Radio, label: 'Campañas' },
   { to: '/gamification', icon: Trophy, label: 'Gamificación' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
