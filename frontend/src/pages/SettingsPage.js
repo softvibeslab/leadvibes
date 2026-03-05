@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { 
   Settings, User, Target, Moon, Sun, Save, Loader2, 
   Phone, MessageSquare, CheckCircle, XCircle, Eye, EyeOff,
-  TestTube, Zap
+  TestTube, Zap, Mail
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -22,8 +22,10 @@ export const SettingsPage = () => {
   const [loading, setLoading] = useState(false);
   const [testingVapi, setTestingVapi] = useState(false);
   const [testingTwilio, setTestingTwilio] = useState(false);
+  const [testingSendgrid, setTestingSendgrid] = useState(false);
   const [showVapiKey, setShowVapiKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
+  const [showSendgridKey, setShowSendgridKey] = useState(false);
   
   const [goals, setGoals] = useState({
     ventas_mes: 5,
@@ -41,8 +43,12 @@ export const SettingsPage = () => {
     twilio_account_sid: '',
     twilio_auth_token: '',
     twilio_phone_number: '',
+    sendgrid_api_key: '',
+    sendgrid_sender_email: '',
+    sendgrid_sender_name: '',
     vapi_enabled: false,
-    twilio_enabled: false
+    twilio_enabled: false,
+    sendgrid_enabled: false
   });
 
   useEffect(() => {
@@ -88,7 +94,8 @@ export const SettingsPage = () => {
       setIntegrations(prev => ({
         ...prev,
         vapi_enabled: res.data.vapi_enabled,
-        twilio_enabled: res.data.twilio_enabled
+        twilio_enabled: res.data.twilio_enabled,
+        sendgrid_enabled: res.data.sendgrid_enabled
       }));
       loadIntegrations();
     } catch (error) {
@@ -119,6 +126,18 @@ export const SettingsPage = () => {
       toast.error(error.response?.data?.detail || 'Error de conexión Twilio');
     } finally {
       setTestingTwilio(false);
+    }
+  };
+
+  const handleTestSendgrid = async () => {
+    setTestingSendgrid(true);
+    try {
+      const res = await api.post('/settings/integrations/test-sendgrid');
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error de conexión SendGrid');
+    } finally {
+      setTestingSendgrid(false);
     }
   };
 
@@ -421,6 +440,81 @@ export const SettingsPage = () => {
                   className="w-full"
                 >
                   {testingTwilio ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TestTube className="w-4 h-4 mr-2" />}
+                  Probar Conexión
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* SendGrid */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-purple-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base sm:text-lg">SendGrid</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Email Marketing</CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant={integrations.sendgrid_enabled ? "default" : "secondary"}>
+                    {integrations.sendgrid_enabled ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Activo</>
+                    ) : (
+                      <><XCircle className="w-3 h-3 mr-1" /> Inactivo</>
+                    )}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm">API Key</Label>
+                    <div className="relative">
+                      <Input
+                        type={showSendgridKey ? "text" : "password"}
+                        value={integrations.sendgrid_api_key}
+                        onChange={(e) => setIntegrations({ ...integrations, sendgrid_api_key: e.target.value })}
+                        placeholder="SG.xxxxxxxxxxxx"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
+                        onClick={() => setShowSendgridKey(!showSendgridKey)}
+                      >
+                        {showSendgridKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Email Remitente</Label>
+                    <Input
+                      type="email"
+                      value={integrations.sendgrid_sender_email}
+                      onChange={(e) => setIntegrations({ ...integrations, sendgrid_sender_email: e.target.value })}
+                      placeholder="ventas@tudominio.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Nombre Remitente</Label>
+                    <Input
+                      value={integrations.sendgrid_sender_name}
+                      onChange={(e) => setIntegrations({ ...integrations, sendgrid_sender_name: e.target.value })}
+                      placeholder="LeadVibes"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleTestSendgrid}
+                  disabled={testingSendgrid || !integrations.sendgrid_api_key}
+                  className="w-full mt-4"
+                >
+                  {testingSendgrid ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TestTube className="w-4 h-4 mr-2" />}
                   Probar Conexión
                 </Button>
               </CardContent>

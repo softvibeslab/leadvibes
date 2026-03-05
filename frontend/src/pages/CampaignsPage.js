@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   Phone, MessageSquare, Plus, Play, Pause, CheckCircle, Clock,
   Users, Send, Loader2, PhoneCall, MessageCircle, BarChart3,
-  Brain, TrendingUp, AlertCircle, Filter, Search, X, Eye
+  Brain, TrendingUp, AlertCircle, Filter, Search, X, Eye, Mail, MailOpen
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -59,16 +59,21 @@ const CampaignCard = ({ campaign, onStart, onViewDetails }) => {
     ? (campaign.sent_count / campaign.total_recipients) * 100 
     : 0;
 
+  const getTypeIcon = () => {
+    switch(campaign.campaign_type) {
+      case 'call': return <Phone className="w-4 h-4 text-blue-500" />;
+      case 'sms': return <MessageSquare className="w-4 h-4 text-green-500" />;
+      case 'email': return <Mail className="w-4 h-4 text-purple-500" />;
+      default: return <Send className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            {campaign.campaign_type === 'call' ? (
-              <Phone className="w-4 h-4 text-blue-500" />
-            ) : (
-              <MessageSquare className="w-4 h-4 text-green-500" />
-            )}
+            {getTypeIcon()}
             <h3 className="font-medium text-sm truncate">{campaign.name}</h3>
           </div>
           <Badge className={`${status.color} text-white text-xs`}>
@@ -174,6 +179,48 @@ const SMSRecordCard = ({ record }) => {
   );
 };
 
+// Email Record Card
+const EmailRecordCard = ({ record }) => {
+  const statusColors = {
+    queued: 'bg-gray-400',
+    sent: 'bg-blue-400',
+    delivered: 'bg-green-500',
+    opened: 'bg-purple-500',
+    clicked: 'bg-primary',
+    bounced: 'bg-orange-400',
+    failed: 'bg-red-500',
+  };
+
+  const statusLabels = {
+    queued: 'En cola',
+    sent: 'Enviado',
+    delivered: 'Entregado',
+    opened: 'Abierto',
+    clicked: 'Click',
+    bounced: 'Rebotado',
+    failed: 'Fallido',
+  };
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+      <div className={`w-2 h-2 rounded-full ${statusColors[record.status] || 'bg-gray-400'}`} />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{record.lead_name || 'Lead'}</p>
+        <p className="text-xs text-muted-foreground truncate">{record.subject}</p>
+      </div>
+      <div className="text-right">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          {record.status === 'opened' && <MailOpen className="w-3 h-3 text-purple-500" />}
+          <span>{statusLabels[record.status] || record.status}</span>
+        </div>
+        {record.sent_at && (
+          <p className="text-xs">{format(new Date(record.sent_at), "d MMM HH:mm", { locale: es })}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Analysis Modal (DEMO)
 const AnalysisModal = ({ isOpen, onClose, analysis }) => {
   if (!analysis) return null;
@@ -273,6 +320,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
     name: '',
     campaign_type: 'call',
     message_template: '',
+    email_subject: '',
     lead_ids: [],
     use_filter: false,
     filter_status: [],
@@ -294,6 +342,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
         name: form.name,
         campaign_type: form.campaign_type,
         message_template: form.message_template,
+        email_subject: form.email_subject,
         lead_ids: form.use_filter ? [] : form.lead_ids,
         lead_filter: form.use_filter ? {
           status: form.filter_status.length > 0 ? form.filter_status : undefined,
@@ -309,6 +358,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
         name: '',
         campaign_type: 'call',
         message_template: '',
+        email_subject: '',
         lead_ids: [],
         use_filter: false,
         filter_status: [],
@@ -377,6 +427,11 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
                     <MessageSquare className="w-4 h-4" /> SMS (Twilio)
                   </div>
                 </SelectItem>
+                <SelectItem value="email">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" /> Email (SendGrid)
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -393,6 +448,32 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
               <p className="text-xs text-muted-foreground">
                 Usa {'{nombre}'} para personalizar con el nombre del lead
               </p>
+            </div>
+          )}
+          
+          {form.campaign_type === 'email' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Asunto del Email</Label>
+                <Input
+                  value={form.email_subject}
+                  onChange={(e) => setForm({ ...form, email_subject: e.target.value })}
+                  placeholder="¡Hola {nombre}! Tenemos una propiedad perfecta para ti"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Contenido HTML</Label>
+                <Textarea
+                  value={form.message_template}
+                  onChange={(e) => setForm({ ...form, message_template: e.target.value })}
+                  placeholder={`<h1>Hola {nombre}</h1>\n<p>Te presentamos las mejores opciones...</p>\n<a href="#">Ver propiedades</a>`}
+                  rows={6}
+                  className="font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usa {'{nombre}'} para personalizar. Soporta HTML completo.
+                </p>
+              </div>
             </div>
           )}
           
@@ -484,12 +565,13 @@ export const CampaignsPage = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [callRecords, setCallRecords] = useState([]);
   const [smsRecords, setSmsRecords] = useState([]);
+  const [emailRecords, setEmailRecords] = useState([]);
   const [leads, setLeads] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
-  const [integrationStatus, setIntegrationStatus] = useState({ vapi: false, twilio: false });
+  const [integrationStatus, setIntegrationStatus] = useState({ vapi: false, twilio: false, sendgrid: false });
 
   useEffect(() => {
     loadData();
@@ -497,10 +579,11 @@ export const CampaignsPage = () => {
 
   const loadData = async () => {
     try {
-      const [campaignsRes, callsRes, smsRes, leadsRes, analyticsRes, settingsRes] = await Promise.all([
+      const [campaignsRes, callsRes, smsRes, emailsRes, leadsRes, analyticsRes, settingsRes] = await Promise.all([
         api.get('/campaigns'),
         api.get('/calls'),
         api.get('/sms'),
+        api.get('/emails'),
         api.get('/leads'),
         api.get('/analytics/communications'),
         api.get('/settings/integrations')
@@ -508,11 +591,13 @@ export const CampaignsPage = () => {
       setCampaigns(campaignsRes.data);
       setCallRecords(callsRes.data);
       setSmsRecords(smsRes.data);
+      setEmailRecords(emailsRes.data);
       setLeads(leadsRes.data);
       setAnalytics(analyticsRes.data);
       setIntegrationStatus({
         vapi: settingsRes.data.vapi_enabled,
-        twilio: settingsRes.data.twilio_enabled
+        twilio: settingsRes.data.twilio_enabled,
+        sendgrid: settingsRes.data.sendgrid_enabled
       });
     } catch (error) {
       console.error('Error loading data:', error);
@@ -566,7 +651,7 @@ export const CampaignsPage = () => {
       </div>
 
       {/* Integration Status Warning */}
-      {(!integrationStatus.vapi || !integrationStatus.twilio) && (
+      {(!integrationStatus.vapi || !integrationStatus.twilio || !integrationStatus.sendgrid) && (
         <Card className="border-amber-500/50 bg-amber-500/5">
           <CardContent className="p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
@@ -575,6 +660,7 @@ export const CampaignsPage = () => {
               <p className="text-xs text-muted-foreground">
                 {!integrationStatus.vapi && 'VAPI no configurado. '}
                 {!integrationStatus.twilio && 'Twilio no configurado. '}
+                {!integrationStatus.sendgrid && 'SendGrid no configurado. '}
                 Ve a Configuración {'>'} Integraciones para activar.
               </p>
             </div>
@@ -583,7 +669,7 @@ export const CampaignsPage = () => {
       )}
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -605,7 +691,20 @@ export const CampaignsPage = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{analytics?.sms?.total || 0}</p>
-                <p className="text-xs text-muted-foreground">SMS Enviados</p>
+                <p className="text-xs text-muted-foreground">SMS</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                <Mail className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{analytics?.emails?.total || 0}</p>
+                <p className="text-xs text-muted-foreground">Emails</p>
               </div>
             </div>
           </CardContent>
@@ -614,11 +713,11 @@ export const CampaignsPage = () => {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-primary" />
+                <MailOpen className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{analytics?.calls?.success_rate || 0}%</p>
-                <p className="text-xs text-muted-foreground">Tasa Éxito</p>
+                <p className="text-2xl font-bold">{analytics?.emails?.open_rate || 0}%</p>
+                <p className="text-xs text-muted-foreground">Tasa Apertura</p>
               </div>
             </div>
           </CardContent>
@@ -640,7 +739,7 @@ export const CampaignsPage = () => {
 
       {/* Main Content */}
       <Tabs defaultValue="campaigns" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
           <TabsTrigger value="campaigns" className="gap-2">
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">Campañas</span>
@@ -652,6 +751,10 @@ export const CampaignsPage = () => {
           <TabsTrigger value="sms" className="gap-2">
             <MessageSquare className="w-4 h-4" />
             <span className="hidden sm:inline">SMS</span>
+          </TabsTrigger>
+          <TabsTrigger value="emails" className="gap-2">
+            <Mail className="w-4 h-4" />
+            <span className="hidden sm:inline">Emails</span>
           </TabsTrigger>
         </TabsList>
 
@@ -745,6 +848,37 @@ export const CampaignsPage = () => {
                 <div className="text-center py-8">
                   <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
                   <p className="text-muted-foreground text-sm">No hay SMS registrados</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Emails Tab */}
+        <TabsContent value="emails">
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Mail className="w-5 h-5 text-purple-500" />
+                Historial de Emails
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Emails enviados con SendGrid • {analytics?.emails?.open_rate || 0}% tasa de apertura
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              {emailRecords.length > 0 ? (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-2">
+                    {emailRecords.map(record => (
+                      <EmailRecordCard key={record.id} record={record} />
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8">
+                  <Mail className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground text-sm">No hay emails registrados</p>
                 </div>
               )}
             </CardContent>

@@ -24,7 +24,9 @@ from models import (
     Campaign, CampaignCreate, CampaignType, CampaignStatus,
     CallRecord, CallRecordCreate, CallStatus,
     SMSRecord, SMSRecordCreate, SMSStatus,
-    ConversationAnalysis
+    ConversationAnalysis,
+    EmailRecord, EmailRecordCreate, EmailStatus,
+    EmailTemplate, EmailTemplateCreate
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
@@ -973,8 +975,12 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
             "twilio_account_sid": "",
             "twilio_auth_token": "",
             "twilio_phone_number": "",
+            "sendgrid_api_key": "",
+            "sendgrid_sender_email": "",
+            "sendgrid_sender_name": "",
             "vapi_enabled": False,
-            "twilio_enabled": False
+            "twilio_enabled": False,
+            "sendgrid_enabled": False
         }
     # Mask sensitive data
     result = serialize_doc(settings)
@@ -982,6 +988,8 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
         result["vapi_api_key"] = "••••••••" + result["vapi_api_key"][-4:]
     if result.get("twilio_auth_token"):
         result["twilio_auth_token"] = "••••••••" + result["twilio_auth_token"][-4:]
+    if result.get("sendgrid_api_key"):
+        result["sendgrid_api_key"] = "••••••••" + result["sendgrid_api_key"][-4:]
     return result
 
 @api_router.put("/settings/integrations")
@@ -1021,6 +1029,10 @@ async def update_integration_settings(
         current.get("twilio_auth_token") and 
         current.get("twilio_phone_number")
     )
+    update_dict["sendgrid_enabled"] = bool(
+        current.get("sendgrid_api_key") and 
+        current.get("sendgrid_sender_email")
+    )
     update_dict["updated_at"] = datetime.now(timezone.utc)
     
     if existing:
@@ -1037,7 +1049,12 @@ async def update_integration_settings(
         }
         await db.integration_settings.insert_one(new_settings)
     
-    return {"message": "Configuración actualizada", "vapi_enabled": update_dict["vapi_enabled"], "twilio_enabled": update_dict["twilio_enabled"]}
+    return {
+        "message": "Configuración actualizada", 
+        "vapi_enabled": update_dict.get("vapi_enabled", False), 
+        "twilio_enabled": update_dict.get("twilio_enabled", False),
+        "sendgrid_enabled": update_dict.get("sendgrid_enabled", False)
+    }
 
 @api_router.post("/settings/integrations/test-vapi")
 async def test_vapi_connection(current_user: dict = Depends(get_current_user)):
@@ -1231,6 +1248,64 @@ async def start_campaign(
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error Twilio: {str(e)}")
     
+    elif campaign["campaign_type"] == CampaignType.EMAIL.value:
+        # Process Emails with SendGrid
+        if not settings or not settings.get("sendgrid_enabled"):
+            raise HTTPException(status_code=400, detail="SendGrid no está configurado")
+        
+        try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking
+            
+            sg = SendGridAPIClient(settings["sendgrid_api_key"])
+            
+            for lead in leads:
+                if not lead.get("email"):
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: Sin email")
+                    continue
+                    
+                try:
+                    # Personalize message
+                    subject = campaign.get("email_subject", "Mensaje de LeadVibes").replace("{nombre}", lead["name"])
+                    html_content = campaign.get("message_template", "").replace("{nombre}", lead["name"])
+                    
+                    message = Mail(
+                        from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "LeadVibes")),
+                        to_emails=lead["email"],
+                        subject=subject,
+                        html_content=html_content
+                    )
+                    
+                    # Enable tracking
+                    tracking_settings = TrackingSettings()
+                    tracking_settings.click_tracking = ClickTracking(enable=True)
+                    tracking_settings.open_tracking = OpenTracking(enable=True)
+                    message.tracking_settings = tracking_settings
+                    
+                    response = sg.send(message)
+                    
+                    email_record = EmailRecord(
+                        user_id=current_user["id"],
+                        tenant_id=tenant_id,
+                        lead_id=lead["id"],
+                        lead_name=lead["name"],
+                        email=lead["email"],
+                        subject=subject,
+                        html_content=html_content,
+                        campaign_id=campaign_id,
+                        sendgrid_id=response.headers.get("X-Message-Id", ""),
+                        status=EmailStatus.SENT if response.status_code == 202 else EmailStatus.FAILED,
+                        sent_at=datetime.now(timezone.utc)
+                    )
+                    await db.email_records.insert_one(email_record.model_dump())
+                    results["success"] += 1
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error SendGrid: {str(e)}")
+    
     # Update campaign
     await db.campaigns.update_one(
         {"id": campaign_id},
@@ -1366,6 +1441,135 @@ async def send_single_sms(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al enviar SMS: {str(e)}")
 
+# ==================== EMAIL RECORDS ====================
+
+@api_router.get("/emails")
+async def get_email_records(
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get email history"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    emails = await db.email_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(e) for e in emails]
+
+@api_router.post("/emails/single")
+async def send_single_email(
+    email_data: EmailRecordCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send a single email to a lead"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("sendgrid_enabled"):
+        raise HTTPException(status_code=400, detail="SendGrid no está configurado")
+    
+    # Get lead info
+    lead = await db.leads.find_one({"id": email_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking
+        
+        sg = SendGridAPIClient(settings["sendgrid_api_key"])
+        
+        message = Mail(
+            from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "LeadVibes")),
+            to_emails=email_data.email,
+            subject=email_data.subject,
+            html_content=email_data.html_content
+        )
+        
+        # Enable click and open tracking
+        tracking_settings = TrackingSettings()
+        tracking_settings.click_tracking = ClickTracking(enable=True)
+        tracking_settings.open_tracking = OpenTracking(enable=True)
+        message.tracking_settings = tracking_settings
+        
+        response = sg.send(message)
+        
+        email_record = EmailRecord(
+            user_id=current_user["id"],
+            tenant_id=tenant_id,
+            lead_id=email_data.lead_id,
+            lead_name=lead["name"],
+            email=email_data.email,
+            subject=email_data.subject,
+            html_content=email_data.html_content,
+            campaign_id=email_data.campaign_id,
+            sendgrid_id=response.headers.get("X-Message-Id", ""),
+            status=EmailStatus.SENT if response.status_code == 202 else EmailStatus.FAILED,
+            sent_at=datetime.now(timezone.utc)
+        )
+        await db.email_records.insert_one(email_record.model_dump())
+        
+        return serialize_doc(email_record.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar email: {str(e)}")
+
+@api_router.post("/settings/integrations/test-sendgrid")
+async def test_sendgrid_connection(current_user: dict = Depends(get_current_user)):
+    """Test SendGrid connection"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    if not settings or not settings.get("sendgrid_api_key"):
+        raise HTTPException(status_code=400, detail="SendGrid no configurado")
+    
+    try:
+        from sendgrid import SendGridAPIClient
+        sg = SendGridAPIClient(settings["sendgrid_api_key"])
+        # Test API key by getting sender identities
+        response = sg.client.verified_senders.get()
+        return {"status": "success", "message": "Conexión exitosa con SendGrid"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+
+# ==================== EMAIL TEMPLATES ====================
+
+@api_router.get("/email-templates")
+async def get_email_templates(current_user: dict = Depends(get_current_user)):
+    """Get all email templates"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    templates = await db.email_templates.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return [serialize_doc(t) for t in templates]
+
+@api_router.post("/email-templates")
+async def create_email_template(
+    template_data: EmailTemplateCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new email template"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    
+    template = EmailTemplate(
+        **template_data.model_dump(),
+        user_id=current_user["id"],
+        tenant_id=tenant_id
+    )
+    
+    await db.email_templates.insert_one(template.model_dump())
+    return serialize_doc(template.model_dump())
+
+@api_router.delete("/email-templates/{template_id}")
+async def delete_email_template(
+    template_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete an email template"""
+    tenant_id = await get_or_create_tenant(current_user["id"])
+    result = await db.email_templates.delete_one({"id": template_id, "tenant_id": tenant_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    return {"message": "Plantilla eliminada"}
+
 # ==================== CONVERSATION ANALYSIS (DEMO/MOCKUP) ====================
 
 @api_router.get("/calls/{call_id}/analysis")
@@ -1440,6 +1644,16 @@ async def get_communications_analytics(
         {"_id": 0}
     ).sort("created_at", -1).to_list(5)
     
+    # Get email stats
+    total_emails = await db.email_records.count_documents({"tenant_id": tenant_id})
+    sent_emails = await db.email_records.count_documents({"tenant_id": tenant_id, "status": {"$in": ["sent", "delivered", "opened", "clicked"]}})
+    opened_emails = await db.email_records.count_documents({"tenant_id": tenant_id, "status": {"$in": ["opened", "clicked"]}})
+    
+    recent_emails = await db.email_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5)
+    
     return {
         "calls": {
             "total": total_calls,
@@ -1451,11 +1665,18 @@ async def get_communications_analytics(
             "delivered": delivered_sms,
             "delivery_rate": round((delivered_sms / total_sms * 100) if total_sms > 0 else 0, 1)
         },
+        "emails": {
+            "total": total_emails,
+            "sent": sent_emails,
+            "opened": opened_emails,
+            "open_rate": round((opened_emails / sent_emails * 100) if sent_emails > 0 else 0, 1)
+        },
         "campaigns": {
             "total": total_campaigns
         },
         "recent_calls": [serialize_doc(c) for c in recent_calls],
-        "recent_sms": [serialize_doc(s) for s in recent_sms]
+        "recent_sms": [serialize_doc(s) for s in recent_sms],
+        "recent_emails": [serialize_doc(e) for e in recent_emails]
     }
 
 # Include the router in the main app

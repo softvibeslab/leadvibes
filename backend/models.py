@@ -266,7 +266,7 @@ class CalendarEvent(CalendarEventCreate):
 # ==================== INTEGRATION SETTINGS ====================
 
 class IntegrationSettings(BaseModel):
-    """Settings for external integrations (VAPI, Twilio)"""
+    """Settings for external integrations (VAPI, Twilio, SendGrid)"""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     user_id: str
@@ -279,9 +279,14 @@ class IntegrationSettings(BaseModel):
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
     twilio_phone_number: Optional[str] = None
+    # SendGrid Settings
+    sendgrid_api_key: Optional[str] = None
+    sendgrid_sender_email: Optional[str] = None
+    sendgrid_sender_name: Optional[str] = None
     # Status
     vapi_enabled: bool = False
     twilio_enabled: bool = False
+    sendgrid_enabled: bool = False
     updated_at: datetime = Field(default_factory=now_utc)
 
 class IntegrationSettingsUpdate(BaseModel):
@@ -292,12 +297,16 @@ class IntegrationSettingsUpdate(BaseModel):
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
     twilio_phone_number: Optional[str] = None
+    sendgrid_api_key: Optional[str] = None
+    sendgrid_sender_email: Optional[str] = None
+    sendgrid_sender_name: Optional[str] = None
 
 # ==================== CAMPAIGNS ====================
 
 class CampaignType(str, Enum):
     CALL = "call"
     SMS = "sms"
+    EMAIL = "email"
 
 class CampaignStatus(str, Enum):
     DRAFT = "draft"
@@ -419,4 +428,63 @@ class ConversationAnalysis(BaseModel):
     follow_up_recommended: bool = False
     follow_up_reason: Optional[str] = None
     confidence_score: float = 0.0
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== EMAIL RECORDS ====================
+
+class EmailStatus(str, Enum):
+    QUEUED = "queued"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    OPENED = "opened"
+    CLICKED = "clicked"
+    BOUNCED = "bounced"
+    FAILED = "failed"
+
+class EmailTemplate(BaseModel):
+    """Email template model"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    name: str
+    subject: str
+    html_content: str
+    variables: List[str] = []  # e.g., ["nombre", "propiedad", "precio"]
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+class EmailTemplateCreate(BaseModel):
+    name: str
+    subject: str
+    html_content: str
+    variables: List[str] = []
+
+class EmailRecordCreate(BaseModel):
+    """Create an email record"""
+    lead_id: str
+    email: str
+    subject: str
+    html_content: str
+    campaign_id: Optional[str] = None
+
+class EmailRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    lead_id: str
+    lead_name: Optional[str] = None
+    email: str
+    subject: str
+    html_content: str
+    campaign_id: Optional[str] = None
+    sendgrid_id: Optional[str] = None
+    status: EmailStatus = EmailStatus.QUEUED
+    error_message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    opened_at: Optional[datetime] = None
+    clicked_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
