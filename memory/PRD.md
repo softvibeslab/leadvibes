@@ -55,6 +55,17 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
   - SendGrid (Email)
 - Theme toggle (light/dark)
 
+### Lead Import Module (NEW - Mar 5, 2026)
+- Multi-step wizard to import leads from CSV/Excel files
+- Step 1: Upload file (drag & drop, CSV, XLSX, XLS)
+- Step 2: Map columns to lead fields (auto-suggestions)
+- Step 3: Preview data with validation
+- Step 4: Import results summary
+- Auto-detection of common column names (Nombre, Email, Telefono, etc.)
+- Duplicate detection by email or phone
+- Compatible with GHL, HubSpot, Pipedrive exports
+- API Endpoints: /api/import/upload, /api/import/preview, /api/import/execute
+
 ### AI Assistant
 - Contextual chat powered by OpenAI GPT-4o
 - Sales-focused responses
@@ -85,6 +96,7 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
 - ✅ Settings integrations page
 - ✅ KPI detail modals on Dashboard click
 - ✅ Renamed app from "LeadVibes" to "Rovi"
+- ✅ **Lead Import Module** - Multi-step wizard (Upload → Map → Preview → Import)
 
 ### Modified
 - ✅ Sidebar simplified navigation code
@@ -109,6 +121,14 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
 - GET /api/sms, POST /api/sms/single
 - GET /api/emails, POST /api/emails/single
 - GET/POST /api/email-templates
+
+### Import
+- POST /api/import/upload - Upload CSV/Excel file
+- POST /api/import/preview - Preview with column mapping
+- POST /api/import/execute - Execute import
+- GET /api/import/fields - Available target fields
+- GET /api/import/jobs - Import job history
+- GET /api/import/template - Download CSV template
 
 ### Settings
 - GET/PUT /api/settings/integrations
@@ -140,4 +160,4 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
 - [ ] Push notifications
 - [ ] Mobile app version
 - [ ] Custom gamification rules editor
-- [ ] Lead import/export (CSV)
+- [x] ~~Lead import/export (CSV)~~ **COMPLETED**
