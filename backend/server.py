@@ -378,30 +378,43 @@ async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current
         }
     
     elif kpi_type == "brokers":
-        # Get brokers with stats
+        # Get brokers with stats using aggregation (avoid N+1)
         brokers = await db.users.find(
             {"tenant_id": tenant_id, "role": {"$in": ["broker", "manager"]}, "is_active": True},
             {"_id": 0, "password_hash": 0}
         ).to_list(50)
         
+        broker_ids = [b["id"] for b in brokers]
+        
+        # Batch get lead stats
+        leads_pipeline = [
+            {"$match": {"assigned_broker_id": {"$in": broker_ids}}},
+            {"$group": {
+                "_id": "$assigned_broker_id",
+                "leads_count": {"$sum": 1},
+                "ventas": {"$sum": {"$cond": [{"$eq": ["$status", "venta"]}, 1, 0]}}
+            }}
+        ]
+        leads_stats = await db.leads.aggregate(leads_pipeline).to_list(None)
+        leads_map = {s["_id"]: s for s in leads_stats}
+        
+        # Batch get points
+        points_pipeline = [
+            {"$match": {"broker_id": {"$in": broker_ids}}},
+            {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}}
+        ]
+        points_stats = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+        points_map = {p["_id"]: p["total"] for p in points_stats}
+        
         brokers_list = []
         for broker in brokers:
-            leads_count = await db.leads.count_documents({"assigned_broker_id": broker["id"]})
-            ventas = await db.leads.count_documents({"assigned_broker_id": broker["id"], "status": "venta"})
-            
-            pipeline = [
-                {"$match": {"broker_id": broker["id"]}},
-                {"$group": {"_id": None, "total": {"$sum": "$points"}}}
-            ]
-            points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
-            points = points_result[0]["total"] if points_result else 0
-            
+            broker_stats = leads_map.get(broker["id"], {})
             brokers_list.append({
                 "name": broker.get("name", "Broker"),
                 "avatar": broker.get("avatar_url"),
-                "leads_count": leads_count,
-                "ventas": ventas,
-                "points": points
+                "leads_count": broker_stats.get("leads_count", 0),
+                "ventas": broker_stats.get("ventas", 0),
+                "points": points_map.get(broker["id"], 0)
             })
         
         # Sort by points
@@ -423,35 +436,65 @@ async def get_leaderboard(current_user: dict = Depends(get_current_user)):
         {"_id": 0}
     ).to_list(100)
     
+    broker_ids = [b["id"] for b in brokers]
+    
+    # Batch get points using aggregation
+    points_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "broker_id": {"$in": broker_ids}}},
+        {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}}
+    ]
+    points_result = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+    points_map = {p["_id"]: p["total"] for p in points_result}
+    
+    # Batch get lead stats using aggregation
+    leads_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "assigned_broker_id": {"$in": broker_ids}}},
+        {"$group": {
+            "_id": "$assigned_broker_id",
+            "total": {"$sum": 1},
+            "ventas": {"$sum": {"$cond": [{"$eq": ["$status", "venta"]}, 1, 0]}},
+            "apartados": {"$sum": {"$cond": [{"$eq": ["$status", "apartado"]}, 1, 0]}}
+        }}
+    ]
+    leads_result = await db.leads.aggregate(leads_pipeline).to_list(None)
+    leads_map = {l["_id"]: l for l in leads_result}
+    
+    # Batch get activity stats using aggregation
+    activities_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "broker_id": {"$in": broker_ids}}},
+        {"$group": {
+            "_id": {"broker_id": "$broker_id", "type": "$activity_type"},
+            "count": {"$sum": 1}
+        }}
+    ]
+    activities_result = await db.activities.aggregate(activities_pipeline).to_list(None)
+    activities_map = {}
+    for a in activities_result:
+        broker_id = a["_id"]["broker_id"]
+        act_type = a["_id"]["type"]
+        if broker_id not in activities_map:
+            activities_map[broker_id] = {}
+        activities_map[broker_id][act_type] = a["count"]
+    
     leaderboard = []
     for broker in brokers:
-        # Get points
-        pipeline = [
-            {"$match": {"tenant_id": tenant_id, "broker_id": broker["id"]}},
-            {"$group": {"_id": None, "total": {"$sum": "$points"}}}
-        ]
-        points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
-        total_points = points_result[0]["total"] if points_result else 0
-        
-        # Get activity counts
-        ventas = await db.leads.count_documents({"tenant_id": tenant_id, "assigned_broker_id": broker["id"], "status": "venta"})
-        apartados = await db.leads.count_documents({"tenant_id": tenant_id, "assigned_broker_id": broker["id"], "status": "apartado"})
-        leads_asignados = await db.leads.count_documents({"tenant_id": tenant_id, "assigned_broker_id": broker["id"]})
-        llamadas = await db.activities.count_documents({"tenant_id": tenant_id, "broker_id": broker["id"], "activity_type": "llamada"})
-        presentaciones = await db.activities.count_documents({"tenant_id": tenant_id, "broker_id": broker["id"], "activity_type": "zoom"})
+        bid = broker["id"]
+        total_points = points_map.get(bid, 0)
+        lead_stats = leads_map.get(bid, {})
+        act_stats = activities_map.get(bid, {})
         
         leaderboard.append(BrokerStats(
-            broker_id=broker["id"],
+            broker_id=bid,
             broker_name=broker["name"],
             avatar_url=broker.get("avatar_url"),
             total_points=total_points,
-            ventas=ventas,
-            apartados=apartados,
-            leads_asignados=leads_asignados,
-            llamadas=llamadas,
-            presentaciones=presentaciones,
+            ventas=lead_stats.get("ventas", 0),
+            apartados=lead_stats.get("apartados", 0),
+            leads_asignados=lead_stats.get("total", 0),
+            llamadas=act_stats.get("llamada", 0),
+            presentaciones=act_stats.get("zoom", 0),
             rank=0,
-            month_progress=min(100, total_points / 100 * 100)  # Assuming 100 points is monthly goal
+            month_progress=min(100, total_points / 100 * 100)
         ))
     
     # Sort by points and assign ranks
@@ -471,12 +514,25 @@ async def get_recent_activity(limit: int = 10, current_user: dict = Depends(get_
         {"_id": 0}
     ).sort("created_at", -1).limit(limit).to_list(limit)
     
-    # Enrich with broker and lead names
+    # Batch fetch broker and lead names (avoid N+1)
+    broker_ids = list(set(a.get("broker_id") for a in activities if a.get("broker_id")))
+    lead_ids = list(set(a.get("lead_id") for a in activities if a.get("lead_id")))
+    
+    brokers_map = {}
+    leads_map = {}
+    
+    if broker_ids:
+        brokers = await db.users.find({"id": {"$in": broker_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+        brokers_map = {b["id"]: b["name"] for b in brokers}
+    
+    if lead_ids:
+        leads = await db.leads.find({"id": {"$in": lead_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+        leads_map = {l["id"]: l["name"] for l in leads}
+    
+    # Enrich with names from maps
     for activity in activities:
-        broker = await db.users.find_one({"id": activity.get("broker_id")}, {"_id": 0, "name": 1})
-        lead = await db.leads.find_one({"id": activity.get("lead_id")}, {"_id": 0, "name": 1})
-        activity["broker_name"] = broker["name"] if broker else "Desconocido"
-        activity["lead_name"] = lead["name"] if lead else "Desconocido"
+        activity["broker_name"] = brokers_map.get(activity.get("broker_id"), "Desconocido")
+        activity["lead_name"] = leads_map.get(activity.get("lead_id"), "Desconocido")
     
     return [serialize_doc(a) for a in activities]
 
@@ -987,11 +1043,17 @@ async def get_calendar_events(
     
     events = await db.calendar_events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
     
-    # Enrich with lead info if available
+    # Batch fetch lead info (avoid N+1)
+    lead_ids = list(set(e.get("lead_id") for e in events if e.get("lead_id")))
+    leads_map = {}
+    if lead_ids:
+        leads = await db.leads.find({"id": {"$in": lead_ids}}, {"_id": 0, "id": 1, "name": 1, "phone": 1}).to_list(None)
+        leads_map = {l["id"]: {"name": l["name"], "phone": l.get("phone")} for l in leads}
+    
+    # Enrich with lead info from map
     for event in events:
         if event.get("lead_id"):
-            lead = await db.leads.find_one({"id": event["lead_id"]}, {"_id": 0, "name": 1, "phone": 1})
-            event["lead"] = lead
+            event["lead"] = leads_map.get(event["lead_id"])
     
     return [serialize_doc(e) for e in events]
 
@@ -1056,10 +1118,16 @@ async def get_today_events(current_user: dict = Depends(get_current_user)):
         "start_time": {"$gte": start, "$lte": end}
     }, {"_id": 0}).sort("start_time", 1).to_list(50)
     
+    # Batch fetch lead info (avoid N+1)
+    lead_ids = list(set(e.get("lead_id") for e in events if e.get("lead_id")))
+    leads_map = {}
+    if lead_ids:
+        leads = await db.leads.find({"id": {"$in": lead_ids}}, {"_id": 0, "id": 1, "name": 1, "phone": 1}).to_list(None)
+        leads_map = {l["id"]: {"name": l["name"], "phone": l.get("phone")} for l in leads}
+    
     for event in events:
         if event.get("lead_id"):
-            lead = await db.leads.find_one({"id": event["lead_id"]}, {"_id": 0, "name": 1, "phone": 1})
-            event["lead"] = lead
+            event["lead"] = leads_map.get(event["lead_id"])
     
     return [serialize_doc(e) for e in events]
 
