@@ -130,8 +130,12 @@ class Lead(BaseModel):
     source: str = "web"
     budget_mxn: float = 0.0
     property_interest: Optional[str] = None
+    location_preference: Optional[str] = None
     notes: Optional[str] = None
+    company: Optional[str] = None
+    position: Optional[str] = None
     assigned_broker_id: Optional[str] = None
+    created_by: Optional[str] = None
     tenant_id: str = ""
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
@@ -488,3 +492,43 @@ class EmailRecord(BaseModel):
     opened_at: Optional[datetime] = None
     clicked_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== IMPORT JOBS ====================
+
+class ImportStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PARTIAL = "partial"
+
+class ImportJob(BaseModel):
+    """Track lead import jobs"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    filename: str
+    file_type: str  # csv, xlsx
+    total_rows: int = 0
+    imported_count: int = 0
+    skipped_count: int = 0
+    error_count: int = 0
+    errors: List[Dict[str, Any]] = []
+    column_mapping: Dict[str, str] = {}
+    status: ImportStatus = ImportStatus.PENDING
+    created_at: datetime = Field(default_factory=now_utc)
+    completed_at: Optional[datetime] = None
+
+class ColumnMapping(BaseModel):
+    """Column mapping for import"""
+    source_column: str
+    target_field: str
+
+class ImportMappingRequest(BaseModel):
+    """Request to start import with mapping"""
+    job_id: str
+    mapping: List[ColumnMapping]
+    skip_duplicates: bool = True
+    duplicate_field: str = "email"  # Field to check for duplicates

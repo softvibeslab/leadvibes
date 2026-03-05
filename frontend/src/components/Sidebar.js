@@ -15,7 +15,8 @@ import {
   Leaf,
   Trophy,
   X,
-  Radio
+  Radio,
+  Upload
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -24,22 +25,24 @@ import { Separator } from '../components/ui/separator';
 const individualNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
+  { to: '/import', icon: Upload, label: 'Importar Leads' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
-  { to: '/campaigns', icon: Radio, label: 'Campañas' },
+  { to: '/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
-  { to: '/settings', icon: Settings, label: 'Configuración' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
 // Navigation items for agency users
 const agencyNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
+  { to: '/import', icon: Upload, label: 'Importar Leads' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
-  { to: '/campaigns', icon: Radio, label: 'Campañas' },
-  { to: '/gamification', icon: Trophy, label: 'Gamificación' },
+  { to: '/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/gamification', icon: Trophy, label: 'Gamificacion' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
-  { to: '/settings', icon: Settings, label: 'Configuración' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
 export const Sidebar = ({ onClose }) => {

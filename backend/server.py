@@ -1,14 +1,16 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 import uuid
 import random
+import csv
+import io
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse,
@@ -26,7 +28,8 @@ from models import (
     SMSRecord, SMSRecordCreate, SMSStatus,
     ConversationAnalysis,
     EmailRecord, EmailRecordCreate, EmailStatus,
-    EmailTemplate, EmailTemplateCreate
+    EmailTemplate, EmailTemplateCreate,
+    ImportJob, ImportStatus, ImportMappingRequest, ColumnMapping
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
@@ -1147,7 +1150,7 @@ async def health_check():
 async def get_integration_settings(current_user: dict = Depends(get_current_user)):
     """Get integration settings for the current user"""
     settings = await db.integration_settings.find_one(
-        {"user_id": current_user["id"]},
+        {"user_id": current_user["user_id"]},
         {"_id": 0}
     )
     if not settings:
@@ -1182,10 +1185,10 @@ async def update_integration_settings(
     current_user: dict = Depends(get_current_user)
 ):
     """Update integration settings"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     # Get existing settings
-    existing = await db.integration_settings.find_one({"user_id": current_user["id"]})
+    existing = await db.integration_settings.find_one({"user_id": current_user["user_id"]})
     
     update_dict = {}
     data = update_data.model_dump(exclude_unset=True)
@@ -1221,13 +1224,13 @@ async def update_integration_settings(
     
     if existing:
         await db.integration_settings.update_one(
-            {"user_id": current_user["id"]},
+            {"user_id": current_user["user_id"]},
             {"$set": update_dict}
         )
     else:
         new_settings = {
             "id": str(uuid.uuid4()),
-            "user_id": current_user["id"],
+            "user_id": current_user["user_id"],
             "tenant_id": tenant_id,
             **update_dict
         }
@@ -1243,7 +1246,7 @@ async def update_integration_settings(
 @api_router.post("/settings/integrations/test-vapi")
 async def test_vapi_connection(current_user: dict = Depends(get_current_user)):
     """Test VAPI connection"""
-    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     if not settings or not settings.get("vapi_api_key"):
         raise HTTPException(status_code=400, detail="VAPI no configurado")
     
@@ -1259,7 +1262,7 @@ async def test_vapi_connection(current_user: dict = Depends(get_current_user)):
 @api_router.post("/settings/integrations/test-twilio")
 async def test_twilio_connection(current_user: dict = Depends(get_current_user)):
     """Test Twilio connection"""
-    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     if not settings or not settings.get("twilio_account_sid"):
         raise HTTPException(status_code=400, detail="Twilio no configurado")
     
@@ -1280,7 +1283,7 @@ async def get_campaigns(
     current_user: dict = Depends(get_current_user)
 ):
     """Get all campaigns"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     query = {"tenant_id": tenant_id}
     if campaign_type:
         query["campaign_type"] = campaign_type
@@ -1294,7 +1297,7 @@ async def create_campaign(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new campaign"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     # Get leads count
     lead_count = len(campaign_data.lead_ids)
@@ -1309,7 +1312,7 @@ async def create_campaign(
     
     campaign = Campaign(
         **campaign_data.model_dump(),
-        user_id=current_user["id"],
+        user_id=current_user["user_id"],
         tenant_id=tenant_id,
         total_recipients=lead_count
     )
@@ -1323,13 +1326,13 @@ async def start_campaign(
     current_user: dict = Depends(get_current_user)
 ):
     """Start a campaign - sends calls or SMS"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     campaign = await db.campaigns.find_one({"id": campaign_id, "tenant_id": tenant_id}, {"_id": 0})
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     
-    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     
     # Get leads
     leads = []
@@ -1375,7 +1378,7 @@ async def start_campaign(
                     )
                     
                     call_record = CallRecord(
-                        user_id=current_user["id"],
+                        user_id=current_user["user_id"],
                         tenant_id=tenant_id,
                         lead_id=lead["id"],
                         lead_name=lead["name"],
@@ -1413,7 +1416,7 @@ async def start_campaign(
                     )
                     
                     sms_record = SMSRecord(
-                        user_id=current_user["id"],
+                        user_id=current_user["user_id"],
                         tenant_id=tenant_id,
                         lead_id=lead["id"],
                         lead_name=lead["name"],
@@ -1470,7 +1473,7 @@ async def start_campaign(
                     response = sg.send(message)
                     
                     email_record = EmailRecord(
-                        user_id=current_user["id"],
+                        user_id=current_user["user_id"],
                         tenant_id=tenant_id,
                         lead_id=lead["id"],
                         lead_name=lead["name"],
@@ -1511,7 +1514,7 @@ async def get_call_records(
     current_user: dict = Depends(get_current_user)
 ):
     """Get call history"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     calls = await db.call_records.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -1524,8 +1527,8 @@ async def create_single_call(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a single call to a lead"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
-    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     
     if not settings or not settings.get("vapi_enabled"):
         raise HTTPException(status_code=400, detail="VAPI no está configurado")
@@ -1551,7 +1554,7 @@ async def create_single_call(
         call_response = vapi_client.calls.create(**call_params)
         
         call_record = CallRecord(
-            user_id=current_user["id"],
+            user_id=current_user["user_id"],
             tenant_id=tenant_id,
             lead_id=call_data.lead_id,
             lead_name=lead["name"],
@@ -1574,7 +1577,7 @@ async def get_sms_records(
     current_user: dict = Depends(get_current_user)
 ):
     """Get SMS history"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     sms_list = await db.sms_records.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -1587,8 +1590,8 @@ async def send_single_sms(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a single SMS to a lead"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
-    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     
     if not settings or not settings.get("twilio_enabled"):
         raise HTTPException(status_code=400, detail="Twilio no está configurado")
@@ -1609,7 +1612,7 @@ async def send_single_sms(
         )
         
         sms_record = SMSRecord(
-            user_id=current_user["id"],
+            user_id=current_user["user_id"],
             tenant_id=tenant_id,
             lead_id=sms_data.lead_id,
             lead_name=lead["name"],
@@ -1633,7 +1636,7 @@ async def get_email_records(
     current_user: dict = Depends(get_current_user)
 ):
     """Get email history"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     emails = await db.email_records.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -1646,8 +1649,8 @@ async def send_single_email(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a single email to a lead"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
-    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     
     if not settings or not settings.get("sendgrid_enabled"):
         raise HTTPException(status_code=400, detail="SendGrid no está configurado")
@@ -1679,7 +1682,7 @@ async def send_single_email(
         response = sg.send(message)
         
         email_record = EmailRecord(
-            user_id=current_user["id"],
+            user_id=current_user["user_id"],
             tenant_id=tenant_id,
             lead_id=email_data.lead_id,
             lead_name=lead["name"],
@@ -1700,7 +1703,7 @@ async def send_single_email(
 @api_router.post("/settings/integrations/test-sendgrid")
 async def test_sendgrid_connection(current_user: dict = Depends(get_current_user)):
     """Test SendGrid connection"""
-    settings = await db.integration_settings.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     if not settings or not settings.get("sendgrid_api_key"):
         raise HTTPException(status_code=400, detail="SendGrid no configurado")
     
@@ -1718,7 +1721,7 @@ async def test_sendgrid_connection(current_user: dict = Depends(get_current_user
 @api_router.get("/email-templates")
 async def get_email_templates(current_user: dict = Depends(get_current_user)):
     """Get all email templates"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     templates = await db.email_templates.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -1731,11 +1734,11 @@ async def create_email_template(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new email template"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     template = EmailTemplate(
         **template_data.model_dump(),
-        user_id=current_user["id"],
+        user_id=current_user["user_id"],
         tenant_id=tenant_id
     )
     
@@ -1748,7 +1751,7 @@ async def delete_email_template(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete an email template"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     result = await db.email_templates.delete_one({"id": template_id, "tenant_id": tenant_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Plantilla no encontrada")
@@ -1762,7 +1765,7 @@ async def get_call_analysis(
     current_user: dict = Depends(get_current_user)
 ):
     """Get conversation analysis for a call (DEMO - returns mock data)"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     call = await db.call_records.find_one({"id": call_id, "tenant_id": tenant_id}, {"_id": 0})
     if not call:
@@ -1804,7 +1807,7 @@ async def get_communications_analytics(
     current_user: dict = Depends(get_current_user)
 ):
     """Get communications analytics (calls + SMS)"""
-    tenant_id = await get_or_create_tenant(current_user["id"])
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     # Get call stats
     total_calls = await db.call_records.count_documents({"tenant_id": tenant_id})
@@ -1861,6 +1864,411 @@ async def get_communications_analytics(
         "recent_calls": [serialize_doc(c) for c in recent_calls],
         "recent_sms": [serialize_doc(s) for s in recent_sms],
         "recent_emails": [serialize_doc(e) for e in recent_emails]
+    }
+
+# ==================== LEAD IMPORT ====================
+
+# Lead field definitions for mapping
+LEAD_FIELDS = {
+    "name": {"label": "Nombre", "required": True, "type": "string"},
+    "email": {"label": "Email", "required": False, "type": "email"},
+    "phone": {"label": "Teléfono", "required": True, "type": "phone"},
+    "source": {"label": "Fuente", "required": False, "type": "string"},
+    "status": {"label": "Estado", "required": False, "type": "select", "options": ["nuevo", "contactado", "calificacion", "presentacion", "apartado", "venta"]},
+    "priority": {"label": "Prioridad", "required": False, "type": "select", "options": ["baja", "media", "alta", "urgente"]},
+    "budget_mxn": {"label": "Presupuesto (MXN)", "required": False, "type": "number"},
+    "property_interest": {"label": "Interés Propiedad", "required": False, "type": "string"},
+    "location_preference": {"label": "Ubicación Preferida", "required": False, "type": "string"},
+    "notes": {"label": "Notas", "required": False, "type": "text"},
+    "company": {"label": "Empresa", "required": False, "type": "string"},
+    "position": {"label": "Puesto", "required": False, "type": "string"},
+}
+
+@api_router.get("/import/fields")
+async def get_import_fields():
+    """Get available fields for import mapping"""
+    return LEAD_FIELDS
+
+@api_router.post("/import/upload")
+async def upload_import_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload file and get column headers for mapping"""
+    tenant_id = current_user["tenant_id"]
+    
+    # Validate file type
+    filename = file.filename.lower()
+    if not (filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.xls')):
+        raise HTTPException(status_code=400, detail="Formato no soportado. Use CSV o Excel (.xlsx)")
+    
+    file_type = "csv" if filename.endswith('.csv') else "xlsx"
+    
+    try:
+        content = await file.read()
+        
+        if file_type == "csv":
+            # Try different encodings
+            for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                try:
+                    text = content.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                raise HTTPException(status_code=400, detail="No se pudo decodificar el archivo CSV")
+            
+            reader = csv.DictReader(io.StringIO(text))
+            headers = reader.fieldnames or []
+            rows = list(reader)
+        else:
+            # Excel file
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True)
+            ws = wb.active
+            
+            # Get headers from first row
+            headers = []
+            rows = []
+            for i, row in enumerate(ws.iter_rows(values_only=True)):
+                if i == 0:
+                    headers = [str(cell) if cell else f"Column_{j}" for j, cell in enumerate(row)]
+                else:
+                    if any(cell for cell in row):  # Skip empty rows
+                        row_dict = {headers[j]: cell for j, cell in enumerate(row) if j < len(headers)}
+                        rows.append(row_dict)
+            wb.close()
+        
+        # Create import job
+        job = ImportJob(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            filename=file.filename,
+            file_type=file_type,
+            total_rows=len(rows)
+        )
+        
+        # Store job and data temporarily
+        await db.import_jobs.insert_one(job.model_dump())
+        await db.import_data.insert_one({
+            "job_id": job.id,
+            "rows": rows,
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        # Sample data for preview (first 5 rows)
+        sample_data = rows[:5] if rows else []
+        
+        # Auto-detect mapping suggestions
+        mapping_suggestions = {}
+        header_lower_map = {h.lower().strip(): h for h in headers}
+        
+        field_aliases = {
+            "name": ["nombre", "name", "full name", "nombre completo", "cliente", "contacto"],
+            "email": ["email", "correo", "e-mail", "mail", "correo electronico"],
+            "phone": ["phone", "telefono", "teléfono", "celular", "mobile", "tel", "whatsapp"],
+            "source": ["source", "fuente", "origen", "canal", "medio"],
+            "status": ["status", "estado", "etapa", "stage"],
+            "priority": ["priority", "prioridad", "urgencia"],
+            "budget_mxn": ["budget", "presupuesto", "precio", "price", "monto"],
+            "property_interest": ["property", "propiedad", "interes", "interest", "proyecto"],
+            "location_preference": ["location", "ubicacion", "ubicación", "zona", "city", "ciudad"],
+            "notes": ["notes", "notas", "comentarios", "comments", "observaciones"],
+            "company": ["company", "empresa", "compañia", "organization"],
+            "position": ["position", "puesto", "cargo", "title", "job title"],
+        }
+        
+        for field, aliases in field_aliases.items():
+            for alias in aliases:
+                if alias in header_lower_map:
+                    mapping_suggestions[field] = header_lower_map[alias]
+                    break
+        
+        return {
+            "job_id": job.id,
+            "filename": file.filename,
+            "total_rows": len(rows),
+            "headers": headers,
+            "sample_data": sample_data,
+            "mapping_suggestions": mapping_suggestions,
+            "available_fields": LEAD_FIELDS
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
+
+@api_router.post("/import/preview")
+async def preview_import(
+    request: ImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Preview import with current mapping"""
+    # Get job and data
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+    
+    rows = import_data.get("rows", [])
+    mapping = {m.source_column: m.target_field for m in request.mapping}
+    
+    # Transform sample data with mapping
+    preview_rows = []
+    errors = []
+    
+    for i, row in enumerate(rows[:10]):  # Preview first 10
+        transformed = {}
+        row_errors = []
+        
+        for source_col, target_field in mapping.items():
+            value = row.get(source_col, "")
+            if value is not None:
+                value = str(value).strip()
+            
+            # Validate required fields
+            field_config = LEAD_FIELDS.get(target_field, {})
+            if field_config.get("required") and not value:
+                row_errors.append(f"{field_config.get('label', target_field)} es requerido")
+            
+            # Type validation
+            if value:
+                if field_config.get("type") == "number":
+                    try:
+                        value = float(str(value).replace(",", "").replace("$", ""))
+                    except:
+                        row_errors.append(f"{field_config.get('label', target_field)} debe ser un número")
+                elif field_config.get("type") == "email" and "@" not in str(value):
+                    row_errors.append(f"Email inválido: {value}")
+            
+            transformed[target_field] = value
+        
+        preview_rows.append({
+            "row_number": i + 1,
+            "data": transformed,
+            "errors": row_errors,
+            "valid": len(row_errors) == 0
+        })
+        
+        if row_errors:
+            errors.extend([{"row": i + 1, "errors": row_errors}])
+    
+    # Check for duplicates if enabled
+    duplicates_preview = []
+    if request.skip_duplicates and request.duplicate_field:
+        duplicate_values = [r["data"].get(request.duplicate_field) for r in preview_rows if r["data"].get(request.duplicate_field)]
+        existing = await db.leads.find(
+            {request.duplicate_field: {"$in": duplicate_values}, "tenant_id": job["tenant_id"]},
+            {"_id": 0, request.duplicate_field: 1}
+        ).to_list(None)
+        existing_values = set(doc.get(request.duplicate_field) for doc in existing)
+        duplicates_preview = [v for v in duplicate_values if v in existing_values]
+    
+    return {
+        "preview_rows": preview_rows,
+        "total_rows": len(rows),
+        "valid_rows": sum(1 for r in preview_rows if r["valid"]),
+        "error_rows": len(errors),
+        "duplicates_found": len(duplicates_preview),
+        "duplicate_values": duplicates_preview[:5],
+        "errors": errors[:10]
+    }
+
+@api_router.post("/import/execute")
+async def execute_import(
+    request: ImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Execute the import with mapping"""
+    tenant_id = current_user["tenant_id"]
+    
+    # Get job and data
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+    
+    rows = import_data.get("rows", [])
+    mapping = {m.source_column: m.target_field for m in request.mapping}
+    
+    # Update job status
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {"status": ImportStatus.PROCESSING.value, "column_mapping": mapping}}
+    )
+    
+    imported = 0
+    skipped = 0
+    errors_list = []
+    
+    # Get existing values for duplicate check
+    existing_values = set()
+    if request.skip_duplicates and request.duplicate_field:
+        all_values = [str(row.get(next((s for s, t in mapping.items() if t == request.duplicate_field), ""), "")).strip() for row in rows]
+        all_values = [v for v in all_values if v]
+        existing = await db.leads.find(
+            {request.duplicate_field: {"$in": all_values}, "tenant_id": tenant_id},
+            {"_id": 0, request.duplicate_field: 1}
+        ).to_list(None)
+        existing_values = set(str(doc.get(request.duplicate_field, "")).strip() for doc in existing)
+    
+    # Process all rows
+    leads_to_insert = []
+    for i, row in enumerate(rows):
+        try:
+            transformed = {}
+            row_errors = []
+            
+            for source_col, target_field in mapping.items():
+                value = row.get(source_col, "")
+                if value is not None:
+                    value = str(value).strip()
+                
+                field_config = LEAD_FIELDS.get(target_field, {})
+                
+                # Type conversion
+                if value and field_config.get("type") == "number":
+                    try:
+                        value = float(str(value).replace(",", "").replace("$", ""))
+                    except:
+                        value = 0
+                
+                # Default values for select fields
+                if target_field == "status" and not value:
+                    value = "nuevo"
+                if target_field == "priority" and not value:
+                    value = "media"
+                
+                transformed[target_field] = value
+            
+            # Check required fields
+            if not transformed.get("name"):
+                row_errors.append("Nombre es requerido")
+            if not transformed.get("phone"):
+                row_errors.append("Teléfono es requerido")
+            
+            if row_errors:
+                errors_list.append({"row": i + 1, "errors": row_errors})
+                continue
+            
+            # Check duplicates
+            if request.skip_duplicates and request.duplicate_field:
+                check_value = str(transformed.get(request.duplicate_field, "")).strip()
+                if check_value in existing_values:
+                    skipped += 1
+                    continue
+                existing_values.add(check_value)
+            
+            # Create lead
+            lead = Lead(
+                name=transformed.get("name", ""),
+                email=transformed.get("email"),
+                phone=transformed.get("phone", ""),
+                source=transformed.get("source", "importado"),
+                status=transformed.get("status", "nuevo"),
+                priority=transformed.get("priority", "media"),
+                budget_mxn=transformed.get("budget_mxn", 0),
+                property_interest=transformed.get("property_interest"),
+                location_preference=transformed.get("location_preference"),
+                notes=transformed.get("notes"),
+                tenant_id=tenant_id,
+                created_by=current_user["user_id"],
+                intent_score=50
+            )
+            leads_to_insert.append(lead.model_dump())
+            imported += 1
+            
+        except Exception as e:
+            errors_list.append({"row": i + 1, "errors": [str(e)]})
+    
+    # Bulk insert leads
+    if leads_to_insert:
+        await db.leads.insert_many(leads_to_insert)
+    
+    # Update job with results
+    final_status = ImportStatus.COMPLETED.value
+    if errors_list and imported == 0:
+        final_status = ImportStatus.FAILED.value
+    elif errors_list:
+        final_status = ImportStatus.PARTIAL.value
+    
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {
+            "status": final_status,
+            "imported_count": imported,
+            "skipped_count": skipped,
+            "error_count": len(errors_list),
+            "errors": errors_list[:50],  # Store first 50 errors
+            "completed_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Clean up temporary data
+    await db.import_data.delete_one({"job_id": request.job_id})
+    
+    return {
+        "status": final_status,
+        "imported": imported,
+        "skipped": skipped,
+        "errors": len(errors_list),
+        "error_details": errors_list[:10],
+        "message": f"Importación completada: {imported} leads importados, {skipped} duplicados omitidos, {len(errors_list)} errores"
+    }
+
+@api_router.get("/import/jobs")
+async def get_import_jobs(
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get import job history"""
+    jobs = await db.import_jobs.find(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    return [serialize_doc(j) for j in jobs]
+
+@api_router.get("/import/jobs/{job_id}")
+async def get_import_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get specific import job details"""
+    job = await db.import_jobs.find_one(
+        {"id": job_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+    return serialize_doc(job)
+
+@api_router.get("/import/template")
+async def get_import_template():
+    """Get CSV template for import"""
+    # Create CSV template
+    headers = ["Nombre", "Email", "Teléfono", "Fuente", "Estado", "Prioridad", "Presupuesto", "Interés Propiedad", "Ubicación", "Notas"]
+    sample_row = ["Juan Pérez", "juan@ejemplo.com", "+52 999 123 4567", "Facebook Ads", "nuevo", "alta", "2500000", "Departamento 2 recámaras", "Tulum Centro", "Interesado en preventa"]
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    writer.writerow(sample_row)
+    
+    return {
+        "template_csv": output.getvalue(),
+        "headers": headers,
+        "sample_row": sample_row,
+        "instructions": [
+            "Descarga la plantilla CSV y llénala con tus leads",
+            "Los campos requeridos son: Nombre y Teléfono",
+            "El campo Estado acepta: nuevo, contactado, calificacion, presentacion, apartado, venta",
+            "El campo Prioridad acepta: baja, media, alta, urgente"
+        ]
     }
 
 # Include the router in the main app

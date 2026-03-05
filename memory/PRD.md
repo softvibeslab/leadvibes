@@ -120,7 +120,7 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
 
 ## Credentials
 - **Demo User**: carlos.mendoza@leadvibes.mx / demo123
-- **API URL**: https://broker-dash-4.preview.emergentagent.com
+- **API URL**: https://lead-bulk-upload.preview.emergentagent.com
 
 ---
 
