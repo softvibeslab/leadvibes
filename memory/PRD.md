@@ -53,7 +53,31 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
   - VAPI (AI calls)
   - Twilio (SMS)
   - SendGrid (Email)
+  - Google Calendar (NEW - Mar 5, 2026) - OAuth2 connection with Client ID/Secret
 - Theme toggle (light/dark)
+
+### Google Calendar Integration (NEW - Mar 5, 2026)
+- Configure OAuth2 credentials in Settings page
+- Connect Google account for calendar sync
+- API endpoints for event sync:
+  - GET /api/oauth/google/login - Start OAuth flow
+  - GET /api/oauth/google/callback - Handle OAuth callback
+  - POST /api/oauth/google/disconnect - Disconnect account
+  - GET /api/google-calendar/events - Get events
+  - POST /api/google-calendar/events - Create event
+  - DELETE /api/google-calendar/events/{id} - Delete event
+  - POST /api/calendar/events/{id}/sync-google - Sync local event to Google
+
+### Visual Email Template Editor (NEW - Mar 5, 2026)
+- Full-screen drag & drop editor at /email-templates/new
+- Block types: Texto, Imagen, Botón, Divisor, Columnas
+- Block operations: add, move up/down, duplicate, delete
+- Block settings panel with styling options
+- Real-time preview
+- HTML code view tab
+- Variable support: {{nombre}}, {{propiedad}}, etc.
+- Templates stored with json_content (visual) and html_content (generated)
+- Accessible from Campaigns > Emails > "Crear Plantilla"
 
 ### Lead Import Module (NEW - Mar 5, 2026)
 - Multi-step wizard to import leads from CSV/Excel files
@@ -97,6 +121,8 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
 - ✅ KPI detail modals on Dashboard click
 - ✅ Renamed app from "LeadVibes" to "Rovi"
 - ✅ **Lead Import Module** - Multi-step wizard (Upload → Map → Preview → Import)
+- ✅ **Google Calendar Integration** - OAuth2 config in Settings, connect/disconnect
+- ✅ **Visual Email Template Editor** - Drag & drop blocks, styling, variables
 
 ### Modified
 - ✅ Sidebar simplified navigation code
@@ -147,13 +173,14 @@ Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto 
 ## Backlog
 
 ### P1 (High Priority)
-- [ ] Google Calendar sync integration
+- [x] ~~Google Calendar sync integration~~ **COMPLETED** (OAuth config + API endpoints)
 - [ ] Webhook endpoints for VAPI/Twilio/SendGrid callbacks
+- [ ] Complete Google Calendar sync with bidirectional event creation
 
 ### P2 (Medium Priority)
 - [ ] Scripts page functionality
 - [ ] Reports/Analytics page
-- [ ] Email template builder with visual editor
+- [x] ~~Email template builder with visual editor~~ **COMPLETED**
 - [ ] Consider PostgreSQL migration
 
 ### P3 (Low Priority)
