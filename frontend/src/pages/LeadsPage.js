@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   DndContext,
@@ -17,7 +17,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   Search, Plus, Phone, MessageCircle, Mail, Video, MapPin,
-  Sparkles, Loader2, DollarSign, TrendingUp, GripVertical
+  Sparkles, Loader2, DollarSign, TrendingUp, GripVertical,
+  LayoutGrid, Table2, X, ArrowUpDown, ArrowUp, ArrowDown, Filter
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -45,6 +46,14 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
 import { toast } from 'sonner';
 
 const statusConfig = {
@@ -61,6 +70,166 @@ const priorityConfig = {
   media: { label: 'Media', color: 'bg-amber-400' },
   alta: { label: 'Alta', color: 'bg-orange-500' },
   urgente: { label: 'Urgente', color: 'bg-red-500' },
+};
+
+const sourceConfig = {
+  web: { label: 'Web', color: 'bg-blue-400' },
+  'Facebook Ads': { label: 'Facebook', color: 'bg-indigo-500' },
+  'Instagram': { label: 'Instagram', color: 'bg-pink-500' },
+  'Google Ads': { label: 'Google', color: 'bg-green-500' },
+  'Referido': { label: 'Referido', color: 'bg-purple-500' },
+  'WhatsApp': { label: 'WhatsApp', color: 'bg-emerald-500' },
+};
+
+// Filter Bubble Component
+const FilterBubble = ({ label, isActive, onClick, color }) => (
+  <button
+    onClick={onClick}
+    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+      isActive
+        ? `${color || 'bg-primary'} text-white shadow-md`
+        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+// Active Filter Tag
+const ActiveFilterTag = ({ label, onRemove }) => (
+  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+    {label}
+    <button onClick={onRemove} className="hover:bg-primary/20 rounded-full p-0.5">
+      <X className="w-3 h-3" />
+    </button>
+  </span>
+);
+
+// Table View Component
+const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort }) => {
+  const SortableHeader = ({ column, label }) => {
+    const isActive = sortConfig.key === column;
+    return (
+      <TableHead 
+        className="cursor-pointer hover:bg-muted/50 select-none"
+        onClick={() => onSort(column)}
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isActive ? (
+            sortConfig.direction === 'asc' ? 
+              <ArrowUp className="w-3 h-3" /> : 
+              <ArrowDown className="w-3 h-3" />
+          ) : (
+            <ArrowUpDown className="w-3 h-3 opacity-30" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30">
+              <SortableHeader column="name" label="Nombre" />
+              <SortableHeader column="phone" label="Teléfono" />
+              <SortableHeader column="status" label="Estado" />
+              <SortableHeader column="priority" label="Prioridad" />
+              <SortableHeader column="source" label="Fuente" />
+              <SortableHeader column="budget_mxn" label="Presupuesto" />
+              <SortableHeader column="intent_score" label="Intención" />
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {leads.map((lead) => {
+              const status = statusConfig[lead.status] || statusConfig.nuevo;
+              const priority = priorityConfig[lead.priority] || priorityConfig.media;
+              const source = sourceConfig[lead.source] || { label: lead.source, color: 'bg-gray-400' };
+              
+              return (
+                <TableRow 
+                  key={lead.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => onLeadClick(lead)}
+                  data-testid={`table-row-${lead.id}`}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {lead.name?.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{lead.name}</p>
+                        <p className="text-xs text-muted-foreground">{lead.email}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{lead.phone}</TableCell>
+                  <TableCell>
+                    <Badge className={`${status.color} text-white text-xs`}>
+                      {status.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${priority.color}`} />
+                      <span className="text-xs">{priority.label}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {source.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm font-medium">
+                    ${lead.budget_mxn?.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Progress value={lead.intent_score} className="w-16 h-1.5" />
+                      <span className={`text-xs font-medium ${
+                        lead.intent_score >= 70 ? 'text-[#10B981]' : 
+                        lead.intent_score >= 40 ? 'text-[#D97706]' : 'text-muted-foreground'
+                      }`}>
+                        {lead.intent_score}%
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                        <a href={`tel:${lead.phone}`}>
+                          <Phone className="w-4 h-4" />
+                        </a>
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                        <a href={`https://wa.me/${lead.phone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {leads.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  No se encontraron leads con los filtros aplicados
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
 };
 
 // Sortable Lead Card Component
@@ -685,6 +854,17 @@ export const LeadsPage = () => {
   const [selectedLead, setSelectedLead] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [activeId, setActiveId] = useState(null);
+  
+  // View toggle state
+  const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'table'
+  
+  // Filter states
+  const [statusFilters, setStatusFilters] = useState([]);
+  const [priorityFilters, setPriorityFilters] = useState([]);
+  const [sourceFilters, setSourceFilters] = useState([]);
+  
+  // Sort state for table view
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -709,12 +889,95 @@ export const LeadsPage = () => {
       setLoading(false);
     }
   };
+  
+  // Toggle filter helper
+  const toggleFilter = (filterArray, setFilterArray, value) => {
+    if (filterArray.includes(value)) {
+      setFilterArray(filterArray.filter(f => f !== value));
+    } else {
+      setFilterArray([...filterArray, value]);
+    }
+  };
+  
+  // Clear all filters
+  const clearAllFilters = () => {
+    setStatusFilters([]);
+    setPriorityFilters([]);
+    setSourceFilters([]);
+    setSearch('');
+  };
+  
+  // Get unique sources from leads
+  const uniqueSources = useMemo(() => {
+    const sources = [...new Set(leads.map(l => l.source).filter(Boolean))];
+    return sources;
+  }, [leads]);
+  
+  // Handle sort for table
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
-  const filteredLeads = leads.filter((lead) =>
-    lead.name?.toLowerCase().includes(search.toLowerCase()) ||
-    lead.phone?.includes(search) ||
-    lead.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Apply all filters
+  const filteredLeads = useMemo(() => {
+    let result = leads;
+    
+    // Text search
+    if (search) {
+      result = result.filter((lead) =>
+        lead.name?.toLowerCase().includes(search.toLowerCase()) ||
+        lead.phone?.includes(search) ||
+        lead.email?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    
+    // Status filter
+    if (statusFilters.length > 0) {
+      result = result.filter(lead => statusFilters.includes(lead.status));
+    }
+    
+    // Priority filter
+    if (priorityFilters.length > 0) {
+      result = result.filter(lead => priorityFilters.includes(lead.priority));
+    }
+    
+    // Source filter
+    if (sourceFilters.length > 0) {
+      result = result.filter(lead => sourceFilters.includes(lead.source));
+    }
+    
+    return result;
+  }, [leads, search, statusFilters, priorityFilters, sourceFilters]);
+  
+  // Sorted leads for table view
+  const sortedLeads = useMemo(() => {
+    const sorted = [...filteredLeads];
+    sorted.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      
+      // Handle null/undefined
+      if (aVal == null) aVal = '';
+      if (bVal == null) bVal = '';
+      
+      // Numeric sort for budget and intent_score
+      if (sortConfig.key === 'budget_mxn' || sortConfig.key === 'intent_score') {
+        aVal = Number(aVal) || 0;
+        bVal = Number(bVal) || 0;
+      }
+      
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredLeads, sortConfig]);
+  
+  // Check if any filters are active
+  const hasActiveFilters = statusFilters.length > 0 || priorityFilters.length > 0 || sourceFilters.length > 0 || search;
 
   const groupedLeads = {
     nuevo: filteredLeads.filter((l) => l.status === 'nuevo'),
@@ -830,28 +1093,145 @@ export const LeadsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Pipeline de Leads</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">{leads.length} prospectos • Arrastra para cambiar estado</p>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            {filteredLeads.length} de {leads.length} prospectos
+            {viewMode === 'kanban' && ' • Arrastra para cambiar estado'}
+          </p>
         </div>
-        <Button onClick={() => setShowNewModal(true)} className="rounded-full w-full sm:w-auto" data-testid="new-lead-btn">
-          <Plus className="w-4 h-4 mr-2" /> Nuevo Lead
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center bg-muted rounded-lg p-1">
+            <Button
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+              className="rounded-md h-8 px-3"
+              data-testid="view-kanban-btn"
+            >
+              <LayoutGrid className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">Kanban</span>
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="rounded-md h-8 px-3"
+              data-testid="view-table-btn"
+            >
+              <Table2 className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">Tabla</span>
+            </Button>
+          </div>
+          <Button onClick={() => setShowNewModal(true)} className="rounded-full" data-testid="new-lead-btn">
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nuevo Lead</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="flex-shrink-0">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre, teléfono o email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-            data-testid="leads-search"
-          />
+      {/* Search and Filters */}
+      <div className="flex-shrink-0 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, teléfono o email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+              data-testid="leads-search"
+            />
+          </div>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground">
+              <X className="w-4 h-4 mr-1" />
+              Limpiar filtros
+            </Button>
+          )}
         </div>
+        
+        {/* Filter Bubbles */}
+        <div className="space-y-2">
+          {/* Status Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Filter className="w-3 h-3" /> Estado:
+            </span>
+            {Object.entries(statusConfig).map(([key, config]) => (
+              <FilterBubble
+                key={key}
+                label={config.label}
+                isActive={statusFilters.includes(key)}
+                onClick={() => toggleFilter(statusFilters, setStatusFilters, key)}
+                color={config.color}
+              />
+            ))}
+          </div>
+          
+          {/* Priority Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground">Prioridad:</span>
+            {Object.entries(priorityConfig).map(([key, config]) => (
+              <FilterBubble
+                key={key}
+                label={config.label}
+                isActive={priorityFilters.includes(key)}
+                onClick={() => toggleFilter(priorityFilters, setPriorityFilters, key)}
+                color={config.color}
+              />
+            ))}
+          </div>
+          
+          {/* Source Filters */}
+          {uniqueSources.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-muted-foreground">Fuente:</span>
+              {uniqueSources.map((source) => {
+                const config = sourceConfig[source] || { label: source, color: 'bg-gray-400' };
+                return (
+                  <FilterBubble
+                    key={source}
+                    label={config.label}
+                    isActive={sourceFilters.includes(source)}
+                    onClick={() => toggleFilter(sourceFilters, setSourceFilters, source)}
+                    color={config.color}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Active Filters Display */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <span className="text-xs text-muted-foreground">Filtros activos:</span>
+            {statusFilters.map(s => (
+              <ActiveFilterTag 
+                key={`status-${s}`} 
+                label={statusConfig[s]?.label} 
+                onRemove={() => toggleFilter(statusFilters, setStatusFilters, s)} 
+              />
+            ))}
+            {priorityFilters.map(p => (
+              <ActiveFilterTag 
+                key={`priority-${p}`} 
+                label={priorityConfig[p]?.label} 
+                onRemove={() => toggleFilter(priorityFilters, setPriorityFilters, p)} 
+              />
+            ))}
+            {sourceFilters.map(s => (
+              <ActiveFilterTag 
+                key={`source-${s}`} 
+                label={sourceConfig[s]?.label || s} 
+                onRemove={() => toggleFilter(sourceFilters, setSourceFilters, s)} 
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Kanban with Drag & Drop */}
+      {/* Content */}
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 flex-1">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -862,7 +1242,8 @@ export const LeadsPage = () => {
             </div>
           ))}
         </div>
-      ) : (
+      ) : viewMode === 'kanban' ? (
+        /* Kanban View */
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -887,6 +1268,17 @@ export const LeadsPage = () => {
             {activeLead ? <LeadCardOverlay lead={activeLead} /> : null}
           </DragOverlay>
         </DndContext>
+      ) : (
+        /* Table View */
+        <div className="flex-1 overflow-auto">
+          <LeadsTableView
+            leads={sortedLeads}
+            onLeadClick={setSelectedLead}
+            onStatusChange={handleLeadUpdate}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+          />
+        </div>
       )}
 
       {/* Lead Detail Modal */}

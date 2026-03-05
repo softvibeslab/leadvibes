@@ -295,44 +295,45 @@ export const CalendarPage = () => {
   const startDayOffset = startOfMonth(currentMonth).getDay();
 
   return (
-    <div className="p-8 space-y-6" data-testid="calendar-page">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6" data-testid="calendar-page">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold font-['Outfit']">Calendario</h1>
-          <p className="text-muted-foreground">Gestiona tus actividades y seguimientos</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Calendario</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Gestiona tus actividades y seguimientos</p>
         </div>
-        <Button onClick={() => setShowNewModal(true)} className="rounded-full">
+        <Button onClick={() => setShowNewModal(true)} className="rounded-full w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" /> Nuevo Evento
         </Button>
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card className="lg:col-span-2">
-            <CardContent className="p-6">
-              <Skeleton className="h-[400px] w-full" />
+            <CardContent className="p-4 sm:p-6">
+              <Skeleton className="h-[300px] sm:h-[400px] w-full" />
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
-              <Skeleton className="h-[400px] w-full" />
+            <CardContent className="p-4 sm:p-6">
+              <Skeleton className="h-[300px] sm:h-[400px] w-full" />
             </CardContent>
           </Card>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Calendar Grid */}
           <Card className="lg:col-span-2">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="capitalize">
+            <CardHeader className="p-4 sm:p-6 pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="capitalize text-base sm:text-lg">
                   {format(currentMonth, 'MMMM yyyy', { locale: es })}
                 </CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <Button
                     variant="outline"
                     size="icon"
+                    className="h-8 w-8 sm:h-9 sm:w-9"
                     onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -340,6 +341,7 @@ export const CalendarPage = () => {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="hidden sm:inline-flex"
                     onClick={() => {
                       setCurrentMonth(new Date());
                       setSelectedDate(new Date());
@@ -350,6 +352,7 @@ export const CalendarPage = () => {
                   <Button
                     variant="outline"
                     size="icon"
+                    className="h-8 w-8 sm:h-9 sm:w-9"
                     onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -357,7 +360,7 @@ export const CalendarPage = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 sm:p-6 pt-0 sm:pt-0">
               {/* Day names header */}
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {dayNames.map((day) => (
@@ -416,17 +419,17 @@ export const CalendarPage = () => {
 
           {/* Selected Day Events */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-primary" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 {format(selectedDate, "d 'de' MMMM", { locale: es })}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 {selectedDateEvents.length} eventos programados
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px] pr-4">
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <ScrollArea className="h-[250px] sm:h-[400px] pr-4">
                 {selectedDateEvents.length > 0 ? (
                   <div className="space-y-3">
                     {selectedDateEvents
@@ -461,14 +464,14 @@ export const CalendarPage = () => {
 
       {/* Today's Upcoming */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="w-5 h-5 text-[#D97706]" />
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#D97706]" />
             Próximos Eventos de Hoy
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
             {getEventsForDate(new Date())
               .filter((e) => !e.completed)
               .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
@@ -479,14 +482,14 @@ export const CalendarPage = () => {
                 return (
                   <div
                     key={event.id}
-                    className="flex-shrink-0 w-64 p-4 rounded-xl bg-muted/50 border"
+                    className="flex-shrink-0 w-56 sm:w-64 p-3 sm:p-4 rounded-xl bg-muted/50 border"
                   >
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
                       <div className={`w-8 h-8 rounded-lg ${config.color} flex items-center justify-center`}>
                         <Icon className="w-4 h-4 text-white" />
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">{event.title}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{event.title}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(event.start_time), 'HH:mm')} hrs
                         </p>
