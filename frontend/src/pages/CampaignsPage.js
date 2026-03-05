@@ -858,13 +858,26 @@ export const CampaignsPage = () => {
         <TabsContent value="emails">
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Mail className="w-5 h-5 text-purple-500" />
-                Historial de Emails
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                Emails enviados con SendGrid • {analytics?.emails?.open_rate || 0}% tasa de apertura
-              </CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-purple-500" />
+                    Historial de Emails
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Emails enviados con SendGrid • {analytics?.emails?.open_rate || 0}% tasa de apertura
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.location.href = '/email-templates/new'}
+                  data-testid="create-template-btn"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Plantilla
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
               {emailRecords.length > 0 ? (
@@ -879,6 +892,13 @@ export const CampaignsPage = () => {
                 <div className="text-center py-8">
                   <Mail className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
                   <p className="text-muted-foreground text-sm">No hay emails registrados</p>
+                  <Button 
+                    variant="link" 
+                    className="mt-2"
+                    onClick={() => window.location.href = '/email-templates/new'}
+                  >
+                    Crear tu primera plantilla de email
+                  </Button>
                 </div>
               )}
             </CardContent>

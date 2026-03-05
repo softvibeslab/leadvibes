@@ -270,7 +270,7 @@ class CalendarEvent(CalendarEventCreate):
 # ==================== INTEGRATION SETTINGS ====================
 
 class IntegrationSettings(BaseModel):
-    """Settings for external integrations (VAPI, Twilio, SendGrid)"""
+    """Settings for external integrations (VAPI, Twilio, SendGrid, Google Calendar)"""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     user_id: str
@@ -287,10 +287,16 @@ class IntegrationSettings(BaseModel):
     sendgrid_api_key: Optional[str] = None
     sendgrid_sender_email: Optional[str] = None
     sendgrid_sender_name: Optional[str] = None
+    # Google Calendar Settings
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    google_tokens: Optional[Dict[str, Any]] = None
+    google_calendar_email: Optional[str] = None
     # Status
     vapi_enabled: bool = False
     twilio_enabled: bool = False
     sendgrid_enabled: bool = False
+    google_calendar_enabled: bool = False
     updated_at: datetime = Field(default_factory=now_utc)
 
 class IntegrationSettingsUpdate(BaseModel):
@@ -304,6 +310,8 @@ class IntegrationSettingsUpdate(BaseModel):
     sendgrid_api_key: Optional[str] = None
     sendgrid_sender_email: Optional[str] = None
     sendgrid_sender_name: Optional[str] = None
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
 
 # ==================== CAMPAIGNS ====================
 
@@ -447,7 +455,7 @@ class EmailStatus(str, Enum):
     FAILED = "failed"
 
 class EmailTemplate(BaseModel):
-    """Email template model"""
+    """Email template model with visual editor support"""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     user_id: str
@@ -455,7 +463,10 @@ class EmailTemplate(BaseModel):
     name: str
     subject: str
     html_content: str
+    json_content: Optional[Dict[str, Any]] = None  # Visual editor JSON structure
     variables: List[str] = []  # e.g., ["nombre", "propiedad", "precio"]
+    thumbnail_url: Optional[str] = None
+    is_default: bool = False
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
 
@@ -463,6 +474,7 @@ class EmailTemplateCreate(BaseModel):
     name: str
     subject: str
     html_content: str
+    json_content: Optional[Dict[str, Any]] = None
     variables: List[str] = []
 
 class EmailRecordCreate(BaseModel):

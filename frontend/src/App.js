@@ -15,6 +15,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
+import { EmailEditorPage } from './pages/EmailEditorPage';
 import './App.css';
 
 // Protected Route component
@@ -104,6 +105,24 @@ function AppRoutes() {
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
+
+      {/* Email Editor - Full screen without Layout */}
+      <Route 
+        path="/email-templates/new" 
+        element={
+          <ProtectedRoute>
+            <EmailEditorPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/email-templates/:templateId" 
+        element={
+          <ProtectedRoute>
+            <EmailEditorPage />
+          </ProtectedRoute>
+        } 
+      />
 
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

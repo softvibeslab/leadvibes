@@ -1165,9 +1165,13 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
             "sendgrid_api_key": "",
             "sendgrid_sender_email": "",
             "sendgrid_sender_name": "",
+            "google_client_id": "",
+            "google_client_secret": "",
+            "google_calendar_email": None,
             "vapi_enabled": False,
             "twilio_enabled": False,
-            "sendgrid_enabled": False
+            "sendgrid_enabled": False,
+            "google_calendar_enabled": False
         }
     # Mask sensitive data
     result = serialize_doc(settings)
@@ -1177,6 +1181,11 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
         result["twilio_auth_token"] = "••••••••" + result["twilio_auth_token"][-4:]
     if result.get("sendgrid_api_key"):
         result["sendgrid_api_key"] = "••••••••" + result["sendgrid_api_key"][-4:]
+    if result.get("google_client_secret"):
+        result["google_client_secret"] = "••••••••" + result["google_client_secret"][-4:]
+    # Don't expose tokens
+    result.pop("google_tokens", None)
+    result.pop("google_oauth_state", None)
     return result
 
 @api_router.put("/settings/integrations")
@@ -1220,6 +1229,7 @@ async def update_integration_settings(
         current.get("sendgrid_api_key") and 
         current.get("sendgrid_sender_email")
     )
+    # Google Calendar enabled is set when OAuth completes, not here
     update_dict["updated_at"] = datetime.now(timezone.utc)
     
     if existing:
@@ -1240,7 +1250,8 @@ async def update_integration_settings(
         "message": "Configuración actualizada", 
         "vapi_enabled": update_dict.get("vapi_enabled", False), 
         "twilio_enabled": update_dict.get("twilio_enabled", False),
-        "sendgrid_enabled": update_dict.get("sendgrid_enabled", False)
+        "sendgrid_enabled": update_dict.get("sendgrid_enabled", False),
+        "google_calendar_enabled": current.get("google_calendar_enabled", False)
     }
 
 @api_router.post("/settings/integrations/test-vapi")
@@ -1716,6 +1727,278 @@ async def test_sendgrid_connection(current_user: dict = Depends(get_current_user
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
 
+# ==================== GOOGLE CALENDAR INTEGRATION ====================
+
+GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+@api_router.get("/oauth/google/login")
+async def google_calendar_login(current_user: dict = Depends(get_current_user)):
+    """Start Google OAuth flow for Calendar access"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("google_client_id") or not settings.get("google_client_secret"):
+        raise HTTPException(status_code=400, detail="Google Calendar no configurado. Agrega Client ID y Client Secret primero.")
+    
+    from google_auth_oauthlib.flow import Flow
+    
+    # Get the frontend URL for redirect
+    frontend_url = os.environ.get("FRONTEND_URL", "https://lead-bulk-upload.preview.emergentagent.com")
+    redirect_uri = f"{frontend_url}/api/oauth/google/callback"
+    
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": settings["google_client_id"],
+                "client_secret": settings["google_client_secret"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token"
+            }
+        },
+        scopes=GOOGLE_CALENDAR_SCOPES,
+        redirect_uri=redirect_uri
+    )
+    
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        prompt='consent',
+        include_granted_scopes='true'
+    )
+    
+    # Store state for verification
+    await db.integration_settings.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": {"google_oauth_state": state}}
+    )
+    
+    return {"authorization_url": authorization_url, "state": state}
+
+@api_router.get("/oauth/google/callback")
+async def google_calendar_callback(code: str, state: str = None):
+    """Handle Google OAuth callback"""
+    import requests
+    from starlette.responses import RedirectResponse
+    
+    # Find user by state
+    settings = await db.integration_settings.find_one({"google_oauth_state": state}, {"_id": 0})
+    if not settings:
+        # Try to find any settings with matching credentials
+        return RedirectResponse("/settings?error=invalid_state")
+    
+    frontend_url = os.environ.get("FRONTEND_URL", "https://lead-bulk-upload.preview.emergentagent.com")
+    redirect_uri = f"{frontend_url}/api/oauth/google/callback"
+    
+    # Exchange code for tokens
+    try:
+        token_response = requests.post(
+            'https://oauth2.googleapis.com/token',
+            data={
+                'code': code,
+                'client_id': settings["google_client_id"],
+                'client_secret': settings["google_client_secret"],
+                'redirect_uri': redirect_uri,
+                'grant_type': 'authorization_code'
+            }
+        ).json()
+        
+        if 'error' in token_response:
+            return RedirectResponse(f"/settings?error={token_response.get('error_description', 'token_error')}")
+        
+        # Get user email
+        user_info = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f'Bearer {token_response["access_token"]}'}
+        ).json()
+        
+        # Save tokens
+        await db.integration_settings.update_one(
+            {"user_id": settings["user_id"]},
+            {"$set": {
+                "google_tokens": token_response,
+                "google_calendar_email": user_info.get('email'),
+                "google_calendar_enabled": True,
+                "google_oauth_state": None
+            }}
+        )
+        
+        return RedirectResponse(f"/settings?google_connected=true&email={user_info.get('email', '')}")
+    except Exception as e:
+        return RedirectResponse(f"/settings?error={str(e)}")
+
+@api_router.post("/oauth/google/disconnect")
+async def google_calendar_disconnect(current_user: dict = Depends(get_current_user)):
+    """Disconnect Google Calendar"""
+    await db.integration_settings.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": {
+            "google_tokens": None,
+            "google_calendar_email": None,
+            "google_calendar_enabled": False
+        }}
+    )
+    return {"message": "Google Calendar desconectado"}
+
+async def get_google_credentials(user_id: str):
+    """Get and refresh Google credentials if needed"""
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request as GoogleRequest
+    
+    settings = await db.integration_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not settings or not settings.get("google_tokens"):
+        return None
+    
+    tokens = settings["google_tokens"]
+    creds = Credentials(
+        token=tokens.get('access_token'),
+        refresh_token=tokens.get('refresh_token'),
+        token_uri='https://oauth2.googleapis.com/token',
+        client_id=settings.get("google_client_id"),
+        client_secret=settings.get("google_client_secret")
+    )
+    
+    if creds.expired and creds.refresh_token:
+        creds.refresh(GoogleRequest())
+        await db.integration_settings.update_one(
+            {"user_id": user_id},
+            {"$set": {"google_tokens.access_token": creds.token}}
+        )
+    
+    return creds
+
+@api_router.get("/google-calendar/events")
+async def get_google_calendar_events(
+    time_min: str = None,
+    time_max: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get events from Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        # Default to next 30 days if not specified
+        if not time_min:
+            time_min = datetime.now(timezone.utc).isoformat()
+        if not time_max:
+            time_max = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=100,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        return events_result.get('items', [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener eventos: {str(e)}")
+
+@api_router.post("/google-calendar/events")
+async def create_google_calendar_event(
+    event_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create event in Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        event = {
+            'summary': event_data.get('title', 'Evento'),
+            'description': event_data.get('description', ''),
+            'start': {
+                'dateTime': event_data.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+            'end': {
+                'dateTime': event_data.get('end_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+        }
+        
+        created_event = service.events().insert(calendarId='primary', body=event).execute()
+        return {"id": created_event['id'], "link": created_event.get('htmlLink')}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear evento: {str(e)}")
+
+@api_router.delete("/google-calendar/events/{event_id}")
+async def delete_google_calendar_event(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete event from Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        service.events().delete(calendarId='primary', eventId=event_id).execute()
+        return {"message": "Evento eliminado de Google Calendar"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al eliminar evento: {str(e)}")
+
+@api_router.post("/calendar/events/{event_id}/sync-google")
+async def sync_event_to_google(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Sync local calendar event to Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    # Get local event
+    event = await db.calendar_events.find_one(
+        {"id": event_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        google_event = {
+            'summary': event.get('title', 'Evento'),
+            'description': event.get('description', ''),
+            'start': {
+                'dateTime': event.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+            'end': {
+                'dateTime': event.get('end_time') or event.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+        }
+        
+        created = service.events().insert(calendarId='primary', body=google_event).execute()
+        
+        # Update local event with Google Calendar ID
+        await db.calendar_events.update_one(
+            {"id": event_id},
+            {"$set": {"google_event_id": created['id']}}
+        )
+        
+        return {"message": "Evento sincronizado", "google_event_id": created['id']}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al sincronizar: {str(e)}")
+
 # ==================== EMAIL TEMPLATES ====================
 
 @api_router.get("/email-templates")
@@ -1756,6 +2039,42 @@ async def delete_email_template(
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Plantilla no encontrada")
     return {"message": "Plantilla eliminada"}
+
+@api_router.put("/email-templates/{template_id}")
+async def update_email_template(
+    template_id: str,
+    template_data: EmailTemplateCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an email template"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    existing = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    
+    update_data = template_data.model_dump(exclude_unset=True)
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.email_templates.update_one(
+        {"id": template_id},
+        {"$set": update_data}
+    )
+    
+    updated = await db.email_templates.find_one({"id": template_id}, {"_id": 0})
+    return serialize_doc(updated)
+
+@api_router.get("/email-templates/{template_id}")
+async def get_email_template(
+    template_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a single email template"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    template = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not template:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    return serialize_doc(template)
 
 # ==================== CONVERSATION ANALYSIS (DEMO/MOCKUP) ====================
 

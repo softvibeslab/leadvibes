@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Settings, User, Target, Moon, Sun, Save, Loader2, 
   Phone, MessageSquare, CheckCircle, XCircle, Eye, EyeOff,
-  TestTube, Zap, Mail
+  TestTube, Zap, Mail, Calendar, ExternalLink, Unlink
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -19,13 +20,16 @@ import { toast } from 'sonner';
 export const SettingsPage = () => {
   const { api, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [testingVapi, setTestingVapi] = useState(false);
   const [testingTwilio, setTestingTwilio] = useState(false);
   const [testingSendgrid, setTestingSendgrid] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [showVapiKey, setShowVapiKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
   const [showSendgridKey, setShowSendgridKey] = useState(false);
+  const [showGoogleSecret, setShowGoogleSecret] = useState(false);
   
   const [goals, setGoals] = useState({
     ventas_mes: 5,
@@ -46,15 +50,32 @@ export const SettingsPage = () => {
     sendgrid_api_key: '',
     sendgrid_sender_email: '',
     sendgrid_sender_name: '',
+    google_client_id: '',
+    google_client_secret: '',
+    google_calendar_email: null,
     vapi_enabled: false,
     twilio_enabled: false,
-    sendgrid_enabled: false
+    sendgrid_enabled: false,
+    google_calendar_enabled: false
   });
 
   useEffect(() => {
     loadGoals();
     loadIntegrations();
-  }, []);
+    
+    // Check for Google OAuth callback
+    const googleConnected = searchParams.get('google_connected');
+    const googleEmail = searchParams.get('email');
+    const error = searchParams.get('error');
+    
+    if (googleConnected === 'true') {
+      toast.success(`Google Calendar conectado: ${googleEmail}`);
+      loadIntegrations();
+    }
+    if (error) {
+      toast.error(`Error al conectar Google: ${error}`);
+    }
+  }, [searchParams]);
 
   const loadGoals = async () => {
     try {
@@ -138,6 +159,39 @@ export const SettingsPage = () => {
       toast.error(error.response?.data?.detail || 'Error de conexión SendGrid');
     } finally {
       setTestingSendgrid(false);
+    }
+  };
+
+  const handleConnectGoogle = async () => {
+    // First save credentials if changed
+    if (integrations.google_client_id && integrations.google_client_secret && 
+        !integrations.google_client_id.includes('••••')) {
+      await handleSaveIntegrations();
+    }
+    
+    setConnectingGoogle(true);
+    try {
+      const res = await api.get('/oauth/google/login');
+      if (res.data.authorization_url) {
+        window.location.href = res.data.authorization_url;
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al conectar Google Calendar');
+      setConnectingGoogle(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    try {
+      await api.post('/oauth/google/disconnect');
+      setIntegrations(prev => ({
+        ...prev,
+        google_calendar_enabled: false,
+        google_calendar_email: null
+      }));
+      toast.success('Google Calendar desconectado');
+    } catch (error) {
+      toast.error('Error al desconectar');
     }
   };
 
@@ -517,6 +571,112 @@ export const SettingsPage = () => {
                   {testingSendgrid ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TestTube className="w-4 h-4 mr-2" />}
                   Probar Conexión
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Google Calendar */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base sm:text-lg">Google Calendar</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Sincroniza tu calendario</CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant={integrations.google_calendar_enabled ? "default" : "secondary"}>
+                    {integrations.google_calendar_enabled ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Conectado</>
+                    ) : (
+                      <><XCircle className="w-3 h-3 mr-1" /> No conectado</>
+                    )}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                {integrations.google_calendar_enabled ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-500/10 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-medium">Conectado a Google Calendar</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Cuenta: {integrations.google_calendar_email}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleDisconnectGoogle}
+                      className="w-full text-red-500 hover:text-red-600"
+                    >
+                      <Unlink className="w-4 h-4 mr-2" />
+                      Desconectar Google Calendar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Conecta tu cuenta de Google para sincronizar eventos entre Rovi y Google Calendar.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Client ID</Label>
+                        <Input
+                          value={integrations.google_client_id}
+                          onChange={(e) => setIntegrations({ ...integrations, google_client_id: e.target.value })}
+                          placeholder="xxxxx.apps.googleusercontent.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Client Secret</Label>
+                        <div className="relative">
+                          <Input
+                            type={showGoogleSecret ? "text" : "password"}
+                            value={integrations.google_client_secret}
+                            onChange={(e) => setIntegrations({ ...integrations, google_client_secret: e.target.value })}
+                            placeholder="GOCSPX-xxxxxxxxxxxx"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
+                            onClick={() => setShowGoogleSecret(!showGoogleSecret)}
+                          >
+                            {showGoogleSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+                      <p className="font-medium mb-1">¿Cómo obtener las credenciales?</p>
+                      <ol className="list-decimal list-inside space-y-1">
+                        <li>Ve a <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a></li>
+                        <li>Crea un proyecto o selecciona uno existente</li>
+                        <li>Habilita la API de Google Calendar</li>
+                        <li>Crea credenciales OAuth 2.0</li>
+                        <li>Agrega el URI de redirección: <code className="bg-muted p-1 rounded">{window.location.origin}/api/oauth/google/callback</code></li>
+                      </ol>
+                    </div>
+                    <Button 
+                      onClick={handleConnectGoogle}
+                      disabled={connectingGoogle || !integrations.google_client_id || !integrations.google_client_secret}
+                      className="w-full"
+                    >
+                      {connectingGoogle ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                      )}
+                      Conectar con Google
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
