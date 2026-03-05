@@ -1,131 +1,143 @@
-# LeadVibes CRM - Product Requirements Document
+# Rovi - CRM Inmobiliario
 
 ## Original Problem Statement
-LeadVibes es un CRM simplificado para ventas inmobiliarias de alto valor (inspirado en GoHighLevel). La aplicación está diseñada para el mercado de bienes raíces de lujo en Tulum, México.
+Rovi (antes LeadVibes) es un CRM simplificado para ventas inmobiliarias de alto valor, diseñado para el mercado de bienes raíces de lujo en México.
 
 ## User Personas
-1. **Broker Individual**: Un agente inmobiliario independiente que gestiona sus propios leads, citas y pipeline de ventas.
-2. **Inmobiliaria (Agencia)**: Una empresa con múltiples brokers que requiere gestión de equipo, leaderboards y gamificación.
+1. **Broker Individual**: Agente inmobiliario independiente que gestiona sus propios leads, citas y pipeline.
+2. **Inmobiliaria (Agencia)**: Empresa con múltiples brokers que requiere gestión de equipo, leaderboards y gamificación.
 
-## Core Requirements
+## Core Features Implemented
 
-### Account Types
-- **Individual**: UI simplificada con pipeline, calendario y scripts personales.
-- **Agency**: UI completa con gestión de equipo, leaderboards, gamificación y reportes.
+### Authentication & Account Types
+- JWT authentication
+- Two account types: Individual (simplified UI) and Agency (full features)
+- User registration with account type selection
 
-### Modules
-1. **Dashboard**: KPIs, métricas de rendimiento, actividad reciente
-2. **Pipeline de Leads**: Tablero Kanban con drag-and-drop
-3. **Calendario**: Gestión de citas y seguimientos
-4. **Brokers**: (Agency only) Gestión de equipo
-5. **Gamificación**: (Agency only) Puntos, reglas, leaderboards
-6. **Scripts**: Guiones de venta personalizables
-7. **AI Assistant**: Chat con contexto de ventas
+### Dashboard
+- KPI cards with click-to-expand detail modals:
+  - Puntos del Mes (desglose por tipo de actividad)
+  - Apartados (lista de propiedades apartadas)
+  - Ventas Cerradas (lista con montos y totales)
+  - Brokers Activos (rendimiento del equipo - Agency only)
+- Leaderboard (Agency only)
+- Recent activity feed
+- Gamification rules display
 
-### Design Constraints
-- **Color Palette**: "Tulum Luxury"
-  - Primary: #0D9488 (Turquesa Profundo)
-  - Secondary: #4D7C0F (Verde Jungla)
-  - Accent: #D97706 (Dorado Cálido)
-  - Background: #E7E5E4 (Beige Arena)
-  - Text/Borders: #6B7280 (Gris Piedra)
-  - Success: #10B981 (Verde Esmeralda)
-  - Error: #EF4444 (Rojo Coral)
-- Dark mode support
-- Mobile responsive
+### Pipeline de Leads
+- Dual view: Kanban board + Table view
+- Drag-and-drop status updates
+- Dynamic bubble filters (status, priority, source)
+- Sortable table columns
+- Lead detail modal with AI analysis
+
+### Calendar Module
+- Month view with Spanish locale
+- Event creation and management
+- Event types: llamada, visita, zoom, presentacion, seguimiento
+- Daily event list
+
+### Campaigns Module (NEW)
+- **Llamadas Masivas** - VAPI AI Voice integration
+- **SMS Masivos** - Twilio integration
+- **Email Marketing** - SendGrid integration
+- Campaign creation with lead filters
+- History tracking for calls, SMS, emails
+- Open/click tracking for emails
+- Conversation analysis (DEMO/mockup)
+
+### Settings
+- Profile management
+- Goals/KPIs configuration
+- **Integrations tab**:
+  - VAPI (AI calls)
+  - Twilio (SMS)
+  - SendGrid (Email)
+- Theme toggle (light/dark)
+
+### AI Assistant
+- Contextual chat powered by OpenAI GPT-4o
+- Sales-focused responses
+- Integration with CRM data
 
 ## Tech Stack
-- **Backend**: FastAPI, MongoDB, JWT Auth
-- **Frontend**: React, Tailwind CSS, shadcn/ui
-- **AI**: OpenAI GPT-4o via Emergent LLM Key
-- **Drag & Drop**: @dnd-kit
+- **Backend**: FastAPI, MongoDB, JWT
+- **Frontend**: React, Tailwind CSS, shadcn/ui, @dnd-kit
+- **Integrations**: OpenAI, VAPI, Twilio, SendGrid
+- **UI**: Tulum Luxury color palette
+
+## Design System
+- Primary: #0D9488 (Turquesa)
+- Secondary: #4D7C0F (Verde Jungla)
+- Accent: #D97706 (Dorado)
+- Background: #E7E5E4 (Beige Arena)
+- Fully responsive (mobile + desktop)
 
 ---
 
-## What's Been Implemented (Feb 13, 2026)
+## Session Changelog (Mar 5, 2026)
 
-### Backend (100% Complete)
-- [x] JWT Authentication with account types
-- [x] User registration/login with account_type field
-- [x] Dashboard stats API
-- [x] Leaderboard API
-- [x] Recent activity API
-- [x] Leads CRUD with status updates
-- [x] Calendar events CRUD
-- [x] Gamification rules API
-- [x] Brokers management API
-- [x] AI chat integration
+### Added
+- ✅ Mobile responsive layout with hamburger menu
+- ✅ Pipeline table view with sortable columns
+- ✅ Dynamic bubble filters for leads
+- ✅ Campaigns module with VAPI, Twilio, SendGrid
+- ✅ Settings integrations page
+- ✅ KPI detail modals on Dashboard click
+- ✅ Renamed app from "LeadVibes" to "Rovi"
 
-### Frontend (100% Complete)
-- [x] Login page with account type selector
-- [x] Onboarding flow
-- [x] Conditional UI based on account type:
-  - Individual: 3 stat cards, no leaderboard, 5 nav items
-  - Agency: 4 stat cards, leaderboard, 7 nav items
-- [x] Pipeline de Leads with drag-and-drop Kanban
-- [x] Calendar with month view and event creation
-- [x] Tulum Luxury color palette applied
-- [x] Dark/Light mode toggle
-
-### Testing
-- Backend: 19/19 tests passed (100%)
-- Frontend: All features verified (100%)
-- Test file: /app/backend/tests/test_leadvibes_crm.py
+### Modified
+- ✅ Sidebar simplified navigation code
+- ✅ Dashboard responsive cards
+- ✅ Calendar responsive layout
+- ✅ Leads page dual view
 
 ---
 
-## Backlog / Future Tasks
+## API Endpoints
 
-### P1 (High Priority)
-- [ ] Google Calendar integration for calendar sync
+### Core
+- POST /api/auth/register, /login
+- GET /api/dashboard/stats, /leaderboard, /kpi-detail/{type}
+- GET/POST /api/leads, PUT /api/leads/{id}
+- GET/POST /api/calendar/events
 
-### P2 (Medium Priority)
-- [ ] Scripts page functionality (currently placeholder)
-- [ ] Reports/Analytics page
-- [ ] Consider PostgreSQL migration (user's original preference)
-- [ ] AI assistant enhancements (auto lead assignment, suggestions)
+### Campaigns
+- GET/POST /api/campaigns
+- POST /api/campaigns/{id}/start
+- GET /api/calls, POST /api/calls/single
+- GET /api/sms, POST /api/sms/single
+- GET /api/emails, POST /api/emails/single
+- GET/POST /api/email-templates
 
-### P3 (Low Priority)
-- [ ] Email/SMS notifications
-- [ ] Mobile app version
-- [ ] Custom gamification rules editor
-- [ ] Lead import/export
+### Settings
+- GET/PUT /api/settings/integrations
+- POST /api/settings/integrations/test-vapi
+- POST /api/settings/integrations/test-twilio
+- POST /api/settings/integrations/test-sendgrid
 
 ---
 
 ## Credentials
-
-### Demo User (Individual)
-- Email: carlos.mendoza@leadvibes.mx
-- Password: demo123
-
-### API URL
-- https://broker-dash-4.preview.emergentagent.com
+- **Demo User**: carlos.mendoza@leadvibes.mx / demo123
+- **API URL**: https://broker-dash-4.preview.emergentagent.com
 
 ---
 
-## Architecture
+## Backlog
 
-```
-/app/
-├── backend/
-│   ├── server.py       # FastAPI main
-│   ├── models.py       # Pydantic models
-│   ├── auth.py         # JWT auth
-│   ├── ai_service.py   # OpenAI integration
-│   └── seed_data.py    # Demo data
-└── frontend/
-    ├── src/
-    │   ├── context/AuthContext.js
-    │   ├── components/
-    │   │   ├── Sidebar.js
-    │   │   ├── Layout.js
-    │   │   └── AIChat.js
-    │   └── pages/
-    │       ├── LoginPage.js
-    │       ├── DashboardPage.js
-    │       ├── LeadsPage.js
-    │       ├── CalendarPage.js
-    │       └── ...
-    └── tailwind.config.js
-```
+### P1 (High Priority)
+- [ ] Google Calendar sync integration
+- [ ] Webhook endpoints for VAPI/Twilio/SendGrid callbacks
+
+### P2 (Medium Priority)
+- [ ] Scripts page functionality
+- [ ] Reports/Analytics page
+- [ ] Email template builder with visual editor
+- [ ] Consider PostgreSQL migration
+
+### P3 (Low Priority)
+- [ ] Push notifications
+- [ ] Mobile app version
+- [ ] Custom gamification rules editor
+- [ ] Lead import/export (CSV)

@@ -296,6 +296,122 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         conversion_rate=round(conversion_rate, 1)
     )
 
+@api_router.get("/dashboard/kpi-detail/{kpi_type}")
+async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current_user)):
+    """Get detailed breakdown for a specific KPI"""
+    tenant_id = current_user["tenant_id"]
+    
+    if kpi_type == "puntos":
+        # Get points breakdown by activity type
+        pipeline = [
+            {"$match": {"tenant_id": tenant_id}},
+            {"$group": {
+                "_id": "$activity_type",
+                "count": {"$sum": 1},
+                "points": {"$sum": "$points"}
+            }},
+            {"$sort": {"points": -1}}
+        ]
+        breakdown = await db.point_ledger.aggregate(pipeline).to_list(20)
+        
+        colors = {
+            "llamada": "bg-blue-500",
+            "whatsapp": "bg-green-500",
+            "email": "bg-purple-500",
+            "zoom": "bg-indigo-500",
+            "visita": "bg-amber-500",
+            "apartado": "bg-secondary",
+            "venta": "bg-accent"
+        }
+        
+        return {
+            "points_breakdown": [
+                {
+                    "type": item["_id"] or "otro",
+                    "count": item["count"],
+                    "points": item["points"],
+                    "color": colors.get(item["_id"], "bg-gray-500")
+                }
+                for item in breakdown
+            ]
+        }
+    
+    elif kpi_type == "apartados":
+        # Get recent apartados with lead info
+        apartados = await db.leads.find(
+            {"tenant_id": tenant_id, "status": "apartado"},
+            {"_id": 0}
+        ).sort("updated_at", -1).limit(20).to_list(20)
+        
+        return {
+            "apartados_list": [
+                {
+                    "lead_name": a.get("name", "Lead"),
+                    "property": a.get("property_interest", "Propiedad"),
+                    "amount": a.get("budget_mxn", 0),
+                    "date": a.get("updated_at")
+                }
+                for a in apartados
+            ]
+        }
+    
+    elif kpi_type == "ventas":
+        # Get ventas with details
+        ventas = await db.leads.find(
+            {"tenant_id": tenant_id, "status": "venta"},
+            {"_id": 0}
+        ).sort("updated_at", -1).limit(20).to_list(20)
+        
+        total = sum(v.get("budget_mxn", 0) for v in ventas)
+        
+        return {
+            "ventas_list": [
+                {
+                    "lead_name": v.get("name", "Lead"),
+                    "property": v.get("property_interest", "Propiedad"),
+                    "amount": v.get("budget_mxn", 0),
+                    "date": v.get("updated_at")
+                }
+                for v in ventas
+            ],
+            "ventas_total": total
+        }
+    
+    elif kpi_type == "brokers":
+        # Get brokers with stats
+        brokers = await db.users.find(
+            {"tenant_id": tenant_id, "role": {"$in": ["broker", "manager"]}, "is_active": True},
+            {"_id": 0, "password_hash": 0}
+        ).to_list(50)
+        
+        brokers_list = []
+        for broker in brokers:
+            leads_count = await db.leads.count_documents({"assigned_broker_id": broker["id"]})
+            ventas = await db.leads.count_documents({"assigned_broker_id": broker["id"], "status": "venta"})
+            
+            pipeline = [
+                {"$match": {"broker_id": broker["id"]}},
+                {"$group": {"_id": None, "total": {"$sum": "$points"}}}
+            ]
+            points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
+            points = points_result[0]["total"] if points_result else 0
+            
+            brokers_list.append({
+                "name": broker.get("name", "Broker"),
+                "avatar": broker.get("avatar_url"),
+                "leads_count": leads_count,
+                "ventas": ventas,
+                "points": points
+            })
+        
+        # Sort by points
+        brokers_list.sort(key=lambda x: x["points"], reverse=True)
+        
+        return {"brokers_list": brokers_list}
+    
+    else:
+        return {"error": "KPI type not found"}
+
 @api_router.get("/dashboard/leaderboard", response_model=List[BrokerStats])
 async def get_leaderboard(current_user: dict = Depends(get_current_user)):
     """Get monthly leaderboard"""
