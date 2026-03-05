@@ -1,5 +1,5 @@
 """
-LeadVibes CRM API Tests
+Rovi CRM API Tests
 Testing features for Individual vs Agency users, Lead pipeline, Calendar
 """
 import pytest

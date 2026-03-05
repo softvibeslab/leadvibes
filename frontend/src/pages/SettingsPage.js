@@ -503,7 +503,7 @@ export const SettingsPage = () => {
                     <Input
                       value={integrations.sendgrid_sender_name}
                       onChange={(e) => setIntegrations({ ...integrations, sendgrid_sender_name: e.target.value })}
-                      placeholder="LeadVibes"
+                      placeholder="Rovi"
                     />
                   </div>
                 </div>

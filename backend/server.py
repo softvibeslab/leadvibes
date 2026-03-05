@@ -47,7 +47,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app
-app = FastAPI(title="LeadVibes CRM API", version="1.0.0")
+app = FastAPI(title="Rovi CRM API", version="1.0.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -951,7 +951,7 @@ async def get_today_events(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/")
 async def root():
-    return {"message": "LeadVibes CRM API v1.0", "status": "running"}
+    return {"message": "Rovi CRM API v1.0", "status": "running"}
 
 @api_router.get("/health")
 async def health_check():
@@ -1267,11 +1267,11 @@ async def start_campaign(
                     
                 try:
                     # Personalize message
-                    subject = campaign.get("email_subject", "Mensaje de LeadVibes").replace("{nombre}", lead["name"])
+                    subject = campaign.get("email_subject", "Mensaje de Rovi").replace("{nombre}", lead["name"])
                     html_content = campaign.get("message_template", "").replace("{nombre}", lead["name"])
                     
                     message = Mail(
-                        from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "LeadVibes")),
+                        from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "Rovi")),
                         to_emails=lead["email"],
                         subject=subject,
                         html_content=html_content
@@ -1480,7 +1480,7 @@ async def send_single_email(
         sg = SendGridAPIClient(settings["sendgrid_api_key"])
         
         message = Mail(
-            from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "LeadVibes")),
+            from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "Rovi")),
             to_emails=email_data.email,
             subject=email_data.subject,
             html_content=email_data.html_content

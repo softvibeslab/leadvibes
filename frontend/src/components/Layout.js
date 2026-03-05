@@ -55,7 +55,7 @@ export const Layout = () => {
           >
             <Menu className="w-5 h-5" />
           </Button>
-          <span className="font-bold text-lg font-['Outfit'] truncate">LeadVibes</span>
+          <span className="font-bold text-lg font-['Outfit'] truncate">Rovi</span>
         </header>
         
         {/* Page Content */}

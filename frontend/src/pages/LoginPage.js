@@ -79,7 +79,7 @@ export const LoginPage = () => {
               <Leaf className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white font-['Outfit']">LeadVibes</h1>
+              <h1 className="text-2xl font-bold text-white font-['Outfit']">Rovi</h1>
               <p className="text-sm text-white/80">CRM Inmobiliario</p>
             </div>
           </div>
@@ -116,7 +116,7 @@ export const LoginPage = () => {
               <Leaf className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-['Outfit']">LeadVibes</h1>
+              <h1 className="text-2xl font-bold font-['Outfit']">Rovi</h1>
               <p className="text-sm text-muted-foreground">CRM</p>
             </div>
           </div>

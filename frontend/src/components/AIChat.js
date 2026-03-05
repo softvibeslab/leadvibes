@@ -104,7 +104,7 @@ export const AIChat = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-sm">Asistente IA</h3>
-                <p className="text-xs opacity-80">LeadVibes CRM</p>
+                <p className="text-xs opacity-80">Rovi CRM</p>
               </div>
             </div>
             <Button

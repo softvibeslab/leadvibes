@@ -442,7 +442,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
               <Textarea
                 value={form.message_template}
                 onChange={(e) => setForm({ ...form, message_template: e.target.value })}
-                placeholder="Hola {nombre}, te contactamos de LeadVibes..."
+                placeholder="Hola {nombre}, te contactamos de Rovi..."
                 rows={3}
               />
               <p className="text-xs text-muted-foreground">

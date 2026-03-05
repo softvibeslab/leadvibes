@@ -67,7 +67,7 @@ export const OnboardingPage = () => {
             <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
               <Leaf className="w-7 h-7 text-primary-foreground" />
             </div>
-            <h1 className="text-3xl font-bold font-['Outfit']">LeadVibes CRM</h1>
+            <h1 className="text-3xl font-bold font-['Outfit']">Rovi CRM</h1>
           </div>
           <p className="text-muted-foreground">Configuremos tus metas para maximizar tu éxito</p>
         </div>
