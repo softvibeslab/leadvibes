@@ -1806,15 +1806,17 @@ async def google_calendar_callback(code: str, state: str = None):
     import requests
     from starlette.responses import RedirectResponse
     
+    # Get frontend URL first for all redirects
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if not frontend_url:
+        # Fallback to root if FRONTEND_URL not set
+        return RedirectResponse("/settings?error=server_config_error")
+    
     # Find user by state
     settings = await db.integration_settings.find_one({"google_oauth_state": state}, {"_id": 0})
     if not settings:
-        # Try to find any settings with matching credentials
-        return RedirectResponse("/settings?error=invalid_state")
+        return RedirectResponse(f"{frontend_url}/settings?error=invalid_state")
     
-    frontend_url = os.environ.get("FRONTEND_URL")
-    if not frontend_url:
-        return RedirectResponse("/settings?error=server_config_error")
     redirect_uri = f"{frontend_url}/api/oauth/google/callback"
     
     # Exchange code for tokens
@@ -1831,7 +1833,7 @@ async def google_calendar_callback(code: str, state: str = None):
         ).json()
         
         if 'error' in token_response:
-            return RedirectResponse(f"/settings?error={token_response.get('error_description', 'token_error')}")
+            return RedirectResponse(f"{frontend_url}/settings?error={token_response.get('error_description', 'token_error')}")
         
         # Get user email
         user_info = requests.get(
@@ -1850,9 +1852,9 @@ async def google_calendar_callback(code: str, state: str = None):
             }}
         )
         
-        return RedirectResponse(f"/settings?google_connected=true&email={user_info.get('email', '')}")
+        return RedirectResponse(f"{frontend_url}/settings?google_connected=true&email={user_info.get('email', '')}")
     except Exception as e:
-        return RedirectResponse(f"/settings?error={str(e)}")
+        return RedirectResponse(f"{frontend_url}/settings?error={str(e)}")
 
 @api_router.post("/oauth/google/disconnect")
 async def google_calendar_disconnect(current_user: dict = Depends(get_current_user)):
