@@ -747,33 +747,45 @@ async def get_activities(
 
 @api_router.get("/brokers", response_model=List[dict])
 async def get_brokers(current_user: dict = Depends(get_current_user)):
-    """Get all brokers"""
+    """Get all brokers - optimized with batch queries"""
     brokers = await db.users.find(
         {"tenant_id": current_user["tenant_id"], "role": {"$in": ["broker", "manager"]}},
         {"_id": 0, "password_hash": 0}
     ).to_list(100)
     
+    if not brokers:
+        return []
+    
+    broker_ids = [b["id"] for b in brokers]
+    
+    # Batch fetch leads count per broker
+    leads_pipeline = [
+        {"$match": {"assigned_broker_id": {"$in": broker_ids}}},
+        {"$group": {"_id": "$assigned_broker_id", "count": {"$sum": 1}}}
+    ]
+    leads_counts = await db.leads.aggregate(leads_pipeline).to_list(None)
+    leads_map = {item["_id"]: item["count"] for item in leads_counts}
+    
+    # Batch fetch points per broker
+    points_pipeline = [
+        {"$match": {"broker_id": {"$in": broker_ids}}},
+        {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}}
+    ]
+    points_results = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+    points_map = {item["_id"]: item["total"] for item in points_results}
+    
     result = []
     for broker in brokers:
-        # Get stats
-        leads_count = await db.leads.count_documents({"assigned_broker_id": broker["id"]})
-        pipeline = [
-            {"$match": {"broker_id": broker["id"]}},
-            {"$group": {"_id": None, "total": {"$sum": "$points"}}}
-        ]
-        points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
-        total_points = points_result[0]["total"] if points_result else 0
-        
         broker_data = serialize_doc(broker)
-        broker_data["leads_asignados"] = leads_count
-        broker_data["total_points"] = total_points
+        broker_data["leads_asignados"] = leads_map.get(broker["id"], 0)
+        broker_data["total_points"] = points_map.get(broker["id"], 0)
         result.append(broker_data)
     
     return result
 
 @api_router.get("/brokers/{broker_id}", response_model=dict)
 async def get_broker(broker_id: str, current_user: dict = Depends(get_current_user)):
-    """Get broker details"""
+    """Get broker details - optimized with single aggregation"""
     broker = await db.users.find_one(
         {"id": broker_id, "tenant_id": current_user["tenant_id"]},
         {"_id": 0, "password_hash": 0}
@@ -781,32 +793,46 @@ async def get_broker(broker_id: str, current_user: dict = Depends(get_current_us
     if not broker:
         raise HTTPException(status_code=404, detail="Broker no encontrado")
     
-    # Get detailed stats
-    ventas = await db.leads.count_documents({"assigned_broker_id": broker_id, "status": "venta"})
-    apartados = await db.leads.count_documents({"assigned_broker_id": broker_id, "status": "apartado"})
-    leads_total = await db.leads.count_documents({"assigned_broker_id": broker_id})
+    # Get all lead stats in single aggregation with $facet
+    leads_pipeline = [
+        {"$match": {"assigned_broker_id": broker_id}},
+        {"$facet": {
+            "total": [{"$count": "count"}],
+            "ventas": [{"$match": {"status": "venta"}}, {"$count": "count"}],
+            "apartados": [{"$match": {"status": "apartado"}}, {"$count": "count"}]
+        }}
+    ]
+    leads_stats = await db.leads.aggregate(leads_pipeline).to_list(1)
+    leads_data = leads_stats[0] if leads_stats else {"total": [], "ventas": [], "apartados": []}
     
-    # Get activity breakdown
-    llamadas = await db.activities.count_documents({"broker_id": broker_id, "activity_type": "llamada"})
-    zooms = await db.activities.count_documents({"broker_id": broker_id, "activity_type": "zoom"})
-    visitas = await db.activities.count_documents({"broker_id": broker_id, "activity_type": "visita"})
+    # Get all activity stats in single aggregation with $facet
+    activities_pipeline = [
+        {"$match": {"broker_id": broker_id}},
+        {"$facet": {
+            "llamadas": [{"$match": {"activity_type": "llamada"}}, {"$count": "count"}],
+            "zooms": [{"$match": {"activity_type": "zoom"}}, {"$count": "count"}],
+            "visitas": [{"$match": {"activity_type": "visita"}}, {"$count": "count"}]
+        }}
+    ]
+    activities_stats = await db.activities.aggregate(activities_pipeline).to_list(1)
+    activities_data = activities_stats[0] if activities_stats else {"llamadas": [], "zooms": [], "visitas": []}
     
     # Get points
-    pipeline = [
+    points_pipeline = [
         {"$match": {"broker_id": broker_id}},
         {"$group": {"_id": None, "total": {"$sum": "$points"}}}
     ]
-    points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
+    points_result = await db.point_ledger.aggregate(points_pipeline).to_list(1)
     total_points = points_result[0]["total"] if points_result else 0
     
     result = serialize_doc(broker)
     result["stats"] = {
-        "ventas": ventas,
-        "apartados": apartados,
-        "leads_total": leads_total,
-        "llamadas": llamadas,
-        "zooms": zooms,
-        "visitas": visitas,
+        "ventas": leads_data["ventas"][0]["count"] if leads_data["ventas"] else 0,
+        "apartados": leads_data["apartados"][0]["count"] if leads_data["apartados"] else 0,
+        "leads_total": leads_data["total"][0]["count"] if leads_data["total"] else 0,
+        "llamadas": activities_data["llamadas"][0]["count"] if activities_data["llamadas"] else 0,
+        "zooms": activities_data["zooms"][0]["count"] if activities_data["zooms"] else 0,
+        "visitas": activities_data["visitas"][0]["count"] if activities_data["visitas"] else 0,
         "total_points": total_points
     }
     
