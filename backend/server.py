@@ -1767,8 +1767,10 @@ async def google_calendar_login(current_user: dict = Depends(get_current_user)):
     
     from google_auth_oauthlib.flow import Flow
     
-    # Get the frontend URL for redirect
-    frontend_url = os.environ.get("FRONTEND_URL", "https://lead-bulk-upload.preview.emergentagent.com")
+    # Get the frontend URL for redirect (required for OAuth)
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if not frontend_url:
+        raise HTTPException(status_code=500, detail="FRONTEND_URL no configurado en el servidor")
     redirect_uri = f"{frontend_url}/api/oauth/google/callback"
     
     flow = Flow.from_client_config(
@@ -1810,7 +1812,9 @@ async def google_calendar_callback(code: str, state: str = None):
         # Try to find any settings with matching credentials
         return RedirectResponse("/settings?error=invalid_state")
     
-    frontend_url = os.environ.get("FRONTEND_URL", "https://lead-bulk-upload.preview.emergentagent.com")
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if not frontend_url:
+        return RedirectResponse("/settings?error=server_config_error")
     redirect_uri = f"{frontend_url}/api/oauth/google/callback"
     
     # Exchange code for tokens
