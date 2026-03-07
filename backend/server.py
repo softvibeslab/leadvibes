@@ -1229,6 +1229,83 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+# ==================== LANDING PAGE LEADS ====================
+
+@api_router.post("/landing/lead")
+async def create_landing_lead(lead_data: dict):
+    """
+    Capture leads from the landing page.
+    Public endpoint for lead generation.
+    """
+    try:
+        # Validate required fields
+        required_fields = ["name", "email", "phone"]
+        for field in required_fields:
+            if field not in lead_data or not lead_data[field]:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+        # Check if lead already exists by email or phone
+        existing_lead = await db.landing_leads.find_one({
+            "$or": [
+                {"email": lead_data["email"]},
+                {"phone": lead_data["phone"]}
+            ]
+        })
+
+        if existing_lead:
+            # Update existing lead
+            await db.landing_leads.update_one(
+                {"_id": existing_lead["_id"]},
+                {
+                    "$set": {
+                        **lead_data,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "status": "re-submitted"
+                    }
+                }
+            )
+            return {"success": True, "message": "Lead updated successfully", "lead_id": str(existing_lead["_id"])}
+
+        # Create new landing lead
+        lead_doc = {
+            "id": str(uuid.uuid4()),
+            "name": lead_data["name"],
+            "email": lead_data["email"],
+            "phone": lead_data["phone"],
+            "company": lead_data.get("company", ""),
+            "account_type": lead_data.get("account_type", "individual"),
+            "message": lead_data.get("message", ""),
+            "source": "landing_page",
+            "status": "new",
+            "utm_source": lead_data.get("utm_source", ""),
+            "utm_medium": lead_data.get("utm_medium", ""),
+            "utm_campaign": lead_data.get("utm_campaign", ""),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        await db.landing_leads.insert_one(lead_doc)
+
+        logger.info(f"New landing lead created: {lead_data['email']}")
+
+        return {
+            "success": True,
+            "message": "Lead created successfully",
+            "lead_id": lead_doc["id"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating landing lead: {e}")
+        raise HTTPException(status_code=500, detail="Error creating lead")
+
+@api_router.get("/landing/leads")
+async def get_landing_leads(current_user: dict = Depends(get_current_user)):
+    """Get all landing leads (protected endpoint)"""
+    leads = await db.landing_leads.find().sort("created_at", -1).to_list(length=1000)
+    return [serialize_doc(lead) for lead in leads]
+
 # ==================== INTEGRATION SETTINGS ====================
 
 @api_router.get("/settings/integrations")
