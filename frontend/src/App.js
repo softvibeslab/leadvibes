@@ -14,6 +14,8 @@ import { ScriptsPage } from './pages/ScriptsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { CampaignsPage } from './pages/CampaignsPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { AutomationsPage } from './pages/AutomationsPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
 import { LandingPage } from './pages/LandingPage';
@@ -111,6 +113,8 @@ function AppRoutes() {
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/settings" element={<SettingsPage />} />

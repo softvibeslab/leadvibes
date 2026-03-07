@@ -476,6 +476,7 @@ class EmailTemplate(BaseModel):
     user_id: str
     tenant_id: str
     name: str
+    category: Optional[str] = None  # "open_house", "property_promo", "follow_up", "market_update", "buyer_nurturing", "seller_nurturing"
     subject: str
     html_content: str
     json_content: Optional[Dict[str, Any]] = None  # Visual editor JSON structure
@@ -487,6 +488,7 @@ class EmailTemplate(BaseModel):
 
 class EmailTemplateCreate(BaseModel):
     name: str
+    category: Optional[str] = None
     subject: str
     html_content: str
     json_content: Optional[Dict[str, Any]] = None
@@ -559,3 +561,132 @@ class ImportMappingRequest(BaseModel):
     mapping: List[ColumnMapping]
     skip_duplicates: bool = True
     duplicate_field: str = "email"  # Field to check for duplicates
+
+
+# ==================== CAMPAIGN ANALYTICS ====================
+
+class CampaignMetrics(BaseModel):
+    """Campaign metrics for analytics dashboard"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    campaign_id: Optional[str] = None
+    source: str  # "meta", "google", "email", "sms", "call"
+    date: datetime = Field(default_factory=now_utc)
+
+    # Metrics
+    impressions: int = 0
+    clicks: int = 0
+    conversions: int = 0
+    spend: float = 0.0
+    leads: int = 0
+
+    # Calculated metrics
+    ctr: float = 0.0  # Click-through rate
+    cpc: float = 0.0  # Cost per click
+    cpl: float = 0.0  # Cost per lead
+    roas: float = 0.0  # Return on ad spend
+
+    # Real estate specific metrics
+    property_views: int = 0
+    viewing_requests: int = 0
+    brokerage_signed: int = 0
+
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class AnalyticsDashboard(BaseModel):
+    """Analytics dashboard summary"""
+    total_spend: float = 0.0
+    total_impressions: int = 0
+    total_clicks: int = 0
+    total_conversions: int = 0
+    total_leads: int = 0
+    avg_ctr: float = 0.0
+    avg_cpl: float = 0.0
+    leads_by_source: Dict[str, int] = {}
+    spend_by_source: Dict[str, float] = {}
+    conversions_by_source: Dict[str, int] = {}
+
+
+# ==================== AUTOMATIONS / WORKFLOWS ====================
+
+class AutomationWorkflow(BaseModel):
+    """Automation workflow model (n8n integration)"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    name: str
+    description: Optional[str] = None
+    category: str  # "lead_generation", "sales", "promotion", "custom"
+    n8n_workflow_id: Optional[str] = None  # ID del workflow en n8n
+    n8n_webhook_url: Optional[str] = None  # URL del webhook de n8n
+    is_active: bool = False
+    is_template: bool = False  # Si es una plantilla predefinida
+
+    # Configuración dinámica del workflow
+    config_schema: Optional[Dict[str, Any]] = None  # Schema de variables (del webhook n8n)
+    config_values: Dict[str, Any] = {}  # Valores configurados
+
+    # Estadísticas
+    last_run: Optional[datetime] = None
+    total_runs: int = 0
+    successful_runs: int = 0
+    failed_runs: int = 0
+
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class AutomationWorkflowCreate(BaseModel):
+    """Create a new automation workflow"""
+    name: str
+    description: Optional[str] = None
+    category: str
+    n8n_workflow_id: Optional[str] = None
+    config_values: Dict[str, Any] = {}
+
+
+class AutomationExecution(BaseModel):
+    """Execution log for automation workflow"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    workflow_id: str
+    status: str  # "running", "completed", "failed", "cancelled"
+    started_at: datetime = Field(default_factory=now_utc)
+    completed_at: Optional[datetime] = None
+    input_data: Dict[str, Any] = {}
+    output_data: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    execution_time_ms: Optional[int] = None
+
+
+# ==================== ROUND ROBIN ASSIGNMENTS ====================
+
+class RoundRobinConfig(BaseModel):
+    """Round Robin configuration for lead/event assignment"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    is_active: bool = True
+    active_brokers: List[str] = []  # List of broker IDs participating in Round Robin
+    last_assigned_broker: Optional[str] = None  # Last broker that received an assignment
+    assignment_counts: Dict[str, int] = {}  # Track assignments per broker for balance
+    reset_frequency: str = "daily"  # "daily", "weekly", "never"
+    last_reset: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class CalendarAssignment(BaseModel):
+    """Assignment record for calendar events"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    event_id: str
+    assigned_to: str  # broker ID
+    assignment_type: str  # "manual" or "round_robin"
+    assigned_by: str  # user ID who made the assignment
+    created_at: datetime = Field(default_factory=now_utc)
