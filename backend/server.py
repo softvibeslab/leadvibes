@@ -21,7 +21,7 @@ from models import (
     ChatMessage, ChatMessageCreate,
     Script, ScriptCreate,
     DashboardStats,
-    CalendarEventCreate, CalendarEvent,
+    CalendarEventCreate, CalendarEventUpdate, CalendarEvent,
     IntegrationSettings, IntegrationSettingsUpdate,
     Campaign, CampaignCreate, CampaignType, CampaignStatus,
     CallRecord, CallRecordCreate, CallStatus,
@@ -1088,7 +1088,7 @@ async def get_calendar_events(
 
 @api_router.post("/calendar/events", response_model=dict)
 async def create_calendar_event(event_data: CalendarEventCreate, current_user: dict = Depends(get_current_user)):
-    """Create calendar event"""
+    """Create calendar event with automatic Google Calendar sync"""
     event_id = str(uuid.uuid4())
     
     event_doc = {
@@ -1099,41 +1099,100 @@ async def create_calendar_event(event_data: CalendarEventCreate, current_user: d
         "start_time": event_data.start_time.isoformat(),
         "end_time": event_data.end_time.isoformat() if event_data.end_time else None,
         "completed": False,
+        "google_event_id": None,
+        "synced_from_google": False,
+        "last_synced_at": None,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
+    # Sync to Google Calendar if enabled
+    google_event_id = await sync_event_to_google(current_user["user_id"], event_doc)
+    if google_event_id:
+        event_doc["google_event_id"] = google_event_id
+        event_doc["last_synced_at"] = datetime.now(timezone.utc).isoformat()
+    
     await db.calendar_events.insert_one(event_doc)
-    return {"message": "Evento creado exitosamente", "id": event_id}
+    
+    return {
+        "message": "Evento creado exitosamente", 
+        "id": event_id,
+        "synced_to_google": google_event_id is not None
+    }
 
 @api_router.put("/calendar/events/{event_id}", response_model=dict)
-async def update_calendar_event(event_id: str, completed: bool = None, current_user: dict = Depends(get_current_user)):
-    """Update calendar event"""
+async def update_calendar_event(
+    event_id: str, 
+    event_data: CalendarEventUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update calendar event with automatic Google Calendar sync"""
+    # Get existing event
+    existing = await db.calendar_events.find_one(
+        {"id": event_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    # Build update dict
     update_dict = {}
-    if completed is not None:
-        update_dict["completed"] = completed
+    data = event_data.model_dump(exclude_unset=True)
+    
+    for key, value in data.items():
+        if value is not None:
+            if key in ['start_time', 'end_time'] and value:
+                update_dict[key] = value.isoformat()
+            else:
+                update_dict[key] = value
     
     if not update_dict:
         raise HTTPException(status_code=400, detail="No hay datos para actualizar")
     
-    result = await db.calendar_events.update_one(
-        {"id": event_id, "user_id": current_user["user_id"]},
+    # Update local event
+    await db.calendar_events.update_one(
+        {"id": event_id},
         {"$set": update_dict}
     )
     
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    # Get updated event for Google sync
+    updated_event = await db.calendar_events.find_one({"id": event_id}, {"_id": 0})
     
-    return {"message": "Evento actualizado"}
+    # Sync to Google Calendar if connected
+    synced = False
+    if updated_event.get("google_event_id") or await is_google_calendar_enabled(current_user["user_id"]):
+        google_event_id = await sync_event_to_google(current_user["user_id"], updated_event)
+        if google_event_id:
+            await db.calendar_events.update_one(
+                {"id": event_id},
+                {"$set": {
+                    "google_event_id": google_event_id,
+                    "last_synced_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            synced = True
+    
+    return {"message": "Evento actualizado", "synced_to_google": synced}
 
 @api_router.delete("/calendar/events/{event_id}", response_model=dict)
 async def delete_calendar_event(event_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete calendar event"""
-    result = await db.calendar_events.delete_one({"id": event_id, "user_id": current_user["user_id"]})
+    """Delete calendar event with automatic Google Calendar sync"""
+    # Get event to check for Google Calendar ID
+    event = await db.calendar_events.find_one(
+        {"id": event_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
     
-    if result.deleted_count == 0:
+    if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
     
-    return {"message": "Evento eliminado"}
+    # Delete from Google Calendar if synced
+    if event.get("google_event_id"):
+        await delete_from_google(current_user["user_id"], event["google_event_id"])
+    
+    # Delete locally
+    result = await db.calendar_events.delete_one({"id": event_id, "user_id": current_user["user_id"]})
+    
+    return {"message": "Evento eliminado", "deleted_from_google": event.get("google_event_id") is not None}
 
 @api_router.get("/calendar/today", response_model=List[dict])
 async def get_today_events(current_user: dict = Depends(get_current_user)):
@@ -1896,6 +1955,87 @@ async def get_google_credentials(user_id: str):
     
     return creds
 
+async def is_google_calendar_enabled(user_id: str) -> bool:
+    """Check if Google Calendar is enabled for user"""
+    settings = await db.integration_settings.find_one({"user_id": user_id}, {"_id": 0})
+    return settings.get("google_calendar_enabled", False) if settings else False
+
+async def sync_event_to_google(user_id: str, event_doc: dict) -> str | None:
+    """Sync a local event to Google Calendar. Returns google_event_id or None."""
+    from googleapiclient.discovery import build
+    
+    if not await is_google_calendar_enabled(user_id):
+        return None
+    
+    creds = await get_google_credentials(user_id)
+    if not creds:
+        return None
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        # Build Google Calendar event
+        google_event = {
+            'summary': event_doc.get('title', 'Evento'),
+            'description': event_doc.get('description', ''),
+            'start': {
+                'dateTime': event_doc.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+            'end': {
+                'dateTime': event_doc.get('end_time') or event_doc.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+        }
+        
+        # Add reminder if specified
+        if event_doc.get('reminder_minutes'):
+            google_event['reminders'] = {
+                'useDefault': False,
+                'overrides': [
+                    {'method': 'popup', 'minutes': event_doc.get('reminder_minutes', 30)}
+                ]
+            }
+        
+        # Create or update in Google
+        if event_doc.get('google_event_id'):
+            # Update existing
+            created = service.events().update(
+                calendarId='primary',
+                eventId=event_doc['google_event_id'],
+                body=google_event
+            ).execute()
+        else:
+            # Create new
+            created = service.events().insert(calendarId='primary', body=google_event).execute()
+        
+        return created.get('id')
+    except Exception as e:
+        print(f"Error syncing to Google Calendar: {e}")
+        return None
+
+async def delete_from_google(user_id: str, google_event_id: str) -> bool:
+    """Delete event from Google Calendar. Returns True on success."""
+    from googleapiclient.discovery import build
+    
+    if not google_event_id:
+        return False
+    
+    if not await is_google_calendar_enabled(user_id):
+        return False
+    
+    creds = await get_google_credentials(user_id)
+    if not creds:
+        return False
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        service.events().delete(calendarId='primary', eventId=google_event_id).execute()
+        return True
+    except Exception as e:
+        print(f"Error deleting from Google Calendar: {e}")
+        return False
+
 @api_router.get("/google-calendar/events")
 async def get_google_calendar_events(
     time_min: str = None,
@@ -1984,7 +2124,7 @@ async def delete_google_calendar_event(
         raise HTTPException(status_code=500, detail=f"Error al eliminar evento: {str(e)}")
 
 @api_router.post("/calendar/events/{event_id}/sync-google")
-async def sync_event_to_google(
+async def sync_single_event_to_google(
     event_id: str,
     current_user: dict = Depends(get_current_user)
 ):
@@ -2024,12 +2164,211 @@ async def sync_event_to_google(
         # Update local event with Google Calendar ID
         await db.calendar_events.update_one(
             {"id": event_id},
-            {"$set": {"google_event_id": created['id']}}
+            {"$set": {
+                "google_event_id": created['id'],
+                "last_synced_at": datetime.now(timezone.utc).isoformat()
+            }}
         )
         
         return {"message": "Evento sincronizado", "google_event_id": created['id']}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al sincronizar: {str(e)}")
+
+@api_router.post("/google-calendar/import")
+async def import_google_calendar_events(
+    days_back: int = 30,
+    days_forward: int = 90,
+    current_user: dict = Depends(get_current_user)
+):
+    """Import events from Google Calendar to Rovi (Google → Rovi sync)"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        # Get events from the past and future
+        time_min = (datetime.now(timezone.utc) - timedelta(days=days_back)).isoformat()
+        time_max = (datetime.now(timezone.utc) + timedelta(days=days_forward)).isoformat()
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=500,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        google_events = events_result.get('items', [])
+        imported_count = 0
+        skipped_count = 0
+        
+        for g_event in google_events:
+            google_event_id = g_event.get('id')
+            
+            # Check if already imported
+            existing = await db.calendar_events.find_one({
+                "google_event_id": google_event_id,
+                "user_id": current_user["user_id"]
+            })
+            
+            if existing:
+                skipped_count += 1
+                continue
+            
+            # Parse start and end times
+            start = g_event.get('start', {})
+            end = g_event.get('end', {})
+            
+            start_time = start.get('dateTime') or start.get('date')
+            end_time = end.get('dateTime') or end.get('date')
+            
+            # Create local event
+            event_doc = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user["user_id"],
+                "tenant_id": current_user["tenant_id"],
+                "title": g_event.get('summary', 'Evento de Google'),
+                "description": g_event.get('description', ''),
+                "event_type": "otro",  # Default type for imported events
+                "start_time": start_time,
+                "end_time": end_time,
+                "lead_id": None,
+                "reminder_minutes": 30,
+                "color": None,
+                "completed": False,
+                "google_event_id": google_event_id,
+                "synced_from_google": True,
+                "last_synced_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.calendar_events.insert_one(event_doc)
+            imported_count += 1
+        
+        return {
+            "message": f"Importación completada",
+            "imported": imported_count,
+            "skipped": skipped_count,
+            "total_found": len(google_events)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al importar: {str(e)}")
+
+@api_router.post("/google-calendar/sync")
+async def full_calendar_sync(current_user: dict = Depends(get_current_user)):
+    """Full bidirectional sync between Rovi and Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        stats = {
+            "exported_to_google": 0,
+            "imported_from_google": 0,
+            "updated": 0,
+            "errors": 0
+        }
+        
+        # 1. Export local events without google_event_id to Google (Rovi → Google)
+        local_events = await db.calendar_events.find({
+            "user_id": current_user["user_id"],
+            "google_event_id": None
+        }, {"_id": 0}).to_list(500)
+        
+        for event in local_events:
+            google_event = {
+                'summary': event.get('title', 'Evento'),
+                'description': event.get('description', ''),
+                'start': {
+                    'dateTime': event.get('start_time'),
+                    'timeZone': 'America/Mexico_City',
+                },
+                'end': {
+                    'dateTime': event.get('end_time') or event.get('start_time'),
+                    'timeZone': 'America/Mexico_City',
+                },
+            }
+            
+            try:
+                created = service.events().insert(calendarId='primary', body=google_event).execute()
+                await db.calendar_events.update_one(
+                    {"id": event["id"]},
+                    {"$set": {
+                        "google_event_id": created['id'],
+                        "last_synced_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                stats["exported_to_google"] += 1
+            except Exception as e:
+                print(f"Error exporting event {event['id']}: {e}")
+                stats["errors"] += 1
+        
+        # 2. Import Google events not in Rovi (Google → Rovi)
+        time_min = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        time_max = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=500,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        google_events = events_result.get('items', [])
+        
+        for g_event in google_events:
+            google_event_id = g_event.get('id')
+            
+            # Check if exists in Rovi
+            existing = await db.calendar_events.find_one({
+                "google_event_id": google_event_id,
+                "user_id": current_user["user_id"]
+            })
+            
+            if not existing:
+                # Import new event
+                start = g_event.get('start', {})
+                end = g_event.get('end', {})
+                
+                event_doc = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": current_user["user_id"],
+                    "tenant_id": current_user["tenant_id"],
+                    "title": g_event.get('summary', 'Evento de Google'),
+                    "description": g_event.get('description', ''),
+                    "event_type": "otro",
+                    "start_time": start.get('dateTime') or start.get('date'),
+                    "end_time": end.get('dateTime') or end.get('date'),
+                    "lead_id": None,
+                    "reminder_minutes": 30,
+                    "color": None,
+                    "completed": False,
+                    "google_event_id": google_event_id,
+                    "synced_from_google": True,
+                    "last_synced_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                await db.calendar_events.insert_one(event_doc)
+                stats["imported_from_google"] += 1
+        
+        return {
+            "message": "Sincronización completada",
+            "stats": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en sincronización: {str(e)}")
 
 # ==================== EMAIL TEMPLATES ====================
 

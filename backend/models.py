@@ -257,12 +257,27 @@ class CalendarEventCreate(BaseModel):
     reminder_minutes: int = 30
     color: Optional[str] = None
 
+class CalendarEventUpdate(BaseModel):
+    """Update model for calendar events"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    event_type: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    lead_id: Optional[str] = None
+    reminder_minutes: Optional[int] = None
+    color: Optional[str] = None
+    completed: Optional[bool] = None
+
 class CalendarEvent(CalendarEventCreate):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     user_id: str
     tenant_id: str
     completed: bool = False
+    google_event_id: Optional[str] = None  # ID del evento en Google Calendar
+    synced_from_google: bool = False  # True si fue importado de Google
+    last_synced_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 
