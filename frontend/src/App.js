@@ -12,6 +12,12 @@ import { BrokersPage } from './pages/BrokersPage';
 import { GamificationPage } from './pages/GamificationPage';
 import { ScriptsPage } from './pages/ScriptsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CalendarPage } from './pages/CalendarPage';
+import { CampaignsPage } from './pages/CampaignsPage';
+import { ImportLeadsPage } from './pages/ImportLeadsPage';
+import { EmailEditorPage } from './pages/EmailEditorPage';
+import { LandingPage } from './pages/LandingPage';
+import { DemoRequestPage } from './pages/DemoRequestPage';
 import './App.css';
 
 // Protected Route component
@@ -63,6 +69,14 @@ const PublicRoute = ({ children }) => {
 function AppRoutes() {
   return (
     <Routes>
+      {/* Landing Page - Public */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/landing" element={<LandingPage />} />
+
+      {/* Demo Request Page - Public */}
+      <Route path="/demo-request" element={<DemoRequestPage />} />
+      <Route path="/contact-sales" element={<DemoRequestPage enterprise />} />
+
       {/* Public routes */}
       <Route
         path="/login"
@@ -95,13 +109,33 @@ function AppRoutes() {
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/brokers" element={<BrokersPage />} />
         <Route path="/gamification" element={<GamificationPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
+      {/* Email Editor - Full screen without Layout */}
+      <Route 
+        path="/email-templates/new" 
+        element={
+          <ProtectedRoute>
+            <EmailEditorPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/email-templates/:templateId" 
+        element={
+          <ProtectedRoute>
+            <EmailEditorPage />
+          </ProtectedRoute>
+        } 
+      />
+
       {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<LandingPage />} />
     </Routes>
   );
 }

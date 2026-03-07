@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Leaf, Eye, EyeOff, Sun, Moon, Loader2 } from 'lucide-react';
+import { Leaf, Eye, EyeOff, Sun, Moon, Loader2, User, Building2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -18,7 +18,12 @@ export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '' });
+  const [registerForm, setRegisterForm] = useState({ 
+    name: '', 
+    email: '', 
+    password: '',
+    account_type: 'individual' 
+  });
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -42,7 +47,13 @@ export const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await register(registerForm.name, registerForm.email, registerForm.password);
+      await register(
+        registerForm.name, 
+        registerForm.email, 
+        registerForm.password, 
+        'broker',
+        registerForm.account_type
+      );
       toast.success('¡Cuenta creada! Configura tus metas');
       navigate('/onboarding');
     } catch (error) {
@@ -61,29 +72,29 @@ export const LoginPage = () => {
           backgroundImage: `url('https://images.unsplash.com/photo-1692726293166-7d1f95a4319d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHx0dWx1bSUyMGx1eHVyeSUyMGp1bmdsZSUyMHJlYWwlMjBlc3RhdGUlMjB2aWxsYXxlbnwwfHx8fDE3NzA5NDM1NTN8MA&ixlib=rb-4.1.0&q=85')`
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/80 to-emerald-950/90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0D9488]/90 to-[#4D7C0F]/80" />
         <div className="relative z-10 p-12 flex flex-col justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
               <Leaf className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white font-['Outfit']">LeadVibes</h1>
-              <p className="text-sm text-emerald-200">CRM Inmobiliario</p>
+              <h1 className="text-2xl font-bold text-white font-['Outfit']">Rovi</h1>
+              <p className="text-sm text-white/80">CRM Inmobiliario</p>
             </div>
           </div>
           
           <div className="space-y-6">
             <blockquote className="text-2xl font-light text-white leading-relaxed">
-              "El CRM que transforma tu equipo de ventas inmobiliarias en una máquina de cerrar negocios."
+              "El CRM que transforma tu gestión de ventas inmobiliarias en una experiencia de lujo."
             </blockquote>
             <div className="flex items-center gap-4">
               <div className="flex -space-x-3">
                 {[1,2,3].map(i => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-emerald-800 bg-emerald-600" />
+                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white/30 bg-[#0D9488]" />
                 ))}
               </div>
-              <p className="text-emerald-200 text-sm">+500 brokers activos en Tulum</p>
+              <p className="text-white/80 text-sm">+500 brokers activos en Tulum</p>
             </div>
           </div>
         </div>
@@ -105,7 +116,7 @@ export const LoginPage = () => {
               <Leaf className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-['Outfit']">LeadVibes</h1>
+              <h1 className="text-2xl font-bold font-['Outfit']">Rovi</h1>
               <p className="text-sm text-muted-foreground">CRM</p>
             </div>
           </div>
@@ -168,6 +179,41 @@ export const LoginPage = () => {
 
                 <TabsContent value="register">
                   <form onSubmit={handleRegister} className="space-y-4">
+                    {/* Account Type Selector */}
+                    <div className="space-y-2">
+                      <Label>Tipo de cuenta</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setRegisterForm({ ...registerForm, account_type: 'individual' })}
+                          className={`p-4 rounded-xl border-2 transition-all text-left ${
+                            registerForm.account_type === 'individual'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          data-testid="account-type-individual"
+                        >
+                          <User className={`w-6 h-6 mb-2 ${registerForm.account_type === 'individual' ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <p className="font-medium text-sm">Broker Individual</p>
+                          <p className="text-xs text-muted-foreground">Gestiona tus propios leads</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegisterForm({ ...registerForm, account_type: 'agency' })}
+                          className={`p-4 rounded-xl border-2 transition-all text-left ${
+                            registerForm.account_type === 'agency'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          data-testid="account-type-agency"
+                        >
+                          <Building2 className={`w-6 h-6 mb-2 ${registerForm.account_type === 'agency' ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <p className="font-medium text-sm">Inmobiliaria</p>
+                          <p className="text-xs text-muted-foreground">Gestiona tu equipo de ventas</p>
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="register-name">Nombre completo</Label>
                       <Input

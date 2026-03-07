@@ -1,15 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Search, Plus, Phone, MessageCircle, Mail, Video, MapPin, Filter,
-  ChevronDown, MoreHorizontal, Sparkles, Loader2, X, DollarSign,
-  TrendingUp, Calendar, User, Edit, Bookmark, ShoppingCart
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  Search, Plus, Phone, MessageCircle, Mail, Video, MapPin,
+  Sparkles, Loader2, DollarSign, TrendingUp, GripVertical,
+  LayoutGrid, Table2, X, ArrowUpDown, ArrowUp, ArrowDown, Filter
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Progress } from '../components/ui/progress';
@@ -21,7 +36,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '../components/ui/dialog';
 import {
@@ -31,53 +45,237 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
 import { toast } from 'sonner';
 
 const statusConfig = {
-  nuevo: { label: 'Nuevo', color: 'bg-blue-500', textColor: 'text-blue-500' },
-  contactado: { label: 'Contactado', color: 'bg-cyan-500', textColor: 'text-cyan-500' },
-  calificacion: { label: 'Calificación', color: 'bg-yellow-500', textColor: 'text-yellow-500' },
-  presentacion: { label: 'Presentación', color: 'bg-purple-500', textColor: 'text-purple-500' },
-  apartado: { label: 'Apartado', color: 'bg-orange-500', textColor: 'text-orange-500' },
-  venta: { label: 'Venta', color: 'bg-emerald-500', textColor: 'text-emerald-500' },
-  perdido: { label: 'Perdido', color: 'bg-gray-500', textColor: 'text-gray-500' },
+  nuevo: { label: 'Nuevo', color: 'bg-blue-500', textColor: 'text-blue-500', bgLight: 'bg-blue-500/10' },
+  contactado: { label: 'Contactado', color: 'bg-cyan-500', textColor: 'text-cyan-500', bgLight: 'bg-cyan-500/10' },
+  calificacion: { label: 'Calificación', color: 'bg-amber-500', textColor: 'text-amber-500', bgLight: 'bg-amber-500/10' },
+  presentacion: { label: 'Presentación', color: 'bg-purple-500', textColor: 'text-purple-500', bgLight: 'bg-purple-500/10' },
+  apartado: { label: 'Apartado', color: 'bg-[#D97706]', textColor: 'text-[#D97706]', bgLight: 'bg-[#D97706]/10' },
+  venta: { label: 'Venta', color: 'bg-[#10B981]', textColor: 'text-[#10B981]', bgLight: 'bg-[#10B981]/10' },
 };
 
 const priorityConfig = {
   baja: { label: 'Baja', color: 'bg-gray-400' },
-  media: { label: 'Media', color: 'bg-yellow-400' },
+  media: { label: 'Media', color: 'bg-amber-400' },
   alta: { label: 'Alta', color: 'bg-orange-500' },
   urgente: { label: 'Urgente', color: 'bg-red-500' },
 };
 
-const LeadCard = ({ lead, onClick }) => {
+const sourceConfig = {
+  web: { label: 'Web', color: 'bg-blue-400' },
+  'Facebook Ads': { label: 'Facebook', color: 'bg-indigo-500' },
+  'Instagram': { label: 'Instagram', color: 'bg-pink-500' },
+  'Google Ads': { label: 'Google', color: 'bg-green-500' },
+  'Referido': { label: 'Referido', color: 'bg-purple-500' },
+  'WhatsApp': { label: 'WhatsApp', color: 'bg-emerald-500' },
+};
+
+// Filter Bubble Component
+const FilterBubble = ({ label, isActive, onClick, color }) => (
+  <button
+    onClick={onClick}
+    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+      isActive
+        ? `${color || 'bg-primary'} text-white shadow-md`
+        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+// Active Filter Tag
+const ActiveFilterTag = ({ label, onRemove }) => (
+  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+    {label}
+    <button onClick={onRemove} className="hover:bg-primary/20 rounded-full p-0.5">
+      <X className="w-3 h-3" />
+    </button>
+  </span>
+);
+
+// Table View Component
+const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort }) => {
+  const SortableHeader = ({ column, label }) => {
+    const isActive = sortConfig.key === column;
+    return (
+      <TableHead 
+        className="cursor-pointer hover:bg-muted/50 select-none"
+        onClick={() => onSort(column)}
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isActive ? (
+            sortConfig.direction === 'asc' ? 
+              <ArrowUp className="w-3 h-3" /> : 
+              <ArrowDown className="w-3 h-3" />
+          ) : (
+            <ArrowUpDown className="w-3 h-3 opacity-30" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30">
+              <SortableHeader column="name" label="Nombre" />
+              <SortableHeader column="phone" label="Teléfono" />
+              <SortableHeader column="status" label="Estado" />
+              <SortableHeader column="priority" label="Prioridad" />
+              <SortableHeader column="source" label="Fuente" />
+              <SortableHeader column="budget_mxn" label="Presupuesto" />
+              <SortableHeader column="intent_score" label="Intención" />
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {leads.map((lead) => {
+              const status = statusConfig[lead.status] || statusConfig.nuevo;
+              const priority = priorityConfig[lead.priority] || priorityConfig.media;
+              const source = sourceConfig[lead.source] || { label: lead.source, color: 'bg-gray-400' };
+              
+              return (
+                <TableRow 
+                  key={lead.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => onLeadClick(lead)}
+                  data-testid={`table-row-${lead.id}`}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {lead.name?.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{lead.name}</p>
+                        <p className="text-xs text-muted-foreground">{lead.email}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{lead.phone}</TableCell>
+                  <TableCell>
+                    <Badge className={`${status.color} text-white text-xs`}>
+                      {status.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${priority.color}`} />
+                      <span className="text-xs">{priority.label}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {source.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm font-medium">
+                    ${lead.budget_mxn?.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Progress value={lead.intent_score} className="w-16 h-1.5" />
+                      <span className={`text-xs font-medium ${
+                        lead.intent_score >= 70 ? 'text-[#10B981]' : 
+                        lead.intent_score >= 40 ? 'text-[#D97706]' : 'text-muted-foreground'
+                      }`}>
+                        {lead.intent_score}%
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                        <a href={`tel:${lead.phone}`}>
+                          <Phone className="w-4 h-4" />
+                        </a>
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                        <a href={`https://wa.me/${lead.phone?.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {leads.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  No se encontraron leads con los filtros aplicados
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
+// Sortable Lead Card Component
+const SortableLeadCard = ({ lead, onClick }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lead.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const status = statusConfig[lead.status] || statusConfig.nuevo;
   const priority = priorityConfig[lead.priority] || priorityConfig.media;
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 group"
-      onClick={() => onClick(lead)}
+      ref={setNodeRef}
+      style={style}
+      className={`cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 group bg-card ${isDragging ? 'shadow-xl ring-2 ring-primary' : ''}`}
       data-testid={`lead-card-${lead.id}`}
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm">
+            {/* Drag Handle */}
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-muted rounded"
+            >
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <Avatar className="w-9 h-9">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
                 {lead.name?.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
+            <div onClick={() => onClick(lead)} className="cursor-pointer">
               <h4 className="font-medium text-sm group-hover:text-primary transition-colors">
                 {lead.name}
               </h4>
@@ -87,7 +285,7 @@ const LeadCard = ({ lead, onClick }) => {
           <div className={`w-2 h-2 rounded-full ${priority.color}`} title={priority.label} />
         </div>
 
-        <div className="space-y-2 mb-3">
+        <div className="space-y-2 mb-3" onClick={() => onClick(lead)}>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <DollarSign className="w-3 h-3" />
             <span>${lead.budget_mxn?.toLocaleString()} MXN</span>
@@ -98,21 +296,82 @@ const LeadCard = ({ lead, onClick }) => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <Badge variant="secondary" className={`${status.textColor} text-xs`}>
-            {status.label}
-          </Badge>
+        <div className="flex items-center justify-between" onClick={() => onClick(lead)}>
           <div className="flex items-center gap-1">
             <TrendingUp className="w-3 h-3 text-muted-foreground" />
-            <span className="text-xs font-medium">{lead.intent_score}%</span>
+            <span className={`text-xs font-medium ${lead.intent_score >= 70 ? 'text-[#10B981]' : lead.intent_score >= 40 ? 'text-[#D97706]' : 'text-muted-foreground'}`}>
+              {lead.intent_score}%
+            </span>
           </div>
         </div>
 
-        {lead.intent_score >= 80 && (
+        {lead.intent_score >= 70 && (
           <Progress value={lead.intent_score} className="h-1 mt-3" />
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Simple Lead Card for DragOverlay
+const LeadCardOverlay = ({ lead }) => {
+  const priority = priorityConfig[lead.priority] || priorityConfig.media;
+
+  return (
+    <Card className="cursor-grabbing shadow-2xl ring-2 ring-primary bg-card w-full max-w-[280px]">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <GripVertical className="w-4 h-4 text-primary" />
+            <Avatar className="w-9 h-9">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                {lead.name?.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h4 className="font-medium text-sm text-primary">{lead.name}</h4>
+              <p className="text-xs text-muted-foreground">{lead.phone}</p>
+            </div>
+          </div>
+          <div className={`w-2 h-2 rounded-full ${priority.color}`} />
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <DollarSign className="w-3 h-3" />
+          <span>${lead.budget_mxn?.toLocaleString()} MXN</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Droppable Column Component
+const DroppableColumn = ({ status, leads, onLeadClick, children }) => {
+  const config = statusConfig[status];
+  
+  return (
+    <div className="flex flex-col h-full min-w-[280px]">
+      <div className="flex items-center justify-between mb-3 px-1">
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${config.color}`} />
+          <h3 className="font-medium text-sm">{config.label}</h3>
+        </div>
+        <Badge variant="secondary" className="text-xs">{leads.length}</Badge>
+      </div>
+      <div className={`flex-1 rounded-xl p-2 ${config.bgLight} min-h-[200px]`}>
+        <SortableContext items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-3">
+            {leads.map((lead) => (
+              <SortableLeadCard key={lead.id} lead={lead} onClick={onLeadClick} />
+            ))}
+            {leads.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-8">
+                Arrastra leads aquí
+              </p>
+            )}
+          </div>
+        </SortableContext>
+      </div>
+    </div>
   );
 };
 
@@ -292,12 +551,8 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
             </TabsContent>
 
             <TabsContent value="activities" className="space-y-4 pr-4">
-              {/* Add activity form */}
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Registrar Actividad</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="pt-4 space-y-3">
                   <Select value={newActivity.type} onValueChange={(v) => setNewActivity({ ...newActivity, type: v })}>
                     <SelectTrigger>
                       <SelectValue />
@@ -323,12 +578,11 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                   />
                   <Button onClick={handleAddActivity} disabled={addingActivity || !newActivity.description} className="w-full rounded-full">
                     {addingActivity ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Registrar
+                    Registrar Actividad
                   </Button>
                 </CardContent>
               </Card>
 
-              {/* Activity history */}
               <div className="space-y-3">
                 {activities.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
@@ -347,7 +601,7 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                       )}
                     </div>
                     {activity.points_earned > 0 && (
-                      <Badge variant="secondary">+{activity.points_earned}</Badge>
+                      <Badge variant="secondary" className="text-[#D97706]">+{activity.points_earned}</Badge>
                     )}
                   </div>
                 ))}
@@ -369,7 +623,7 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                     <CardContent className="pt-4 space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">Intención de compra</span>
-                        <Badge className={analysis.intent_score >= 70 ? 'bg-emerald-500' : analysis.intent_score >= 40 ? 'bg-yellow-500' : 'bg-gray-500'}>
+                        <Badge className={analysis.intent_score >= 70 ? 'bg-[#10B981]' : analysis.intent_score >= 40 ? 'bg-[#D97706]' : 'bg-gray-500'}>
                           {analysis.intent_score}%
                         </Badge>
                       </div>
@@ -382,10 +636,8 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                   </Card>
 
                   <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Puntos Clave</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-4">
+                      <h4 className="text-sm font-medium mb-2">Puntos Clave</h4>
                       <ul className="space-y-2">
                         {analysis.key_points?.map((point, idx) => (
                           <li key={idx} className="text-sm flex items-start gap-2">
@@ -398,20 +650,12 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                   </Card>
 
                   <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Próxima Acción Recomendada</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-4">
+                      <h4 className="text-sm font-medium mb-2">Próxima Acción</h4>
                       <p className="text-sm">{analysis.next_action}</p>
                     </CardContent>
                   </Card>
                 </div>
-              )}
-
-              {!analysis && !analyzing && (
-                <p className="text-center text-muted-foreground py-8">
-                  Haz clic en "Analizar con IA" para obtener insights
-                </p>
               )}
             </TabsContent>
 
@@ -440,12 +684,6 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                     <pre className="whitespace-pre-wrap text-sm font-sans">{script}</pre>
                   </CardContent>
                 </Card>
-              )}
-
-              {!script && !generatingScript && (
-                <p className="text-center text-muted-foreground py-8">
-                  Genera un script personalizado para este lead
-                </p>
               )}
             </TabsContent>
           </ScrollArea>
@@ -613,21 +851,37 @@ export const LeadsPage = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
   const [selectedLead, setSelectedLead] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [activeId, setActiveId] = useState(null);
+  
+  // View toggle state
+  const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'table'
+  
+  // Filter states
+  const [statusFilters, setStatusFilters] = useState([]);
+  const [priorityFilters, setPriorityFilters] = useState([]);
+  const [sourceFilters, setSourceFilters] = useState([]);
+  
+  // Sort state for table view
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   useEffect(() => {
     loadLeads();
-  }, [statusFilter, priorityFilter]);
+  }, []);
 
   const loadLeads = async () => {
     try {
-      let url = '/leads?';
-      if (statusFilter !== 'all') url += `status=${statusFilter}&`;
-      if (priorityFilter !== 'all') url += `priority=${priorityFilter}&`;
-      const res = await api.get(url);
+      const res = await api.get('/leads');
       setLeads(res.data);
     } catch (error) {
       console.error('Error loading leads:', error);
@@ -635,12 +889,95 @@ export const LeadsPage = () => {
       setLoading(false);
     }
   };
+  
+  // Toggle filter helper
+  const toggleFilter = (filterArray, setFilterArray, value) => {
+    if (filterArray.includes(value)) {
+      setFilterArray(filterArray.filter(f => f !== value));
+    } else {
+      setFilterArray([...filterArray, value]);
+    }
+  };
+  
+  // Clear all filters
+  const clearAllFilters = () => {
+    setStatusFilters([]);
+    setPriorityFilters([]);
+    setSourceFilters([]);
+    setSearch('');
+  };
+  
+  // Get unique sources from leads
+  const uniqueSources = useMemo(() => {
+    const sources = [...new Set(leads.map(l => l.source).filter(Boolean))];
+    return sources;
+  }, [leads]);
+  
+  // Handle sort for table
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
-  const filteredLeads = leads.filter((lead) =>
-    lead.name?.toLowerCase().includes(search.toLowerCase()) ||
-    lead.phone?.includes(search) ||
-    lead.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Apply all filters
+  const filteredLeads = useMemo(() => {
+    let result = leads;
+    
+    // Text search
+    if (search) {
+      result = result.filter((lead) =>
+        lead.name?.toLowerCase().includes(search.toLowerCase()) ||
+        lead.phone?.includes(search) ||
+        lead.email?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    
+    // Status filter
+    if (statusFilters.length > 0) {
+      result = result.filter(lead => statusFilters.includes(lead.status));
+    }
+    
+    // Priority filter
+    if (priorityFilters.length > 0) {
+      result = result.filter(lead => priorityFilters.includes(lead.priority));
+    }
+    
+    // Source filter
+    if (sourceFilters.length > 0) {
+      result = result.filter(lead => sourceFilters.includes(lead.source));
+    }
+    
+    return result;
+  }, [leads, search, statusFilters, priorityFilters, sourceFilters]);
+  
+  // Sorted leads for table view
+  const sortedLeads = useMemo(() => {
+    const sorted = [...filteredLeads];
+    sorted.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      
+      // Handle null/undefined
+      if (aVal == null) aVal = '';
+      if (bVal == null) bVal = '';
+      
+      // Numeric sort for budget and intent_score
+      if (sortConfig.key === 'budget_mxn' || sortConfig.key === 'intent_score') {
+        aVal = Number(aVal) || 0;
+        bVal = Number(bVal) || 0;
+      }
+      
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredLeads, sortConfig]);
+  
+  // Check if any filters are active
+  const hasActiveFilters = statusFilters.length > 0 || priorityFilters.length > 0 || sourceFilters.length > 0 || search;
 
   const groupedLeads = {
     nuevo: filteredLeads.filter((l) => l.status === 'nuevo'),
@@ -656,89 +993,291 @@ export const LeadsPage = () => {
     setSelectedLead(updatedLead);
   };
 
+  const findLeadById = (id) => leads.find((lead) => lead.id === id);
+
+  const findColumnByLeadId = (id) => {
+    for (const [status, statusLeads] of Object.entries(groupedLeads)) {
+      if (statusLeads.some((lead) => lead.id === id)) {
+        return status;
+      }
+    }
+    return null;
+  };
+
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const activeLeadId = active.id;
+    const overId = over.id;
+
+    // Find the source column
+    const sourceColumn = findColumnByLeadId(activeLeadId);
+    
+    // Determine target column
+    let targetColumn = null;
+    
+    // Check if dropped over another lead
+    const overLead = findLeadById(overId);
+    if (overLead) {
+      targetColumn = overLead.status;
+    } else {
+      // Dropped on column itself
+      targetColumn = overId;
+    }
+
+    // If valid target column and different from source
+    if (targetColumn && statusConfig[targetColumn] && sourceColumn !== targetColumn) {
+      // Optimistically update UI
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === activeLeadId ? { ...lead, status: targetColumn } : lead
+        )
+      );
+
+      // Update in backend
+      try {
+        await api.put(`/leads/${activeLeadId}`, { status: targetColumn });
+        toast.success(`Lead movido a ${statusConfig[targetColumn].label}`);
+      } catch (error) {
+        // Revert on error
+        setLeads((prev) =>
+          prev.map((lead) =>
+            lead.id === activeLeadId ? { ...lead, status: sourceColumn } : lead
+          )
+        );
+        toast.error('Error al mover lead');
+      }
+    }
+  };
+
+  const handleDragOver = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeLeadId = active.id;
+    const overId = over.id;
+
+    const sourceColumn = findColumnByLeadId(activeLeadId);
+    
+    // Determine if over a column or another lead
+    let targetColumn = null;
+    const overLead = findLeadById(overId);
+    if (overLead) {
+      targetColumn = overLead.status;
+    } else if (statusConfig[overId]) {
+      targetColumn = overId;
+    }
+
+    // If moving to different column, update immediately for visual feedback
+    if (targetColumn && sourceColumn !== targetColumn) {
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === activeLeadId ? { ...lead, status: targetColumn } : lead
+        )
+      );
+    }
+  };
+
+  const activeLead = activeId ? findLeadById(activeId) : null;
+
   return (
-    <div className="p-8 space-y-6" data-testid="leads-page">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 h-full flex flex-col" data-testid="leads-page">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold font-['Outfit']">Leads</h1>
-          <p className="text-muted-foreground">{leads.length} prospectos en el sistema</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Pipeline de Leads</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            {filteredLeads.length} de {leads.length} prospectos
+            {viewMode === 'kanban' && ' • Arrastra para cambiar estado'}
+          </p>
         </div>
-        <Button onClick={() => setShowNewModal(true)} className="rounded-full" data-testid="new-lead-btn">
-          <Plus className="w-4 h-4 mr-2" /> Nuevo Lead
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center bg-muted rounded-lg p-1">
+            <Button
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+              className="rounded-md h-8 px-3"
+              data-testid="view-kanban-btn"
+            >
+              <LayoutGrid className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">Kanban</span>
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="rounded-md h-8 px-3"
+              data-testid="view-table-btn"
+            >
+              <Table2 className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">Tabla</span>
+            </Button>
+          </div>
+          <Button onClick={() => setShowNewModal(true)} className="rounded-full" data-testid="new-lead-btn">
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nuevo Lead</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre, teléfono o email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-            data-testid="leads-search"
-          />
+      {/* Search and Filters */}
+      <div className="flex-shrink-0 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, teléfono o email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+              data-testid="leads-search"
+            />
+          </div>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground">
+              <X className="w-4 h-4 mr-1" />
+              Limpiar filtros
+            </Button>
+          )}
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+        
+        {/* Filter Bubbles */}
+        <div className="space-y-2">
+          {/* Status Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Filter className="w-3 h-3" /> Estado:
+            </span>
             {Object.entries(statusConfig).map(([key, config]) => (
-              <SelectItem key={key} value={key}>{config.label}</SelectItem>
+              <FilterBubble
+                key={key}
+                label={config.label}
+                isActive={statusFilters.includes(key)}
+                onClick={() => toggleFilter(statusFilters, setStatusFilters, key)}
+                color={config.color}
+              />
             ))}
-          </SelectContent>
-        </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Prioridad" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
+          </div>
+          
+          {/* Priority Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground">Prioridad:</span>
             {Object.entries(priorityConfig).map(([key, config]) => (
-              <SelectItem key={key} value={key}>{config.label}</SelectItem>
+              <FilterBubble
+                key={key}
+                label={config.label}
+                isActive={priorityFilters.includes(key)}
+                onClick={() => toggleFilter(priorityFilters, setPriorityFilters, key)}
+                color={config.color}
+              />
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+          
+          {/* Source Filters */}
+          {uniqueSources.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-muted-foreground">Fuente:</span>
+              {uniqueSources.map((source) => {
+                const config = sourceConfig[source] || { label: source, color: 'bg-gray-400' };
+                return (
+                  <FilterBubble
+                    key={source}
+                    label={config.label}
+                    isActive={sourceFilters.includes(source)}
+                    onClick={() => toggleFilter(sourceFilters, setSourceFilters, source)}
+                    color={config.color}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Active Filters Display */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <span className="text-xs text-muted-foreground">Filtros activos:</span>
+            {statusFilters.map(s => (
+              <ActiveFilterTag 
+                key={`status-${s}`} 
+                label={statusConfig[s]?.label} 
+                onRemove={() => toggleFilter(statusFilters, setStatusFilters, s)} 
+              />
+            ))}
+            {priorityFilters.map(p => (
+              <ActiveFilterTag 
+                key={`priority-${p}`} 
+                label={priorityConfig[p]?.label} 
+                onRemove={() => toggleFilter(priorityFilters, setPriorityFilters, p)} 
+              />
+            ))}
+            {sourceFilters.map(s => (
+              <ActiveFilterTag 
+                key={`source-${s}`} 
+                label={sourceConfig[s]?.label || s} 
+                onRemove={() => toggleFilter(sourceFilters, setSourceFilters, s)} 
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Kanban View */}
+      {/* Content */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 flex-1">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <Skeleton className="h-32 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Object.entries(groupedLeads).map(([status, statusLeads]) => (
-            <div key={status} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${statusConfig[status]?.color}`} />
-                  <h3 className="font-medium text-sm">{statusConfig[status]?.label}</h3>
-                </div>
-                <Badge variant="secondary" className="text-xs">{statusLeads.length}</Badge>
-              </div>
-              <ScrollArea className="h-[calc(100vh-300px)]">
-                <div className="space-y-3 pr-2">
-                  {statusLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} onClick={setSelectedLead} />
-                  ))}
-                  {statusLeads.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-8">Sin leads</p>
-                  )}
-                </div>
-              </ScrollArea>
+            <div key={i} className="space-y-3">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-28 sm:h-32 w-full" />
+              <Skeleton className="h-28 sm:h-32 w-full" />
             </div>
           ))}
+        </div>
+      ) : viewMode === 'kanban' ? (
+        /* Kanban View */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+        >
+          <div className="flex-1 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <div className="flex gap-3 sm:gap-4 min-w-max h-full pb-4">
+              {Object.entries(groupedLeads).map(([status, statusLeads]) => (
+                <DroppableColumn
+                  key={status}
+                  status={status}
+                  leads={statusLeads}
+                  onLeadClick={setSelectedLead}
+                />
+              ))}
+            </div>
+          </div>
+
+          <DragOverlay>
+            {activeLead ? <LeadCardOverlay lead={activeLead} /> : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        /* Table View */
+        <div className="flex-1 overflow-auto">
+          <LeadsTableView
+            leads={sortedLeads}
+            onLeadClick={setSelectedLead}
+            onStatusChange={handleLeadUpdate}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+          />
         </div>
       )}
 

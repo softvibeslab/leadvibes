@@ -1,13 +1,16 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 import uuid
+import random
+import csv
+import io
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse,
@@ -17,7 +20,16 @@ from models import (
     GamificationRule, GamificationRuleCreate, BrokerStats, PointLedger,
     ChatMessage, ChatMessageCreate,
     Script, ScriptCreate,
-    DashboardStats
+    DashboardStats,
+    CalendarEventCreate, CalendarEventUpdate, CalendarEvent,
+    IntegrationSettings, IntegrationSettingsUpdate,
+    Campaign, CampaignCreate, CampaignType, CampaignStatus,
+    CallRecord, CallRecordCreate, CallStatus,
+    SMSRecord, SMSRecordCreate, SMSStatus,
+    ConversationAnalysis,
+    EmailRecord, EmailRecordCreate, EmailStatus,
+    EmailTemplate, EmailTemplateCreate,
+    ImportJob, ImportStatus, ImportMappingRequest, ColumnMapping
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
@@ -38,7 +50,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app
-app = FastAPI(title="LeadVibes CRM API", version="1.0.0")
+app = FastAPI(title="Rovi CRM API", version="1.0.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -90,6 +102,7 @@ async def register(user_data: UserCreate):
         "is_active": True,
         "onboarding_completed": False,
         "tenant_id": tenant_id,
+        "account_type": user_data.account_type,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
@@ -138,7 +151,8 @@ async def register(user_data: UserCreate):
             role=user_data.role,
             phone=user_data.phone,
             is_active=True,
-            onboarding_completed=False
+            onboarding_completed=False,
+            account_type=user_data.account_type
         )
     )
 
@@ -170,7 +184,8 @@ async def login(credentials: UserLogin):
             avatar_url=user.get("avatar_url"),
             phone=user.get("phone"),
             is_active=user["is_active"],
-            onboarding_completed=user.get("onboarding_completed", False)
+            onboarding_completed=user.get("onboarding_completed", False),
+            account_type=user.get("account_type", "individual")
         )
     )
 
@@ -189,7 +204,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         avatar_url=user.get("avatar_url"),
         phone=user.get("phone"),
         is_active=user["is_active"],
-        onboarding_completed=user.get("onboarding_completed", False)
+        onboarding_completed=user.get("onboarding_completed", False),
+        account_type=user.get("account_type", "individual")
     )
 
 # ==================== GOALS/ONBOARDING ROUTES ====================
@@ -283,6 +299,135 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         conversion_rate=round(conversion_rate, 1)
     )
 
+@api_router.get("/dashboard/kpi-detail/{kpi_type}")
+async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current_user)):
+    """Get detailed breakdown for a specific KPI"""
+    tenant_id = current_user["tenant_id"]
+    
+    if kpi_type == "puntos":
+        # Get points breakdown by activity type
+        pipeline = [
+            {"$match": {"tenant_id": tenant_id}},
+            {"$group": {
+                "_id": "$activity_type",
+                "count": {"$sum": 1},
+                "points": {"$sum": "$points"}
+            }},
+            {"$sort": {"points": -1}}
+        ]
+        breakdown = await db.point_ledger.aggregate(pipeline).to_list(20)
+        
+        colors = {
+            "llamada": "bg-blue-500",
+            "whatsapp": "bg-green-500",
+            "email": "bg-purple-500",
+            "zoom": "bg-indigo-500",
+            "visita": "bg-amber-500",
+            "apartado": "bg-secondary",
+            "venta": "bg-accent"
+        }
+        
+        return {
+            "points_breakdown": [
+                {
+                    "type": item["_id"] or "otro",
+                    "count": item["count"],
+                    "points": item["points"],
+                    "color": colors.get(item["_id"], "bg-gray-500")
+                }
+                for item in breakdown
+            ]
+        }
+    
+    elif kpi_type == "apartados":
+        # Get recent apartados with lead info
+        apartados = await db.leads.find(
+            {"tenant_id": tenant_id, "status": "apartado"},
+            {"_id": 0}
+        ).sort("updated_at", -1).limit(20).to_list(20)
+        
+        return {
+            "apartados_list": [
+                {
+                    "lead_name": a.get("name", "Lead"),
+                    "property": a.get("property_interest", "Propiedad"),
+                    "amount": a.get("budget_mxn", 0),
+                    "date": a.get("updated_at")
+                }
+                for a in apartados
+            ]
+        }
+    
+    elif kpi_type == "ventas":
+        # Get ventas with details
+        ventas = await db.leads.find(
+            {"tenant_id": tenant_id, "status": "venta"},
+            {"_id": 0}
+        ).sort("updated_at", -1).limit(20).to_list(20)
+        
+        total = sum(v.get("budget_mxn", 0) for v in ventas)
+        
+        return {
+            "ventas_list": [
+                {
+                    "lead_name": v.get("name", "Lead"),
+                    "property": v.get("property_interest", "Propiedad"),
+                    "amount": v.get("budget_mxn", 0),
+                    "date": v.get("updated_at")
+                }
+                for v in ventas
+            ],
+            "ventas_total": total
+        }
+    
+    elif kpi_type == "brokers":
+        # Get brokers with stats using aggregation (avoid N+1)
+        brokers = await db.users.find(
+            {"tenant_id": tenant_id, "role": {"$in": ["broker", "manager"]}, "is_active": True},
+            {"_id": 0, "password_hash": 0}
+        ).to_list(50)
+        
+        broker_ids = [b["id"] for b in brokers]
+        
+        # Batch get lead stats
+        leads_pipeline = [
+            {"$match": {"assigned_broker_id": {"$in": broker_ids}}},
+            {"$group": {
+                "_id": "$assigned_broker_id",
+                "leads_count": {"$sum": 1},
+                "ventas": {"$sum": {"$cond": [{"$eq": ["$status", "venta"]}, 1, 0]}}
+            }}
+        ]
+        leads_stats = await db.leads.aggregate(leads_pipeline).to_list(None)
+        leads_map = {s["_id"]: s for s in leads_stats}
+        
+        # Batch get points
+        points_pipeline = [
+            {"$match": {"broker_id": {"$in": broker_ids}}},
+            {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}}
+        ]
+        points_stats = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+        points_map = {p["_id"]: p["total"] for p in points_stats}
+        
+        brokers_list = []
+        for broker in brokers:
+            broker_stats = leads_map.get(broker["id"], {})
+            brokers_list.append({
+                "name": broker.get("name", "Broker"),
+                "avatar": broker.get("avatar_url"),
+                "leads_count": broker_stats.get("leads_count", 0),
+                "ventas": broker_stats.get("ventas", 0),
+                "points": points_map.get(broker["id"], 0)
+            })
+        
+        # Sort by points
+        brokers_list.sort(key=lambda x: x["points"], reverse=True)
+        
+        return {"brokers_list": brokers_list}
+    
+    else:
+        return {"error": "KPI type not found"}
+
 @api_router.get("/dashboard/leaderboard", response_model=List[BrokerStats])
 async def get_leaderboard(current_user: dict = Depends(get_current_user)):
     """Get monthly leaderboard"""
@@ -294,35 +439,65 @@ async def get_leaderboard(current_user: dict = Depends(get_current_user)):
         {"_id": 0}
     ).to_list(100)
     
+    broker_ids = [b["id"] for b in brokers]
+    
+    # Batch get points using aggregation
+    points_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "broker_id": {"$in": broker_ids}}},
+        {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}}
+    ]
+    points_result = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+    points_map = {p["_id"]: p["total"] for p in points_result}
+    
+    # Batch get lead stats using aggregation
+    leads_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "assigned_broker_id": {"$in": broker_ids}}},
+        {"$group": {
+            "_id": "$assigned_broker_id",
+            "total": {"$sum": 1},
+            "ventas": {"$sum": {"$cond": [{"$eq": ["$status", "venta"]}, 1, 0]}},
+            "apartados": {"$sum": {"$cond": [{"$eq": ["$status", "apartado"]}, 1, 0]}}
+        }}
+    ]
+    leads_result = await db.leads.aggregate(leads_pipeline).to_list(None)
+    leads_map = {l["_id"]: l for l in leads_result}
+    
+    # Batch get activity stats using aggregation
+    activities_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "broker_id": {"$in": broker_ids}}},
+        {"$group": {
+            "_id": {"broker_id": "$broker_id", "type": "$activity_type"},
+            "count": {"$sum": 1}
+        }}
+    ]
+    activities_result = await db.activities.aggregate(activities_pipeline).to_list(None)
+    activities_map = {}
+    for a in activities_result:
+        broker_id = a["_id"]["broker_id"]
+        act_type = a["_id"]["type"]
+        if broker_id not in activities_map:
+            activities_map[broker_id] = {}
+        activities_map[broker_id][act_type] = a["count"]
+    
     leaderboard = []
     for broker in brokers:
-        # Get points
-        pipeline = [
-            {"$match": {"tenant_id": tenant_id, "broker_id": broker["id"]}},
-            {"$group": {"_id": None, "total": {"$sum": "$points"}}}
-        ]
-        points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
-        total_points = points_result[0]["total"] if points_result else 0
-        
-        # Get activity counts
-        ventas = await db.leads.count_documents({"tenant_id": tenant_id, "assigned_broker_id": broker["id"], "status": "venta"})
-        apartados = await db.leads.count_documents({"tenant_id": tenant_id, "assigned_broker_id": broker["id"], "status": "apartado"})
-        leads_asignados = await db.leads.count_documents({"tenant_id": tenant_id, "assigned_broker_id": broker["id"]})
-        llamadas = await db.activities.count_documents({"tenant_id": tenant_id, "broker_id": broker["id"], "activity_type": "llamada"})
-        presentaciones = await db.activities.count_documents({"tenant_id": tenant_id, "broker_id": broker["id"], "activity_type": "zoom"})
+        bid = broker["id"]
+        total_points = points_map.get(bid, 0)
+        lead_stats = leads_map.get(bid, {})
+        act_stats = activities_map.get(bid, {})
         
         leaderboard.append(BrokerStats(
-            broker_id=broker["id"],
+            broker_id=bid,
             broker_name=broker["name"],
             avatar_url=broker.get("avatar_url"),
             total_points=total_points,
-            ventas=ventas,
-            apartados=apartados,
-            leads_asignados=leads_asignados,
-            llamadas=llamadas,
-            presentaciones=presentaciones,
+            ventas=lead_stats.get("ventas", 0),
+            apartados=lead_stats.get("apartados", 0),
+            leads_asignados=lead_stats.get("total", 0),
+            llamadas=act_stats.get("llamada", 0),
+            presentaciones=act_stats.get("zoom", 0),
             rank=0,
-            month_progress=min(100, total_points / 100 * 100)  # Assuming 100 points is monthly goal
+            month_progress=min(100, total_points / 100 * 100)
         ))
     
     # Sort by points and assign ranks
@@ -342,12 +517,25 @@ async def get_recent_activity(limit: int = 10, current_user: dict = Depends(get_
         {"_id": 0}
     ).sort("created_at", -1).limit(limit).to_list(limit)
     
-    # Enrich with broker and lead names
+    # Batch fetch broker and lead names (avoid N+1)
+    broker_ids = list(set(a.get("broker_id") for a in activities if a.get("broker_id")))
+    lead_ids = list(set(a.get("lead_id") for a in activities if a.get("lead_id")))
+    
+    brokers_map = {}
+    leads_map = {}
+    
+    if broker_ids:
+        brokers = await db.users.find({"id": {"$in": broker_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+        brokers_map = {b["id"]: b["name"] for b in brokers}
+    
+    if lead_ids:
+        leads = await db.leads.find({"id": {"$in": lead_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+        leads_map = {l["id"]: l["name"] for l in leads}
+    
+    # Enrich with names from maps
     for activity in activities:
-        broker = await db.users.find_one({"id": activity.get("broker_id")}, {"_id": 0, "name": 1})
-        lead = await db.leads.find_one({"id": activity.get("lead_id")}, {"_id": 0, "name": 1})
-        activity["broker_name"] = broker["name"] if broker else "Desconocido"
-        activity["lead_name"] = lead["name"] if lead else "Desconocido"
+        activity["broker_name"] = brokers_map.get(activity.get("broker_id"), "Desconocido")
+        activity["lead_name"] = leads_map.get(activity.get("lead_id"), "Desconocido")
     
     return [serialize_doc(a) for a in activities]
 
@@ -559,33 +747,45 @@ async def get_activities(
 
 @api_router.get("/brokers", response_model=List[dict])
 async def get_brokers(current_user: dict = Depends(get_current_user)):
-    """Get all brokers"""
+    """Get all brokers - optimized with batch queries"""
     brokers = await db.users.find(
         {"tenant_id": current_user["tenant_id"], "role": {"$in": ["broker", "manager"]}},
         {"_id": 0, "password_hash": 0}
     ).to_list(100)
     
+    if not brokers:
+        return []
+    
+    broker_ids = [b["id"] for b in brokers]
+    
+    # Batch fetch leads count per broker
+    leads_pipeline = [
+        {"$match": {"assigned_broker_id": {"$in": broker_ids}}},
+        {"$group": {"_id": "$assigned_broker_id", "count": {"$sum": 1}}}
+    ]
+    leads_counts = await db.leads.aggregate(leads_pipeline).to_list(None)
+    leads_map = {item["_id"]: item["count"] for item in leads_counts}
+    
+    # Batch fetch points per broker
+    points_pipeline = [
+        {"$match": {"broker_id": {"$in": broker_ids}}},
+        {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}}
+    ]
+    points_results = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+    points_map = {item["_id"]: item["total"] for item in points_results}
+    
     result = []
     for broker in brokers:
-        # Get stats
-        leads_count = await db.leads.count_documents({"assigned_broker_id": broker["id"]})
-        pipeline = [
-            {"$match": {"broker_id": broker["id"]}},
-            {"$group": {"_id": None, "total": {"$sum": "$points"}}}
-        ]
-        points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
-        total_points = points_result[0]["total"] if points_result else 0
-        
         broker_data = serialize_doc(broker)
-        broker_data["leads_asignados"] = leads_count
-        broker_data["total_points"] = total_points
+        broker_data["leads_asignados"] = leads_map.get(broker["id"], 0)
+        broker_data["total_points"] = points_map.get(broker["id"], 0)
         result.append(broker_data)
     
     return result
 
 @api_router.get("/brokers/{broker_id}", response_model=dict)
 async def get_broker(broker_id: str, current_user: dict = Depends(get_current_user)):
-    """Get broker details"""
+    """Get broker details - optimized with single aggregation"""
     broker = await db.users.find_one(
         {"id": broker_id, "tenant_id": current_user["tenant_id"]},
         {"_id": 0, "password_hash": 0}
@@ -593,32 +793,46 @@ async def get_broker(broker_id: str, current_user: dict = Depends(get_current_us
     if not broker:
         raise HTTPException(status_code=404, detail="Broker no encontrado")
     
-    # Get detailed stats
-    ventas = await db.leads.count_documents({"assigned_broker_id": broker_id, "status": "venta"})
-    apartados = await db.leads.count_documents({"assigned_broker_id": broker_id, "status": "apartado"})
-    leads_total = await db.leads.count_documents({"assigned_broker_id": broker_id})
+    # Get all lead stats in single aggregation with $facet
+    leads_pipeline = [
+        {"$match": {"assigned_broker_id": broker_id}},
+        {"$facet": {
+            "total": [{"$count": "count"}],
+            "ventas": [{"$match": {"status": "venta"}}, {"$count": "count"}],
+            "apartados": [{"$match": {"status": "apartado"}}, {"$count": "count"}]
+        }}
+    ]
+    leads_stats = await db.leads.aggregate(leads_pipeline).to_list(1)
+    leads_data = leads_stats[0] if leads_stats else {"total": [], "ventas": [], "apartados": []}
     
-    # Get activity breakdown
-    llamadas = await db.activities.count_documents({"broker_id": broker_id, "activity_type": "llamada"})
-    zooms = await db.activities.count_documents({"broker_id": broker_id, "activity_type": "zoom"})
-    visitas = await db.activities.count_documents({"broker_id": broker_id, "activity_type": "visita"})
+    # Get all activity stats in single aggregation with $facet
+    activities_pipeline = [
+        {"$match": {"broker_id": broker_id}},
+        {"$facet": {
+            "llamadas": [{"$match": {"activity_type": "llamada"}}, {"$count": "count"}],
+            "zooms": [{"$match": {"activity_type": "zoom"}}, {"$count": "count"}],
+            "visitas": [{"$match": {"activity_type": "visita"}}, {"$count": "count"}]
+        }}
+    ]
+    activities_stats = await db.activities.aggregate(activities_pipeline).to_list(1)
+    activities_data = activities_stats[0] if activities_stats else {"llamadas": [], "zooms": [], "visitas": []}
     
     # Get points
-    pipeline = [
+    points_pipeline = [
         {"$match": {"broker_id": broker_id}},
         {"$group": {"_id": None, "total": {"$sum": "$points"}}}
     ]
-    points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
+    points_result = await db.point_ledger.aggregate(points_pipeline).to_list(1)
     total_points = points_result[0]["total"] if points_result else 0
     
     result = serialize_doc(broker)
     result["stats"] = {
-        "ventas": ventas,
-        "apartados": apartados,
-        "leads_total": leads_total,
-        "llamadas": llamadas,
-        "zooms": zooms,
-        "visitas": visitas,
+        "ventas": leads_data["ventas"][0]["count"] if leads_data["ventas"] else 0,
+        "apartados": leads_data["apartados"][0]["count"] if leads_data["apartados"] else 0,
+        "leads_total": leads_data["total"][0]["count"] if leads_data["total"] else 0,
+        "llamadas": activities_data["llamadas"][0]["count"] if activities_data["llamadas"] else 0,
+        "zooms": activities_data["zooms"][0]["count"] if activities_data["zooms"] else 0,
+        "visitas": activities_data["visitas"][0]["count"] if activities_data["visitas"] else 0,
         "total_points": total_points
     }
     
@@ -837,15 +1051,1992 @@ async def seed_demo_data(current_user: dict = Depends(get_current_user)):
     
     return {"message": "Datos de demo cargados exitosamente", "brokers": 5, "leads": 20}
 
+# ==================== CALENDAR ROUTES ====================
+
+@api_router.get("/calendar/events", response_model=List[dict])
+async def get_calendar_events(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get calendar events"""
+    query = {"user_id": current_user["user_id"]}
+    
+    if start_date:
+        query["start_time"] = {"$gte": start_date}
+    if end_date:
+        if "start_time" in query:
+            query["start_time"]["$lte"] = end_date
+        else:
+            query["start_time"] = {"$lte": end_date}
+    
+    events = await db.calendar_events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
+    
+    # Batch fetch lead info (avoid N+1)
+    lead_ids = list(set(e.get("lead_id") for e in events if e.get("lead_id")))
+    leads_map = {}
+    if lead_ids:
+        leads = await db.leads.find({"id": {"$in": lead_ids}}, {"_id": 0, "id": 1, "name": 1, "phone": 1}).to_list(None)
+        leads_map = {l["id"]: {"name": l["name"], "phone": l.get("phone")} for l in leads}
+    
+    # Enrich with lead info from map
+    for event in events:
+        if event.get("lead_id"):
+            event["lead"] = leads_map.get(event["lead_id"])
+    
+    return [serialize_doc(e) for e in events]
+
+@api_router.post("/calendar/events", response_model=dict)
+async def create_calendar_event(event_data: CalendarEventCreate, current_user: dict = Depends(get_current_user)):
+    """Create calendar event with automatic Google Calendar sync"""
+    event_id = str(uuid.uuid4())
+    
+    event_doc = {
+        "id": event_id,
+        "user_id": current_user["user_id"],
+        "tenant_id": current_user["tenant_id"],
+        **event_data.model_dump(),
+        "start_time": event_data.start_time.isoformat(),
+        "end_time": event_data.end_time.isoformat() if event_data.end_time else None,
+        "completed": False,
+        "google_event_id": None,
+        "synced_from_google": False,
+        "last_synced_at": None,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Sync to Google Calendar if enabled
+    google_event_id = await sync_event_to_google(current_user["user_id"], event_doc)
+    if google_event_id:
+        event_doc["google_event_id"] = google_event_id
+        event_doc["last_synced_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.calendar_events.insert_one(event_doc)
+    
+    return {
+        "message": "Evento creado exitosamente", 
+        "id": event_id,
+        "synced_to_google": google_event_id is not None
+    }
+
+@api_router.put("/calendar/events/{event_id}", response_model=dict)
+async def update_calendar_event(
+    event_id: str, 
+    event_data: CalendarEventUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update calendar event with automatic Google Calendar sync"""
+    # Get existing event
+    existing = await db.calendar_events.find_one(
+        {"id": event_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    # Build update dict
+    update_dict = {}
+    data = event_data.model_dump(exclude_unset=True)
+    
+    for key, value in data.items():
+        if value is not None:
+            if key in ['start_time', 'end_time'] and value:
+                update_dict[key] = value.isoformat()
+            else:
+                update_dict[key] = value
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No hay datos para actualizar")
+    
+    # Update local event
+    await db.calendar_events.update_one(
+        {"id": event_id},
+        {"$set": update_dict}
+    )
+    
+    # Get updated event for Google sync
+    updated_event = await db.calendar_events.find_one({"id": event_id}, {"_id": 0})
+    
+    # Sync to Google Calendar if connected
+    synced = False
+    if updated_event.get("google_event_id") or await is_google_calendar_enabled(current_user["user_id"]):
+        google_event_id = await sync_event_to_google(current_user["user_id"], updated_event)
+        if google_event_id:
+            await db.calendar_events.update_one(
+                {"id": event_id},
+                {"$set": {
+                    "google_event_id": google_event_id,
+                    "last_synced_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            synced = True
+    
+    return {"message": "Evento actualizado", "synced_to_google": synced}
+
+@api_router.delete("/calendar/events/{event_id}", response_model=dict)
+async def delete_calendar_event(event_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete calendar event with automatic Google Calendar sync"""
+    # Get event to check for Google Calendar ID
+    event = await db.calendar_events.find_one(
+        {"id": event_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    # Delete from Google Calendar if synced
+    if event.get("google_event_id"):
+        await delete_from_google(current_user["user_id"], event["google_event_id"])
+    
+    # Delete locally
+    result = await db.calendar_events.delete_one({"id": event_id, "user_id": current_user["user_id"]})
+    
+    return {"message": "Evento eliminado", "deleted_from_google": event.get("google_event_id") is not None}
+
+@api_router.get("/calendar/today", response_model=List[dict])
+async def get_today_events(current_user: dict = Depends(get_current_user)):
+    """Get today's events"""
+    today = datetime.now(timezone.utc).date()
+    start = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc).isoformat()
+    end = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc).isoformat()
+    
+    events = await db.calendar_events.find({
+        "user_id": current_user["user_id"],
+        "start_time": {"$gte": start, "$lte": end}
+    }, {"_id": 0}).sort("start_time", 1).to_list(50)
+    
+    # Batch fetch lead info (avoid N+1)
+    lead_ids = list(set(e.get("lead_id") for e in events if e.get("lead_id")))
+    leads_map = {}
+    if lead_ids:
+        leads = await db.leads.find({"id": {"$in": lead_ids}}, {"_id": 0, "id": 1, "name": 1, "phone": 1}).to_list(None)
+        leads_map = {l["id"]: {"name": l["name"], "phone": l.get("phone")} for l in leads}
+    
+    for event in events:
+        if event.get("lead_id"):
+            event["lead"] = leads_map.get(event["lead_id"])
+    
+    return [serialize_doc(e) for e in events]
+
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/")
 async def root():
-    return {"message": "LeadVibes CRM API v1.0", "status": "running"}
+    return {"message": "Rovi CRM API v1.0", "status": "running"}
 
 @api_router.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+# ==================== LANDING PAGE LEADS ====================
+
+@api_router.post("/landing/lead")
+async def create_landing_lead(lead_data: dict):
+    """
+    Capture leads from the landing page.
+    Public endpoint for lead generation.
+    """
+    try:
+        # Validate required fields
+        required_fields = ["name", "email", "phone"]
+        for field in required_fields:
+            if field not in lead_data or not lead_data[field]:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+        # Check if lead already exists by email or phone
+        existing_lead = await db.landing_leads.find_one({
+            "$or": [
+                {"email": lead_data["email"]},
+                {"phone": lead_data["phone"]}
+            ]
+        })
+
+        if existing_lead:
+            # Update existing lead
+            await db.landing_leads.update_one(
+                {"_id": existing_lead["_id"]},
+                {
+                    "$set": {
+                        **lead_data,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "status": "re-submitted"
+                    }
+                }
+            )
+            return {"success": True, "message": "Lead updated successfully", "lead_id": str(existing_lead["_id"])}
+
+        # Create new landing lead
+        lead_doc = {
+            "id": str(uuid.uuid4()),
+            "name": lead_data["name"],
+            "email": lead_data["email"],
+            "phone": lead_data["phone"],
+            "company": lead_data.get("company", ""),
+            "account_type": lead_data.get("account_type", "individual"),
+            "message": lead_data.get("message", ""),
+            "source": "landing_page",
+            "status": "new",
+            "utm_source": lead_data.get("utm_source", ""),
+            "utm_medium": lead_data.get("utm_medium", ""),
+            "utm_campaign": lead_data.get("utm_campaign", ""),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        await db.landing_leads.insert_one(lead_doc)
+
+        logger.info(f"New landing lead created: {lead_data['email']}")
+
+        return {
+            "success": True,
+            "message": "Lead created successfully",
+            "lead_id": lead_doc["id"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating landing lead: {e}")
+        raise HTTPException(status_code=500, detail="Error creating lead")
+
+@api_router.get("/landing/leads")
+async def get_landing_leads(current_user: dict = Depends(get_current_user)):
+    """Get all landing leads (protected endpoint)"""
+    leads = await db.landing_leads.find().sort("created_at", -1).to_list(length=1000)
+    return [serialize_doc(lead) for lead in leads]
+
+# ==================== INTEGRATION SETTINGS ====================
+
+@api_router.get("/settings/integrations")
+async def get_integration_settings(current_user: dict = Depends(get_current_user)):
+    """Get integration settings for the current user"""
+    settings = await db.integration_settings.find_one(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not settings:
+        # Return empty settings
+        return {
+            "vapi_api_key": "",
+            "vapi_phone_number_id": "",
+            "vapi_assistant_id": "",
+            "twilio_account_sid": "",
+            "twilio_auth_token": "",
+            "twilio_phone_number": "",
+            "sendgrid_api_key": "",
+            "sendgrid_sender_email": "",
+            "sendgrid_sender_name": "",
+            "google_client_id": "",
+            "google_client_secret": "",
+            "google_calendar_email": None,
+            "vapi_enabled": False,
+            "twilio_enabled": False,
+            "sendgrid_enabled": False,
+            "google_calendar_enabled": False
+        }
+    # Mask sensitive data
+    result = serialize_doc(settings)
+    if result.get("vapi_api_key"):
+        result["vapi_api_key"] = "••••••••" + result["vapi_api_key"][-4:]
+    if result.get("twilio_auth_token"):
+        result["twilio_auth_token"] = "••••••••" + result["twilio_auth_token"][-4:]
+    if result.get("sendgrid_api_key"):
+        result["sendgrid_api_key"] = "••••••••" + result["sendgrid_api_key"][-4:]
+    if result.get("google_client_secret"):
+        result["google_client_secret"] = "••••••••" + result["google_client_secret"][-4:]
+    # Don't expose tokens
+    result.pop("google_tokens", None)
+    result.pop("google_oauth_state", None)
+    return result
+
+@api_router.put("/settings/integrations")
+async def update_integration_settings(
+    update_data: IntegrationSettingsUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update integration settings"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    # Get existing settings
+    existing = await db.integration_settings.find_one({"user_id": current_user["user_id"]})
+    
+    update_dict = {}
+    data = update_data.model_dump(exclude_unset=True)
+    
+    for key, value in data.items():
+        if value is not None and value != "":
+            # Don't update if masked value
+            if "••••" not in str(value):
+                update_dict[key] = value
+    
+    # Check if integrations are enabled
+    if existing:
+        current = {k: v for k, v in existing.items() if k != "_id"}
+        current.update(update_dict)
+    else:
+        current = update_dict
+    
+    # Set enabled flags
+    update_dict["vapi_enabled"] = bool(
+        current.get("vapi_api_key") and 
+        current.get("vapi_phone_number_id")
+    )
+    update_dict["twilio_enabled"] = bool(
+        current.get("twilio_account_sid") and 
+        current.get("twilio_auth_token") and 
+        current.get("twilio_phone_number")
+    )
+    update_dict["sendgrid_enabled"] = bool(
+        current.get("sendgrid_api_key") and 
+        current.get("sendgrid_sender_email")
+    )
+    # Google Calendar enabled is set when OAuth completes, not here
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+    
+    if existing:
+        await db.integration_settings.update_one(
+            {"user_id": current_user["user_id"]},
+            {"$set": update_dict}
+        )
+    else:
+        new_settings = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            **update_dict
+        }
+        await db.integration_settings.insert_one(new_settings)
+    
+    return {
+        "message": "Configuración actualizada", 
+        "vapi_enabled": update_dict.get("vapi_enabled", False), 
+        "twilio_enabled": update_dict.get("twilio_enabled", False),
+        "sendgrid_enabled": update_dict.get("sendgrid_enabled", False),
+        "google_calendar_enabled": current.get("google_calendar_enabled", False)
+    }
+
+@api_router.post("/settings/integrations/test-vapi")
+async def test_vapi_connection(current_user: dict = Depends(get_current_user)):
+    """Test VAPI connection"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    if not settings or not settings.get("vapi_api_key"):
+        raise HTTPException(status_code=400, detail="VAPI no configurado")
+    
+    try:
+        from vapi import Vapi
+        vapi_client = Vapi(token=settings["vapi_api_key"])
+        # Try to list calls to verify connection
+        calls = vapi_client.calls.list(limit=1)
+        return {"status": "success", "message": "Conexión exitosa con VAPI"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+
+@api_router.post("/settings/integrations/test-twilio")
+async def test_twilio_connection(current_user: dict = Depends(get_current_user)):
+    """Test Twilio connection"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    if not settings or not settings.get("twilio_account_sid"):
+        raise HTTPException(status_code=400, detail="Twilio no configurado")
+    
+    try:
+        from twilio.rest import Client
+        client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+        # Verify account
+        account = client.api.accounts(settings["twilio_account_sid"]).fetch()
+        return {"status": "success", "message": f"Conexión exitosa - Cuenta: {account.friendly_name}"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+
+# ==================== CAMPAIGNS ====================
+
+@api_router.get("/campaigns")
+async def get_campaigns(
+    campaign_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all campaigns"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    query = {"tenant_id": tenant_id}
+    if campaign_type:
+        query["campaign_type"] = campaign_type
+    
+    campaigns = await db.campaigns.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return [serialize_doc(c) for c in campaigns]
+
+@api_router.post("/campaigns")
+async def create_campaign(
+    campaign_data: CampaignCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new campaign"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    # Get leads count
+    lead_count = len(campaign_data.lead_ids)
+    if campaign_data.lead_filter:
+        # Count leads matching filter
+        filter_query = {"tenant_id": tenant_id}
+        if campaign_data.lead_filter.get("status"):
+            filter_query["status"] = {"$in": campaign_data.lead_filter["status"]}
+        if campaign_data.lead_filter.get("priority"):
+            filter_query["priority"] = {"$in": campaign_data.lead_filter["priority"]}
+        lead_count = await db.leads.count_documents(filter_query)
+    
+    campaign = Campaign(
+        **campaign_data.model_dump(),
+        user_id=current_user["user_id"],
+        tenant_id=tenant_id,
+        total_recipients=lead_count
+    )
+    
+    await db.campaigns.insert_one(campaign.model_dump())
+    return serialize_doc(campaign.model_dump())
+
+@api_router.post("/campaigns/{campaign_id}/start")
+async def start_campaign(
+    campaign_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Start a campaign - sends calls or SMS"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    campaign = await db.campaigns.find_one({"id": campaign_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    
+    # Get leads
+    leads = []
+    if campaign.get("lead_ids"):
+        leads = await db.leads.find(
+            {"id": {"$in": campaign["lead_ids"]}, "tenant_id": tenant_id},
+            {"_id": 0}
+        ).to_list(1000)
+    elif campaign.get("lead_filter"):
+        filter_query = {"tenant_id": tenant_id}
+        if campaign["lead_filter"].get("status"):
+            filter_query["status"] = {"$in": campaign["lead_filter"]["status"]}
+        if campaign["lead_filter"].get("priority"):
+            filter_query["priority"] = {"$in": campaign["lead_filter"]["priority"]}
+        leads = await db.leads.find(filter_query, {"_id": 0}).to_list(1000)
+    
+    if not leads:
+        raise HTTPException(status_code=400, detail="No hay leads para esta campaña")
+    
+    # Update campaign status
+    await db.campaigns.update_one(
+        {"id": campaign_id},
+        {"$set": {"status": CampaignStatus.RUNNING.value, "started_at": datetime.now(timezone.utc)}}
+    )
+    
+    results = {"success": 0, "failed": 0, "errors": []}
+    
+    if campaign["campaign_type"] == CampaignType.CALL.value:
+        # Process calls with VAPI
+        if not settings or not settings.get("vapi_enabled"):
+            raise HTTPException(status_code=400, detail="VAPI no está configurado")
+        
+        try:
+            from vapi import Vapi
+            vapi_client = Vapi(token=settings["vapi_api_key"])
+            
+            for lead in leads:
+                try:
+                    call_response = vapi_client.calls.create(
+                        assistant_id=settings["vapi_assistant_id"],
+                        phone_number_id=settings["vapi_phone_number_id"],
+                        customer={"number": lead["phone"]}
+                    )
+                    
+                    call_record = CallRecord(
+                        user_id=current_user["user_id"],
+                        tenant_id=tenant_id,
+                        lead_id=lead["id"],
+                        lead_name=lead["name"],
+                        phone_number=lead["phone"],
+                        campaign_id=campaign_id,
+                        vapi_call_id=call_response.id if hasattr(call_response, 'id') else str(call_response),
+                        status=CallStatus.QUEUED
+                    )
+                    await db.call_records.insert_one(call_record.model_dump())
+                    results["success"] += 1
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error VAPI: {str(e)}")
+    
+    elif campaign["campaign_type"] == CampaignType.SMS.value:
+        # Process SMS with Twilio
+        if not settings or not settings.get("twilio_enabled"):
+            raise HTTPException(status_code=400, detail="Twilio no está configurado")
+        
+        try:
+            from twilio.rest import Client
+            twilio_client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+            
+            for lead in leads:
+                try:
+                    # Personalize message
+                    message_body = campaign.get("message_template", "").replace("{nombre}", lead["name"])
+                    
+                    message = twilio_client.messages.create(
+                        body=message_body,
+                        from_=settings["twilio_phone_number"],
+                        to=lead["phone"]
+                    )
+                    
+                    sms_record = SMSRecord(
+                        user_id=current_user["user_id"],
+                        tenant_id=tenant_id,
+                        lead_id=lead["id"],
+                        lead_name=lead["name"],
+                        phone_number=lead["phone"],
+                        message=message_body,
+                        campaign_id=campaign_id,
+                        twilio_sid=message.sid,
+                        status=SMSStatus.SENT,
+                        sent_at=datetime.now(timezone.utc)
+                    )
+                    await db.sms_records.insert_one(sms_record.model_dump())
+                    results["success"] += 1
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error Twilio: {str(e)}")
+    
+    elif campaign["campaign_type"] == CampaignType.EMAIL.value:
+        # Process Emails with SendGrid
+        if not settings or not settings.get("sendgrid_enabled"):
+            raise HTTPException(status_code=400, detail="SendGrid no está configurado")
+        
+        try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking
+            
+            sg = SendGridAPIClient(settings["sendgrid_api_key"])
+            
+            for lead in leads:
+                if not lead.get("email"):
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: Sin email")
+                    continue
+                    
+                try:
+                    # Personalize message
+                    subject = campaign.get("email_subject", "Mensaje de Rovi").replace("{nombre}", lead["name"])
+                    html_content = campaign.get("message_template", "").replace("{nombre}", lead["name"])
+                    
+                    message = Mail(
+                        from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "Rovi")),
+                        to_emails=lead["email"],
+                        subject=subject,
+                        html_content=html_content
+                    )
+                    
+                    # Enable tracking
+                    tracking_settings = TrackingSettings()
+                    tracking_settings.click_tracking = ClickTracking(enable=True)
+                    tracking_settings.open_tracking = OpenTracking(enable=True)
+                    message.tracking_settings = tracking_settings
+                    
+                    response = sg.send(message)
+                    
+                    email_record = EmailRecord(
+                        user_id=current_user["user_id"],
+                        tenant_id=tenant_id,
+                        lead_id=lead["id"],
+                        lead_name=lead["name"],
+                        email=lead["email"],
+                        subject=subject,
+                        html_content=html_content,
+                        campaign_id=campaign_id,
+                        sendgrid_id=response.headers.get("X-Message-Id", ""),
+                        status=EmailStatus.SENT if response.status_code == 202 else EmailStatus.FAILED,
+                        sent_at=datetime.now(timezone.utc)
+                    )
+                    await db.email_records.insert_one(email_record.model_dump())
+                    results["success"] += 1
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error SendGrid: {str(e)}")
+    
+    # Update campaign
+    await db.campaigns.update_one(
+        {"id": campaign_id},
+        {"$set": {
+            "status": CampaignStatus.COMPLETED.value,
+            "completed_at": datetime.now(timezone.utc),
+            "sent_count": results["success"],
+            "failed_count": results["failed"]
+        }}
+    )
+    
+    return results
+
+# ==================== CALL RECORDS ====================
+
+@api_router.get("/calls")
+async def get_call_records(
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get call history"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    calls = await db.call_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(c) for c in calls]
+
+@api_router.post("/calls/single")
+async def create_single_call(
+    call_data: CallRecordCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a single call to a lead"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("vapi_enabled"):
+        raise HTTPException(status_code=400, detail="VAPI no está configurado")
+    
+    # Get lead info
+    lead = await db.leads.find_one({"id": call_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    
+    try:
+        from vapi import Vapi
+        vapi_client = Vapi(token=settings["vapi_api_key"])
+        
+        call_params = {
+            "assistant_id": settings["vapi_assistant_id"],
+            "phone_number_id": settings["vapi_phone_number_id"],
+            "customer": {"number": call_data.phone_number}
+        }
+        
+        if call_data.scheduled_at:
+            call_params["schedule_plan"] = {"earliest_at": call_data.scheduled_at.isoformat()}
+        
+        call_response = vapi_client.calls.create(**call_params)
+        
+        call_record = CallRecord(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            lead_id=call_data.lead_id,
+            lead_name=lead["name"],
+            phone_number=call_data.phone_number,
+            vapi_call_id=call_response.id if hasattr(call_response, 'id') else str(call_response),
+            status=CallStatus.SCHEDULED if call_data.scheduled_at else CallStatus.QUEUED,
+            scheduled_at=call_data.scheduled_at
+        )
+        await db.call_records.insert_one(call_record.model_dump())
+        
+        return serialize_doc(call_record.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear llamada: {str(e)}")
+
+# ==================== SMS RECORDS ====================
+
+@api_router.get("/sms")
+async def get_sms_records(
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get SMS history"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    sms_list = await db.sms_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(s) for s in sms_list]
+
+@api_router.post("/sms/single")
+async def send_single_sms(
+    sms_data: SMSRecordCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send a single SMS to a lead"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("twilio_enabled"):
+        raise HTTPException(status_code=400, detail="Twilio no está configurado")
+    
+    # Get lead info
+    lead = await db.leads.find_one({"id": sms_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    
+    try:
+        from twilio.rest import Client
+        twilio_client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+        
+        message = twilio_client.messages.create(
+            body=sms_data.message,
+            from_=settings["twilio_phone_number"],
+            to=sms_data.phone_number
+        )
+        
+        sms_record = SMSRecord(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            lead_id=sms_data.lead_id,
+            lead_name=lead["name"],
+            phone_number=sms_data.phone_number,
+            message=sms_data.message,
+            twilio_sid=message.sid,
+            status=SMSStatus.SENT,
+            sent_at=datetime.now(timezone.utc)
+        )
+        await db.sms_records.insert_one(sms_record.model_dump())
+        
+        return serialize_doc(sms_record.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar SMS: {str(e)}")
+
+# ==================== EMAIL RECORDS ====================
+
+@api_router.get("/emails")
+async def get_email_records(
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get email history"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    emails = await db.email_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(e) for e in emails]
+
+@api_router.post("/emails/single")
+async def send_single_email(
+    email_data: EmailRecordCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send a single email to a lead"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("sendgrid_enabled"):
+        raise HTTPException(status_code=400, detail="SendGrid no está configurado")
+    
+    # Get lead info
+    lead = await db.leads.find_one({"id": email_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking
+        
+        sg = SendGridAPIClient(settings["sendgrid_api_key"])
+        
+        message = Mail(
+            from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "Rovi")),
+            to_emails=email_data.email,
+            subject=email_data.subject,
+            html_content=email_data.html_content
+        )
+        
+        # Enable click and open tracking
+        tracking_settings = TrackingSettings()
+        tracking_settings.click_tracking = ClickTracking(enable=True)
+        tracking_settings.open_tracking = OpenTracking(enable=True)
+        message.tracking_settings = tracking_settings
+        
+        response = sg.send(message)
+        
+        email_record = EmailRecord(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            lead_id=email_data.lead_id,
+            lead_name=lead["name"],
+            email=email_data.email,
+            subject=email_data.subject,
+            html_content=email_data.html_content,
+            campaign_id=email_data.campaign_id,
+            sendgrid_id=response.headers.get("X-Message-Id", ""),
+            status=EmailStatus.SENT if response.status_code == 202 else EmailStatus.FAILED,
+            sent_at=datetime.now(timezone.utc)
+        )
+        await db.email_records.insert_one(email_record.model_dump())
+        
+        return serialize_doc(email_record.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar email: {str(e)}")
+
+@api_router.post("/settings/integrations/test-sendgrid")
+async def test_sendgrid_connection(current_user: dict = Depends(get_current_user)):
+    """Test SendGrid connection"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    if not settings or not settings.get("sendgrid_api_key"):
+        raise HTTPException(status_code=400, detail="SendGrid no configurado")
+    
+    try:
+        from sendgrid import SendGridAPIClient
+        sg = SendGridAPIClient(settings["sendgrid_api_key"])
+        # Test API key by getting sender identities
+        response = sg.client.verified_senders.get()
+        return {"status": "success", "message": "Conexión exitosa con SendGrid"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+
+# ==================== GOOGLE CALENDAR INTEGRATION ====================
+
+GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+@api_router.get("/oauth/google/login")
+async def google_calendar_login(current_user: dict = Depends(get_current_user)):
+    """Start Google OAuth flow for Calendar access"""
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    
+    if not settings or not settings.get("google_client_id") or not settings.get("google_client_secret"):
+        raise HTTPException(status_code=400, detail="Google Calendar no configurado. Agrega Client ID y Client Secret primero.")
+    
+    from google_auth_oauthlib.flow import Flow
+    
+    # Get the frontend URL for redirect (required for OAuth)
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if not frontend_url:
+        raise HTTPException(status_code=500, detail="FRONTEND_URL no configurado en el servidor")
+    redirect_uri = f"{frontend_url}/api/oauth/google/callback"
+    
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": settings["google_client_id"],
+                "client_secret": settings["google_client_secret"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token"
+            }
+        },
+        scopes=GOOGLE_CALENDAR_SCOPES,
+        redirect_uri=redirect_uri
+    )
+    
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        prompt='consent',
+        include_granted_scopes='true'
+    )
+    
+    # Store state for verification
+    await db.integration_settings.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": {"google_oauth_state": state}}
+    )
+    
+    return {"authorization_url": authorization_url, "state": state}
+
+@api_router.get("/oauth/google/callback")
+async def google_calendar_callback(code: str, state: str = None):
+    """Handle Google OAuth callback"""
+    import requests
+    from starlette.responses import RedirectResponse
+    
+    # Get frontend URL first for all redirects
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if not frontend_url:
+        # Fallback to root if FRONTEND_URL not set
+        return RedirectResponse("/settings?error=server_config_error")
+    
+    # Find user by state
+    settings = await db.integration_settings.find_one({"google_oauth_state": state}, {"_id": 0})
+    if not settings:
+        return RedirectResponse(f"{frontend_url}/settings?error=invalid_state")
+    
+    redirect_uri = f"{frontend_url}/api/oauth/google/callback"
+    
+    # Exchange code for tokens
+    try:
+        token_response = requests.post(
+            'https://oauth2.googleapis.com/token',
+            data={
+                'code': code,
+                'client_id': settings["google_client_id"],
+                'client_secret': settings["google_client_secret"],
+                'redirect_uri': redirect_uri,
+                'grant_type': 'authorization_code'
+            }
+        ).json()
+        
+        if 'error' in token_response:
+            return RedirectResponse(f"{frontend_url}/settings?error={token_response.get('error_description', 'token_error')}")
+        
+        # Get user email
+        user_info = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f'Bearer {token_response["access_token"]}'}
+        ).json()
+        
+        # Save tokens
+        await db.integration_settings.update_one(
+            {"user_id": settings["user_id"]},
+            {"$set": {
+                "google_tokens": token_response,
+                "google_calendar_email": user_info.get('email'),
+                "google_calendar_enabled": True,
+                "google_oauth_state": None
+            }}
+        )
+        
+        return RedirectResponse(f"{frontend_url}/settings?google_connected=true&email={user_info.get('email', '')}")
+    except Exception as e:
+        return RedirectResponse(f"{frontend_url}/settings?error={str(e)}")
+
+@api_router.post("/oauth/google/disconnect")
+async def google_calendar_disconnect(current_user: dict = Depends(get_current_user)):
+    """Disconnect Google Calendar"""
+    await db.integration_settings.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": {
+            "google_tokens": None,
+            "google_calendar_email": None,
+            "google_calendar_enabled": False
+        }}
+    )
+    return {"message": "Google Calendar desconectado"}
+
+async def get_google_credentials(user_id: str):
+    """Get and refresh Google credentials if needed"""
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request as GoogleRequest
+    
+    settings = await db.integration_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not settings or not settings.get("google_tokens"):
+        return None
+    
+    tokens = settings["google_tokens"]
+    creds = Credentials(
+        token=tokens.get('access_token'),
+        refresh_token=tokens.get('refresh_token'),
+        token_uri='https://oauth2.googleapis.com/token',
+        client_id=settings.get("google_client_id"),
+        client_secret=settings.get("google_client_secret")
+    )
+    
+    if creds.expired and creds.refresh_token:
+        creds.refresh(GoogleRequest())
+        await db.integration_settings.update_one(
+            {"user_id": user_id},
+            {"$set": {"google_tokens.access_token": creds.token}}
+        )
+    
+    return creds
+
+async def is_google_calendar_enabled(user_id: str) -> bool:
+    """Check if Google Calendar is enabled for user"""
+    settings = await db.integration_settings.find_one({"user_id": user_id}, {"_id": 0})
+    return settings.get("google_calendar_enabled", False) if settings else False
+
+async def sync_event_to_google(user_id: str, event_doc: dict) -> str | None:
+    """Sync a local event to Google Calendar. Returns google_event_id or None."""
+    from googleapiclient.discovery import build
+    
+    if not await is_google_calendar_enabled(user_id):
+        return None
+    
+    creds = await get_google_credentials(user_id)
+    if not creds:
+        return None
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        # Build Google Calendar event
+        google_event = {
+            'summary': event_doc.get('title', 'Evento'),
+            'description': event_doc.get('description', ''),
+            'start': {
+                'dateTime': event_doc.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+            'end': {
+                'dateTime': event_doc.get('end_time') or event_doc.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+        }
+        
+        # Add reminder if specified
+        if event_doc.get('reminder_minutes'):
+            google_event['reminders'] = {
+                'useDefault': False,
+                'overrides': [
+                    {'method': 'popup', 'minutes': event_doc.get('reminder_minutes', 30)}
+                ]
+            }
+        
+        # Create or update in Google
+        if event_doc.get('google_event_id'):
+            # Update existing
+            created = service.events().update(
+                calendarId='primary',
+                eventId=event_doc['google_event_id'],
+                body=google_event
+            ).execute()
+        else:
+            # Create new
+            created = service.events().insert(calendarId='primary', body=google_event).execute()
+        
+        return created.get('id')
+    except Exception as e:
+        print(f"Error syncing to Google Calendar: {e}")
+        return None
+
+async def delete_from_google(user_id: str, google_event_id: str) -> bool:
+    """Delete event from Google Calendar. Returns True on success."""
+    from googleapiclient.discovery import build
+    
+    if not google_event_id:
+        return False
+    
+    if not await is_google_calendar_enabled(user_id):
+        return False
+    
+    creds = await get_google_credentials(user_id)
+    if not creds:
+        return False
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        service.events().delete(calendarId='primary', eventId=google_event_id).execute()
+        return True
+    except Exception as e:
+        print(f"Error deleting from Google Calendar: {e}")
+        return False
+
+@api_router.get("/google-calendar/events")
+async def get_google_calendar_events(
+    time_min: str = None,
+    time_max: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get events from Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        # Default to next 30 days if not specified
+        if not time_min:
+            time_min = datetime.now(timezone.utc).isoformat()
+        if not time_max:
+            time_max = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=100,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        return events_result.get('items', [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener eventos: {str(e)}")
+
+@api_router.post("/google-calendar/events")
+async def create_google_calendar_event(
+    event_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create event in Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        event = {
+            'summary': event_data.get('title', 'Evento'),
+            'description': event_data.get('description', ''),
+            'start': {
+                'dateTime': event_data.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+            'end': {
+                'dateTime': event_data.get('end_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+        }
+        
+        created_event = service.events().insert(calendarId='primary', body=event).execute()
+        return {"id": created_event['id'], "link": created_event.get('htmlLink')}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear evento: {str(e)}")
+
+@api_router.delete("/google-calendar/events/{event_id}")
+async def delete_google_calendar_event(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete event from Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        service.events().delete(calendarId='primary', eventId=event_id).execute()
+        return {"message": "Evento eliminado de Google Calendar"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al eliminar evento: {str(e)}")
+
+@api_router.post("/calendar/events/{event_id}/sync-google")
+async def sync_single_event_to_google(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Sync local calendar event to Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    # Get local event
+    event = await db.calendar_events.find_one(
+        {"id": event_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        google_event = {
+            'summary': event.get('title', 'Evento'),
+            'description': event.get('description', ''),
+            'start': {
+                'dateTime': event.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+            'end': {
+                'dateTime': event.get('end_time') or event.get('start_time'),
+                'timeZone': 'America/Mexico_City',
+            },
+        }
+        
+        created = service.events().insert(calendarId='primary', body=google_event).execute()
+        
+        # Update local event with Google Calendar ID
+        await db.calendar_events.update_one(
+            {"id": event_id},
+            {"$set": {
+                "google_event_id": created['id'],
+                "last_synced_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        return {"message": "Evento sincronizado", "google_event_id": created['id']}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al sincronizar: {str(e)}")
+
+@api_router.post("/google-calendar/import")
+async def import_google_calendar_events(
+    days_back: int = 30,
+    days_forward: int = 90,
+    current_user: dict = Depends(get_current_user)
+):
+    """Import events from Google Calendar to Rovi (Google → Rovi sync)"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        # Get events from the past and future
+        time_min = (datetime.now(timezone.utc) - timedelta(days=days_back)).isoformat()
+        time_max = (datetime.now(timezone.utc) + timedelta(days=days_forward)).isoformat()
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=500,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        google_events = events_result.get('items', [])
+        imported_count = 0
+        skipped_count = 0
+        
+        for g_event in google_events:
+            google_event_id = g_event.get('id')
+            
+            # Check if already imported
+            existing = await db.calendar_events.find_one({
+                "google_event_id": google_event_id,
+                "user_id": current_user["user_id"]
+            })
+            
+            if existing:
+                skipped_count += 1
+                continue
+            
+            # Parse start and end times
+            start = g_event.get('start', {})
+            end = g_event.get('end', {})
+            
+            start_time = start.get('dateTime') or start.get('date')
+            end_time = end.get('dateTime') or end.get('date')
+            
+            # Create local event
+            event_doc = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user["user_id"],
+                "tenant_id": current_user["tenant_id"],
+                "title": g_event.get('summary', 'Evento de Google'),
+                "description": g_event.get('description', ''),
+                "event_type": "otro",  # Default type for imported events
+                "start_time": start_time,
+                "end_time": end_time,
+                "lead_id": None,
+                "reminder_minutes": 30,
+                "color": None,
+                "completed": False,
+                "google_event_id": google_event_id,
+                "synced_from_google": True,
+                "last_synced_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.calendar_events.insert_one(event_doc)
+            imported_count += 1
+        
+        return {
+            "message": f"Importación completada",
+            "imported": imported_count,
+            "skipped": skipped_count,
+            "total_found": len(google_events)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al importar: {str(e)}")
+
+@api_router.post("/google-calendar/sync")
+async def full_calendar_sync(current_user: dict = Depends(get_current_user)):
+    """Full bidirectional sync between Rovi and Google Calendar"""
+    from googleapiclient.discovery import build
+    
+    creds = await get_google_credentials(current_user["user_id"])
+    if not creds:
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+    
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        
+        stats = {
+            "exported_to_google": 0,
+            "imported_from_google": 0,
+            "updated": 0,
+            "errors": 0
+        }
+        
+        # 1. Export local events without google_event_id to Google (Rovi → Google)
+        local_events = await db.calendar_events.find({
+            "user_id": current_user["user_id"],
+            "google_event_id": None
+        }, {"_id": 0}).to_list(500)
+        
+        for event in local_events:
+            google_event = {
+                'summary': event.get('title', 'Evento'),
+                'description': event.get('description', ''),
+                'start': {
+                    'dateTime': event.get('start_time'),
+                    'timeZone': 'America/Mexico_City',
+                },
+                'end': {
+                    'dateTime': event.get('end_time') or event.get('start_time'),
+                    'timeZone': 'America/Mexico_City',
+                },
+            }
+            
+            try:
+                created = service.events().insert(calendarId='primary', body=google_event).execute()
+                await db.calendar_events.update_one(
+                    {"id": event["id"]},
+                    {"$set": {
+                        "google_event_id": created['id'],
+                        "last_synced_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                stats["exported_to_google"] += 1
+            except Exception as e:
+                print(f"Error exporting event {event['id']}: {e}")
+                stats["errors"] += 1
+        
+        # 2. Import Google events not in Rovi (Google → Rovi)
+        time_min = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        time_max = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=500,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        google_events = events_result.get('items', [])
+        
+        for g_event in google_events:
+            google_event_id = g_event.get('id')
+            
+            # Check if exists in Rovi
+            existing = await db.calendar_events.find_one({
+                "google_event_id": google_event_id,
+                "user_id": current_user["user_id"]
+            })
+            
+            if not existing:
+                # Import new event
+                start = g_event.get('start', {})
+                end = g_event.get('end', {})
+                
+                event_doc = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": current_user["user_id"],
+                    "tenant_id": current_user["tenant_id"],
+                    "title": g_event.get('summary', 'Evento de Google'),
+                    "description": g_event.get('description', ''),
+                    "event_type": "otro",
+                    "start_time": start.get('dateTime') or start.get('date'),
+                    "end_time": end.get('dateTime') or end.get('date'),
+                    "lead_id": None,
+                    "reminder_minutes": 30,
+                    "color": None,
+                    "completed": False,
+                    "google_event_id": google_event_id,
+                    "synced_from_google": True,
+                    "last_synced_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                await db.calendar_events.insert_one(event_doc)
+                stats["imported_from_google"] += 1
+        
+        return {
+            "message": "Sincronización completada",
+            "stats": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en sincronización: {str(e)}")
+
+# ==================== EMAIL TEMPLATES ====================
+
+@api_router.get("/email-templates")
+async def get_email_templates(current_user: dict = Depends(get_current_user)):
+    """Get all email templates"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    templates = await db.email_templates.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return [serialize_doc(t) for t in templates]
+
+@api_router.post("/email-templates")
+async def create_email_template(
+    template_data: EmailTemplateCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new email template"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    template = EmailTemplate(
+        **template_data.model_dump(),
+        user_id=current_user["user_id"],
+        tenant_id=tenant_id
+    )
+    
+    await db.email_templates.insert_one(template.model_dump())
+    return serialize_doc(template.model_dump())
+
+@api_router.delete("/email-templates/{template_id}")
+async def delete_email_template(
+    template_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete an email template"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    result = await db.email_templates.delete_one({"id": template_id, "tenant_id": tenant_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    return {"message": "Plantilla eliminada"}
+
+@api_router.put("/email-templates/{template_id}")
+async def update_email_template(
+    template_id: str,
+    template_data: EmailTemplateCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an email template"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    existing = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    
+    update_data = template_data.model_dump(exclude_unset=True)
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.email_templates.update_one(
+        {"id": template_id},
+        {"$set": update_data}
+    )
+    
+    updated = await db.email_templates.find_one({"id": template_id}, {"_id": 0})
+    return serialize_doc(updated)
+
+@api_router.get("/email-templates/{template_id}")
+async def get_email_template(
+    template_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a single email template"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    template = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not template:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    return serialize_doc(template)
+
+# ==================== CONVERSATION ANALYSIS (DEMO/MOCKUP) ====================
+
+@api_router.get("/calls/{call_id}/analysis")
+async def get_call_analysis(
+    call_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get conversation analysis for a call (DEMO - returns mock data)"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    call = await db.call_records.find_one({"id": call_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not call:
+        raise HTTPException(status_code=404, detail="Llamada no encontrada")
+    
+    # Return mock analysis data
+    sentiments = ["positivo", "neutral", "negativo"]
+    intents = ["interesado en comprar", "buscando información", "comparando opciones", "listo para decidir", "solo curiosidad"]
+    topics = [
+        ["precio", "ubicación", "amenidades"],
+        ["financiamiento", "enganche", "mensualidades"],
+        ["fecha de entrega", "acabados", "garantía"],
+        ["seguridad", "plusvalía", "rentabilidad"]
+    ]
+    actions = [
+        ["Enviar brochure por WhatsApp", "Agendar visita presencial"],
+        ["Enviar cotización personalizada", "Llamar en 2 días"],
+        ["Compartir opciones de financiamiento", "Agendar llamada con asesor"],
+        ["Enviar video del desarrollo", "Invitar a evento de preventa"]
+    ]
+    
+    mock_analysis = ConversationAnalysis(
+        call_id=call_id,
+        lead_name=call.get("lead_name", "Lead"),
+        duration_seconds=call.get("duration_seconds", random.randint(60, 300)),
+        sentiment=random.choice(sentiments),
+        intent_detected=random.choice(intents),
+        key_topics=random.choice(topics),
+        action_items=random.choice(actions),
+        follow_up_recommended=random.choice([True, True, False]),
+        follow_up_reason="El prospecto mostró alto interés en la propiedad" if random.choice([True, False]) else None,
+        confidence_score=round(random.uniform(0.75, 0.98), 2)
+    )
+    
+    return serialize_doc(mock_analysis.model_dump())
+
+@api_router.get("/analytics/communications")
+async def get_communications_analytics(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get communications analytics (calls + SMS)"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    
+    # Get call stats
+    total_calls = await db.call_records.count_documents({"tenant_id": tenant_id})
+    completed_calls = await db.call_records.count_documents({"tenant_id": tenant_id, "status": "completed"})
+    
+    # Get SMS stats
+    total_sms = await db.sms_records.count_documents({"tenant_id": tenant_id})
+    delivered_sms = await db.sms_records.count_documents({"tenant_id": tenant_id, "status": "delivered"})
+    
+    # Get campaign stats
+    total_campaigns = await db.campaigns.count_documents({"tenant_id": tenant_id})
+    
+    # Recent activity
+    recent_calls = await db.call_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5)
+    
+    recent_sms = await db.sms_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5)
+    
+    # Get email stats
+    total_emails = await db.email_records.count_documents({"tenant_id": tenant_id})
+    sent_emails = await db.email_records.count_documents({"tenant_id": tenant_id, "status": {"$in": ["sent", "delivered", "opened", "clicked"]}})
+    opened_emails = await db.email_records.count_documents({"tenant_id": tenant_id, "status": {"$in": ["opened", "clicked"]}})
+    
+    recent_emails = await db.email_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5)
+    
+    return {
+        "calls": {
+            "total": total_calls,
+            "completed": completed_calls,
+            "success_rate": round((completed_calls / total_calls * 100) if total_calls > 0 else 0, 1)
+        },
+        "sms": {
+            "total": total_sms,
+            "delivered": delivered_sms,
+            "delivery_rate": round((delivered_sms / total_sms * 100) if total_sms > 0 else 0, 1)
+        },
+        "emails": {
+            "total": total_emails,
+            "sent": sent_emails,
+            "opened": opened_emails,
+            "open_rate": round((opened_emails / sent_emails * 100) if sent_emails > 0 else 0, 1)
+        },
+        "campaigns": {
+            "total": total_campaigns
+        },
+        "recent_calls": [serialize_doc(c) for c in recent_calls],
+        "recent_sms": [serialize_doc(s) for s in recent_sms],
+        "recent_emails": [serialize_doc(e) for e in recent_emails]
+    }
+
+# ==================== LEAD IMPORT ====================
+
+# Lead field definitions for mapping
+LEAD_FIELDS = {
+    "name": {"label": "Nombre", "required": True, "type": "string"},
+    "email": {"label": "Email", "required": False, "type": "email"},
+    "phone": {"label": "Teléfono", "required": True, "type": "phone"},
+    "source": {"label": "Fuente", "required": False, "type": "string"},
+    "status": {"label": "Estado", "required": False, "type": "select", "options": ["nuevo", "contactado", "calificacion", "presentacion", "apartado", "venta"]},
+    "priority": {"label": "Prioridad", "required": False, "type": "select", "options": ["baja", "media", "alta", "urgente"]},
+    "budget_mxn": {"label": "Presupuesto (MXN)", "required": False, "type": "number"},
+    "property_interest": {"label": "Interés Propiedad", "required": False, "type": "string"},
+    "location_preference": {"label": "Ubicación Preferida", "required": False, "type": "string"},
+    "notes": {"label": "Notas", "required": False, "type": "text"},
+    "company": {"label": "Empresa", "required": False, "type": "string"},
+    "position": {"label": "Puesto", "required": False, "type": "string"},
+}
+
+@api_router.get("/import/fields")
+async def get_import_fields():
+    """Get available fields for import mapping"""
+    return LEAD_FIELDS
+
+@api_router.post("/import/upload")
+async def upload_import_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload file and get column headers for mapping"""
+    tenant_id = current_user["tenant_id"]
+    
+    # Validate file type
+    filename = file.filename.lower()
+    if not (filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.xls')):
+        raise HTTPException(status_code=400, detail="Formato no soportado. Use CSV o Excel (.xlsx)")
+    
+    file_type = "csv" if filename.endswith('.csv') else "xlsx"
+    
+    try:
+        content = await file.read()
+        
+        if file_type == "csv":
+            # Try different encodings
+            for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                try:
+                    text = content.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                raise HTTPException(status_code=400, detail="No se pudo decodificar el archivo CSV")
+            
+            reader = csv.DictReader(io.StringIO(text))
+            headers = reader.fieldnames or []
+            rows = list(reader)
+        else:
+            # Excel file
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True)
+            ws = wb.active
+            
+            # Get headers from first row
+            headers = []
+            rows = []
+            for i, row in enumerate(ws.iter_rows(values_only=True)):
+                if i == 0:
+                    headers = [str(cell) if cell else f"Column_{j}" for j, cell in enumerate(row)]
+                else:
+                    if any(cell for cell in row):  # Skip empty rows
+                        row_dict = {headers[j]: cell for j, cell in enumerate(row) if j < len(headers)}
+                        rows.append(row_dict)
+            wb.close()
+        
+        # Create import job
+        job = ImportJob(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            filename=file.filename,
+            file_type=file_type,
+            total_rows=len(rows)
+        )
+        
+        # Store job and data temporarily
+        await db.import_jobs.insert_one(job.model_dump())
+        await db.import_data.insert_one({
+            "job_id": job.id,
+            "rows": rows,
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        # Sample data for preview (first 5 rows)
+        sample_data = rows[:5] if rows else []
+        
+        # Auto-detect mapping suggestions
+        mapping_suggestions = {}
+        header_lower_map = {h.lower().strip(): h for h in headers}
+        
+        field_aliases = {
+            "name": ["nombre", "name", "full name", "nombre completo", "cliente", "contacto"],
+            "email": ["email", "correo", "e-mail", "mail", "correo electronico"],
+            "phone": ["phone", "telefono", "teléfono", "celular", "mobile", "tel", "whatsapp"],
+            "source": ["source", "fuente", "origen", "canal", "medio"],
+            "status": ["status", "estado", "etapa", "stage"],
+            "priority": ["priority", "prioridad", "urgencia"],
+            "budget_mxn": ["budget", "presupuesto", "precio", "price", "monto"],
+            "property_interest": ["property", "propiedad", "interes", "interest", "proyecto"],
+            "location_preference": ["location", "ubicacion", "ubicación", "zona", "city", "ciudad"],
+            "notes": ["notes", "notas", "comentarios", "comments", "observaciones"],
+            "company": ["company", "empresa", "compañia", "organization"],
+            "position": ["position", "puesto", "cargo", "title", "job title"],
+        }
+        
+        for field, aliases in field_aliases.items():
+            for alias in aliases:
+                if alias in header_lower_map:
+                    mapping_suggestions[field] = header_lower_map[alias]
+                    break
+        
+        return {
+            "job_id": job.id,
+            "filename": file.filename,
+            "total_rows": len(rows),
+            "headers": headers,
+            "sample_data": sample_data,
+            "mapping_suggestions": mapping_suggestions,
+            "available_fields": LEAD_FIELDS
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
+
+@api_router.post("/import/preview")
+async def preview_import(
+    request: ImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Preview import with current mapping"""
+    # Get job and data
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+    
+    rows = import_data.get("rows", [])
+    mapping = {m.source_column: m.target_field for m in request.mapping}
+    
+    # Transform sample data with mapping
+    preview_rows = []
+    errors = []
+    
+    for i, row in enumerate(rows[:10]):  # Preview first 10
+        transformed = {}
+        row_errors = []
+        
+        for source_col, target_field in mapping.items():
+            value = row.get(source_col, "")
+            if value is not None:
+                value = str(value).strip()
+            
+            # Validate required fields
+            field_config = LEAD_FIELDS.get(target_field, {})
+            if field_config.get("required") and not value:
+                row_errors.append(f"{field_config.get('label', target_field)} es requerido")
+            
+            # Type validation
+            if value:
+                if field_config.get("type") == "number":
+                    try:
+                        value = float(str(value).replace(",", "").replace("$", ""))
+                    except:
+                        row_errors.append(f"{field_config.get('label', target_field)} debe ser un número")
+                elif field_config.get("type") == "email" and "@" not in str(value):
+                    row_errors.append(f"Email inválido: {value}")
+            
+            transformed[target_field] = value
+        
+        preview_rows.append({
+            "row_number": i + 1,
+            "data": transformed,
+            "errors": row_errors,
+            "valid": len(row_errors) == 0
+        })
+        
+        if row_errors:
+            errors.extend([{"row": i + 1, "errors": row_errors}])
+    
+    # Check for duplicates if enabled
+    duplicates_preview = []
+    if request.skip_duplicates and request.duplicate_field:
+        duplicate_values = [r["data"].get(request.duplicate_field) for r in preview_rows if r["data"].get(request.duplicate_field)]
+        existing = await db.leads.find(
+            {request.duplicate_field: {"$in": duplicate_values}, "tenant_id": job["tenant_id"]},
+            {"_id": 0, request.duplicate_field: 1}
+        ).to_list(None)
+        existing_values = set(doc.get(request.duplicate_field) for doc in existing)
+        duplicates_preview = [v for v in duplicate_values if v in existing_values]
+    
+    return {
+        "preview_rows": preview_rows,
+        "total_rows": len(rows),
+        "valid_rows": sum(1 for r in preview_rows if r["valid"]),
+        "error_rows": len(errors),
+        "duplicates_found": len(duplicates_preview),
+        "duplicate_values": duplicates_preview[:5],
+        "errors": errors[:10]
+    }
+
+@api_router.post("/import/execute")
+async def execute_import(
+    request: ImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Execute the import with mapping"""
+    tenant_id = current_user["tenant_id"]
+    
+    # Get job and data
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+    
+    rows = import_data.get("rows", [])
+    mapping = {m.source_column: m.target_field for m in request.mapping}
+    
+    # Update job status
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {"status": ImportStatus.PROCESSING.value, "column_mapping": mapping}}
+    )
+    
+    imported = 0
+    skipped = 0
+    errors_list = []
+    
+    # Get existing values for duplicate check
+    existing_values = set()
+    if request.skip_duplicates and request.duplicate_field:
+        all_values = [str(row.get(next((s for s, t in mapping.items() if t == request.duplicate_field), ""), "")).strip() for row in rows]
+        all_values = [v for v in all_values if v]
+        existing = await db.leads.find(
+            {request.duplicate_field: {"$in": all_values}, "tenant_id": tenant_id},
+            {"_id": 0, request.duplicate_field: 1}
+        ).to_list(None)
+        existing_values = set(str(doc.get(request.duplicate_field, "")).strip() for doc in existing)
+    
+    # Process all rows
+    leads_to_insert = []
+    for i, row in enumerate(rows):
+        try:
+            transformed = {}
+            row_errors = []
+            
+            for source_col, target_field in mapping.items():
+                value = row.get(source_col, "")
+                if value is not None:
+                    value = str(value).strip()
+                
+                field_config = LEAD_FIELDS.get(target_field, {})
+                
+                # Type conversion
+                if value and field_config.get("type") == "number":
+                    try:
+                        value = float(str(value).replace(",", "").replace("$", ""))
+                    except:
+                        value = 0
+                
+                # Default values for select fields
+                if target_field == "status" and not value:
+                    value = "nuevo"
+                if target_field == "priority" and not value:
+                    value = "media"
+                
+                transformed[target_field] = value
+            
+            # Check required fields
+            if not transformed.get("name"):
+                row_errors.append("Nombre es requerido")
+            if not transformed.get("phone"):
+                row_errors.append("Teléfono es requerido")
+            
+            if row_errors:
+                errors_list.append({"row": i + 1, "errors": row_errors})
+                continue
+            
+            # Check duplicates
+            if request.skip_duplicates and request.duplicate_field:
+                check_value = str(transformed.get(request.duplicate_field, "")).strip()
+                if check_value in existing_values:
+                    skipped += 1
+                    continue
+                existing_values.add(check_value)
+            
+            # Create lead
+            lead = Lead(
+                name=transformed.get("name", ""),
+                email=transformed.get("email"),
+                phone=transformed.get("phone", ""),
+                source=transformed.get("source", "importado"),
+                status=transformed.get("status", "nuevo"),
+                priority=transformed.get("priority", "media"),
+                budget_mxn=transformed.get("budget_mxn", 0),
+                property_interest=transformed.get("property_interest"),
+                location_preference=transformed.get("location_preference"),
+                notes=transformed.get("notes"),
+                tenant_id=tenant_id,
+                created_by=current_user["user_id"],
+                intent_score=50
+            )
+            leads_to_insert.append(lead.model_dump())
+            imported += 1
+            
+        except Exception as e:
+            errors_list.append({"row": i + 1, "errors": [str(e)]})
+    
+    # Bulk insert leads
+    if leads_to_insert:
+        await db.leads.insert_many(leads_to_insert)
+    
+    # Update job with results
+    final_status = ImportStatus.COMPLETED.value
+    if errors_list and imported == 0:
+        final_status = ImportStatus.FAILED.value
+    elif errors_list:
+        final_status = ImportStatus.PARTIAL.value
+    
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {
+            "status": final_status,
+            "imported_count": imported,
+            "skipped_count": skipped,
+            "error_count": len(errors_list),
+            "errors": errors_list[:50],  # Store first 50 errors
+            "completed_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Clean up temporary data
+    await db.import_data.delete_one({"job_id": request.job_id})
+    
+    return {
+        "status": final_status,
+        "imported": imported,
+        "skipped": skipped,
+        "errors": len(errors_list),
+        "error_details": errors_list[:10],
+        "message": f"Importación completada: {imported} leads importados, {skipped} duplicados omitidos, {len(errors_list)} errores"
+    }
+
+@api_router.get("/import/jobs")
+async def get_import_jobs(
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get import job history"""
+    jobs = await db.import_jobs.find(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    return [serialize_doc(j) for j in jobs]
+
+@api_router.get("/import/jobs/{job_id}")
+async def get_import_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get specific import job details"""
+    job = await db.import_jobs.find_one(
+        {"id": job_id, "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+    return serialize_doc(job)
+
+@api_router.get("/import/template")
+async def get_import_template():
+    """Get CSV template for import"""
+    # Create CSV template
+    headers = ["Nombre", "Email", "Teléfono", "Fuente", "Estado", "Prioridad", "Presupuesto", "Interés Propiedad", "Ubicación", "Notas"]
+    sample_row = ["Juan Pérez", "juan@ejemplo.com", "+52 999 123 4567", "Facebook Ads", "nuevo", "alta", "2500000", "Departamento 2 recámaras", "Tulum Centro", "Interesado en preventa"]
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    writer.writerow(sample_row)
+    
+    return {
+        "template_csv": output.getvalue(),
+        "headers": headers,
+        "sample_row": sample_row,
+        "instructions": [
+            "Descarga la plantilla CSV y llénala con tus leads",
+            "Los campos requeridos son: Nombre y Teléfono",
+            "El campo Estado acepta: nuevo, contactado, calificacion, presentacion, apartado, venta",
+            "El campo Prioridad acepta: baja, media, alta, urgente"
+        ]
+    }
 
 # Include the router in the main app
 app.include_router(api_router)

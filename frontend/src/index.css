@@ -21,75 +21,64 @@ code {
 
 @layer base {
     :root {
-        /* Tulum Jungle Theme - Light Mode */
-        --background: 148 20% 98%;
-        --foreground: 160 50% 10%;
+        /* Tulum Luxury Palette - Light Mode */
+        --background: 30 6% 90%; /* #E7E5E4 Beige Arena */
+        --foreground: 220 9% 20%;
         --card: 0 0% 100%;
-        --card-foreground: 160 50% 10%;
+        --card-foreground: 220 9% 20%;
         --popover: 0 0% 100%;
-        --popover-foreground: 160 50% 10%;
-        --primary: 160 84% 39%;
+        --popover-foreground: 220 9% 20%;
+        --primary: 174 84% 32%; /* #0D9488 Turquesa Profundo */
         --primary-foreground: 0 0% 100%;
-        --secondary: 192 91% 36%;
+        --secondary: 88 81% 27%; /* #4D7C0F Verde Jungla */
         --secondary-foreground: 0 0% 100%;
-        --muted: 148 20% 95%;
-        --muted-foreground: 160 30% 40%;
-        --accent: 37 91% 55%;
+        --muted: 30 6% 85%;
+        --muted-foreground: 220 9% 46%; /* #6B7280 Gris Piedra */
+        --accent: 32 95% 44%; /* #D97706 Dorado Cálido */
         --accent-foreground: 0 0% 100%;
-        --destructive: 0 84% 60%;
+        --destructive: 0 84% 60%; /* #EF4444 Rojo Coral */
         --destructive-foreground: 0 0% 100%;
-        --border: 160 20% 88%;
-        --input: 160 20% 88%;
-        --ring: 160 84% 39%;
-        --chart-1: 160 84% 39%;
-        --chart-2: 192 91% 36%;
-        --chart-3: 37 91% 55%;
-        --chart-4: 160 60% 50%;
-        --chart-5: 192 60% 50%;
+        --success: 160 84% 39%; /* #10B981 Verde Esmeralda */
+        --success-foreground: 0 0% 100%;
+        --border: 30 6% 80%;
+        --input: 30 6% 80%;
+        --ring: 174 84% 32%;
+        --chart-1: 174 84% 32%;
+        --chart-2: 88 81% 27%;
+        --chart-3: 32 95% 44%;
+        --chart-4: 160 84% 39%;
+        --chart-5: 0 84% 60%;
         --radius: 0.75rem;
-        
-        /* Custom colors */
-        --emerald-50: 148 80% 95%;
-        --emerald-100: 149 80% 90%;
-        --emerald-500: 160 84% 39%;
-        --emerald-600: 161 94% 30%;
-        --emerald-700: 163 94% 24%;
-        --emerald-800: 163 88% 20%;
-        --emerald-900: 164 86% 16%;
-        --emerald-950: 166 91% 9%;
-        
-        --gold: 37 91% 55%;
-        --gold-light: 37 91% 70%;
-        --bronze: 25 75% 35%;
-        --silver: 220 10% 70%;
     }
 
     .dark {
-        /* Tulum Jungle Theme - Dark Mode */
-        --background: 166 91% 9%;
-        --foreground: 148 20% 95%;
-        --card: 164 86% 16%;
-        --card-foreground: 148 20% 95%;
-        --popover: 164 86% 16%;
-        --popover-foreground: 148 20% 95%;
-        --primary: 160 84% 39%;
+        /* Tulum Luxury Palette - Dark Mode */
+        --background: 220 14% 14%; /* #1F2937 */
+        --foreground: 30 6% 90%;
+        --card: 220 14% 18%;
+        --card-foreground: 30 6% 90%;
+        --popover: 220 14% 18%;
+        --popover-foreground: 30 6% 90%;
+        --primary: 174 84% 32%; /* #0D9488 Turquesa Profundo */
         --primary-foreground: 0 0% 100%;
-        --secondary: 192 91% 36%;
+        --secondary: 88 81% 27%; /* #4D7C0F Verde Jungla */
         --secondary-foreground: 0 0% 100%;
-        --muted: 163 88% 20%;
-        --muted-foreground: 160 30% 70%;
-        --accent: 37 91% 55%;
+        --muted: 220 14% 25%;
+        --muted-foreground: 220 9% 60%;
+        --accent: 32 95% 44%; /* #D97706 Dorado Cálido */
         --accent-foreground: 0 0% 100%;
-        --destructive: 0 62% 50%;
+        --destructive: 0 84% 50%;
         --destructive-foreground: 0 0% 100%;
-        --border: 163 50% 25%;
-        --input: 163 50% 25%;
-        --ring: 160 84% 39%;
-        --chart-1: 160 84% 50%;
-        --chart-2: 192 91% 50%;
-        --chart-3: 37 91% 60%;
-        --chart-4: 160 60% 60%;
-        --chart-5: 192 60% 60%;
+        --success: 160 84% 39%;
+        --success-foreground: 0 0% 100%;
+        --border: 220 14% 25%;
+        --input: 220 14% 25%;
+        --ring: 174 84% 32%;
+        --chart-1: 174 84% 40%;
+        --chart-2: 88 81% 35%;
+        --chart-3: 32 95% 50%;
+        --chart-4: 160 84% 45%;
+        --chart-5: 0 84% 55%;
     }
 }
 
@@ -108,23 +97,32 @@ code {
     }
     
     .glass-dark {
-        @apply bg-emerald-950/60 backdrop-blur-xl border border-emerald-800/30;
+        @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/30;
     }
     
     .shadow-soft {
-        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
     }
     
-    .shadow-glow {
-        box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    .shadow-glow-primary {
+        box-shadow: 0 0 20px rgba(13, 148, 136, 0.3);
     }
     
-    .gradient-jungle {
-        background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    .shadow-glow-accent {
+        box-shadow: 0 0 20px rgba(217, 119, 6, 0.3);
     }
     
-    .text-gradient {
-        @apply bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-cyan-500;
+    .gradient-tulum {
+        background: linear-gradient(135deg, #0D9488 0%, #4D7C0F 100%);
+    }
+    
+    .gradient-gold {
+        background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+    }
+    
+    .text-gradient-tulum {
+        @apply bg-clip-text text-transparent;
+        background-image: linear-gradient(135deg, #0D9488 0%, #4D7C0F 100%);
     }
 }
 
@@ -165,6 +163,15 @@ code {
     }
 }
 
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
 .animate-slide-in {
     animation: slideIn 0.3s ease-out forwards;
 }
@@ -173,17 +180,34 @@ code {
     animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.animate-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
 /* Leaderboard medal styles */
 .medal-gold {
-    @apply text-yellow-500;
+    color: #D97706;
 }
 
 .medal-silver {
-    @apply text-gray-400;
+    color: #9CA3AF;
 }
 
 .medal-bronze {
-    @apply text-orange-400;
+    color: #B45309;
+}
+
+/* Drag and Drop styles */
+.dragging {
+    opacity: 0.5;
+    transform: rotate(3deg);
+}
+
+.drag-over {
+    background-color: hsl(var(--primary) / 0.1);
+    border: 2px dashed hsl(var(--primary));
 }
 
 @layer base {

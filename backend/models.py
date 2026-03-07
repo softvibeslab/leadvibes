@@ -51,6 +51,7 @@ class UserCreate(BaseModel):
     name: str
     role: str = "broker"
     phone: Optional[str] = None
+    account_type: str = "individual"  # individual, agency
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -62,6 +63,7 @@ class User(UserBase):
     created_at: datetime = Field(default_factory=now_utc)
     onboarding_completed: bool = False
     tenant_id: str = ""
+    account_type: str = "individual"  # individual, agency
 
 class UserResponse(BaseModel):
     id: str
@@ -72,6 +74,7 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     is_active: bool
     onboarding_completed: bool
+    account_type: str = "individual"
 
 # Goals/KPIs Models
 class GoalCreate(BaseModel):
@@ -127,8 +130,12 @@ class Lead(BaseModel):
     source: str = "web"
     budget_mxn: float = 0.0
     property_interest: Optional[str] = None
+    location_preference: Optional[str] = None
     notes: Optional[str] = None
+    company: Optional[str] = None
+    position: Optional[str] = None
     assigned_broker_id: Optional[str] = None
+    created_by: Optional[str] = None
     tenant_id: str = ""
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
@@ -238,3 +245,317 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+# Calendar Event Models
+class CalendarEventCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_type: str = "seguimiento"  # seguimiento, llamada, zoom, visita, otro
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    lead_id: Optional[str] = None
+    reminder_minutes: int = 30
+    color: Optional[str] = None
+
+class CalendarEventUpdate(BaseModel):
+    """Update model for calendar events"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    event_type: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    lead_id: Optional[str] = None
+    reminder_minutes: Optional[int] = None
+    color: Optional[str] = None
+    completed: Optional[bool] = None
+
+class CalendarEvent(CalendarEventCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    completed: bool = False
+    google_event_id: Optional[str] = None  # ID del evento en Google Calendar
+    synced_from_google: bool = False  # True si fue importado de Google
+    last_synced_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+
+# ==================== INTEGRATION SETTINGS ====================
+
+class IntegrationSettings(BaseModel):
+    """Settings for external integrations (VAPI, Twilio, SendGrid, Google Calendar)"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    # VAPI Settings
+    vapi_api_key: Optional[str] = None
+    vapi_phone_number_id: Optional[str] = None
+    vapi_assistant_id: Optional[str] = None
+    # Twilio Settings
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_phone_number: Optional[str] = None
+    # SendGrid Settings
+    sendgrid_api_key: Optional[str] = None
+    sendgrid_sender_email: Optional[str] = None
+    sendgrid_sender_name: Optional[str] = None
+    # Google Calendar Settings
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    google_tokens: Optional[Dict[str, Any]] = None
+    google_calendar_email: Optional[str] = None
+    # Status
+    vapi_enabled: bool = False
+    twilio_enabled: bool = False
+    sendgrid_enabled: bool = False
+    google_calendar_enabled: bool = False
+    updated_at: datetime = Field(default_factory=now_utc)
+
+class IntegrationSettingsUpdate(BaseModel):
+    """Update model for integration settings"""
+    vapi_api_key: Optional[str] = None
+    vapi_phone_number_id: Optional[str] = None
+    vapi_assistant_id: Optional[str] = None
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_phone_number: Optional[str] = None
+    sendgrid_api_key: Optional[str] = None
+    sendgrid_sender_email: Optional[str] = None
+    sendgrid_sender_name: Optional[str] = None
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+
+# ==================== CAMPAIGNS ====================
+
+class CampaignType(str, Enum):
+    CALL = "call"
+    SMS = "sms"
+    EMAIL = "email"
+
+class CampaignStatus(str, Enum):
+    DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    PAUSED = "paused"
+    FAILED = "failed"
+
+class CampaignCreate(BaseModel):
+    """Create a new campaign"""
+    name: str
+    campaign_type: CampaignType
+    message_template: Optional[str] = None  # For SMS
+    lead_ids: List[str] = []
+    lead_filter: Optional[Dict[str, Any]] = None  # Filter criteria
+    scheduled_at: Optional[datetime] = None
+
+class Campaign(CampaignCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    status: CampaignStatus = CampaignStatus.DRAFT
+    total_recipients: int = 0
+    sent_count: int = 0
+    delivered_count: int = 0
+    failed_count: int = 0
+    created_at: datetime = Field(default_factory=now_utc)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+# ==================== CALL RECORDS ====================
+
+class CallStatus(str, Enum):
+    QUEUED = "queued"
+    RINGING = "ringing"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    NO_ANSWER = "no_answer"
+    BUSY = "busy"
+
+class CallRecordCreate(BaseModel):
+    """Create a call record"""
+    lead_id: str
+    phone_number: str
+    campaign_id: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+
+class CallRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    lead_id: str
+    lead_name: Optional[str] = None
+    phone_number: str
+    campaign_id: Optional[str] = None
+    vapi_call_id: Optional[str] = None
+    status: CallStatus = CallStatus.QUEUED
+    duration_seconds: Optional[float] = None
+    transcript: Optional[str] = None
+    recording_url: Optional[str] = None
+    summary: Optional[str] = None
+    sentiment: Optional[str] = None
+    outcome: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+# ==================== SMS RECORDS ====================
+
+class SMSStatus(str, Enum):
+    QUEUED = "queued"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    UNDELIVERED = "undelivered"
+
+class SMSRecordCreate(BaseModel):
+    """Create an SMS record"""
+    lead_id: str
+    phone_number: str
+    message: str
+    campaign_id: Optional[str] = None
+
+class SMSRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    lead_id: str
+    lead_name: Optional[str] = None
+    phone_number: str
+    message: str
+    campaign_id: Optional[str] = None
+    twilio_sid: Optional[str] = None
+    status: SMSStatus = SMSStatus.QUEUED
+    error_message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+# ==================== CONVERSATION ANALYSIS (DEMO) ====================
+
+class ConversationAnalysis(BaseModel):
+    """Mock conversation analysis model"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    call_id: str
+    lead_name: str
+    duration_seconds: float
+    sentiment: str  # positive, neutral, negative
+    intent_detected: str
+    key_topics: List[str] = []
+    action_items: List[str] = []
+    follow_up_recommended: bool = False
+    follow_up_reason: Optional[str] = None
+    confidence_score: float = 0.0
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== EMAIL RECORDS ====================
+
+class EmailStatus(str, Enum):
+    QUEUED = "queued"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    OPENED = "opened"
+    CLICKED = "clicked"
+    BOUNCED = "bounced"
+    FAILED = "failed"
+
+class EmailTemplate(BaseModel):
+    """Email template model with visual editor support"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    name: str
+    subject: str
+    html_content: str
+    json_content: Optional[Dict[str, Any]] = None  # Visual editor JSON structure
+    variables: List[str] = []  # e.g., ["nombre", "propiedad", "precio"]
+    thumbnail_url: Optional[str] = None
+    is_default: bool = False
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+class EmailTemplateCreate(BaseModel):
+    name: str
+    subject: str
+    html_content: str
+    json_content: Optional[Dict[str, Any]] = None
+    variables: List[str] = []
+
+class EmailRecordCreate(BaseModel):
+    """Create an email record"""
+    lead_id: str
+    email: str
+    subject: str
+    html_content: str
+    campaign_id: Optional[str] = None
+
+class EmailRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    lead_id: str
+    lead_name: Optional[str] = None
+    email: str
+    subject: str
+    html_content: str
+    campaign_id: Optional[str] = None
+    sendgrid_id: Optional[str] = None
+    status: EmailStatus = EmailStatus.QUEUED
+    error_message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    opened_at: Optional[datetime] = None
+    clicked_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== IMPORT JOBS ====================
+
+class ImportStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PARTIAL = "partial"
+
+class ImportJob(BaseModel):
+    """Track lead import jobs"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    filename: str
+    file_type: str  # csv, xlsx
+    total_rows: int = 0
+    imported_count: int = 0
+    skipped_count: int = 0
+    error_count: int = 0
+    errors: List[Dict[str, Any]] = []
+    column_mapping: Dict[str, str] = {}
+    status: ImportStatus = ImportStatus.PENDING
+    created_at: datetime = Field(default_factory=now_utc)
+    completed_at: Optional[datetime] = None
+
+class ColumnMapping(BaseModel):
+    """Column mapping for import"""
+    source_column: str
+    target_field: str
+
+class ImportMappingRequest(BaseModel):
+    """Request to start import with mapping"""
+    job_id: str
+    mapping: List[ColumnMapping]
+    skip_duplicates: bool = True
+    duplicate_field: str = "email"  # Field to check for duplicates

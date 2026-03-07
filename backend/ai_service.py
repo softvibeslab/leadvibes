@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 
-SYSTEM_PROMPT = """Eres el Asistente IA de LeadVibes CRM, una plataforma de gestión de ventas inmobiliarias de alto valor en Tulum, México.
+SYSTEM_PROMPT = """Eres el Asistente IA de Rovi CRM, una plataforma de gestión de ventas inmobiliarias de alto valor en Tulum, México.
 
 Tu personalidad:
 - Eres profesional, motivador y estratégico
@@ -132,7 +132,7 @@ Notas: {lead_data.get('notes', 'Sin notas')}
             "sentiment": "neutral",
             "key_points": ["Requiere más información"],
             "next_action": "Contactar para calificar interés",
-            "opening_script": f"Hola {lead_data.get('name', '')}, soy de LeadVibes Real Estate..."
+            "opening_script": f"Hola {lead_data.get('name', '')}, soy de Rovi Real Estate..."
         }
         
     except Exception as e:
