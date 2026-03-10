@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Send, Loader2, Maximize2, Minimize2 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Badge } from '../../components/ui/badge';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../ui/dialog';
-import { ScrollArea } from '../ui/scroll-area';
+} from '../../components/ui/dialog';
+import { ScrollArea } from '../../components/ui/scroll-area';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;

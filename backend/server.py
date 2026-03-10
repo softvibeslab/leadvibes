@@ -3124,12 +3124,15 @@ async def get_analytics_timeline(
         "date": {"$gte": start_dt, "$lte": end_dt}
     }
 
+    # Determine date format based on granularity
+    date_format = "%Y-%m-%d" if granularity == "daily" else "%Y-%U"
+
     # Group by date and source
     pipeline = [
         {"$match": date_filter},
         {"$group": {
             "_id": {
-                "date": {"$dateToString": {"format": granularity == "daily" ? "%Y-%m-%d" : "%Y-%U", "date": "$date"}},
+                "date": {"$dateToString": {"format": date_format, "date": "$date"}},
                 "source": "$source"
             },
             "impressions": {"$sum": "$impressions"},

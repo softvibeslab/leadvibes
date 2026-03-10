@@ -44,9 +44,9 @@ export const HeroSection = () => {
           </div>
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-white/80 hover:text-white transition">Funcionalidades</a>
-            <a href="#benefits" className="text-white/80 hover:text-white transition">Beneficios</a>
-            <a href="#use-cases" className="text-white/80 hover:text-white transition">Casos de Uso</a>
-            <a href="#pricing" className="text-white/80 hover:text-white transition">Precios</a>
+            <a href="#integrations" className="text-white/80 hover:text-white transition">Integraciones</a>
+            <a href="#roi" className="text-white/80 hover:text-white transition">Calculadora ROI</a>
+            <a href="#faq" className="text-white/80 hover:text-white transition">FAQ</a>
           </div>
           <div className="flex items-center space-x-4">
             <Link to="/login" className="text-white/80 hover:text-white transition">
@@ -227,23 +227,6 @@ export const HeroSection = () => {
             </motion.div>
           </motion.div>
         </div>
-
-        {/* Trusted By */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-20 text-center"
-        >
-          <p className="text-white/60 mb-8">Confían en nosotros las mejores inmobiliarias de México</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 opacity-60">
-            {['Tulum Premier', 'Caribe Realty', 'Mayan Lands', 'Akumal Estates', 'Puerto Aventuras'].map((company, i) => (
-              <div key={i} className="text-white text-xl font-semibold">
-                {company}
-              </div>
-            ))}
-          </div>
-        </motion.div>
       </div>
 
       {/* Wave Divider */}

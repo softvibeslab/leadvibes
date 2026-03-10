@@ -1,37 +1,40 @@
+# Docker Compose para Deploy Preview
+# Usa puertos diferentes para no conflictuar con producción
+
 services:
-  # MongoDB Database
-  mongodb:
+  # MongoDB Database (Preview)
+  mongodb-preview:
     image: mongo:7
-    container_name: rovi-mongodb
+    container_name: rovi-mongodb-preview
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${DB_NAME:-rovi_crm}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-rovi_crm_preview}
     volumes:
-      - mongodb_data:/data/db
+      - mongodb_preview_data:/data/db
       - ./mongodb-init:/docker-entrypoint-initdb.d
     ports:
-      - "27017:27017"
+      - "27018:27017"
     networks:
-      - rovi-network
+      - rovi-preview-network
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Backend API (FastAPI)
-  backend:
+  # Backend API (Preview)
+  backend-preview:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: rovi-backend
+    container_name: rovi-backend-preview
     restart: always
     environment:
       # Database
-      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${DB_NAME:-rovi_crm}?authSource=admin
-      DB_NAME: ${DB_NAME:-rovi_crm}
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb-preview:27017/${DB_NAME:-rovi_crm_preview}?authSource=admin
+      DB_NAME: ${DB_NAME:-rovi_crm_preview}
 
       # JWT
       JWT_SECRET: ${JWT_SECRET}
@@ -41,21 +44,22 @@ services:
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
 
-      # CORS
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      # CORS - Acepta ambos puertos
+      CORS_ORIGINS: ${CORS_ORIGINS_PREVIEW:-http://localhost:3001,http://31.220.63.211:3001}
 
       # Environment
-      ENVIRONMENT: ${ENVIRONMENT:-production}
-      DEBUG: ${DEBUG:-false}
+      ENVIRONMENT: ${ENVIRONMENT:-preview}
+      DEBUG: ${DEBUG:-true}
     volumes:
-      - backend_uploads:/app/uploads
+      - ./backend:/app
+      - backend_preview_uploads:/app/uploads
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
-      mongodb:
+      mongodb-preview:
         condition: service_healthy
     networks:
-      - rovi-network
+      - rovi-preview-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
@@ -63,20 +67,22 @@ services:
       retries: 3
       start_period: 10s
 
-  # Frontend (React + Nginx)
-  frontend:
+  # Frontend (Preview)
+  frontend-preview:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: rovi-frontend
+      args:
+        VITE_API_URL: http://31.220.63.211:8001
+    container_name: rovi-frontend-preview
     restart: always
     ports:
-      - "3000:80"
+      - "3001:80"
     depends_on:
-      backend:
+      backend-preview:
         condition: service_healthy
     networks:
-      - rovi-network
+      - rovi-preview-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -85,11 +91,11 @@ services:
       start_period: 5s
 
 volumes:
-  mongodb_data:
+  mongodb_preview_data:
     driver: local
-  backend_uploads:
+  backend_preview_uploads:
     driver: local
 
 networks:
-  rovi-network:
+  rovi-preview-network:
     driver: bridge
