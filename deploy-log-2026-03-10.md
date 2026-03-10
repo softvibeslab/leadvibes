@@ -38,7 +38,7 @@
 
 ## Pasos ejecutados
 
-### Paso 1: Commit de cambios pendientes
+### Paso 1: Commit de cambios pendientes ✅
 
 **Cambios backend:**
 - `ai_service.py` - Agregado fallback cuando IA no está disponible (emergentintegraciones no en PyPI)
@@ -52,6 +52,9 @@
 
 **Cambios docker:**
 - Removido volume mount de desarrollo `./backend:/app`
+
+**Commit:** `569967e` - "feat: Add AI fallback, landing improvements, and production-ready config"
+**Push:** origin/feature/content-strategy ✅
 
 ---
 
