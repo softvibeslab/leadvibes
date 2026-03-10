@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  ArrowLeft, Save, Eye, Code, Loader2, Type, Image, Link2, 
-  Square, Columns, Minus, Trash2, MoveUp, MoveDown, Copy, 
-  Palette, AlignLeft, AlignCenter, AlignRight, Plus, Undo, Redo, Mail
+  ArrowLeft, Save, Eye, Code, Loader2, Type, Image, Link2,
+  Square, Columns, Minus, Trash2, MoveUp, MoveDown, Copy,
+  Palette, AlignLeft, AlignCenter, AlignRight, Plus, Undo, Redo, Mail,
+  Building2, Share2, GripVertical, Home, MapPin, DollarSign
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -22,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -32,6 +34,9 @@ const BLOCK_TYPES = [
   { type: 'image', label: 'Imagen', icon: Image },
   { type: 'button', label: 'Botón', icon: Square },
   { type: 'divider', label: 'Divisor', icon: Minus },
+  { type: 'spacer', label: 'Espaciado', icon: GripVertical },
+  { type: 'propertyCard', label: 'Propiedad', icon: Building2 },
+  { type: 'socialLinks', label: 'Social', icon: Share2 },
   { type: 'columns', label: 'Columnas', icon: Columns },
 ];
 
@@ -78,6 +83,41 @@ const DEFAULT_BLOCKS = {
       borderColor: '#e5e7eb',
       borderWidth: 1,
       margin: '16px 0',
+    }
+  },
+  spacer: {
+    type: 'spacer',
+    style: {
+      height: 20,
+    }
+  },
+  propertyCard: {
+    type: 'propertyCard',
+    propertyTitle: 'Nombre de la Propiedad',
+    propertyPrice: '$1,000,000 MXN',
+    propertyAddress: 'Dirección de la propiedad',
+    propertyImage: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600',
+    propertyLink: '#',
+    showPrice: true,
+    showAddress: true,
+    style: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: 8,
+      padding: 16,
+    }
+  },
+  socialLinks: {
+    type: 'socialLinks',
+    platforms: [
+      { name: 'facebook', url: '', icon: 'f' },
+      { name: 'instagram', url: '', icon: '@' },
+      { name: 'linkedin', url: '', icon: 'in' },
+      { name: 'whatsapp', url: '', icon: 'wa' },
+    ],
+    style: {
+      alignment: 'center',
+      iconSize: 32,
+      iconColor: '#0D9488',
     }
   },
   columns: {
@@ -287,6 +327,54 @@ export const EmailEditorPage = () => {
               <hr style="border:0;border-top:${block.style.borderWidth}px solid ${block.style.borderColor};" />
             </td>
           </tr>`;
+      case 'spacer':
+        return `
+          <tr>
+            <td style="height:${block.style.height}px;font-size:1px;line-height:1px;">
+              &nbsp;
+            </td>
+          </tr>`;
+      case 'propertyCard':
+        return `
+          <tr>
+            <td style="padding:${block.style.padding}px;">
+              <table role="presentation" style="width:100%;border-collapse:collapse;background-color:${block.style.backgroundColor};border-radius:${block.style.borderRadius}px;overflow:hidden;">
+                ${block.propertyImage ? `
+                <tr>
+                  <td style="padding:0;">
+                    <img src="${block.propertyImage}" alt="${block.propertyTitle}" style="width:100%;display:block;" />
+                  </td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding:16px;">
+                    <h3 style="margin:0 0 8px;font-size:20px;color:#333;">${block.propertyTitle}</h3>
+                    ${block.showPrice ? `<p style="margin:0 0 8px;font-size:24px;font-weight:bold;color:#0D9488;">${block.propertyPrice}</p>` : ''}
+                    ${block.showAddress ? `<p style="margin:0 0 16px;font-size:14px;color:#666;">📍 ${block.propertyAddress}</p>` : ''}
+                    ${block.propertyLink ? `<a href="${block.propertyLink}" style="display:inline-block;background-color:#0D9488;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-size:14px;">Ver Propiedad</a>` : ''}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`;
+      case 'socialLinks':
+        const alignMap = { left: 'left', center: 'center', right: 'right' };
+        return `
+          <tr>
+            <td style="padding:16px;text-align:${alignMap[block.style.alignment] || 'center'};">
+              <table role="presentation" style="display:inline-table;border-collapse:collapse;">
+                <tr>
+                  ${block.platforms.map(p => p.url ? `
+                    <td style="padding:0 8px 0 0;">
+                      <a href="${p.url}" style="display:inline-block;width:${block.style.iconSize}px;height:${block.style.iconSize}px;background-color:${block.style.iconColor};color:#fff;text-decoration:none;border-radius:50%;text-align:center;line-height:${block.style.iconSize}px;font-size:${block.style.iconSize * 0.5}px;font-weight:bold;">
+                        ${p.icon}
+                      </a>
+                    </td>
+                  ` : '').join('')}
+                </tr>
+              </table>
+            </td>
+          </tr>`;
       default:
         return '';
     }
@@ -347,23 +435,37 @@ export const EmailEditorPage = () => {
 
   const extractVariables = (blocks) => {
     const vars = new Set();
-    const regex = /\{\{(\w+)\}\}/g;
-    
+    const regexDouble = /\{\{(\w+)\}\}/g;
+    const regexSingle = /\{(\w+)\}/g;
+
+    const extractFromText = (text, regex) => {
+      let match;
+      // Reset regex state
+      regex.lastIndex = 0;
+      while ((match = regex.exec(text)) !== null) {
+        vars.add(match[1]);
+      }
+    };
+
     blocks.forEach(block => {
-      if (block.content) {
-        let match;
-        while ((match = regex.exec(block.content)) !== null) {
-          vars.add(match[1]);
+      // Extract from various block properties
+      const textFields = [
+        block.content,
+        block.text,
+        block.propertyTitle,
+        block.propertyPrice,
+        block.propertyAddress,
+        block.subject,
+      ];
+
+      textFields.forEach(text => {
+        if (text && typeof text === 'string') {
+          extractFromText(text, regexDouble);
+          extractFromText(text, regexSingle);
         }
-      }
-      if (block.text) {
-        let match;
-        while ((match = regex.exec(block.text)) !== null) {
-          vars.add(match[1]);
-        }
-      }
+      });
     });
-    
+
     return Array.from(vars);
   };
 
@@ -581,7 +683,7 @@ const BlockPreview = ({ block }) => {
   switch (block.type) {
     case 'text':
       return (
-        <div 
+        <div
           style={{
             padding: block.style.padding,
             fontSize: block.style.fontSize,
@@ -625,6 +727,95 @@ const BlockPreview = ({ block }) => {
       return (
         <div style={{ margin: block.style.margin, padding: '0 16px' }}>
           <hr style={{ border: 0, borderTop: `${block.style.borderWidth}px solid ${block.style.borderColor}` }} />
+        </div>
+      );
+    case 'spacer':
+      return (
+        <div style={{ height: block.style.height, backgroundColor: 'rgba(0,0,0,0.02)' }}>
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+            <GripVertical className="w-4 h-4" />
+          </div>
+        </div>
+      );
+    case 'propertyCard':
+      return (
+        <div style={{ padding: block.style.padding }}>
+          <div style={{
+            backgroundColor: block.style.backgroundColor,
+            borderRadius: block.style.borderRadius,
+            overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          }}>
+            {block.propertyImage && (
+              <img
+                src={block.propertyImage}
+                alt={block.propertyTitle}
+                style={{ width: '100%', height: '180px', objectFit: 'cover' }}
+              />
+            )}
+            <div style={{ padding: '16px' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
+                {block.propertyTitle}
+              </h3>
+              {block.showPrice && (
+                <p style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 'bold', color: '#0D9488' }}>
+                  <DollarSign className="w-4 h-4 inline" />
+                  {block.propertyPrice}
+                </p>
+              )}
+              {block.showAddress && (
+                <p style={{ margin: '0 0 12px', fontSize: '14px', color: '#666' }}>
+                  <MapPin className="w-3 h-3 inline" />
+                  {block.propertyAddress}
+                </p>
+              )}
+              {block.propertyLink && (
+                <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    backgroundColor: '#0D9488',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                  }}>
+                    Ver Propiedad
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    case 'socialLinks':
+      return (
+        <div style={{ padding: '16px', textAlign: block.style.alignment }}>
+          <div className="flex justify-center gap-3">
+            {block.platforms.map((p, i) => (
+              p.url ? (
+                <div
+                  key={i}
+                  style={{
+                    width: block.style.iconSize + 'px',
+                    height: block.style.iconSize + 'px',
+                    backgroundColor: block.style.iconColor,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    fontSize: block.style.iconSize * 0.4 + 'px',
+                  }}
+                >
+                  {p.icon}
+                </div>
+              ) : null
+            ))}
+            {block.platforms.filter(p => p.url).length === 0 && (
+              <span className="text-xs text-muted-foreground">Configura tus redes sociales</span>
+            )}
+          </div>
         </div>
       );
     default:
@@ -866,7 +1057,172 @@ const BlockSettings = ({ block, onChange }) => {
           </div>
         </div>
       );
-      
+
+    case 'spacer':
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-sm">Altura del espacio</Label>
+            <div className="flex items-center gap-2">
+              <Slider
+                value={[block.style.height]}
+                onValueChange={([v]) => onChange({ style: { ...block.style, height: v } })}
+                min={5}
+                max={100}
+                step={5}
+              />
+              <span className="text-sm w-10">{block.style.height}px</span>
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'propertyCard':
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-sm">Título de la propiedad</Label>
+            <Input
+              value={block.propertyTitle}
+              onChange={(e) => onChange({ propertyTitle: e.target.value })}
+              placeholder="Ej: Residencial Santa Fe"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Precio</Label>
+            <Input
+              value={block.propertyPrice}
+              onChange={(e) => onChange({ propertyPrice: e.target.value })}
+              placeholder="$1,000,000 MXN"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={block.showPrice}
+              onCheckedChange={(checked) => onChange({ showPrice: checked })}
+              id="show-price"
+            />
+            <Label htmlFor="show-price" className="text-sm">Mostrar precio</Label>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Dirección</Label>
+            <Input
+              value={block.propertyAddress}
+              onChange={(e) => onChange({ propertyAddress: e.target.value })}
+              placeholder="Av. Principal #123"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={block.showAddress}
+              onCheckedChange={(checked) => onChange({ showAddress: checked })}
+              id="show-address"
+            />
+            <Label htmlFor="show-address" className="text-sm">Mostrar dirección</Label>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">URL de imagen</Label>
+            <Input
+              value={block.propertyImage}
+              onChange={(e) => onChange({ propertyImage: e.target.value })}
+              placeholder="https://..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Enlace de la propiedad</Label>
+            <Input
+              value={block.propertyLink}
+              onChange={(e) => onChange({ propertyLink: e.target.value })}
+              placeholder="https://..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Color de fondo</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={block.style.backgroundColor}
+                onChange={(e) => onChange({ style: { ...block.style, backgroundColor: e.target.value } })}
+                className="w-12 h-10 p-1"
+              />
+              <Input
+                value={block.style.backgroundColor}
+                onChange={(e) => onChange({ style: { ...block.style, backgroundColor: e.target.value } })}
+                className="flex-1"
+              />
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'socialLinks':
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-sm">Alineación</Label>
+            <div className="flex gap-1">
+              {['left', 'center', 'right'].map(align => (
+                <Button
+                  key={align}
+                  variant={block.style.alignment === align ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onChange({ style: { ...block.style, alignment: align } })}
+                >
+                  {align === 'left' && <AlignLeft className="w-4 h-4" />}
+                  {align === 'center' && <AlignCenter className="w-4 h-4" />}
+                  {align === 'right' && <AlignRight className="w-4 h-4" />}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Tamaño de iconos</Label>
+            <div className="flex items-center gap-2">
+              <Slider
+                value={[block.style.iconSize]}
+                onValueChange={([v]) => onChange({ style: { ...block.style, iconSize: v } })}
+                min={20}
+                max={48}
+                step={2}
+              />
+              <span className="text-sm w-10">{block.style.iconSize}px</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm">Color de iconos</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={block.style.iconColor}
+                onChange={(e) => onChange({ style: { ...block.style, iconColor: e.target.value } })}
+                className="w-12 h-10 p-1"
+              />
+              <Input
+                value={block.style.iconColor}
+                onChange={(e) => onChange({ style: { ...block.style, iconColor: e.target.value } })}
+                className="flex-1"
+              />
+            </div>
+          </div>
+          <Separator />
+          <Label className="text-sm">Redes Sociales</Label>
+          {block.platforms.map((platform, idx) => (
+            <div key={idx} className="space-y-2">
+              <Label className="text-xs capitalize">{platform.name}</Label>
+              <Input
+                value={platform.url}
+                onChange={(e) => {
+                  const newPlatforms = [...block.platforms];
+                  newPlatforms[idx].url = e.target.value;
+                  onChange({ platforms: newPlatforms });
+                }}
+                placeholder={`URL de ${platform.name}`}
+              />
+            </div>
+          ))}
+        </div>
+      );
+
     default:
       return <p className="text-sm text-muted-foreground">Sin configuración disponible</p>;
   }

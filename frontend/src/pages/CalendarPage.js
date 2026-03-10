@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   Calendar as CalendarIcon, Plus, Clock, Phone, Video, MapPin, User,
-  ChevronLeft, ChevronRight, Check, Trash2, Loader2
+  ChevronLeft, ChevronRight, Check, Trash2, Loader2, RefreshCw, Settings
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -31,6 +31,7 @@ import {
 import { toast } from 'sonner';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { RoundRobinConfig, AssignmentSelector } from '../components/calendar/RoundRobinConfig';
 
 const eventTypeConfig = {
   seguimiento: { label: 'Seguimiento', icon: Phone, color: 'bg-blue-500' },
@@ -97,7 +98,7 @@ const EventCard = ({ event, onComplete, onDelete }) => {
   );
 };
 
-const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads }) => {
+const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads, brokers }) => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -107,6 +108,30 @@ const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads })
     lead_id: '',
     reminder_minutes: 30,
   });
+  const [showAssignment, setShowAssignment] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState(null);
+
+  const handleAssignmentSuccess = (assignmentData) => {
+    setShowAssignment(false);
+    onCreated(); // Reload to show updated data
+  };
+
+  const handleCreateEventThenAssign = async () => {
+    // Create event first
+    const eventData = {
+      ...form,
+      start_time: new Date(form.start_time).toISOString(),
+      lead_id: form.lead_id || null,
+    };
+
+    try {
+      const res = await api.post('/calendar/events', eventData);
+      setSelectedEventId(res.data.id);
+      setShowAssignment(true);
+    } catch (error) {
+      toast.error('Error al crear evento');
+    }
+  };
 
   useEffect(() => {
     if (selectedDate) {
@@ -206,6 +231,39 @@ const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads })
               placeholder="Notas adicionales..."
             />
           </div>
+          <div className="space-y-2">
+            <Label>Recordatorio (minutos antes)</Label>
+            <Input
+              type="number"
+              value={form.reminder_minutes}
+              onChange={(e) => setForm({ ...form, reminder_minutes: parseInt(e.target.value) || 0 })}
+              placeholder="30"
+              min={0}
+            />
+          </div>
+
+          {/* Assignment Section */}
+          <div className="p-3 rounded-lg bg-muted/50 border border-dashed">
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm">Asignación</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  // Create event first, then show assignment
+                  handleCreateEventThenAssign();
+                }}
+              >
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Asignar
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Asigna este evento a un broker manualmente o usando Round Robin
+            </p>
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} className="rounded-full">
               Cancelar
@@ -217,6 +275,26 @@ const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads })
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Assignment Sidebar */}
+      {showAssignment && selectedEventId && (
+        <DialogContent className="ml-0 my-0 h-full rounded-none border-l">
+          <DialogHeader>
+            <DialogTitle>Asignar Evento</DialogTitle>
+            <Button variant="ghost" size="icon" onClick={() => setShowAssignment(false)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </DialogHeader>
+          <div className="p-4">
+            <AssignmentSelector
+              brokers={brokers}
+              onAssign={handleAssignmentSuccess}
+              api={api}
+              eventId={selectedEventId}
+            />
+          </div>
+        </DialogContent>
+      )}
     </Dialog>
   );
 };
@@ -225,10 +303,12 @@ export const CalendarPage = () => {
   const { api } = useAuth();
   const [events, setEvents] = useState([]);
   const [leads, setLeads] = useState([]);
+  const [brokers, setBrokers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showRoundRobinConfig, setShowRoundRobinConfig] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -238,13 +318,15 @@ export const CalendarPage = () => {
     try {
       const start = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
       const end = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
-      
-      const [eventsRes, leadsRes] = await Promise.all([
+
+      const [eventsRes, leadsRes, brokersRes] = await Promise.all([
         api.get(`/calendar/events?start_date=${start}&end_date=${end}`),
         api.get('/leads'),
+        api.get('/users?role=broker'), // Load brokers for assignment
       ]);
       setEvents(eventsRes.data);
       setLeads(leadsRes.data);
+      setBrokers(brokersRes.data || []);
     } catch (error) {
       console.error('Error loading calendar data:', error);
     } finally {
@@ -302,9 +384,19 @@ export const CalendarPage = () => {
           <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Calendario</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Gestiona tus actividades y seguimientos</p>
         </div>
-        <Button onClick={() => setShowNewModal(true)} className="rounded-full w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" /> Nuevo Evento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowRoundRobinConfig(true)}
+            className="rounded-full w-full sm:w-auto"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Asignaciones
+          </Button>
+          <Button onClick={() => setShowNewModal(true)} className="rounded-full w-full sm:w-auto">
+            <Plus className="w-4 h-4 mr-2" /> Nuevo Evento
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -519,7 +611,17 @@ export const CalendarPage = () => {
         api={api}
         selectedDate={selectedDate}
         leads={leads}
+        brokers={brokers}
       />
+
+      {/* Round Robin Config Modal */}
+      {showRoundRobinConfig && (
+        <RoundRobinConfig
+          isOpen={showRoundRobinConfig}
+          onClose={() => setShowRoundRobinConfig(false)}
+          brokers={brokers}
+        />
+      )}
     </div>
   );
 };

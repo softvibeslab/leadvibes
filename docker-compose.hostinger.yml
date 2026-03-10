@@ -1,8 +1,6 @@
 # Docker Compose simplificado para Panel Docker de Hostinger
 # Esta versión está optimizada para el panel de control de Hostinger
 
-version: '3.8'
-
 services:
   # MongoDB Database
   mongodb:

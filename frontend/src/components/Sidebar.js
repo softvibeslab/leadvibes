@@ -16,7 +16,9 @@ import {
   Trophy,
   X,
   Radio,
-  Upload
+  Upload,
+  BarChart3,
+  Zap
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -26,8 +28,10 @@ const individualNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
   { to: '/import', icon: Upload, label: 'Importar Leads' },
-  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
+  { to: '/automations', icon: Zap, label: 'Automatizaciones' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
@@ -38,9 +42,11 @@ const agencyNavItems = [
   { to: '/leads', icon: Users, label: 'Pipeline' },
   { to: '/import', icon: Upload, label: 'Importar Leads' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
-  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
+  { to: '/automations', icon: Zap, label: 'Automatizaciones' },
   { to: '/gamification', icon: Trophy, label: 'Gamificacion' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];

@@ -1,8 +1,15 @@
 import os
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
-from emergentintegrations.llm.chat import LlmChat, UserMessage
 import logging
+
+# Optional AI integration - falls back to mock if unavailable
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    AI_AVAILABLE = True
+except ImportError:
+    AI_AVAILABLE = False
+    logging.warning("emergentintegrations package not available - AI features will be limited")
 
 load_dotenv()
 
@@ -40,6 +47,8 @@ async def get_ai_response(
     context: Optional[Dict[str, Any]] = None
 ) -> str:
     """Get AI response for chat"""
+    if not AI_AVAILABLE:
+        return "Lo siento, la funcionalidad de IA no está disponible en este entorno. Por favor contacta al administrador."
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -77,6 +86,14 @@ async def get_ai_response(
 
 async def analyze_lead(lead_data: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze a lead and provide AI insights"""
+    if not AI_AVAILABLE:
+        return {
+            "intent_score": 50,
+            "sentiment": "neutral",
+            "key_points": ["IA no disponible"],
+            "next_action": "Revisar manualmente",
+            "opening_script": f"Hola {lead_data.get('name', '')}, soy de Rovi Real Estate..."
+        }
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -150,6 +167,8 @@ async def generate_sales_script(
     script_type: str = "apertura"
 ) -> str:
     """Generate a personalized sales script for a lead"""
+    if not AI_AVAILABLE:
+        return f"Lo siento, la generación de scripts con IA no está disponible. Por favor crea un script manual para {lead_data.get('name', 'el cliente')}."
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,

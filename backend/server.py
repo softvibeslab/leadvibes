@@ -29,7 +29,10 @@ from models import (
     ConversationAnalysis,
     EmailRecord, EmailRecordCreate, EmailStatus,
     EmailTemplate, EmailTemplateCreate,
-    ImportJob, ImportStatus, ImportMappingRequest, ColumnMapping
+    ImportJob, ImportStatus, ImportMappingRequest, ColumnMapping,
+    CampaignMetrics, AnalyticsDashboard,
+    AutomationWorkflow, AutomationWorkflowCreate, AutomationExecution,
+    RoundRobinConfig, CalendarAssignment
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
@@ -2524,6 +2527,724 @@ async def get_email_template(
         raise HTTPException(status_code=404, detail="Plantilla no encontrada")
     return serialize_doc(template)
 
+
+@api_router.post("/email-templates/{template_id}/preview")
+async def preview_email_template(
+    template_id: str,
+    preview_data: Optional[Dict[str, Any]] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Preview email template with sample data"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    template = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not template:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+
+    # Default preview data for real estate
+    default_preview_data = {
+        "nombre": "Juan Pérez",
+        "propiedad": "Residencial Santa Fe",
+        "property_address": "Av. Presidente Masaryk 101, Polanco",
+        "property_price": "$5,500,000 MXN",
+        "property_image": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600",
+        "broker_name": current_user.get("name", "Tu Agente"),
+        "broker_signature": f"{current_user.get('name', 'Tu Agente')}<br/>Rovi Real Estate<br/>+52 55 1234 5678",
+        "company_name": "Rovi Real Estate",
+        "client_name": "Juan Pérez",
+        "email": "juan.perez@email.com",
+        "phone": "+52 55 9876 5432"
+    }
+
+    # Merge with provided preview data
+    data = {**default_preview_data, **(preview_data or {})}
+
+    # Replace variables in both subject and html_content
+    html_content = template.get("html_content", "")
+    subject = template.get("subject", "")
+
+    # Replace {{variable}} format
+    for key, value in data.items():
+        if isinstance(value, str):
+            html_content = html_content.replace(f"{{{{{key}}}}}", value)
+            subject = subject.replace(f"{{{{{key}}}}}", value)
+
+    return {
+        "subject": subject,
+        "html_content": html_content,
+        "preview_data": data
+    }
+
+
+@api_router.post("/email-templates/send-test")
+async def send_test_email(
+    template_id: str,
+    request_data: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    """Send a test email using a template"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    # Get template
+    template = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not template:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+
+    # Get recipient email from request
+    recipient = request_data.get("recipient_email") or current_user.get("email")
+    preview_data = request_data.get("preview_data", {})
+
+    # Generate preview with data
+    preview_result = await preview_email_template(template_id, preview_data, current_user)
+
+    # Here you would integrate with SendGrid or another email service
+    # For now, we'll just log and return success
+    logger.info(f"Test email would be sent to {recipient}")
+    logger.info(f"Subject: {preview_result['subject']}")
+
+    # TODO: Implement actual SendGrid integration
+    # from sendgrid import SendGridAPIClient
+    # from sendgrid.helpers.mail import Mail
+    # message = Mail(
+    #     from_email='noreply@rovirealestate.com',
+    #     to_emails=recipient,
+    #     subject=preview_result['subject'],
+    #     html_content=preview_result['html_content']
+    # )
+    # sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+    # response = sg.send(message)
+
+    return {
+        "success": True,
+        "message": f"Email de prueba enviado a {recipient}",
+        "subject": preview_result['subject'],
+        "html_preview": preview_result['html_content'][:500] + "..." if len(preview_result['html_content']) > 500 else preview_result['html_content']
+    }
+
+
+# Seed data for email templates
+@api_router.post("/email-templates/seed")
+async def seed_email_templates(current_user: dict = Depends(get_current_user)):
+    """Seed predefined email templates for real estate"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    # Check if templates already exist
+    existing = await db.email_templates.count_documents({"tenant_id": tenant_id})
+    if existing > 0:
+        return {"message": f"Ya existen {existing} plantillas", "created": 0}
+
+    templates = [
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            "name": "Invitación Open House",
+            "category": "open_house",
+            "subject": "🏠 ¡Te invitamos a nuestro Open House en {{propiedad}}!",
+            "html_content": """<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;">
+          <tr>
+            <td style="padding:30px;text-align:center;background-color:#0D9488;">
+              <h1 style="color:#ffffff;margin:0;font-size:28px;">Open House</h1>
+              <p style="color:#ffffff;margin:10px 0 0 0;font-size:16px;">Te esperamos este fin de semana</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 20px;">
+              <h2 style="color:#333;margin:0 0 10px;">Hola {{nombre}},</h2>
+              <p style="color:#666;line-height:1.6;">Tenemos el placer de invitarte a nuestro próximo Open House en <strong>{{propiedad}}</strong>.</p>
+              <div style="margin:30px 0;padding:20px;background-color:#f8f9fa;border-radius:8px;">
+                <p style="margin:0;font-size:18px;color:#0D9488;"><strong>📅 Sábado y Domingo</strong></p>
+                <p style="margin:5px 0 0;font-size:16px;">11:00 AM - 4:00 PM</p>
+              </div>
+              <p style="color:#666;line-height:1.6;">Aprovecha para recorrer la propiedad, conocer los acabados y despejar todas tus dudas.</p>
+              <div style="text-align:center;margin:30px 0;">
+                <a href="#" style="display:inline-block;background-color:#0D9488;color:#ffffff;padding:15px 40px;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">Confirmar Asistencia</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px;text-align:center;background-color:#f8f9fa;border-top:1px solid #e9ecef;">
+              <p style="margin:0;color:#666;font-size:14px;">{{broker_signature}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>""",
+            "json_content": None,
+            "variables": ["nombre", "propiedad", "broker_signature"],
+            "thumbnail_url": None,
+            "is_default": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            "name": "Promoción de Propiedad",
+            "category": "property_promo",
+            "subject": "✨ Nueva propiedad disponible: {{propiedad}} - {{property_price}}",
+            "html_content": """<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;">
+          <tr>
+            <td style="padding:0;">
+              <img src="{{property_image}}" alt="{{propiedad}}" style="width:100%;display:block;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 20px;">
+              <h2 style="color:#333;margin:0 0 10px;">Hola {{nombre}},</h2>
+              <p style="color:#666;line-height:1.6;">Tenemos una propiedad que podría ser perfecta para ti:</p>
+              <h3 style="color:#0D9488;margin:20px 0 10px;">{{propiedad}}</h3>
+              <p style="color:#666;line-height:1.6;">{{property_address}}</p>
+              <div style="margin:30px 0;padding:20px;background-color:#f8f9fa;border-radius:8px;">
+                <p style="margin:0;font-size:32px;color:#0D9488;font-weight:bold;">{{property_price}}</p>
+              </div>
+              <p style="color:#666;line-height:1.6;">Esta propiedad cuenta con excelentes acabados, ubicación privilegiada y amenidades de primer nivel.</p>
+              <div style="text-align:center;margin:30px 0;">
+                <a href="#" style="display:inline-block;background-color:#0D9488;color:#ffffff;padding:15px 40px;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">Agendar Visita</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px;text-align:center;background-color:#f8f9fa;border-top:1px solid #e9ecef;">
+              <p style="margin:0;color:#666;font-size:14px;">{{broker_signature}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>""",
+            "json_content": None,
+            "variables": ["nombre", "propiedad", "property_price", "property_address", "property_image", "broker_signature"],
+            "thumbnail_url": None,
+            "is_default": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            "name": "Seguimiento a Cliente",
+            "category": "follow_up",
+            "subject": "¿Hola {{nombre}}? ¿Cómo te va con tu búsqueda?",
+            "html_content": """<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;">
+          <tr>
+            <td style="padding:30px 20px;">
+              <h2 style="color:#333;margin:0 0 10px;">Hola {{nombre}},</h2>
+              <p style="color:#666;line-height:1.6;">Espero que estés teniendo una excelente semana.</p>
+              <p style="color:#666;line-height:1.6;">Me pongo en contacto para saber cómo te va con tu búsqueda de propiedad. ¿Has tenido oportunidad de ver algunas opciones?</p>
+              <p style="color:#666;line-height:1.6;">Estoy aquí para ayudarte con cualquier duda que tengas o mostrarte nuevas propiedades que puedan interesarte.</p>
+              <div style="margin:30px 0;padding:20px;background-color:#f8f9fa;border-radius:8px;">
+                <p style="margin:0;font-size:16px;color:#333;"><strong>📞 ¿Tienes 5 minutos?</strong></p>
+                <p style="margin:10px 0 0;font-size:14px;color:#666;">Hablemos para conocer mejor lo que buscas</p>
+              </div>
+              <div style="text-align:center;margin:30px 0;">
+                <a href="#" style="display:inline-block;background-color:#0D9488;color:#ffffff;padding:15px 40px;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">Agendar Llamada</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px;text-align:center;background-color:#f8f9fa;border-top:1px solid #e9ecef;">
+              <p style="margin:0;color:#666;font-size:14px;">{{broker_signature}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>""",
+            "json_content": None,
+            "variables": ["nombre", "broker_signature"],
+            "thumbnail_url": None,
+            "is_default": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            "name": "Actualización de Mercado",
+            "category": "market_update",
+            "subject": "📊 Actualización del mercado inmobiliario - {{nombre}}",
+            "html_content": """<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;">
+          <tr>
+            <td style="padding:30px;text-align:center;background-color:#0D9488;">
+              <h1 style="color:#ffffff;margin:0;font-size:24px;">📊 Resumen Mensual</h1>
+              <p style="color:#ffffff;margin:10px 0 0 0;">Mercado Inmobiliario</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 20px;">
+              <h2 style="color:#333;margin:0 0 10px;">Hola {{nombre}},</h2>
+              <p style="color:#666;line-height:1.6;">Compartimos contigo las tendencias del mercado inmobiliario de este mes:</p>
+              <div style="margin:30px 0;">
+                <div style="padding:15px;background-color:#f8f9fa;border-radius:8px;margin-bottom:15px;">
+                  <p style="margin:0;font-size:18px;color:#0D9488;"><strong>📈 +12% </strong> <span style="color:#666;font-size:14px;">en precios promedio</span></p>
+                </div>
+                <div style="padding:15px;background-color:#f8f9fa;border-radius:8px;margin-bottom:15px;">
+                  <p style="margin:0;font-size:18px;color:#0D9488;"><strong>🏠 45 </strong> <span style="color:#666;font-size:14px;">nuevas propiedades en tu zona de interés</span></p>
+                </div>
+                <div style="padding:15px;background-color:#f8f9fa;border-radius:8px;">
+                  <p style="margin:0;font-size:18px;color:#0D9488;"><strong>⏱️ 23 días</strong> <span style="color:#666;font-size:14px;">tiempo promedio de venta</span></p>
+                </div>
+              </div>
+              <p style="color:#666;line-height:1.6;">Es un buen momento para comprar o vender. Si tienes preguntas, estoy aquí para asesorarte.</p>
+              <div style="text-align:center;margin:30px 0;">
+                <a href="#" style="display:inline-block;background-color:#0D9488;color:#ffffff;padding:15px 40px;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">Solicitar Asesoría</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px;text-align:center;background-color:#f8f9fa;border-top:1px solid #e9ecef;">
+              <p style="margin:0;color:#666;font-size:14px;">{{broker_signature}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>""",
+            "json_content": None,
+            "variables": ["nombre", "broker_signature"],
+            "thumbnail_url": None,
+            "is_default": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            "name": "Nurturing Compradores",
+            "category": "buyer_nurturing",
+            "subject": "🔑 Consejos para encontrar tu propiedad ideal",
+            "html_content": """<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;">
+          <tr>
+            <td style="padding:30px 20px;">
+              <h2 style="color:#333;margin:0 0 10px;">Hola {{nombre}},</h2>
+              <p style="color:#666;line-height:1.6;">Sé que encontrar la propiedad perfecta puede ser abrumador. Aquí te comparto algunos consejos útiles:</p>
+              <div style="margin:30px 0;">
+                <div style="margin-bottom:20px;padding-left:20px;">
+                  <p style="margin:0 0 5px;color:#0D9488;font-weight:bold;">1️⃣ Define tu presupuesto real</p>
+                  <p style="margin:0;color:#666;font-size:14px;">Considera gastos adicionales como notarios y honorarios</p>
+                </div>
+                <div style="margin-bottom:20px;padding-left:20px;">
+                  <p style="margin:0 0 5px;color:#0D9488;font-weight:bold;">2️⃣ Ubicación vs Amenidades</p>
+                  <p style="margin:0;color:#666;font-size:14px;">Prioriza lo que realmente importa para tu estilo de vida</p>
+                </div>
+                <div style="margin-bottom:20px;padding-left:20px;">
+                  <p style="margin:0 0 5px;color:#0D9488;font-weight:bold;">3️⃣ Visita en diferentes horarios</p>
+                  <p style="margin:0;color:#666;font-size:14px;">Conoce cómo se ve la propiedad de día y de noche</p>
+                </div>
+                <div style="padding-left:20px;">
+                  <p style="margin:0 0 5px;color:#0D9488;font-weight:bold;">4️⃣ Verifica la plusvalía</p>
+                  <p style="margin:0;color:#666;font-size:14px;">Investiga el desarrollo futuro de la zona</p>
+                </div>
+              </div>
+              <p style="color:#666;line-height:1.6;">Estoy aquí para guiarte en cada paso del proceso. ¿Te gustaría agendar una asesoría personalizada?</p>
+              <div style="text-align:center;margin:30px 0;">
+                <a href="#" style="display:inline-block;background-color:#0D9488;color:#ffffff;padding:15px 40px;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">Agendar Asesoría</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px;text-align:center;background-color:#f8f9fa;border-top:1px solid #e9ecef;">
+              <p style="margin:0;color:#666;font-size:14px;">{{broker_signature}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>""",
+            "json_content": None,
+            "variables": ["nombre", "broker_signature"],
+            "thumbnail_url": None,
+            "is_default": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            "name": "Nurturing Vendedores",
+            "category": "seller_nurturing",
+            "subject": "💰 ¿Cuánto vale tu propiedad en el mercado actual?",
+            "html_content": """<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" style="width:600px;max-width:100%;border-collapse:collapse;background-color:#ffffff;">
+          <tr>
+            <td style="padding:30px;text-align:center;background-color:#0D9488;">
+              <h1 style="color:#ffffff;margin:0;font-size:24px;">💰 Vende tu Propiedad</h1>
+              <p style="color:#ffffff;margin:10px 0 0 0;">Al mejor precio y en el menor tiempo</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 20px;">
+              <h2 style="color:#333;margin:0 0 10px;">Hola {{nombre}},</h2>
+              <p style="color:#666;line-height:1.6;">¿Has considerado vender tu propiedad? El mercado actual es favorable para los vendedores.</p>
+              <div style="margin:30px 0;padding:20px;background-color:#f8f9fa;border-radius:8px;">
+                <p style="margin:0;font-size:16px;color:#333;"><strong>Nuestros servicios incluyen:</strong></p>
+                <ul style="margin:15px 0;padding-left:20px;color:#666;">
+                  <li>Valoración profesional gratuita</li>
+                  <li>Estrategia de marketing personalizada</li>
+                  <li>Fotografía profesional y tour virtual</li>
+                  <li>Promoción en +20 portales inmobiliarios</li>
+                </ul>
+              </div>
+              <p style="color:#666;line-height:1.6;">En el último mes, hemos vendido propiedades similares en un promedio de 23 días.</p>
+              <div style="text-align:center;margin:30px 0;">
+                <a href="#" style="display:inline-block;background-color:#0D9488;color:#ffffff;padding:15px 40px;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">Solicitar Valoración Gratuita</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px;text-align:center;background-color:#f8f9fa;border-top:1px solid #e9ecef;">
+              <p style="margin:0;color:#666;font-size:14px;">{{broker_signature}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>""",
+            "json_content": None,
+            "variables": ["nombre", "broker_signature"],
+            "thumbnail_url": None,
+            "is_default": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+    ]
+
+    for template in templates:
+        await db.email_templates.insert_one(template)
+
+    return {
+        "message": "Plantillas predefinidas creadas exitosamente",
+        "created": len(templates),
+        "templates": [{"id": t["id"], "name": t["name"], "category": t["category"]} for t in templates]
+    }
+
+
+# ==================== CAMPAIGN ANALYTICS ====================
+
+@api_router.get("/analytics/overview")
+async def get_analytics_overview(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get analytics overview for dashboard"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    # Parse dates or default to last 30 days
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date)
+    else:
+        start_dt = datetime.now(timezone.utc) - timedelta(days=30)
+
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date)
+    else:
+        end_dt = datetime.now(timezone.utc)
+
+    # Build date filter
+    date_filter = {
+        "tenant_id": tenant_id,
+        "date": {"$gte": start_dt, "$lte": end_dt}
+    }
+
+    # Aggregate metrics by source
+    pipeline = [
+        {"$match": date_filter},
+        {"$group": {
+            "_id": "$source",
+            "impressions": {"$sum": "$impressions"},
+            "clicks": {"$sum": "$clicks"},
+            "conversions": {"$sum": "$conversions"},
+            "spend": {"$sum": "$spend"},
+            "leads": {"$sum": "$leads"},
+            "property_views": {"$sum": "$property_views"},
+            "viewing_requests": {"$sum": "$viewing_requests"},
+            "brokerage_signed": {"$sum": "$brokerage_signed"}
+        }}
+    ]
+
+    results = await db.campaign_metrics.aggregate(pipeline).to_list(None)
+
+    # Calculate totals
+    total_spend = sum(r.get("spend", 0) for r in results)
+    total_impressions = sum(r.get("impressions", 0) for r in results)
+    total_clicks = sum(r.get("clicks", 0) for r in results)
+    total_conversions = sum(r.get("conversions", 0) for r in results)
+    total_leads = sum(r.get("leads", 0) for r in results)
+
+    # Build response
+    leads_by_source = {r["_id"]: r.get("leads", 0) for r in results}
+    spend_by_source = {r["_id"]: r.get("spend", 0) for r in results}
+    conversions_by_source = {r["_id"]: r.get("conversions", 0) for r in results}
+
+    avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+    avg_cpl = (total_spend / total_leads) if total_leads > 0 else 0
+
+    # Real estate specific totals
+    property_views = sum(r.get("property_views", 0) for r in results)
+    viewing_requests = sum(r.get("viewing_requests", 0) for r in results)
+    brokerage_signed = sum(r.get("brokerage_signed", 0) for r in results)
+
+    return {
+        "total_spend": round(total_spend, 2),
+        "total_impressions": total_impressions,
+        "total_clicks": total_clicks,
+        "total_conversions": total_conversions,
+        "total_leads": total_leads,
+        "avg_ctr": round(avg_ctr, 2),
+        "avg_cpl": round(avg_cpl, 2),
+        "leads_by_source": leads_by_source,
+        "spend_by_source": spend_by_source,
+        "conversions_by_source": conversions_by_source,
+        "property_views": property_views,
+        "viewing_requests": viewing_requests,
+        "brokerage_signed": brokerage_signed
+    }
+
+
+@api_router.get("/analytics/by-source/{source}")
+async def get_analytics_by_source(
+    source: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get analytics for a specific source (meta, google, email, etc.)"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date)
+    else:
+        start_dt = datetime.now(timezone.utc) - timedelta(days=30)
+
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date)
+    else:
+        end_dt = datetime.now(timezone.utc)
+
+    date_filter = {
+        "tenant_id": tenant_id,
+        "source": source,
+        "date": {"$gte": start_dt, "$lte": end_dt}
+    }
+
+    metrics = await db.campaign_metrics.find(date_filter, {"_id": 0}).sort("date", 1).to_list(100)
+
+    # Calculate totals
+    totals = {
+        "impressions": sum(m.get("impressions", 0) for m in metrics),
+        "clicks": sum(m.get("clicks", 0) for m in metrics),
+        "conversions": sum(m.get("conversions", 0) for m in metrics),
+        "spend": sum(m.get("spend", 0) for m in metrics),
+        "leads": sum(m.get("leads", 0) for m in metrics),
+    }
+
+    return {
+        "source": source,
+        "metrics": [serialize_doc(m) for m in metrics],
+        "totals": totals
+    }
+
+
+@api_router.get("/analytics/timeline")
+async def get_analytics_timeline(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    granularity: str = "daily",  # daily, weekly
+    current_user: dict = Depends(get_current_user)
+):
+    """Get analytics timeline for charts"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date)
+    else:
+        start_dt = datetime.now(timezone.utc) - timedelta(days=30)
+
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date)
+    else:
+        end_dt = datetime.now(timezone.utc)
+
+    date_filter = {
+        "tenant_id": tenant_id,
+        "date": {"$gte": start_dt, "$lte": end_dt}
+    }
+
+    # Determine date format based on granularity
+    date_format = "%Y-%m-%d" if granularity == "daily" else "%Y-%U"
+
+    # Group by date and source
+    pipeline = [
+        {"$match": date_filter},
+        {"$group": {
+            "_id": {
+                "date": {"$dateToString": {"format": date_format, "date": "$date"}},
+                "source": "$source"
+            },
+            "impressions": {"$sum": "$impressions"},
+            "clicks": {"$sum": "$clicks"},
+            "leads": {"$sum": "$leads"},
+            "spend": {"$sum": "$spend"},
+        }},
+        {"$sort": {"_id.date": 1}}
+    ]
+
+    results = await db.campaign_metrics.aggregate(pipeline).to_list(200)
+
+    # Format for frontend
+    timeline = {}
+    for r in results:
+        date_key = r["_id"]["date"]
+        source = r["_id"]["source"]
+        if date_key not in timeline:
+            timeline[date_key] = {"date": date_key}
+        timeline[date_key][source] = {
+            "impressions": r.get("impressions", 0),
+            "clicks": r.get("clicks", 0),
+            "leads": r.get("leads", 0),
+            "spend": round(r.get("spend", 0), 2)
+        }
+
+    return {"timeline": list(timeline.values()), "sources": list(set(r["_id"]["source"] for r in results))}
+
+
+@api_router.post("/analytics/metrics")
+async def create_campaign_metrics(
+    metrics_data: List[Dict[str, Any]],
+    current_user: dict = Depends(get_current_user)
+):
+    """Bulk create campaign metrics (for webhooks/integrations)"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    documents = []
+    for metric in metrics_data:
+        doc = {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            **metric,
+            "created_at": datetime.now(timezone.utc)
+        }
+        # Calculate derived metrics
+        if doc.get("impressions", 0) > 0:
+            doc["ctr"] = round((doc.get("clicks", 0) / doc["impressions"]) * 100, 2)
+        if doc.get("clicks", 0) > 0:
+            doc["cpc"] = round(doc.get("spend", 0) / doc["clicks"], 2)
+        if doc.get("leads", 0) > 0:
+            doc["cpl"] = round(doc.get("spend", 0) / doc["leads"], 2)
+        documents.append(doc)
+
+    if documents:
+        await db.campaign_metrics.insert_many(documents)
+
+    return {"created": len(documents)}
+
+
+@api_router.get("/analytics/export")
+async def export_analytics(
+    format: str = "csv",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Export analytics data"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date)
+    else:
+        start_dt = datetime.now(timezone.utc) - timedelta(days=30)
+
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date)
+    else:
+        end_dt = datetime.now(timezone.utc)
+
+    metrics = await db.campaign_metrics.find({
+        "tenant_id": tenant_id,
+        "date": {"$gte": start_dt, "$lte": end_dt}
+    }, {"_id": 0}).sort("date", -1).to_list(1000)
+
+    if format == "csv":
+        # Generate CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Fecha", "Fuente", "Campaña", "Impresiones", "Clics", "Conversiones", "Leads", "Gasto"])
+
+        for m in metrics:
+            writer.writerow([
+                m.get("date", ""),
+                m.get("source", ""),
+                m.get("campaign_id", ""),
+                m.get("impressions", 0),
+                m.get("clicks", 0),
+                m.get("conversions", 0),
+                m.get("leads", 0),
+                m.get("spend", 0)
+            ])
+
+        return {
+            "data": output.getvalue(),
+            "filename": f"analytics_{start_dt.date()}_{end_dt.date()}.csv",
+            "content_type": "text/csv"
+        }
+
+    return {"metrics": [serialize_doc(m) for m in metrics]}
+
+
 # ==================== CONVERSATION ANALYSIS (DEMO/MOCKUP) ====================
 
 @api_router.get("/calls/{call_id}/analysis")
@@ -3037,6 +3758,621 @@ async def get_import_template():
             "El campo Prioridad acepta: baja, media, alta, urgente"
         ]
     }
+
+
+# ==================== AUTOMATIONS / WORKFLOWS ====================
+
+@api_router.get("/automations/workflows")
+async def get_workflows(
+    category: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all automation workflows"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    filter_query = {"tenant_id": tenant_id}
+    if category:
+        filter_query["category"] = category
+
+    workflows = await db.automation_workflows.find(
+        filter_query,
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+
+    return [serialize_doc(w) for w in workflows]
+
+
+@api_router.post("/automations/workflows")
+async def create_workflow(
+    workflow_data: AutomationWorkflowCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new automation workflow"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    workflow = AutomationWorkflow(
+        **workflow_data.model_dump(),
+        tenant_id=tenant_id,
+        created_by=current_user["user_id"]
+    )
+
+    await db.automation_workflows.insert_one(workflow.model_dump())
+
+    return serialize_doc(workflow.model_dump())
+
+
+@api_router.get("/automations/workflows/{workflow_id}")
+async def get_workflow(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a specific workflow"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    workflow = await db.automation_workflows.find_one(
+        {"id": workflow_id, "tenant_id": tenant_id},
+        {"_id": 0}
+    )
+
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow no encontrado")
+
+    return serialize_doc(workflow)
+
+
+@api_router.put("/automations/workflows/{workflow_id}")
+async def update_workflow(
+    workflow_id: str,
+    workflow_data: AutomationWorkflowCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a workflow"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    existing = await db.automation_workflows.find_one(
+        {"id": workflow_id, "tenant_id": tenant_id}
+    )
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Workflow no encontrado")
+
+    update_data = workflow_data.model_dump(exclude_unset=True)
+    update_data["updated_at"] = datetime.now(timezone.utc)
+
+    await db.automation_workflows.update_one(
+        {"id": workflow_id},
+        {"$set": update_data}
+    )
+
+    updated = await db.automation_workflows.find_one(
+        {"id": workflow_id},
+        {"_id": 0}
+    )
+
+    return serialize_doc(updated)
+
+
+@api_router.delete("/automations/workflows/{workflow_id}")
+async def delete_workflow(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a workflow"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    result = await db.automation_workflows.delete_one(
+        {"id": workflow_id, "tenant_id": tenant_id}
+    )
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Workflow no encontrado")
+
+    return {"message": "Workflow eliminado"}
+
+
+@api_router.post("/automations/workflows/{workflow_id}/activate")
+async def activate_workflow(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Activate a workflow (send config to n8n)"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    workflow = await db.automation_workflows.find_one(
+        {"id": workflow_id, "tenant_id": tenant_id}
+    )
+
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow no encontrado")
+
+    # TODO: Implement actual n8n activation via webhook
+    # POST {n8n_webhook_url}/activate with config_values
+
+    await db.automation_workflows.update_one(
+        {"id": workflow_id},
+        {"$set": {"is_active": True, "updated_at": datetime.now(timezone.utc)}}
+    )
+
+    return {"message": "Workflow activado", "workflow_id": workflow_id}
+
+
+@api_router.post("/automations/workflows/{workflow_id}/deactivate")
+async def deactivate_workflow(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Deactivate a workflow"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    workflow = await db.automation_workflows.find_one(
+        {"id": workflow_id, "tenant_id": tenant_id}
+    )
+
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow no encontrado")
+
+    # TODO: Implement actual n8n deactivation
+
+    await db.automation_workflows.update_one(
+        {"id": workflow_id},
+        {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc)}}
+    )
+
+    return {"message": "Workflow desactivado", "workflow_id": workflow_id}
+
+
+@api_router.post("/automations/workflows/{workflow_id}/test")
+async def test_workflow(
+    workflow_id: str,
+    test_data: Optional[Dict[str, Any]] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Test run a workflow"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    workflow = await db.automation_workflows.find_one(
+        {"id": workflow_id, "tenant_id": tenant_id}
+    )
+
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow no encontrado")
+
+    # TODO: Implement actual n8n test run
+    # POST {n8n_webhook_url}/test with test_data
+
+    # Create execution log
+    execution = AutomationExecution(
+        tenant_id=tenant_id,
+        workflow_id=workflow_id,
+        status="completed",
+        input_data=test_data or {},
+        output_data={"test": True, "message": "Test completado (demo)"},
+        execution_time_ms=150
+    )
+
+    await db.automation_executions.insert_one(execution.model_dump())
+
+    # Update workflow stats
+    await db.automation_workflows.update_one(
+        {"id": workflow_id},
+        {
+            "$inc": {"total_runs": 1, "successful_runs": 1},
+            "$set": {"last_run": datetime.now(timezone.utc)}
+        }
+    )
+
+    return {
+        "message": "Test completado",
+        "execution_id": execution.id,
+        "result": execution.output_data
+    }
+
+
+@api_router.get("/automations/workflows/{workflow_id}/variables")
+async def get_workflow_variables(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get configurable variables for a workflow (from n8n webhook)"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    workflow = await db.automation_workflows.find_one(
+        {"id": workflow_id, "tenant_id": tenant_id}
+    )
+
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow no encontrado")
+
+    # TODO: Fetch from n8n webhook
+    # GET {n8n_webhook_url}/variables
+    # For now, return the stored schema
+
+    if workflow.get("config_schema"):
+        return workflow["config_schema"]
+
+    # Default schema for demo
+    return {
+        "variables": [
+            {"name": "email_subject", "type": "text", "label": "Asunto del email", "default": "Nuevo lead"},
+            {"name": "delay_minutes", "type": "number", "label": "Retraso (minutos)", "default": 5},
+            {"name": "send_sms", "type": "boolean", "label": "Enviar SMS también", "default": True},
+            {"name": "assign_broker", "type": "select", "label": "Asignar a broker", "options": ["round_robin", "manual"]}
+        ]
+    }
+
+
+@api_router.get("/automations/workflows/{workflow_id}/executions")
+async def get_workflow_executions(
+    workflow_id: str,
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get execution history for a workflow"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    executions = await db.automation_executions.find(
+        {"tenant_id": tenant_id, "workflow_id": workflow_id},
+        {"_id": 0}
+    ).sort("started_at", -1).to_list(limit)
+
+    return [serialize_doc(e) for e in executions]
+
+
+@api_router.post("/automations/seed")
+async def seed_automation_templates(current_user: dict = Depends(get_current_user)):
+    """Seed predefined automation workflow templates"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    # Check if templates already exist
+    existing = await db.automation_workflows.count_documents({
+        "tenant_id": tenant_id,
+        "is_template": True
+    })
+
+    if existing > 0:
+        return {"message": f"Ya existen {existing} plantillas", "created": 0}
+
+    templates = [
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Seguimiento Automático de Nuevos Leads",
+            "description": "Envía emails y SMS automáticos cuando se captura un nuevo lead",
+            "category": "lead_generation",
+            "n8n_workflow_id": "lead-followup-n8n-id",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "first_email_subject", "type": "text", "label": "Asunto primer email", "default": "Gracias por tu interés"},
+                    {"name": "delay_email_1", "type": "number", "label": "Retraso primer email (min)", "default": 5},
+                    {"name": "delay_email_2", "type": "number", "label": "Retraso segundo email (horas)", "default": 24},
+                    {"name": "enable_sms", "type": "boolean", "label": "Habilitar SMS", "default": True}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Nurturing para Compradores",
+            "description": "Secuencia de emails para leads interesados en comprar",
+            "category": "sales",
+            "n8n_workflow_id": "buyer-nurturing-n8n-id",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "sequence_duration", "type": "number", "label": "Duración (días)", "default": 7},
+                    {"name": "email_frequency", "type": "select", "label": "Frecuencia", "options": ["daily", "every_2_days", "weekly"]},
+                    {"name": "include_property_recommendations", "type": "boolean", "label": "Incluir recomendaciones", "default": True}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Promoción de Nueva Propiedad",
+            "description": "Notifica a leads sobre nuevas propiedades que coinciden con sus criterios",
+            "category": "promotion",
+            "n8n_workflow_id": "property-promo-n8n-id",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "max_budget", "type": "number", "label": "Presupuesto máximo", "default": 5000000},
+                    {"name": "property_type", "type": "select", "label": "Tipo", "options": ["departamento", "casa", "terreno"]},
+                    {"name": "min_bedrooms", "type": "number", "label": "Habitaciones mín", "default": 2}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Recordatorio de Citas",
+            "description": "Envía recordatorios automáticos para visitas y citas programadas",
+            "category": "sales",
+            "n8n_workflow_id": "appointment-reminder-n8n-id",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "reminder_hours_before", "type": "number", "label": "Horas antes (recordatorio)", "default": 24},
+                    {"name": "include_location", "type": "boolean", "label": "Incluir ubicación", "default": True},
+                    {"name": "send_whatsapp", "type": "boolean", "label": "Enviar por WhatsApp", "default": False}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Reactivación de Leads Fríos",
+            "description": "Campaña para reactivar leads que no han tenido interacción",
+            "category": "lead_generation",
+            "n8n_workflow_id": "lead-reactivation-n8n-id",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "inactive_days", "type": "number", "label": "Días sin actividad", "default": 30},
+                    {"name": "offer_discount", "type": "boolean", "label": "Ofrecer descuento especial", "default": False},
+                    {"name": "email_subject", "type": "text", "label": "Asunto", "default": "Te extrañamos"}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+    ]
+
+    for template in templates:
+        await db.automation_workflows.insert_one(template)
+
+    return {
+        "message": "Plantillas de automatización creadas",
+        "created": len(templates),
+        "templates": [{"id": t["id"], "name": t["name"], "category": t["category"]} for t in templates]
+    }
+
+
+# ==================== ROUND ROBIN ASSIGNMENTS ====================
+
+@api_router.get("/calendar/round-robin/config")
+async def get_round_robin_config(current_user: dict = Depends(get_current_user)):
+    """Get Round Robin configuration for tenant"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    config = await db.round_robin_config.find_one({"tenant_id": tenant_id}, {"_id": 0})
+
+    if not config:
+        # Create default config
+        config = {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "is_active": True,
+            "active_brokers": [],
+            "last_assigned_broker": None,
+            "assignment_counts": {},
+            "reset_frequency": "daily",
+            "last_reset": None,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        await db.round_robin_config.insert_one(config)
+
+    return serialize_doc(config)
+
+
+@api_router.put("/calendar/round-robin/config")
+async def update_round_robin_config(
+    config_data: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    """Update Round Robin configuration"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    # Get existing config
+    existing = await db.round_robin_config.find_one({"tenant_id": tenant_id})
+
+    update_data = {
+        "is_active": config_data.get("is_active", True),
+        "active_brokers": config_data.get("active_brokers", []),
+        "reset_frequency": config_data.get("reset_frequency", "daily"),
+        "updated_at": datetime.now(timezone.utc)
+    }
+
+    # Reset assignment counts if requested
+    if config_data.get("reset_counts"):
+        update_data["assignment_counts"] = {}
+        update_data["last_reset"] = datetime.now(timezone.utc)
+
+    if existing:
+        await db.round_robin_config.update_one(
+            {"tenant_id": tenant_id},
+            {"$set": update_data}
+        )
+    else:
+        update_data["id"] = str(uuid.uuid4())
+        update_data["tenant_id"] = tenant_id
+        update_data["last_assigned_broker"] = None
+        update_data["assignment_counts"] = {}
+        update_data["created_at"] = datetime.now(timezone.utc)
+        await db.round_robin_config.insert_one(update_data)
+
+    updated = await db.round_robin_config.find_one({"tenant_id": tenant_id}, {"_id": 0})
+    return serialize_doc(updated)
+
+
+@api_router.get("/calendar/round-robin/next-broker")
+async def get_next_broker_round_robin(current_user: dict = Depends(get_current_user)):
+    """Get the next broker in Round Robin rotation"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    config = await db.round_robin_config.find_one({"tenant_id": tenant_id}, {"_id": 0})
+
+    if not config or not config.get("active_brokers") or len(config["active_brokers"]) == 0:
+        raise HTTPException(status_code=400, detail="No hay brokers configurados en Round Robin")
+
+    active_brokers = config["active_brokers"]
+    last_assigned = config.get("last_assigned_broker")
+    counts = config.get("assignment_counts", {})
+
+    # Find the broker with the fewest assignments
+    # If there's a tie, choose the one that comes after the last assigned
+    min_count = min((counts.get(broker_id, 0) for broker_id in active_brokers), default=0)
+    candidates = [b for b in active_brokers if counts.get(b, 0) == min_count]
+
+    if last_assigned in candidates:
+        # Start from the broker after the last assigned
+        last_index = active_brokers.index(last_assigned)
+        next_index = (last_index + 1) % len(active_brokers)
+        # Try to find a candidate from the candidates list starting from next_index
+        for i in range(len(active_brokers)):
+            idx = (next_index + i) % len(active_brokers)
+            if active_brokers[idx] in candidates:
+                next_broker = active_brokers[idx]
+                break
+    else:
+        next_broker = candidates[0]
+
+    # Get broker details
+    broker = await db.users.find_one(
+        {"id": next_broker, "tenant_id": tenant_id},
+        {"_id": 0, "password_hash": 0}
+    )
+
+    if not broker:
+        raise HTTPException(status_code=404, detail="Broker no encontrado")
+
+    return serialize_doc(broker)
+
+
+@api_router.post("/calendar/assign")
+async def assign_calendar_event(
+    assignment_data: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    """Assign a calendar event (manual or Round Robin)"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    event_id = assignment_data.get("event_id")
+    assignment_type = assignment_data.get("assignment_type", "manual")
+    assigned_to = assignment_data.get("assigned_to")  # For manual assignment
+
+    if not event_id:
+        raise HTTPException(status_code=400, detail="event_id es requerido")
+
+    # Verify event exists
+    event = await db.calendar_events.find_one({"id": event_id, "tenant_id": tenant_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+    # Determine assigned broker
+    if assignment_type == "round_robin":
+        # Get next broker from Round Robin
+        broker_response = await get_next_broker_round_robin(current_user)
+        assigned_to = broker_response["id"]
+
+        # Update Round Robin config
+        await db.round_robin_config.update_one(
+            {"tenant_id": tenant_id},
+            {
+                "$set": {
+                    "last_assigned_broker": assigned_to,
+                    "updated_at": datetime.now(timezone.utc)
+                },
+                "$inc": {f"assignment_counts.{assigned_to}": 1}
+            }
+        )
+    else:
+        # Manual assignment
+        if not assigned_to:
+            raise HTTPException(status_code=400, detail="assigned_to es requerido para asignación manual")
+
+    # Create assignment record
+    assignment = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "event_id": event_id,
+        "assigned_to": assigned_to,
+        "assignment_type": assignment_type,
+        "assigned_by": current_user["user_id"],
+        "created_at": datetime.now(timezone.utc)
+    }
+
+    await db.calendar_assignments.insert_one(assignment)
+
+    # Update event with assigned broker
+    await db.calendar_events.update_one(
+        {"id": event_id},
+        {"$set": {"assigned_broker_id": assigned_to}}
+    )
+
+    # Get broker details for response
+    broker = await db.users.find_one(
+        {"id": assigned_to, "tenant_id": tenant_id},
+        {"_id": 0, "password_hash": 0}
+    )
+
+    return {
+        "message": "Evento asignado exitosamente",
+        "assignment": serialize_doc(assignment),
+        "broker": serialize_doc(broker) if broker else None
+    }
+
+
+@api_router.get("/calendar/events/{event_id}/assignment")
+async def get_event_assignment(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get assignment info for a specific event"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    event = await db.calendar_events.find_one(
+        {"id": event_id, "tenant_id": tenant_id},
+        {"_id": 0, "password_hash": 0}
+    )
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+    assignment = await db.calendar_assignments.find_one(
+        {"event_id": event_id, "tenant_id": tenant_id},
+        {"_id": 0}
+    )
+
+    broker = None
+    if event.get("assigned_broker_id"):
+        broker = await db.users.find_one(
+            {"id": event["assigned_broker_id"], "tenant_id": tenant_id},
+            {"_id": 0, "password_hash": 0}
+        )
+        broker = serialize_doc(broker) if broker else None
+
+    return {
+        "event_id": event_id,
+        "assigned_to": event.get("assigned_broker_id"),
+        "assignment": serialize_doc(assignment) if assignment else None,
+        "broker": broker
+    }
+
 
 # Include the router in the main app
 app.include_router(api_router)

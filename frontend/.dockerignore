@@ -38,7 +38,7 @@ logs/
 .dockerignore
 Dockerfile
 docker-compose.yml
-nginx.conf
+# nginx.conf - NECESARIO para el build, no ignorar
 
 # Cache
 .eslintcache

@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   Phone, MessageSquare, Plus, Play, Pause, CheckCircle, Clock,
   Users, Send, Loader2, PhoneCall, MessageCircle, BarChart3,
-  Brain, TrendingUp, AlertCircle, Filter, Search, X, Eye, Mail, MailOpen
+  Brain, TrendingUp, AlertCircle, Filter, Search, X, Eye, Mail, MailOpen,
+  Grid3x3, Sparkles, Folder, FileEdit
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -34,6 +35,8 @@ import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { EmailTemplateCard } from '../components/email/EmailTemplateCard';
+import { EmailTemplatePreviewDialog } from '../components/email/EmailTemplatePreview';
 
 // Status config
 const campaignStatusConfig = {
@@ -560,18 +563,23 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
 
 // Main Component
 export const CampaignsPage = () => {
-  const { api } = useAuth();
+  const { api, token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState([]);
   const [callRecords, setCallRecords] = useState([]);
   const [smsRecords, setSmsRecords] = useState([]);
   const [emailRecords, setEmailRecords] = useState([]);
+  const [emailTemplates, setEmailTemplates] = useState([]);
   const [leads, setLeads] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [integrationStatus, setIntegrationStatus] = useState({ vapi: false, twilio: false, sendgrid: false });
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState('all');
+  const [templateSearch, setTemplateSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -579,11 +587,12 @@ export const CampaignsPage = () => {
 
   const loadData = async () => {
     try {
-      const [campaignsRes, callsRes, smsRes, emailsRes, leadsRes, analyticsRes, settingsRes] = await Promise.all([
+      const [campaignsRes, callsRes, smsRes, emailsRes, templatesRes, leadsRes, analyticsRes, settingsRes] = await Promise.all([
         api.get('/campaigns'),
         api.get('/calls'),
         api.get('/sms'),
         api.get('/emails'),
+        api.get('/email-templates'),
         api.get('/leads'),
         api.get('/analytics/communications'),
         api.get('/settings/integrations')
@@ -592,6 +601,7 @@ export const CampaignsPage = () => {
       setCallRecords(callsRes.data);
       setSmsRecords(smsRes.data);
       setEmailRecords(emailsRes.data);
+      setEmailTemplates(templatesRes.data || []);
       setLeads(leadsRes.data);
       setAnalytics(analyticsRes.data);
       setIntegrationStatus({
@@ -625,6 +635,71 @@ export const CampaignsPage = () => {
       toast.error('Error al obtener análisis');
     }
   };
+
+  // Email Template handlers
+  const handleDuplicateTemplate = async (template) => {
+    try {
+      const newTemplate = {
+        name: `${template.name} (Copia)`,
+        subject: template.subject,
+        html_content: template.html_content,
+        json_content: template.json_content,
+        variables: template.variables,
+        category: template.category,
+      };
+      await api.post('/email-templates', newTemplate);
+      toast.success('Plantilla duplicada');
+      loadData();
+    } catch (error) {
+      toast.error('Error al duplicar plantilla');
+    }
+  };
+
+  const handleDeleteTemplate = async (template) => {
+    if (!confirm(`¿Eliminar la plantilla "${template.name}"?`)) return;
+    try {
+      await api.delete(`/email-templates/${template.id}`);
+      toast.success('Plantilla eliminada');
+      loadData();
+    } catch (error) {
+      toast.error('Error al eliminar plantilla');
+    }
+  };
+
+  const handlePreviewTemplate = (template) => {
+    setSelectedTemplate(template);
+    setShowTemplatePreview(true);
+  };
+
+  const handleSeedTemplates = async () => {
+    try {
+      const res = await api.post('/email-templates/seed');
+      toast.success(`${res.data.created} plantillas creadas`);
+      loadData();
+    } catch (error) {
+      toast.error('Error al crear plantillas predefinidas');
+    }
+  };
+
+  // Filter templates
+  const filteredTemplates = emailTemplates.filter(template => {
+    const matchesCategory = templateCategoryFilter === 'all' || template.category === templateCategoryFilter;
+    const matchesSearch = templateSearch === '' ||
+      template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+      template.subject.toLowerCase().includes(templateSearch.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // Template categories
+  const templateCategories = [
+    { value: 'all', label: 'Todas', icon: Grid3x3 },
+    { value: 'open_house', label: 'Open House', icon: Mail },
+    { value: 'property_promo', label: 'Promoción', icon: Sparkles },
+    { value: 'follow_up', label: 'Seguimiento', icon: MessageCircle },
+    { value: 'market_update', label: 'Mercado', icon: TrendingUp },
+    { value: 'buyer_nurturing', label: 'Compradores', icon: Users },
+    { value: 'seller_nurturing', label: 'Vendedores', icon: Send },
+  ];
 
   if (loading) {
     return (
@@ -739,7 +814,7 @@ export const CampaignsPage = () => {
 
       {/* Main Content */}
       <Tabs defaultValue="campaigns" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
           <TabsTrigger value="campaigns" className="gap-2">
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">Campañas</span>
@@ -755,6 +830,10 @@ export const CampaignsPage = () => {
           <TabsTrigger value="emails" className="gap-2">
             <Mail className="w-4 h-4" />
             <span className="hidden sm:inline">Emails</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <Grid3x3 className="w-4 h-4" />
+            <span className="hidden sm:inline">Plantillas</span>
           </TabsTrigger>
         </TabsList>
 
@@ -904,6 +983,107 @@ export const CampaignsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Email Templates Tab */}
+        <TabsContent value="templates">
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold">Plantillas de Email</h3>
+                <p className="text-sm text-muted-foreground">
+                  Gestiona tus plantillas para campañas de email
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {emailTemplates.length === 0 && (
+                  <Button variant="outline" size="sm" onClick={handleSeedTemplates}>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Cargar Plantillas Base
+                  </Button>
+                )}
+                <Button size="sm" onClick={() => window.location.href = '/email-templates/new'}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nueva Plantilla
+                </Button>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Search */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar plantillas..."
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Category Filters */}
+              <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+                {templateCategories.map((cat) => {
+                  const Icon = cat.icon;
+                  return (
+                    <Button
+                      key={cat.value}
+                      variant={templateCategoryFilter === cat.value ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTemplateCategoryFilter(cat.value)}
+                      className="whitespace-nowrap"
+                    >
+                      <Icon className="w-4 h-4 mr-1" />
+                      {cat.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Templates Grid */}
+            {filteredTemplates.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredTemplates.map((template) => (
+                  <EmailTemplateCard
+                    key={template.id}
+                    template={template}
+                    onDuplicate={handleDuplicateTemplate}
+                    onDelete={handleDeleteTemplate}
+                    onPreview={handlePreviewTemplate}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Mail className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">
+                    {emailTemplates.length === 0
+                      ? 'No hay plantillas creadas. Carga las plantillas base o crea una nueva.'
+                      : 'No se encontraron plantillas con los filtros seleccionados.'}
+                  </p>
+                  {emailTemplates.length === 0 && (
+                    <div className="flex justify-center gap-2 mt-4">
+                      <Button
+                        variant="outline"
+                        onClick={handleSeedTemplates}
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Cargar Plantillas Base
+                      </Button>
+                      <Button onClick={() => window.location.href = '/email-templates/new'}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Crear Plantilla
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Modals */}
@@ -914,11 +1094,18 @@ export const CampaignsPage = () => {
         api={api}
         leads={leads}
       />
-      
+
       <AnalysisModal
         isOpen={showAnalysisModal}
         onClose={() => setShowAnalysisModal(false)}
         analysis={selectedAnalysis}
+      />
+
+      <EmailTemplatePreviewDialog
+        isOpen={showTemplatePreview}
+        onClose={() => setShowTemplatePreview(false)}
+        template={selectedTemplate}
+        token={token}
       />
     </div>
   );
