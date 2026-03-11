@@ -44,8 +44,6 @@ services:
       # Environment
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
-    volumes:
-      - ./backend:/app
     ports:
       - "8000:8000"
     depends_on:
