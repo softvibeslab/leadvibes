@@ -38,8 +38,8 @@ services:
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
 
-      # CORS
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      # CORS - Production domain
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://srv1318804.hstgr.cloud,https://srv1318804.hstgr.cloud}
 
       # Environment
       ENVIRONMENT: ${ENVIRONMENT:-production}
@@ -48,6 +48,8 @@ services:
       - ./backend:/app
     ports:
       - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       - mongodb
     networks:
@@ -62,6 +64,8 @@ services:
     restart: always
     ports:
       - "3000:80"
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:

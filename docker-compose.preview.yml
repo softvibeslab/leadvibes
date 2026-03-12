@@ -1,0 +1,109 @@
+# Docker Compose para Preview Environment
+# Entorno de preview para validar cambios antes de producción
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: rovi-mongodb-preview
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-rovi_crm_preview}
+    volumes:
+      - mongodb_preview_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - rovi-preview-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (FastAPI)
+  backend:
+    image: ghcr.io/softvibeslab/leadvibes-backend:preview
+    container_name: rovi-backend-preview
+    restart: unless-stopped
+    environment:
+      # Database
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${DB_NAME:-rovi_crm_preview}?authSource=admin
+      DB_NAME: ${DB_NAME:-rovi_crm_preview}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+
+      # AI
+      EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
+
+      # CORS - Preview subdomain
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://preview.srv1318804.hstgr.cloud,https://preview.srv1318804.hstgr.cloud}
+
+      # Environment
+      ENVIRONMENT: preview
+      DEBUG: "true"
+    volumes:
+      - backend_preview_uploads:/app/uploads
+    ports:
+      - "8200:8000"
+    expose:
+      - "8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - rovi-preview-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend (React + Nginx)
+  frontend:
+    image: ghcr.io/softvibeslab/leadvibes-frontend:preview
+    container_name: rovi-frontend-preview
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "3200:80"
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - rovi-preview-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mongodb_preview_data:
+    driver: local
+  backend_preview_uploads:
+    driver: local
+
+networks:
+  rovi-preview-network:
+    driver: bridge
