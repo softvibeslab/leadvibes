@@ -64,7 +64,7 @@ class User(UserBase):
     onboarding_completed: bool = False
     tenant_id: str = ""
     account_type: str = "individual"  # individual, agency
-    ai_profile: Optional[AIProfile] = None  # Perfil personalizado para el asistente IA
+    ai_profile: Optional['AIProfile'] = None  # Perfil personalizado para el asistente IA (forward reference)
 
 class UserResponse(BaseModel):
     id: str
@@ -76,7 +76,7 @@ class UserResponse(BaseModel):
     is_active: bool
     onboarding_completed: bool
     account_type: str = "individual"
-    ai_profile: Optional[AIProfile] = None
+    ai_profile: Optional['AIProfile'] = None  # Forward reference
 
 # AI Profile Models
 class AIProfileCreate(BaseModel):

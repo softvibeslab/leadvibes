@@ -1,0 +1,108 @@
+# Docker Compose para testing de Feature Agent
+# Deployment independiente para probar el MVP del Agente IA
+#
+# Contenedores:
+#   - rovi-agent-mongodb  (puerto 27018)
+#   - rovi-agent-backend  (puerto 8001)
+#   - rovi-agent-frontend (puerto 3001)
+#
+# Uso:
+#   docker compose -f docker-compose.agent.yml up -d --build
+#   docker compose -f docker-compose.agent.yml down -v
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: rovi-agent-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-rovi_agent_password_2026}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-rovi_agent_crm}
+    volumes:
+      - mongodb_agent_data:/data/db
+      - ./mongodb-init:/docker-entrypoint-initdb.d
+    ports:
+      - "27018:27017"
+    networks:
+      - rovi-agent-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rovi-agent-backend
+    restart: always
+    environment:
+      # Database
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-rovi_agent_password_2026}@mongodb:27017/${DB_NAME:-rovi_agent_crm}?authSource=admin
+      DB_NAME: ${DB_NAME:-rovi_agent_crm}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-rovi_agent_jwt_secret_2026_change_in_production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+
+      # AI
+      EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
+
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001,http://localhost:3001}
+
+      # Environment
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+    volumes:
+      - ./backend:/app
+      - backend_agent_uploads:/app/uploads
+    ports:
+      - "8001:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - rovi-agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend (React + Nginx)
+  frontend:
+    container_name: rovi-agent-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3001:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - rovi-agent-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  mongodb_agent_data:
+    driver: local
+  backend_agent_uploads:
+    driver: local
+
+networks:
+  rovi-agent-network:
+    driver: bridge
