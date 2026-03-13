@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Leaf, Target, TrendingUp, Users, DollarSign, CheckCircle, Loader2 } from 'lucide-react';
+import { Leaf, Target, TrendingUp, Users, DollarSign, CheckCircle, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
+import { Textarea } from '../components/ui/textarea.jsx';
 import { toast } from 'sonner';
 
 export const OnboardingPage = () => {
@@ -23,8 +24,15 @@ export const OnboardingPage = () => {
     apartados_mes: 10,
     periodo: 'mensual'
   });
+  const [aiProfile, setAiProfile] = useState({
+    experience: '',
+    style: '',
+    property_types: '',
+    focus_zones: '',
+    goals: ''
+  });
 
-  const totalSteps = 3;
+  const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
 
   const handleNext = () => {
@@ -42,12 +50,24 @@ export const OnboardingPage = () => {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // Save goals
       await api.post('/goals', goals);
-      
+
+      // Save AI profile
+      if (aiProfile.experience || aiProfile.style) {
+        await api.post('/user/ai-profile', {
+          experience: aiProfile.experience || 'Broker inmobiliario',
+          style: aiProfile.style || 'Profesional y amigable',
+          property_types: aiProfile.property_types ? aiProfile.property_types.split(',').map(s => s.trim()) : ['Lotes', 'Casas'],
+          focus_zones: aiProfile.focus_zones ? aiProfile.focus_zones.split(',').map(s => s.trim()) : ['Tulum'],
+          goals: aiProfile.goals || `${goals.ventas_mes} ventas mensuales de $${(goals.ingresos_objetivo / 1000000).toFixed(1)}M MXN`
+        });
+      }
+
       // Seed demo data
       await api.post('/seed');
-      
-      toast.success('¡Configuración completada! Cargamos datos de demo para ti.');
+
+      toast.success('¡Configuración completada! Tu asistente IA está personalizado.');
       updateUser({ ...user, onboarding_completed: true });
       navigate('/dashboard');
     } catch (error) {
@@ -236,6 +256,70 @@ export const OnboardingPage = () => {
                       <p className="font-medium">{goals.tasa_conversion}%</p>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Personaliza tu Asistente IA</CardTitle>
+                    <CardDescription>3 preguntas para conocer tu estilo</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>1. ¿Cuántos años de experiencia tienes vendiendo propiedades?</Label>
+                  <Input
+                    placeholder="Ej: 3 años vendiendo lotes en Tulum..."
+                    value={aiProfile.experience}
+                    onChange={(e) => setAiProfile({ ...aiProfile, experience: e.target.value })}
+                    data-testid="ai-experience"
+                  />
+                  <p className="text-xs text-muted-foreground">Opcional: Esto ayuda al asistente a adaptarse a tu nivel</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>2. ¿Cómo describirías tu estilo de comunicación con clientes?</Label>
+                  <Input
+                    placeholder="Ej: Directo y amigable, uso ejemplos de Tulum..."
+                    value={aiProfile.style}
+                    onChange={(e) => setAiProfile({ ...aiProfile, style: e.target.value })}
+                    data-testid="ai-style"
+                  />
+                  <p className="text-xs text-muted-foreground">Opcional: El asistente usará tu estilo en las respuestas</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>3. ¿Qué tipo de propiedades vendes y en qué zonas?</Label>
+                  <Input
+                    placeholder="Ej: Lotes en Tulum Centro y La Veleta..."
+                    value={`${aiProfile.property_types}${aiProfile.focus_zones ? ' en ' + aiProfile.focus_zones : ''}`}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const parts = value.split(' en ');
+                      setAiProfile({
+                        ...aiProfile,
+                        property_types: parts[0] || '',
+                        focus_zones: parts[1] || ''
+                      });
+                    }}
+                    data-testid="ai-properties"
+                  />
+                  <p className="text-xs text-muted-foreground">Formato: "Tipo de propiedades en Zonas"</p>
+                </div>
+
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                  <p className="text-sm text-primary">
+                    ✨ Tu asistente IA usará esta información para darte respuestas personalizadas, consejos adaptados a tu experiencia y scripts con tu estilo.
+                  </p>
                 </div>
               </CardContent>
             </>

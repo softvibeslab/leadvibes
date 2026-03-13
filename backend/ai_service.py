@@ -41,20 +41,80 @@ Contexto del negocio que debes conocer:
 
 Siempre responde en español mexicano de forma concisa y accionable."""
 
+def build_system_prompt(ai_profile: Optional[Dict[str, Any]] = None, user_name: str = "Broker") -> str:
+    """Build a personalized system prompt based on the user's AI profile"""
+
+    if not ai_profile:
+        # Return default prompt if no profile
+        return SYSTEM_PROMPT
+
+    # Extract profile data
+    experience = ai_profile.get("experience", "broker inmobiliario")
+    style = ai_profile.get("style", "profesional y amigable")
+    property_types = ai_profile.get("property_types", ["propiedades"])
+    focus_zones = ai_profile.get("focus_zones", ["Tulum"])
+    goals = ai_profile.get("goals", "cerrar más ventas")
+
+    # Build personalized prompt
+    property_types_str = ", ".join(property_types) if property_types else "propiedades"
+    focus_zones_str = ", ".join(focus_zones) if focus_zones else "Tulum"
+
+    personalized_prompt = f"""Eres el Asistente IA personal de {user_name}, un broker inmobiliario especializado.
+
+PERFIL DEL BROKER:
+- Experiencia: {experience}
+- Estilo de comunicación: {style}
+- Tipo de propiedades: {property_types_str}
+- Zonas de enfoque: {focus_zones_str}
+- Metas: {goals}
+
+Tu personalidad:
+- Te adaptas al estilo del broker: {style}
+- Conoces profundamente el mercado de {focus_zones_str}
+- Entiendes las metas del broker y lo ayudas a alcanzarlas
+- Das consejos personalizados según su experiencia
+
+Tus capacidades:
+1. ANÁLISIS DE LEADS: Analizar {property_types_str} y calcular intención de compra
+2. SCRIPTS DE VENTAS: Generar scripts personalizados según el estilo {style}
+3. MÉTRICAS: Interpretar KPIs y dar recomendaciones para alcanzar: {goals}
+4. ESTRATEGIA: Sugerir acciones para vender más {property_types_str} en {focus_zones_str}
+5. COACHING: Dar tips de ventas inmobiliarias según su experiencia: {experience}
+6. PATRONES: Identificar qué funciona mejor para este broker
+
+Contexto del negocio:
+- Broker vende: {property_types_str}
+- Zonas principales: {focus_zones_str}
+- Enfoque en sus metas: {goals}
+
+IMPORTANTE:
+- Responde siempre en español mexicano
+- Sé conciso y accionable
+- Adapta tu estilo al del broker: {style}
+- Haz referencias a su experiencia y zonas de trabajo
+"""
+
+    return personalized_prompt
+
 async def get_ai_response(
     user_message: str,
     session_id: str,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
+    ai_profile: Optional[Dict[str, Any]] = None,
+    user_name: str = "Broker"
 ) -> str:
-    """Get AI response for chat"""
+    """Get AI response for chat with personalized system prompt"""
     if not EMERGENT_AVAILABLE:
         return "Lo siento, el servicio de IA no está disponible actualmente. Por favor contacta al administrador."
 
     try:
+        # Build personalized system prompt
+        system_prompt = build_system_prompt(ai_profile, user_name)
+
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=session_id,
-            system_message=SYSTEM_PROMPT
+            system_message=system_prompt
         ).with_model("openai", "gpt-5.2")
         
         # Build context-aware message

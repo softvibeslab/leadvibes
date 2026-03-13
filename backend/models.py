@@ -64,6 +64,7 @@ class User(UserBase):
     onboarding_completed: bool = False
     tenant_id: str = ""
     account_type: str = "individual"  # individual, agency
+    ai_profile: Optional[AIProfile] = None  # Perfil personalizado para el asistente IA
 
 class UserResponse(BaseModel):
     id: str
@@ -75,6 +76,33 @@ class UserResponse(BaseModel):
     is_active: bool
     onboarding_completed: bool
     account_type: str = "individual"
+    ai_profile: Optional[AIProfile] = None
+
+# AI Profile Models
+class AIProfileCreate(BaseModel):
+    """Perfil para personalizar el asistente IA del broker"""
+    experience: str = ""  # "7 años vendiendo en Tulum"
+    style: str = ""  # "Directo y amigable", "Formal y detallado"
+    property_types: List[str] = []  # ["Lotes", "Casas"]
+    focus_zones: List[str] = []  # ["Tulum Centro", "La Veleta"]
+    goals: str = ""  # "5 ventas/mes de $2M"
+
+class AIProfileUpdate(BaseModel):
+    """Actualizar perfil IA del broker (todos campos opcionales)"""
+    experience: Optional[str] = None
+    style: Optional[str] = None
+    property_types: Optional[List[str]] = None
+    focus_zones: Optional[List[str]] = None
+    goals: Optional[str] = None
+
+class AIProfile(AIProfileCreate):
+    """Perfil IA completo con ID y timestamps"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 # Goals/KPIs Models
 class GoalCreate(BaseModel):

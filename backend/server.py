@@ -15,6 +15,7 @@ import io
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse,
     Goal, GoalCreate,
+    AIProfile, AIProfileCreate, AIProfileUpdate,
     Lead, LeadCreate, LeadUpdate, LeadStatus, LeadPriority,
     Activity, ActivityCreate, ActivityType,
     GamificationRule, GamificationRuleCreate, BrokerStats, PointLedger,
@@ -198,18 +199,27 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
-    return UserResponse(
-        id=user["id"],
-        email=user["email"],
-        name=user["name"],
-        role=user["role"],
-        avatar_url=user.get("avatar_url"),
-        phone=user.get("phone"),
-        is_active=user["is_active"],
-        onboarding_completed=user.get("onboarding_completed", False),
-        account_type=user.get("account_type", "individual")
+
+    # Get AI profile if exists
+    ai_profile = await db.ai_profiles.find_one(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
     )
+
+    response_data = {
+        "id": user["id"],
+        "email": user["email"],
+        "name": user["name"],
+        "role": user["role"],
+        "avatar_url": user.get("avatar_url"),
+        "phone": user.get("phone"),
+        "is_active": user["is_active"],
+        "onboarding_completed": user.get("onboarding_completed", False),
+        "account_type": user.get("account_type", "individual"),
+        "ai_profile": serialize_doc(ai_profile) if ai_profile else None
+    }
+
+    return response_data
 
 # ==================== GOALS/ONBOARDING ROUTES ====================
 
@@ -255,6 +265,84 @@ async def get_goals(current_user: dict = Depends(get_current_user)):
             "periodo": "mensual"
         }
     return serialize_doc(goal)
+
+# ==================== AI PROFILE ROUTES ====================
+
+@api_router.post("/user/ai-profile", response_model=dict)
+async def create_ai_profile(profile_data: AIProfileCreate, current_user: dict = Depends(get_current_user)):
+    """Create or update AI profile for the current user"""
+    profile_id = str(uuid.uuid4())
+    profile_doc = {
+        "id": profile_id,
+        "user_id": current_user["user_id"],
+        "tenant_id": current_user["tenant_id"],
+        **profile_data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    # Upsert AI profile
+    await db.ai_profiles.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": profile_doc},
+        upsert=True
+    )
+
+    return {
+        "message": "Perfil IA guardado exitosamente",
+        "profile_id": profile_id,
+        "profile": profile_data.model_dump()
+    }
+
+@api_router.get("/user/ai-profile", response_model=dict)
+async def get_ai_profile(current_user: dict = Depends(get_current_user)):
+    """Get AI profile for the current user"""
+    profile = await db.ai_profiles.find_one(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+
+    if not profile:
+        return {
+            "experience": "",
+            "style": "",
+            "property_types": [],
+            "focus_zones": [],
+            "goals": ""
+        }
+
+    return serialize_doc(profile)
+
+@api_router.patch("/user/ai-profile", response_model=dict)
+async def update_ai_profile(profile_data: AIProfileUpdate, current_user: dict = Depends(get_current_user)):
+    """Update AI profile (partial update)"""
+    # Filter out None values
+    update_data = {k: v for k, v in profile_data.model_dump().items() if v is not None}
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
+
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Update profile
+    result = await db.ai_profiles.update_one(
+        {"user_id": current_user["user_id"]},
+        {"$set": update_data}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Perfil IA no encontrado. Usa POST para crear uno nuevo.")
+
+    # Return updated profile
+    profile = await db.ai_profiles.find_one(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+
+    return {
+        "message": "Perfil IA actualizado exitosamente",
+        "profile": serialize_doc(profile)
+    }
 
 # ==================== DASHBOARD ROUTES ====================
 
@@ -892,7 +980,7 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
     user_id = current_user["user_id"]
     tenant_id = current_user["tenant_id"]
     session_id = f"chat-{user_id}"
-    
+
     # Save user message
     user_msg_id = str(uuid.uuid4())
     user_msg_doc = {
@@ -904,21 +992,31 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.chat_messages.insert_one(user_msg_doc)
-    
+
+    # Get AI profile for personalization
+    ai_profile = await db.ai_profiles.find_one(
+        {"user_id": user_id},
+        {"_id": 0}
+    )
+
+    # Get user name for personalization
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
+    user_name = user["name"] if user else "Broker"
+
     # Get context for AI
     goal = await db.goals.find_one({"user_id": user_id}, {"_id": 0})
-    
+
     # Get dashboard stats for context
     ventas = await db.leads.count_documents({"tenant_id": tenant_id, "status": "venta"})
     apartados = await db.leads.count_documents({"tenant_id": tenant_id, "status": "apartado"})
-    
+
     pipeline = [
         {"$match": {"tenant_id": tenant_id}},
         {"$group": {"_id": None, "total": {"$sum": "$points"}}}
     ]
     points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
     total_points = points_result[0]["total"] if points_result else 0
-    
+
     context = {
         "user_goals": goal,
         "stats": {
@@ -927,10 +1025,16 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
             "apartados": apartados
         }
     }
-    
-    # Get AI response
-    ai_response = await get_ai_response(message.content, session_id, context)
-    
+
+    # Get AI response with personalized profile
+    ai_response = await get_ai_response(
+        message.content,
+        session_id,
+        context,
+        ai_profile=serialize_doc(ai_profile) if ai_profile else None,
+        user_name=user_name
+    )
+
     # Save AI response
     ai_msg_id = str(uuid.uuid4())
     ai_msg_doc = {
@@ -942,7 +1046,7 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.chat_messages.insert_one(ai_msg_doc)
-    
+
     return {
         "id": ai_msg_id,
         "content": ai_response,
