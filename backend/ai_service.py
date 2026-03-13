@@ -1,7 +1,6 @@
 import os
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
-from emergentintegrations.llm.chat import LlmChat, UserMessage
 import logging
 
 load_dotenv()
@@ -9,6 +8,14 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+
+# Optional import for emergentintegrations
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    EMERGENT_AVAILABLE = True
+except ImportError:
+    EMERGENT_AVAILABLE = False
+    logger.warning("emergentintegrations package not available. AI features will be disabled.")
 
 SYSTEM_PROMPT = """Eres el Asistente IA de Rovi CRM, una plataforma de gestión de ventas inmobiliarias de alto valor en Tulum, México.
 
@@ -40,6 +47,9 @@ async def get_ai_response(
     context: Optional[Dict[str, Any]] = None
 ) -> str:
     """Get AI response for chat"""
+    if not EMERGENT_AVAILABLE:
+        return "Lo siento, el servicio de IA no está disponible actualmente. Por favor contacta al administrador."
+
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -77,6 +87,15 @@ async def get_ai_response(
 
 async def analyze_lead(lead_data: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze a lead and provide AI insights"""
+    if not EMERGENT_AVAILABLE:
+        return {
+            "intent_score": 50,
+            "sentiment": "neutral",
+            "key_points": ["Servicio de IA no disponible"],
+            "recommended_action": "Revisa la información del lead manualmente",
+            "opening_script": "Hola, te contacto para informarte sobre nuestras propiedades."
+        }
+
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -150,6 +169,15 @@ async def generate_sales_script(
     script_type: str = "apertura"
 ) -> str:
     """Generate a personalized sales script for a lead"""
+    if not EMERGENT_AVAILABLE:
+        return f"""Script de {script_type} para {lead_data.get('name', 'cliente')}:
+
+Hola, te contacto de Rovi para informarte sobre nuestras propiedades en Tulum.
+
+¿Tienes disponibilidad para platicar brevemente sobre tu interés en invertir en la Riviera Maya?
+
+Quedo a tu disposición para agendar una visita o una videollamada."""
+
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,

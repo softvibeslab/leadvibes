@@ -3129,7 +3129,7 @@ async def get_analytics_timeline(
         {"$match": date_filter},
         {"$group": {
             "_id": {
-                "date": {"$dateToString": {"format": granularity == "daily" ? "%Y-%m-%d" : "%Y-%U", "date": "$date"}},
+                "date": {"$dateToString": {"format": "%Y-%m-%d" if granularity == "daily" else "%Y-%U", "date": "$date"}},
                 "source": "$source"
             },
             "impressions": {"$sum": "$impressions"},
