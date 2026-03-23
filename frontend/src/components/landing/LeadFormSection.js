@@ -27,8 +27,8 @@ export const LeadFormSection = () => {
     setIsSubmitting(true);
 
     try {
-      // Enviar lead al backend
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'https://lead-bulk-upload.preview.emergentagent.com'}/api/landing/lead`, {
+      // Enviar lead al backend (usar ruta relativa para nginx proxy en producción)
+      const response = await fetch(`/api/landing/lead`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

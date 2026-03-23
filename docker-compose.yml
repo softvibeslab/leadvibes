@@ -48,7 +48,6 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
     volumes:
-      - ./backend:/app
       - backend_uploads:/app/uploads
     ports:
       - "8000:8000"

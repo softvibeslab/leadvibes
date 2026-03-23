@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
+// Use relative path in production (nginx proxy) or fallback to env var
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 const AuthContext = createContext(null);
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const api = axios.create({
-    baseURL: `${API_URL}/api`,
+    baseURL: API_URL ? `${API_URL}/api` : '/api',
     headers: {
       'Content-Type': 'application/json',
     },

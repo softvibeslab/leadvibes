@@ -3,6 +3,14 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import logging
 
+# Optional AI integration - falls back to mock if unavailable
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    AI_AVAILABLE = True
+except ImportError:
+    AI_AVAILABLE = False
+    logging.warning("emergentintegrations package not available - AI features will be limited")
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -103,10 +111,9 @@ async def get_ai_response(
     ai_profile: Optional[Dict[str, Any]] = None,
     user_name: str = "Broker"
 ) -> str:
-    """Get AI response for chat with personalized system prompt"""
-    if not EMERGENT_AVAILABLE:
-        return "Lo siento, el servicio de IA no está disponible actualmente. Por favor contacta al administrador."
-
+    """Get AI response for chat"""
+    if not AI_AVAILABLE:
+        return "Lo siento, la funcionalidad de IA no está disponible en este entorno. Por favor contacta al administrador."
     try:
         # Build personalized system prompt
         system_prompt = build_system_prompt(ai_profile, user_name)
@@ -147,15 +154,14 @@ async def get_ai_response(
 
 async def analyze_lead(lead_data: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze a lead and provide AI insights"""
-    if not EMERGENT_AVAILABLE:
+    if not AI_AVAILABLE:
         return {
             "intent_score": 50,
             "sentiment": "neutral",
-            "key_points": ["Servicio de IA no disponible"],
-            "recommended_action": "Revisa la información del lead manualmente",
-            "opening_script": "Hola, te contacto para informarte sobre nuestras propiedades."
+            "key_points": ["IA no disponible"],
+            "next_action": "Revisar manualmente",
+            "opening_script": f"Hola {lead_data.get('name', '')}, soy de Rovi Real Estate..."
         }
-
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -229,15 +235,8 @@ async def generate_sales_script(
     script_type: str = "apertura"
 ) -> str:
     """Generate a personalized sales script for a lead"""
-    if not EMERGENT_AVAILABLE:
-        return f"""Script de {script_type} para {lead_data.get('name', 'cliente')}:
-
-Hola, te contacto de Rovi para informarte sobre nuestras propiedades en Tulum.
-
-¿Tienes disponibilidad para platicar brevemente sobre tu interés en invertir en la Riviera Maya?
-
-Quedo a tu disposición para agendar una visita o una videollamada."""
-
+    if not AI_AVAILABLE:
+        return f"Lo siento, la generación de scripts con IA no está disponible. Por favor crea un script manual para {lead_data.get('name', 'el cliente')}."
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
