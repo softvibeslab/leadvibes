@@ -697,6 +697,7 @@ async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_cu
     lead_doc = {
         "id": lead_id,
         "tenant_id": current_user["tenant_id"],
+        "broker_id": current_user.get("sub", current_user.get("user_id", "")),
         **lead_data.model_dump(),
         "status": "nuevo",
         "priority": "media",
@@ -704,25 +705,27 @@ async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_cu
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
-    
+
     await db.leads.insert_one(lead_doc)
-    return {"message": "Lead creado exitosamente", "id": lead_id}
+    return serialize_doc(lead_doc)
 
 @api_router.put("/leads/{lead_id}", response_model=dict)
 async def update_lead(lead_id: str, lead_data: LeadUpdate, current_user: dict = Depends(get_current_user)):
     """Update lead"""
     update_dict = {k: v for k, v in lead_data.model_dump().items() if v is not None}
     update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
-    
+
     result = await db.leads.update_one(
         {"id": lead_id, "tenant_id": current_user["tenant_id"]},
         {"$set": update_dict}
     )
-    
+
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
-    
-    return {"message": "Lead actualizado exitosamente"}
+
+    # Return updated lead
+    lead = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    return serialize_doc(lead)
 
 @api_router.post("/leads/{lead_id}/analyze", response_model=dict)
 async def analyze_lead_ai(lead_id: str, current_user: dict = Depends(get_current_user)):
@@ -4472,6 +4475,247 @@ async def get_event_assignment(
         "assigned_to": event.get("assigned_broker_id"),
         "assignment": serialize_doc(assignment) if assignment else None,
         "broker": broker
+    }
+
+
+# ==================== CAMPAIGN ROUTES ====================
+
+@api_router.post("/campaigns", response_model=dict)
+async def create_campaign(
+    campaign_data: CampaignCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Crear nueva campaña"""
+    campaign_id = str(uuid.uuid4())
+    campaign_doc = {
+        "id": campaign_id,
+        "name": campaign_data.name,
+        "type": campaign_data.type.value if hasattr(campaign_data.type, 'value') else str(campaign_data.type),
+        "status": "draft",
+        "tenant_id": current_user["tenant_id"],
+        "created_by": current_user["sub"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "filters": campaign_data.filters if hasattr(campaign_data, 'filters') else {},
+        "target_leads": campaign_data.target_leads if hasattr(campaign_data, 'target_leads') else []
+    }
+    await db.campaigns.insert_one(campaign_doc)
+    return serialize_doc(campaign_doc)
+
+
+@api_router.get("/campaigns", response_model=List[dict])
+async def list_campaigns(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Listar campañas del tenant"""
+    query = {"tenant_id": current_user["tenant_id"]}
+    if status:
+        query["status"] = status
+    campaigns = await db.campaigns.find(query).to_list(None)
+    return [serialize_doc(c) for c in campaigns]
+
+
+@api_router.get("/campaigns/{campaign_id}", response_model=dict)
+async def get_campaign(campaign_id: str, current_user: dict = Depends(get_current_user)):
+    """Obtener campaña por ID"""
+    campaign = await db.campaigns.find_one({
+        "id": campaign_id,
+        "tenant_id": current_user["tenant_id"]
+    })
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    return serialize_doc(campaign)
+
+
+@api_router.put("/campaigns/{campaign_id}", response_model=dict)
+async def update_campaign(
+    campaign_id: str,
+    campaign_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Actualizar campaña"""
+    result = await db.campaigns.update_one(
+        {"id": campaign_id, "tenant_id": current_user["tenant_id"]},
+        {"$set": {**campaign_data, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    campaign = await db.campaigns.find_one({"id": campaign_id})
+    return serialize_doc(campaign)
+
+
+@api_router.delete("/campaigns/{campaign_id}")
+async def delete_campaign(campaign_id: str, current_user: dict = Depends(get_current_user)):
+    """Eliminar campaña"""
+    result = await db.campaigns.delete_one(
+        {"id": campaign_id, "tenant_id": current_user["tenant_id"]}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    return {"status": "deleted"}
+
+
+@api_router.post("/campaigns/{campaign_id}/execute", response_model=dict)
+async def execute_campaign_route(campaign_id: str, current_user: dict = Depends(get_current_user)):
+    """Ejecutar campaña"""
+    campaign = await db.campaigns.find_one({
+        "id": campaign_id,
+        "tenant_id": current_user["tenant_id"]
+    })
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+
+    await db.campaigns.update_one(
+        {"id": campaign_id},
+        {"$set": {"status": "running", "executed_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "Campaign started", "campaign_id": campaign_id}
+
+
+@api_router.get("/campaigns/{campaign_id}/metrics", response_model=dict)
+async def get_campaign_metrics(campaign_id: str, current_user: dict = Depends(get_current_user)):
+    """Obtener métricas de campaña"""
+    campaign = await db.campaigns.find_one({"id": campaign_id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+
+    total = campaign.get("total_leads", 0)
+    sent = campaign.get("sent", 0)
+    delivered = campaign.get("delivered", 0)
+    failed = campaign.get("failed", 0)
+
+    return {
+        "campaign_id": campaign_id,
+        "total_leads": total,
+        "sent": sent,
+        "delivered": delivered,
+        "failed": failed,
+        "response_rate": (delivered / sent * 100) if sent > 0 else 0
+    }
+
+
+# ==================== GAMIFICATION ROUTES ====================
+
+@api_router.get("/gamification/rules", response_model=List[dict])
+async def get_gamification_rules(current_user: dict = Depends(get_current_user)):
+    """Obtener reglas de gamificación del tenant"""
+    rules = await db.gamification_rules.find({
+        "tenant_id": current_user["tenant_id"]
+    }).to_list(None)
+    return [serialize_doc(r) for r in rules]
+
+
+@api_router.post("/gamification/rules", response_model=dict)
+async def create_gamification_rule(
+    rule_data: GamificationRuleCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Crear nueva regla de gamificación"""
+    rule_id = str(uuid.uuid4())
+    rule_doc = {
+        "id": rule_id,
+        "name": rule_data.name,
+        "points": rule_data.points,
+        "activity_type": rule_data.activity_type,
+        "tenant_id": current_user["tenant_id"],
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.gamification_rules.insert_one(rule_doc)
+    return serialize_doc(rule_doc)
+
+
+@api_router.get("/gamification/leaderboard", response_model=List[dict])
+async def get_leaderboard(current_user: dict = Depends(get_current_user)):
+    """Obtener ranking de brokers"""
+    pipeline = [
+        {"$match": {"tenant_id": current_user["tenant_id"]}},
+        {"$group": {
+            "_id": "$broker_id",
+            "total_points": {"$sum": "$points"}
+        }},
+        {"$sort": {"total_points": -1}}
+    ]
+    results = await db.points_ledger.aggregate(pipeline).to_list(None)
+    return [
+        {
+            "broker_id": r["_id"],
+            "total_points": r["total_points"]
+        }
+        for r in results
+    ]
+
+
+@api_router.post("/activities", response_model=dict)
+async def create_activity(
+    activity_data: ActivityCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Registrar actividad y sumar puntos"""
+    activity_id = str(uuid.uuid4())
+
+    activity_doc = {
+        "id": activity_id,
+        "lead_id": activity_data.lead_id,
+        "broker_id": current_user["sub"],
+        "type": activity_data.type.value if hasattr(activity_data.type, 'value') else str(activity_data.type),
+        "notes": activity_data.notes,
+        "result": activity_data.result,
+        "duration_minutes": activity_data.duration_minutes,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.activities.insert_one(activity_doc)
+
+    rule = await db.gamification_rules.find_one({
+        "tenant_id": current_user["tenant_id"],
+        "activity_type": activity_data.type
+    })
+
+    points = rule["points"] if rule else 0
+
+    await db.points_ledger.insert_one({
+        "broker_id": current_user["sub"],
+        "activity_id": activity_id,
+        "points": points,
+        "tenant_id": current_user["tenant_id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+
+    return serialize_doc(activity_doc)
+
+
+@api_router.get("/gamification/stats", response_model=dict)
+async def get_gamification_stats(current_user: dict = Depends(get_current_user)):
+    """Obtener estadísticas de gamificación del usuario"""
+    pipeline = [
+        {"$match": {"broker_id": current_user["sub"]}},
+        {"$group": {
+            "_id": None,
+            "total_points": {"$sum": "$points"},
+            "monthly_points": {
+                "$sum": {
+                    "$cond": [
+                        {"$gte": ["$created_at", datetime.now(timezone.utc) - timedelta(days=30)]},
+                        "$points",
+                        0
+                    ]
+                }
+            }
+        }}
+    ]
+    result = await db.points_ledger.aggregate(pipeline).to_list(1)
+
+    stats = result[0] if result else {"total_points": 0, "monthly_points": 0}
+
+    achievements = []
+    if stats["total_points"] >= 1000:
+        achievements.append({"id": "mil_puntos", "name": "Mil Puntos", "unlocked_at": None})
+
+    return {
+        "broker_id": current_user["sub"],
+        "total_points": stats.get("total_points", 0),
+        "monthly_points": stats.get("monthly_points", 0),
+        "achievements": achievements
     }
 
 
