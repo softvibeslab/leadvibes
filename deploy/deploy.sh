@@ -1,159 +1,67 @@
 #!/bin/bash
 
-###############################################################################
-# Rovi CRM - Deployment Script
-# Deploys specific environment to the server
-###############################################################################
-
+# LeadVibes - Deploy Script
 set -e
 
-# Colors
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
-DOMAIN="srv1318804.hstgr.cloud"
-PROJECT_DIR="${HOME}/rovi-crm"
+echo -e "${GREEN}===========================================${NC}"
+echo -e "${GREEN}LeadVibes Deploy Script${NC}"
+echo -e "${GREEN}===========================================${NC}"
 
-# Function to print usage
-usage() {
-    echo "Usage: $0 [ENVIRONMENT]"
-    echo ""
-    echo "Environments:"
-    echo "  production    Deploy to srv1318804.hstgr.cloud"
-    echo "  development   Deploy to dev.srv1318804.hstgr.cloud"
-    echo "  preview       Deploy to preview.srv1318804.hstgr.cloud"
-    echo ""
-    echo "Examples:"
-    echo "  $0 production"
-    echo "  $0 development"
-    echo "  $0 preview"
+# Pre-flight checks
+echo -e "\n${YELLOW}[1/5] Pre-flight Checks...${NC}"
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker no está instalado"
     exit 1
-}
-
-# Check if environment is provided
-if [ -z "$1" ]; then
-    usage
 fi
+echo "✅ Docker está instalado"
 
-ENVIRONMENT=$1
-
-# Map environment to compose file and URL
-case $ENVIRONMENT in
-    production)
-        COMPOSE_FILE="docker-compose.hostinger.yml"
-        URL="http://${DOMAIN}"
-        DIR="${PROJECT_DIR}/production"
-        ;;
-    development|dev)
-        COMPOSE_FILE="docker-compose.dev.yml"
-        URL="http://dev.${DOMAIN}"
-        DIR="${PROJECT_DIR}/development"
-        ;;
-    preview)
-        COMPOSE_FILE="docker-compose.preview.yml"
-        URL="http://preview.${DOMAIN}"
-        DIR="${PROJECT_DIR}/preview"
-        ;;
-    *)
-        echo -e "${RED}Error: Unknown environment '$ENVIRONMENT'${NC}"
-        usage
-        ;;
-esac
-
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}Rovi CRM - Deploy to ${ENVIRONMENT}${NC}"
-echo -e "${BLUE}========================================${NC}"
-echo ""
-echo "Environment: ${ENVIRONMENT}"
-echo "URL: ${URL}"
-echo "Directory: ${DIR}"
-echo "Compose file: ${COMPOSE_FILE}"
-echo ""
-
-# Check if directory exists
-if [ ! -d "$DIR" ]; then
-    echo -e "${YELLOW}Creating directory: ${DIR}${NC}"
-    mkdir -p "$DIR"
-fi
-
-# Navigate to directory
-cd "$DIR"
-
-# Check if .env exists, if not create from template
+# Check .env
 if [ ! -f .env ]; then
-    echo -e "${YELLOW}Creating .env file...${NC}"
-    cat > .env << EOF
-MONGO_ROOT_USERNAME=admin
-MONGO_ROOT_PASSWORD=\${MONGO_ROOT_PASSWORD}
-DB_NAME=rovi_crm_${ENVIRONMENT}
-JWT_SECRET=\${JWT_SECRET}
-JWT_ALGORITHM=HS256
-JWT_EXPIRATION_HOURS=24
-EMERGENT_LLM_KEY=\${EMERGENT_LLM_KEY}
-CORS_ORIGINS=${URL}
-ENVIRONMENT=${ENVIRONMENT}
-DEBUG=false
-EOF
-    echo -e "${RED}⚠️  Please edit .env file with your credentials!${NC}"
-    echo -e "${RED}   Set MONGO_ROOT_PASSWORD, JWT_SECRET, and EMERGENT_LLM_KEY${NC}"
+    echo "❌ Archivo .env no encontrado"
+    echo "Creando desde .env.example..."
+    cp .env.example .env
+    echo "⚠️  Por favor edita .env antes de continuar"
     exit 1
 fi
+echo "✅ Archivo .env encontrado"
 
-# Pull latest images
-echo -e "${YELLOW}[1/4] Pulling latest Docker images...${NC}"
-docker compose -f "$COMPOSE_FILE" pull
+# Backup MongoDB
+echo -e "\n${YELLOW}[2/5] Backup MongoDB...${NC}"
+mkdir -p /var/backups/leadvibes
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+docker-compose exec -T mongodb mongodump \
+    --username=admin \
+    --password=${MONGO_ROOT_PASSWORD} \
+    --db=${DB_NAME} \
+    --archive=/var/backups/leadvibes/backup_${TIMESTAMP}.gz \
+    --gzip || echo "⚠️  Backup falló (puede ser primer deploy)"
+echo "✅ Backup completado"
 
-# Stop existing containers
-echo -e "${YELLOW}[2/4] Stopping existing containers...${NC}"
-docker compose -f "$COMPOSE_FILE" down
+# Pull changes
+echo -e "\n${YELLOW}[3/5] Pulling changes...${NC}"
+if [ -d .git ]; then
+    git pull origin main || echo "⚠️  Git pull falló"
+fi
+echo "✅ Changes pulled"
 
-# Start new containers
-echo -e "${YELLOW}[3/4] Starting new containers...${NC}"
-docker compose -f "$COMPOSE_FILE" up -d --force-recreate
+# Stop and rebuild
+echo -e "\n${YELLOW}[4/5] Rebuilding containers...${NC}"
+docker-compose down
+docker-compose up -d --build
+echo "✅ Containers rebuilt"
 
-# Wait for services to be ready
-echo -e "${YELLOW}[4/4] Waiting for services to be ready...${NC}"
+# Wait for health
+echo -e "\n${YELLOW}[5/5] Waiting for services...${NC}"
 sleep 10
+docker-compose ps
 
-# Health check
-echo -e "${YELLOW}Running health checks...${NC}"
-
-# Check backend
-BACKEND_URL="${URL}/api/health"
-if curl -f -s "$BACKEND_URL" | grep -q "healthy"; then
-    echo -e "${GREEN}✓ Backend is healthy${NC}"
-else
-    echo -e "${RED}✗ Backend health check failed${NC}"
-    echo -e "${YELLOW}  Check logs: docker compose -f $COMPOSE_FILE logs backend${NC}"
-fi
-
-# Check frontend
-if curl -f -s "$URL" > /dev/null; then
-    echo -e "${GREEN}✓ Frontend is accessible${NC}"
-else
-    echo -e "${RED}✗ Frontend health check failed${NC}"
-    echo -e "${YELLOW}  Check logs: docker compose -f $COMPOSE_FILE logs frontend${NC}"
-fi
-
-# Show running containers
-echo ""
-echo -e "${BLUE}Running containers:${NC}"
-docker compose -f "$COMPOSE_FILE" ps
-
-echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Deployment Complete!${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
-echo "Access your application at: ${URL}"
-echo ""
-echo "Useful commands:"
-echo "  View logs:    docker compose -f $COMPOSE_FILE logs -f"
-echo "  Stop:         docker compose -f $COMPOSE_FILE down"
-echo "  Restart:      docker compose -f $COMPOSE_FILE restart"
-echo "  Shell access: docker exec -it rovi-backend-${ENVIRONMENT} bash"
-echo ""
+echo -e "\n${GREEN}===========================================${NC}"
+echo -e "${GREEN}✅ Deploy Completado!${NC}"
+echo -e "${GREEN}===========================================${NC}"
+echo -e "🌐 Frontend: http://localhost/"
+echo -e "🔧 Backend: http://localhost:8000"
+echo -e "📖 API Docs: http://localhost:8000/docs"

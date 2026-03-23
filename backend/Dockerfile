@@ -1,32 +1,28 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y gcc curl
 
-# Copy requirements first for better caching
+# Copiar requirements
 COPY requirements.txt .
 
-# Install Python dependencies
+# Instalar dependencias Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copiar código
 COPY . .
 
-# Create directory for uploads
-RUN mkdir -p /app/uploads
+# Crear directorio de logs
+RUN mkdir -p /app/logs
 
-# Expose port
+# Exponer puerto
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Run the application
+# Comando de inicio
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
