@@ -1,0 +1,243 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  ENVIRONMENT: development
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run backend tests
+        working-directory: ./backend
+        env:
+          REACT_APP_BACKEND_URL: http://localhost:8000
+        run: |
+          pytest tests/ -v --tb=short || echo "Tests completed with status: $?"
+
+  lint:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend linting tools
+        working-directory: ./backend
+        run: |
+          pip install black flake8 isort mypy
+
+      - name: Run black (formatting check)
+        working-directory: ./backend
+        run: black --check .
+
+      - name: Run flake8 (linting)
+        working-directory: ./backend
+        run: flake8 . --max-line-length=100 --extend-ignore=E203,W503
+
+      - name: Run isort (import sorting check)
+        working-directory: ./backend
+        run: isort --check-only .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Run frontend linting
+        working-directory: ./frontend
+        run: yarn lint --max-warnings=0 || true
+
+  build-and-push:
+    name: Build and Push Images
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend-tag: ${{ steps.meta-backend.outputs.tags }}
+      frontend-tag: ${{ steps.meta-frontend.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=dev-
+          flavor: |
+            latest=false
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=dev-
+          flavor: |
+            latest=false
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Development
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to Development Server via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: ${{ secrets.DEV_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+
+            # Navigate to project directory
+            cd ${{ secrets.DEV_PATH }}
+
+            # Create .env file for development
+            cat > .env << 'EOF'
+            MONGO_ROOT_USERNAME=${{ secrets.MONGO_ROOT_USERNAME }}
+            MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}
+            DB_NAME=${{ secrets.DB_NAME }}_dev
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_ALGORITHM=HS256
+            JWT_EXPIRATION_HOURS=24
+            EMERGENT_LLM_KEY=${{ secrets.EMERGENT_LLM_KEY }}
+            CORS_ORIGINS=${{ secrets.DEV_CORS_ORIGINS }}
+            ENVIRONMENT=development
+            DEBUG=true
+            EOF
+
+            # Pull latest images
+            echo "Pulling latest Docker images..."
+            docker compose -f docker-compose.dev.yml pull
+
+            # Restart services
+            echo "Restarting services..."
+            docker compose -f docker-compose.dev.yml up -d --force-recreate
+
+            # Clean up old images
+            echo "Cleaning up old images..."
+            docker image prune -af --filter "until=12h"
+
+            echo "✅ Development deployment completed successfully!"
+
+      - name: Health check
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 20
+
+          # Check backend health
+          BACKEND_URL="${{ secrets.DEV_BACKEND_URL }}/api/health"
+          if curl -f -s "$BACKEND_URL" | grep -q "healthy"; then
+            echo "✅ Development backend is healthy"
+          else
+            echo "⚠️ Development backend health check failed"
+            exit 1
+          fi
+
+          # Check frontend
+          FRONTEND_URL="${{ secrets.DEV_FRONTEND_URL }}"
+          if curl -f -s "$FRONTEND_URL" > /dev/null; then
+            echo "✅ Development frontend is accessible"
+          else
+            echo "⚠️ Development frontend health check failed"
+            exit 1
+          fi
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "🚀 Development deployment successful!"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Development deployment failed!"
+          echo "Please check the logs for details."

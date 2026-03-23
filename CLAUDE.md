@@ -31,10 +31,25 @@ yarn test     # Run tests
 
 ### Docker
 ```bash
-docker-compose up -d                    # Full stack
-docker-compose -f docker-compose.preview.yml up -d  # Preview environment
-docker-compose -f docker-compose.hostinger.yml up -d  # Production (Hostinger)
+docker-compose up -d                    # Local development (mongodb + backend + frontend)
+docker-compose -f docker-compose.dev.yml up -d       # Development environment
+docker-compose -f docker-compose.preview.yml up -d   # Preview environment
+docker-compose -f docker-compose.hostinger.yml up -d # Production (Hostinger deployment)
+docker-compose down -v                  # Stop and remove volumes
+docker-compose logs -f [service]        # Tail logs for a service
 ```
+
+**Docker services:**
+- `mongodb` - MongoDB 7 with persistent volume
+- `backend` - FastAPI (Python 3.11, uvicorn)
+- `frontend` - React build served via nginx
+
+**Multi-environment deployment:**
+- Production: `srv1318804.hstgr.cloud` (ports: 8000, 3000)
+- Development: `dev.srv1318804.hstgr.cloud` (ports: 8100, 3100)
+- Preview: `preview.srv1318804.hstgr.cloud` (ports: 8200, 3200)
+
+See `docs/DEPLOYMENT_URLS.md` for complete deployment reference.
 
 ### Backend Testing
 ```bash
@@ -43,6 +58,26 @@ pytest                                          # All tests
 pytest tests/test_leadvibes_crm.py             # Core API tests
 pytest tests/test_import_leads.py              # Import feature tests
 pytest tests/test_google_calendar_email_templates.py  # Calendar/email tests
+```
+
+**Test configuration:**
+- Tests use `requests` library against a running backend (not TestClient)
+- Set `REACT_APP_BACKEND_URL` environment variable to target different environments
+- Default: `https://lead-bulk-upload.preview.emergentagent.com` (preview server)
+
+### Backend Linting & Formatting
+```bash
+cd backend
+black .                        # Format code
+flake8 .                       # Lint code
+isort .                        # Sort imports
+mypy .                         # Type checking
+```
+
+### Frontend Linting
+```bash
+cd frontend
+yarn lint                      # Run ESLint (configured via craco)
 ```
 
 ## Architecture
@@ -60,6 +95,10 @@ pytest tests/test_google_calendar_email_templates.py  # Calendar/email tests
 - Multi-tenancy via `tenant_id` (derived from user_id)
 - MongoDB queries use Motor's async API (`await db.collection.find_one()`)
 
+**Health check endpoints:**
+- Backend: `GET /api/health` - Returns `{"status": "healthy"}`
+- Frontend (nginx): Serves on port 80 in production, 3000 in development
+
 ### Frontend Structure (`frontend/src/`)
 - `App.js` - React Router with public/protected routes
 - `context/AuthContext.js` - JWT auth, axios instance with interceptors
@@ -67,11 +106,14 @@ pytest tests/test_google_calendar_email_templates.py  # Calendar/email tests
 - `pages/` - Main page components (Dashboard, Leads, Campaigns, etc.)
 - `components/ui/` - shadcn/ui components
 - `lib/utils.js` - Utility functions
+- `craco.config.js` - Webpack configuration with custom plugins (visual edits, health checks)
 
 **Key patterns:**
 - Protected routes use `<ProtectedRoute>` wrapper
 - API calls through `api` from AuthContext (auto-includes auth header)
 - `account_type` on user determines UI (individual vs agency)
+- Production builds use multi-stage Docker with nginx (`frontend/nginx.conf`)
+- Path alias `@/` maps to `src/` directory
 
 ### Multi-Tenancy & User Types
 
@@ -151,3 +193,7 @@ Theme toggles between light/dark via `next-themes`.
 - **CORS**: Backend must allow frontend origin for cross-origin requests
 - **Docker volumes**: `mongodb_data` and `backend_uploads` persist across container restarts
 - **Health checks**: Both containers have healthcheck endpoints for orchestration
+- **Testing**: Tests use `requests` library directly against a running backend server (not pytest-asyncio or FastAPI TestClient)
+- **Frontend build**: Uses craco for custom webpack configuration; visual edits plugins only load in development mode
+- **CI/CD**: GitHub Actions workflows deploy to 3 environments (main→production, dev→development, rovi_deploy→preview)
+- **Server setup**: Run `deploy/setup-server.sh` on the VPS to configure nginx, docker, and subdomains

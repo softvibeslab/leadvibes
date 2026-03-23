@@ -1,0 +1,139 @@
+# Docker Compose para Desarrollo/Staging
+# Entorno de desarrollo con herramientas de debug y logs extendidos
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: rovi-mongodb-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-rovi_crm_dev}
+    volumes:
+      - mongodb_dev_data:/data/db
+      - mongodb_logs:/var/log/mongodb
+    ports:
+      - "27017:27017"
+    networks:
+      - rovi-dev-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Backend API (FastAPI)
+  backend:
+    image: ghcr.io/softvibeslab/leadvibes-backend:dev
+    container_name: rovi-backend-dev
+    restart: unless-stopped
+    environment:
+      # Database
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${DB_NAME:-rovi_crm_dev}?authSource=admin
+      DB_NAME: ${DB_NAME:-rovi_crm_dev}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+
+      # AI
+      EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
+
+      # CORS - Development subdomain
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://dev.srv1318804.hstgr.cloud,https://dev.srv1318804.hstgr.cloud,http://localhost:3000,http://localhost:8000}
+
+      # Environment
+      ENVIRONMENT: development
+      DEBUG: "true"
+
+      # Logging
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./backend/logs:/app/logs
+      - backend_dev_uploads:/app/uploads
+    ports:
+      - "8100:8000"
+    expose:
+      - "8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - rovi-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Frontend (React + Nginx)
+  frontend:
+    image: ghcr.io/softvibeslab/leadvibes-frontend:dev
+    container_name: rovi-frontend-dev
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3100:80"
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - rovi-dev-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: MongoDB Express for database management
+  mongo-express:
+    image: mongo-express:latest
+    container_name: rovi-mongo-express-dev
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${DB_NAME:-rovi_crm_dev}?authSource=admin
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD:-dev123}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - rovi-dev-network
+    profiles:
+      - tools
+
+volumes:
+  mongodb_dev_data:
+    driver: local
+  mongodb_logs:
+    driver: local
+  backend_dev_uploads:
+    driver: local
+
+networks:
+  rovi-dev-network:
+    driver: bridge

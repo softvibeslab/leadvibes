@@ -5,37 +5,36 @@ FROM node:20-alpine as builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json yarn.lock ./
+# Copiar package files
+COPY package*.json ./
 
-# Install dependencies
-RUN yarn install --frozen-lockfile
+# Instalar dependencias
+RUN npm ci
 
-# Copy source code
+# Copiar código
 COPY . .
 
-# Build the application
-RUN yarn build
+# Build arguments
+ARG REACT_APP_BACKEND_URL
+ARG REACT_APP_ENVIRONMENT
 
-# Stage 2: Serve with Nginx
+# Build
+RUN npm run build
+
+# Production stage
 FROM nginx:alpine
 
-# Copy custom nginx config
+# Copy build from previous stage
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built files from builder stage
-COPY --from=builder /app/build /usr/share/nginx/html
-
-# Add labels
-LABEL maintainer="Rovi CRM"
-LABEL description="Rovi CRM Frontend - React application"
-
-# Expose port 80
-EXPOSE 80
+# Exponer puertos
+EXPOSE 80 443
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
 
-# Start nginx
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,207 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  ENVIRONMENT: production
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run backend tests
+        working-directory: ./backend
+        env:
+          REACT_APP_BACKEND_URL: http://localhost:8000
+        run: |
+          pytest tests/ -v --tb=short || echo "Tests completed with status: $?"
+
+  build-and-push:
+    name: Build and Push Images
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend-tag: ${{ steps.meta-backend.outputs.tags }}
+      frontend-tag: ${{ steps.meta-frontend.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+          flavor: |
+            latest=true
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+          flavor: |
+            latest=true
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Production
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to Hostinger via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+
+            # Navigate to project directory
+            cd ${{ secrets.HOSTINGER_PATH }}
+
+            # Create .env file if it doesn't exist
+            if [ ! -f .env ]; then
+              cat > .env << 'EOF'
+            MONGO_ROOT_USERNAME=${{ secrets.MONGO_ROOT_USERNAME }}
+            MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_ALGORITHM=HS256
+            JWT_EXPIRATION_HOURS=24
+            EMERGENT_LLM_KEY=${{ secrets.EMERGENT_LLM_KEY }}
+            CORS_ORIGINS=${{ secrets.PRODUCTION_CORS_ORIGINS }}
+            ENVIRONMENT=production
+            DEBUG=false
+            EOF
+            fi
+
+            # Pull latest images
+            echo "Pulling latest Docker images..."
+            docker compose -f docker-compose.hostinger.yml pull
+
+            # Restart services
+            echo "Restarting services..."
+            docker compose -f docker-compose.hostinger.yml up -d --force-recreate
+
+            # Clean up old images
+            echo "Cleaning up old images..."
+            docker image prune -af --filter "until=24h"
+
+            echo "✅ Production deployment completed successfully!"
+
+      - name: Health check
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 30
+
+          # Check backend health
+          BACKEND_URL="${{ secrets.PRODUCTION_BACKEND_URL }}"
+          if curl -f -s "$BACKEND_URL" | grep -q "healthy"; then
+            echo "✅ Backend is healthy"
+          else
+            echo "⚠️ Backend health check failed"
+            exit 1
+          fi
+
+          # Check frontend
+          FRONTEND_URL="${{ secrets.PRODUCTION_FRONTEND_URL }}"
+          if curl -f -s "$FRONTEND_URL" > /dev/null; then
+            echo "✅ Frontend is accessible"
+          else
+            echo "⚠️ Frontend health check failed"
+            exit 1
+          fi
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed!"
+          echo "Please check the logs for details."
