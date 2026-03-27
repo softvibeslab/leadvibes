@@ -11,6 +11,7 @@ import uuid
 import random
 import csv
 import io
+import asyncio
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse,
@@ -33,7 +34,9 @@ from models import (
     ImportJob, ImportStatus, ImportMappingRequest, ColumnMapping,
     CampaignMetrics, AnalyticsDashboard,
     AutomationWorkflow, AutomationWorkflowCreate, AutomationExecution,
-    RoundRobinConfig, CalendarAssignment
+    RoundRobinConfig, CalendarAssignment,
+    ProductService, ProductServiceCreate, ProductServiceUpdate,
+    ApifyJobRecord, ScrapedLead
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
@@ -1213,6 +1216,239 @@ async def seed_demo_data(current_user: dict = Depends(get_current_user)):
         )
     
     return {"message": "Datos de demo cargados exitosamente", "brokers": 5, "leads": 20}
+
+# ==================== PRODUCTS/SERVICES ====================
+
+@api_router.get("/products")
+async def get_products(
+    is_active: Optional[bool] = None,
+    product_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene todos los productos/servicios del tenant"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    query = {"tenant_id": tenant_id}
+
+    if is_active is not None:
+        query["is_active"] = is_active
+    if product_type:
+        query["product_type"] = product_type
+
+    products = await db.products.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return [serialize_doc(p) for p in products]
+
+
+@api_router.post("/products")
+async def create_product(
+    product_data: ProductServiceCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Crea un nuevo producto/servicio"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product_id = str(uuid.uuid4())
+    product_doc = {
+        "id": product_id,
+        "tenant_id": tenant_id,
+        "created_by": current_user["user_id"],
+        **product_data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    await db.products.insert_one(product_doc)
+    return {"message": "Producto creado", "id": product_id}
+
+
+@api_router.get("/products/{product_id}")
+async def get_product(
+    product_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene un producto por ID"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product = await db.products.find_one({
+        "id": product_id,
+        "tenant_id": tenant_id
+    }, {"_id": 0})
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    return serialize_doc(product)
+
+
+@api_router.put("/products/{product_id}")
+async def update_product(
+    product_id: str,
+    update_data: ProductServiceUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Actualiza un producto/servicio"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    result = await db.products.update_one(
+        {"id": product_id, "tenant_id": tenant_id},
+        {"$set": update_dict}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    return {"message": "Producto actualizado"}
+
+
+@api_router.delete("/products/{product_id}")
+async def delete_product(
+    product_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Elimina un producto/servicio"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    result = await db.products.delete_one({
+        "id": product_id,
+        "tenant_id": tenant_id
+    })
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    return {"message": "Producto eliminado"}
+
+
+@api_router.get("/products/templates/niche")
+async def get_niche_templates():
+    """Obtiene templates de descripción por nicho"""
+    return {
+        "real_estate": {
+            "description": "Ubicación: {ubicacion}\nAmenidades: {amenidades}\nPrecio: {price}\nROI proyectado: {roi}",
+            "features": ["Ubicación premium", "Plusvalía alta", "Infraestructura completa", "Entregas inmediatas"]
+        },
+        "software": {
+            "description": "Stack tecnológico: {tech_stack}\nIntegraciones: {integrations}\nTiempo de implementación: {timeline}\nSoporte: {support}",
+            "features": ["Setup incluido", "Integraciones con CRM", "Soporte 24/7", "Documentación completa"]
+        },
+        "digital": {
+            "description": "Contenido: {contenido}\nDuración: {duracion}\nCertificado: {certificado}\nComunidad: {comunidad}",
+            "features": ["Acceso inmediato", "Certificado digital", "Comunidad activa", "Actualizaciones de por vida"]
+        }
+    }
+
+
+# ==================== APIFY/SCRAPING INTEGRATION ====================
+
+@api_router.post("/scraper/run")
+async def run_scraping_job(
+    params: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    """Ejecuta un job de scraping con Apify"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    # Verificar configuración (opcional para modo demo)
+    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]})
+
+    # Crear registro del job
+    job_id = str(uuid.uuid4())
+    job_record = {
+        "id": job_id,
+        "user_id": current_user["user_id"],
+        "tenant_id": tenant_id,
+        "job_id": "",  # Se actualiza con el ID de Apify
+        "actor_id": params.get("actor_id", "apify/linkedin-profile-scraper"),
+        "input_params": params,
+        "status": "running",
+        "total_results": 0,
+        "processed_results": 0,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.apify_jobs.insert_one(job_record)
+
+    # Ejecutar job en background
+    asyncio.create_task(execute_apify_job(job_id, params, settings, current_user))
+
+    return {"job_id": job_id, "status": "running"}
+
+
+@api_router.get("/scraper/jobs/{job_id}")
+async def get_scraping_job_status(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene el estado de un job de scraping"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    job = await db.apify_jobs.find_one({
+        "id": job_id,
+        "tenant_id": tenant_id
+    }, {"_id": 0})
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+
+    return serialize_doc(job)
+
+
+@api_router.get("/scraper/jobs/{job_id}/results")
+async def get_scraping_results(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene los leads extraídos de un job"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    leads = await db.scraped_leads.find({
+        "apify_job_id": job_id,
+        "tenant_id": tenant_id
+    }, {"_id": 0}).sort("potential_score", -1).to_list(100)
+
+    return [serialize_doc(l) for l in leads]
+
+
+@api_router.post("/scraper/leads/{scraped_lead_id}/save")
+async def save_scraped_lead_to_pipeline(
+    scraped_lead_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Guarda un lead extraído al pipeline de leads"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    scraped_lead = await db.scraped_leads.find_one({
+        "id": scraped_lead_id,
+        "tenant_id": tenant_id
+    })
+
+    if not scraped_lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    # Crear lead en pipeline
+    lead_data = {
+        "id": str(uuid.uuid4()),
+        "name": scraped_lead.get("name", "Sin nombre"),
+        "email": scraped_lead.get("email"),
+        "phone": scraped_lead.get("phone", ""),
+        "company": scraped_lead.get("company"),
+        "position": scraped_lead.get("position"),
+        "source": "Scraping - Apify",
+        "status": "nuevo",
+        "priority": "media",
+        "budget_mxn": 0.0,
+        "tenant_id": tenant_id,
+        "created_by": current_user["user_id"],
+        "ai_analysis": scraped_lead.get("ai_analysis"),
+        "intent_score": scraped_lead.get("potential_score", 50),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    await db.leads.insert_one(lead_data)
+
+    # Actualizar scraped_lead
+    await db.scraped_leads.update_one(
+        {"id": scraped_lead_id},
+        {"$set": {"saved_to_pipeline": True, "lead_id": lead_data["id"]}}
+    )
+
+    return {"message": "Lead guardado exitosamente", "lead_id": lead_data["id"]}
+
 
 # ==================== CALENDAR ROUTES ====================
 
@@ -4529,6 +4765,261 @@ async def get_event_assignment(
         "assignment": serialize_doc(assignment) if assignment else None,
         "broker": broker
     }
+
+
+# ==================== APIFY HELPER FUNCTIONS ====================
+
+async def execute_apify_job(job_id: str, params: dict, settings: dict, user: dict):
+    """Ejecuta job de Apify en background (MODO DEMO: usa datos mock)"""
+    # MODO DEMO: Usar datos mock en lugar de Apify real
+    USE_MOCK_SCRAPING = os.environ.get("USE_MOCK_SCRAPING", "true").lower() == "true"
+
+    if USE_MOCK_SCRAPING:
+        # Simular delay de scraping
+        await asyncio.sleep(5)
+
+        # Datos mock de leads
+        mock_leads = generate_mock_leads(params)
+
+        # Procesar cada resultado con IA
+        for lead_data in mock_leads:
+            scraped_lead = {
+                "id": str(uuid.uuid4()),
+                "apify_job_id": job_id,
+                "tenant_id": user["tenant_id"],
+                **lead_data,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+
+            # Análisis IA
+            ai_result = await analyze_scraped_lead(scraped_lead)
+            scraped_lead.update(ai_result)
+
+            await db.scraped_leads.insert_one(scraped_lead)
+
+        # Actualizar job
+        await db.apify_jobs.update_one(
+            {"id": job_id},
+            {"$set": {
+                "status": "completed",
+                "total_results": len(mock_leads),
+                "completed_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        return
+
+    # INTEGRACIÓN REAL CON APIFY (futuro)
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            # Iniciar run
+            headers = {
+                "Authorization": f"Bearer {settings.get('apify_api_token', '')}",
+                "Content-Type": "application/json"
+            }
+
+            response = await client.post(
+                "https://api.apify.com/v2/acts/apify/linkedin-profile-scraper/runs",
+                headers=headers,
+                json={"input": params}
+            )
+
+            if response.status_code != 201:
+                raise Exception(f"Error iniciando job: {response.status_code}")
+
+            run_data = response.json()
+            apify_run_id = run_data["data"]["id"]
+
+            # Actualizar job record
+            await db.apify_jobs.update_one(
+                {"id": job_id},
+                {"$set": {"job_id": apify_run_id}}
+            )
+
+            # Esperar a que termine (polling)
+            max_attempts = 60  # 10 minutos máximo
+            for attempt in range(max_attempts):
+                await asyncio.sleep(10)
+
+                status_response = await client.get(
+                    f"https://api.apify.com/v2/acts/apify/linkedin-profile-scraper/runs/{apify_run_id}",
+                    headers=headers
+                )
+
+                status_data = status_response.json()
+                status = status_data["data"]["status"]
+
+                if status in ["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"]:
+                    break
+
+            # Obtener resultados
+            if status == "SUCCEEDED":
+                dataset_response = await client.get(
+                    f"https://api.apify.com/v2/datasets/default/items",
+                    headers=headers
+                )
+
+                results = dataset_response.json()
+
+                # Procesar cada resultado con IA
+                for item in results.get("items", [])[:50]:  # Max 50 leads
+                    scraped_lead = {
+                        "id": str(uuid.uuid4()),
+                        "apify_job_id": job_id,
+                        "tenant_id": user["tenant_id"],
+                        "name": item.get("fullName"),
+                        "email": item.get("email"),
+                        "phone": item.get("phone"),
+                        "company": item.get("company"),
+                        "position": item.get("jobTitle"),
+                        "profile_url": item.get("url"),
+                        "photo_url": item.get("profilePicture"),
+                        "location": item.get("location"),
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+
+                    # Análisis IA
+                    ai_result = await analyze_scraped_lead(scraped_lead)
+                    scraped_lead.update(ai_result)
+
+                    await db.scraped_leads.insert_one(scraped_lead)
+
+                # Actualizar job
+                await db.apify_jobs.update_one(
+                    {"id": job_id},
+                    {"$set": {
+                        "status": "completed",
+                        "total_results": len(results.get("items", [])),
+                        "completed_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+            else:
+                await db.apify_jobs.update_one(
+                    {"id": job_id},
+                    {"$set": {
+                        "status": "failed",
+                        "error_message": f"Job falló con status: {status}"
+                    }}
+                )
+
+    except Exception as e:
+        await db.apify_jobs.update_one(
+            {"id": job_id},
+            {"$set": {
+                "status": "failed",
+                "error_message": str(e)
+            }}
+        )
+
+
+async def analyze_scraped_lead(lead_data: dict) -> dict:
+    """Analiza un lead extraído con IA"""
+    from ai_service import EMERGENT_AVAILABLE, analyze_lead
+
+    if not EMERGENT_AVAILABLE:
+        return {
+            "potential_score": 50,
+            "potential_reason": "Servicio IA no disponible"
+        }
+
+    # Usar analyze_lead existente
+    analysis = await analyze_lead(lead_data)
+
+    return {
+        "ai_analysis": analysis,
+        "potential_score": analysis.get("intent_score", 50),
+        "potential_reason": analysis.get("next_action", "Sin análisis")
+    }
+
+
+def generate_mock_leads(params: dict) -> list:
+    """Genera leads de prueba para modo demo"""
+    mock_data = [
+        {
+            "name": "Carlos Mendoza",
+            "email": "carlos.mendoza@developer.com",
+            "phone": "+52 998 123 4567",
+            "company": "Tulum Developments",
+            "position": "CEO & Founder",
+            "profile_url": "https://linkedin.com/in/carlos-mendoza",
+            "photo_url": None,
+            "location": "Tulum, Mexico"
+        },
+        {
+            "name": "María González",
+            "email": "maria.gonzalez@realestate.com",
+            "phone": "+52 998 234 5678",
+            "company": "Caribbean Properties",
+            "position": "Real Estate Investor",
+            "profile_url": "https://linkedin.com/in/maria-gonzalez",
+            "photo_url": None,
+            "location": "Cancun, Mexico"
+        },
+        {
+            "name": "Roberto Herrera",
+            "email": "roberto.herrera@investment.com",
+            "phone": "+52 998 345 6789",
+            "company": "Riviera Maya Investments",
+            "position": "Owner",
+            "profile_url": "https://linkedin.com/in/roberto-herrera",
+            "photo_url": None,
+            "location": "Playa del Carmen, Mexico"
+        },
+        {
+            "name": "Ana López",
+            "email": "ana.lopez@construction.com",
+            "phone": "+52 998 456 7890",
+            "company": "Constructora López",
+            "position": "General Manager",
+            "profile_url": "https://linkedin.com/in/ana-lopez",
+            "photo_url": None,
+            "location": "Merida, Mexico"
+        },
+        {
+            "name": "Pedro Sánchez",
+            "email": "pedro.sanchez@hospitality.com",
+            "phone": "+52 998 567 8901",
+            "company": "Hotel Group Tulum",
+            "position": "Director of Operations",
+            "profile_url": "https://linkedin.com/in/pedro-sanchez",
+            "photo_url": None,
+            "location": "Tulum, Mexico"
+        },
+        {
+            "name": "Laura Martínez",
+            "email": "laura.martinez@architecture.com",
+            "phone": "+52 998 678 9012",
+            "company": "ArchiTech Studio",
+            "position": "Principal Architect",
+            "profile_url": "https://linkedin.com/in/laura-martinez",
+            "photo_url": None,
+            "location": "Mexico City, Mexico"
+        },
+        {
+            "name": "Diego Rivera",
+            "email": "diego.rivera@ventures.com",
+            "phone": "+52 998 789 0123",
+            "company": "Riviera Ventures",
+            "position": "Managing Partner",
+            "profile_url": "https://linkedin.com/in/diego-rivera",
+            "photo_url": None,
+            "location": "Playa del Carmen, Mexico"
+        },
+        {
+            "name": "Carmen Castillo",
+            "email": "carmen.castillo@realtors.com",
+            "phone": "+52 998 890 1234",
+            "company": "Premium Realtors",
+            "position": "Top Producer",
+            "profile_url": "https://linkedin.com/in/carmen-castillo",
+            "photo_url": None,
+            "location": "Cancun, Mexico"
+        }
+    ]
+
+    # Retornar entre 3-8 leads aleatorios
+    return random.sample(mock_data, random.randint(3, min(8, len(mock_data))))
 
 
 # Include the router in the main app

@@ -315,7 +315,7 @@ class CalendarEvent(CalendarEventCreate):
 # ==================== INTEGRATION SETTINGS ====================
 
 class IntegrationSettings(BaseModel):
-    """Settings for external integrations (VAPI, Twilio, SendGrid, Google Calendar)"""
+    """Settings for external integrations (VAPI, Twilio, SendGrid, Google Calendar, Apify)"""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     user_id: str
@@ -337,11 +337,14 @@ class IntegrationSettings(BaseModel):
     google_client_secret: Optional[str] = None
     google_tokens: Optional[Dict[str, Any]] = None
     google_calendar_email: Optional[str] = None
+    # Apify Settings
+    apify_api_token: Optional[str] = None
     # Status
     vapi_enabled: bool = False
     twilio_enabled: bool = False
     sendgrid_enabled: bool = False
     google_calendar_enabled: bool = False
+    apify_enabled: bool = False
     updated_at: datetime = Field(default_factory=now_utc)
 
 class IntegrationSettingsUpdate(BaseModel):
@@ -357,6 +360,7 @@ class IntegrationSettingsUpdate(BaseModel):
     sendgrid_sender_name: Optional[str] = None
     google_client_id: Optional[str] = None
     google_client_secret: Optional[str] = None
+    apify_api_token: Optional[str] = None
 
 # ==================== CAMPAIGNS ====================
 
@@ -719,4 +723,94 @@ class CalendarAssignment(BaseModel):
     assigned_to: str  # broker ID
     assignment_type: str  # "manual" or "round_robin"
     assigned_by: str  # user ID who made the assignment
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== PRODUCTS/SERVICES ====================
+
+class ProductServiceType(str, Enum):
+    REAL_ESTATE = "real_estate"
+    SOFTWARE = "software"
+    DIGITAL = "digital"
+    SERVICE = "service"
+
+
+class ProductServiceCreate(BaseModel):
+    """Crear producto/servicio"""
+    title: str
+    description: str
+    product_type: ProductServiceType
+    niche: str  # "Residencial", "Comercial", "VIP", etc.
+    price_mxn: float = 0.0
+    features: List[str] = []
+    is_active: bool = True
+    assigned_campaigns: List[str] = []  # IDs de campañas
+    assigned_brokers: List[str] = []  # IDs de brokers
+
+
+class ProductServiceUpdate(BaseModel):
+    """Actualizar producto/servicio"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    product_type: Optional[ProductServiceType] = None
+    niche: Optional[str] = None
+    price_mxn: Optional[float] = None
+    features: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+    assigned_campaigns: Optional[List[str]] = None
+    assigned_brokers: Optional[List[str]] = None
+
+
+class ProductService(ProductServiceCreate):
+    """Producto/Servicio completo"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== APIFY/SCRAPING ====================
+
+class ApifyJobRecord(BaseModel):
+    """Registro de job de scraping de Apify"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    job_id: str  # ID del job en Apify
+    actor_id: str  # Actor de Apify usado
+    input_params: Dict[str, Any]  # Parámetros de búsqueda
+    status: str  # running, completed, failed, timed_out
+    total_results: int = 0
+    processed_results: int = 0
+    results_url: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    completed_at: Optional[datetime] = None
+
+
+class ScrapedLead(BaseModel):
+    """Lead extraído por scraping"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    apify_job_id: str
+    tenant_id: str
+    # Datos del lead
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    position: Optional[str] = None
+    profile_url: Optional[str] = None
+    photo_url: Optional[str] = None
+    location: Optional[str] = None
+    # Análisis IA
+    ai_analysis: Optional[Dict[str, Any]] = None
+    potential_score: int = 50  # 0-100
+    potential_reason: Optional[str] = None
+    # Estado
+    saved_to_pipeline: bool = False
+    lead_id: Optional[str] = None  # ID si fue guardado en Leads
     created_at: datetime = Field(default_factory=now_utc)

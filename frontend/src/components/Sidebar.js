@@ -19,7 +19,9 @@ import {
   Upload,
   BarChart3,
   Zap,
-  Database
+  Database,
+  Search,
+  Package
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -29,6 +31,8 @@ const individualNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
   { to: '/import', icon: Upload, label: 'Importar Leads' },
+  { to: '/encuentra-leads', icon: Search, label: 'Encuentra Leads' },
+  { to: '/products', icon: Package, label: 'Productos' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
@@ -43,6 +47,8 @@ const agencyNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
   { to: '/import', icon: Upload, label: 'Importar Leads' },
+  { to: '/encuentra-leads', icon: Search, label: 'Encuentra Leads' },
+  { to: '/products', icon: Package, label: 'Productos' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
