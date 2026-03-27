@@ -126,6 +126,8 @@ class LeadCreate(BaseModel):
     name: str
     email: Optional[EmailStr] = None
     phone: str
+    status: Optional[LeadStatus] = None
+    priority: Optional[LeadPriority] = None
     source: str = "web"
     budget_mxn: float = 0.0
     property_interest: Optional[str] = None

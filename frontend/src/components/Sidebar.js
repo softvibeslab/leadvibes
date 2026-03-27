@@ -18,7 +18,8 @@ import {
   Radio,
   Upload,
   BarChart3,
-  Zap
+  Zap,
+  Database
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -31,6 +32,7 @@ const individualNavItems = [
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
+  { to: '/database-chat', icon: Database, label: 'Chat BD' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
@@ -46,6 +48,7 @@ const agencyNavItems = [
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
   { to: '/gamification', icon: Trophy, label: 'Gamificacion' },
+  { to: '/database-chat', icon: Database, label: 'Chat BD' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },

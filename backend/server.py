@@ -39,7 +39,7 @@ from auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_user, require_role
 )
-from ai_service import get_ai_response, analyze_lead, generate_sales_script
+from ai_service import get_ai_response, analyze_lead, generate_sales_script, query_database_with_ai
 from seed_data import (
     SEED_BROKERS, SEED_LEADS, SEED_GAMIFICATION_RULES, SEED_SCRIPTS,
     generate_seed_activities, generate_seed_points
@@ -694,17 +694,23 @@ async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user))
 async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_current_user)):
     """Create new lead"""
     lead_id = str(uuid.uuid4())
+    lead_dict = lead_data.model_dump()
+
+    # Set defaults only if not provided
+    if "status" not in lead_dict or not lead_dict["status"]:
+        lead_dict["status"] = "nuevo"
+    if "priority" not in lead_dict or not lead_dict["priority"]:
+        lead_dict["priority"] = "media"
+
     lead_doc = {
         "id": lead_id,
         "tenant_id": current_user["tenant_id"],
-        **lead_data.model_dump(),
-        "status": "nuevo",
-        "priority": "media",
+        **lead_dict,
         "intent_score": 50,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
-    
+
     await db.leads.insert_one(lead_doc)
     return {"message": "Lead creado exitosamente", "id": lead_id}
 
@@ -1060,10 +1066,60 @@ async def get_chat_history(limit: int = 50, current_user: dict = Depends(get_cur
         {"user_id": current_user["user_id"]},
         {"_id": 0}
     ).sort("created_at", -1).limit(limit).to_list(limit)
-    
+
     # Reverse to get chronological order
     messages.reverse()
     return [serialize_doc(m) for m in messages]
+
+@api_router.post("/database-chat")
+async def database_chat(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Query the database using natural language.
+
+    This endpoint uses AI for Database to convert natural language queries
+    into database queries and return results. Falls back to direct MongoDB
+    queries if AI for Database is unavailable.
+
+    Example queries:
+    - "Show me top 10 leads by budget"
+    - "How many leads in each status?"
+    - "Leads by status"
+    - "How many leads?"
+    """
+    user_id = current_user["user_id"]
+    tenant_id = current_user.get("tenant_id", f"tenant-{user_id[:8]}")
+
+    query = request.get("query", "")
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+
+    # Query with fallback to MongoDB
+    result = await query_database_with_ai(
+        query=query,
+        user_context={
+            "tenant_id": tenant_id,
+            "user_id": user_id
+        },
+        db=db
+    )
+
+    if result.get("success"):
+        return {
+            "success": True,
+            "query": query,
+            "results": result.get("results"),
+            "message": "Consulta ejecutada exitosamente"
+        }
+    else:
+        return {
+            "success": False,
+            "query": query,
+            "error": result.get("error", "Error desconocido"),
+            "message": "No se pudo ejecutar la consulta"
+        }
 
 # ==================== SCRIPTS ROUTES ====================
 

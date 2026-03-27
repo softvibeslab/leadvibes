@@ -18,6 +18,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AutomationsPage } from './pages/AutomationsPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
+import { DatabaseChatPage } from './pages/DatabaseChatPage';
 import { LandingPage } from './pages/LandingPage';
 import { DemoRequestPage } from './pages/DemoRequestPage';
 import './App.css';
@@ -117,6 +118,7 @@ function AppRoutes() {
         <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/scripts" element={<ScriptsPage />} />
+        <Route path="/database-chat" element={<DatabaseChatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 

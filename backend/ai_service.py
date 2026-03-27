@@ -2,12 +2,15 @@ import os
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import logging
+import httpx
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+AIFORDB_API_KEY = os.environ.get("AIFORDB_API_KEY", "")
+AIFORDB_API_URL = "https://app.aifordatabase.com/api/v1/chat"
 
 # Optional import for emergentintegrations
 try:
@@ -274,3 +277,299 @@ El script debe incluir:
     except Exception as e:
         logger.error(f"Script generation error: {e}")
         return "Error al generar el script. Por favor intenta de nuevo."
+
+def parse_natural_language_query(query: str) -> Dict[str, Any]:
+    """
+    Parse natural language query into MongoDB query components.
+
+    Supports common patterns like:
+    - "How many leads?" → count leads
+    - "Top 10 leads by budget" → sort by budget, limit 10
+    - "Leads by status" → group by status
+    - "Show me all leads" → find all
+    """
+    query_lower = query.lower()
+
+    result = {
+        "collection": None,
+        "operation": None,
+        "filters": {},
+        "sort": None,
+        "limit": None,
+        "group_by": None,
+        "aggregate_field": None
+    }
+
+    # Detect collection
+    if "lead" in query_lower or "prospect" in query_lower:
+        result["collection"] = "leads"
+    elif "user" in query_lower or "broker" in query_lower or "agente" in query_lower:
+        result["collection"] = "users"
+    elif "venta" in query_lower or "sale" in query_lower:
+        result["collection"] = "activities"  # Sales are activities
+    elif "campaign" in query_lower or "campaña" in query_lower:
+        result["collection"] = "campaigns"
+    else:
+        result["collection"] = "leads"  # Default
+
+    # Detect operation
+    if any(word in query_lower for word in ["how many", "cuántos", "cuantas", "count", "conteo", "total"]):
+        result["operation"] = "count"
+    elif any(word in query_lower for word in ["top", "mejores", "mayores", "highest"]):
+        result["operation"] = "find"
+        # Detect sort field and limit
+        if "budget" in query_lower or "presupuesto" in query_lower:
+            result["sort"] = [("budget_mxn", -1)]
+            result["aggregate_field"] = "budget_mxn"
+        elif "revenue" in query_lower or "revenue" in query_lower or "valor" in query_lower:
+            result["sort"] = [("budget_mxn", -1)]
+            result["aggregate_field"] = "budget_mxn"
+        elif "points" in query_lower or "puntos" in query_lower:
+            result["sort"] = [("points", -1)]
+            result["aggregate_field"] = "points"
+
+        # Extract limit number
+        import re
+        numbers = re.findall(r'\b\d+\b', query)
+        if numbers:
+            result["limit"] = int(numbers[0])
+        else:
+            result["limit"] = 10  # Default
+    elif any(word in query_lower for word in ["group by", "por estado", "por status", "by status", "by source"]):
+        result["operation"] = "aggregate"
+        if "status" in query_lower or "estado" in query_lower:
+            result["group_by"] = "$status"
+        elif "source" in query_lower or "fuente" in query_lower:
+            result["group_by"] = "$source"
+        elif "priority" in query_lower or "prioridad" in query_lower:
+            result["group_by"] = "$priority"
+    else:
+        result["operation"] = "find"
+
+    # Detect status filters
+    if "nuevo" in query_lower or "new" in query_lower:
+        result["filters"]["status"] = "nuevo"
+    elif "contactado" in query_lower or "contacted" in query_lower:
+        result["filters"]["status"] = "contactado"
+    elif "calificacion" in query_lower or "qualification" in query_lower:
+        result["filters"]["status"] = "calificacion"
+    elif "apartado" in query_lower or "reserved" in query_lower:
+        result["filters"]["status"] = "apartado"
+    elif "venta" in query_lower and "perdido" not in query_lower or "sold" in query_lower:
+        result["filters"]["status"] = "venta"
+    elif "perdido" in query_lower or "lost" in query_lower:
+        result["filters"]["status"] = "perdido"
+
+    # Priority filters
+    if "alta" in query_lower or "high" in query_lower:
+        result["filters"]["priority"] = "alta"
+    elif "media" in query_lower or "medium" in query_lower:
+        result["filters"]["priority"] = "media"
+    elif "baja" in query_lower or "low" in query_lower:
+        result["filters"]["priority"] = "baja"
+
+    # Source filters
+    if "instagram" in query_lower:
+        result["filters"]["source"] = "Instagram"
+    elif "facebook" in query_lower or "meta" in query_lower:
+        result["filters"]["source"] = "Facebook"
+    elif "website" in query_lower or "web" in query_lower:
+        result["filters"]["source"] = "Website"
+    elif "referral" in query_lower or "referido" in query_lower:
+        result["filters"]["source"] = "Referral"
+    elif "whatsapp" in query_lower or "whats" in query_lower:
+        result["filters"]["source"] = "WhatsApp"
+    elif "tiktok" in query_lower:
+        result["filters"]["source"] = "TikTok"
+
+    return result
+
+
+async def execute_mongodb_query(
+    db,
+    parsed_query: Dict[str, Any],
+    tenant_id: str
+) -> Dict[str, Any]:
+    """
+    Execute parsed query on MongoDB.
+    """
+    collection_name = parsed_query["collection"]
+    operation = parsed_query["operation"]
+
+    # Always filter by tenant_id
+    filters = parsed_query["filters"].copy()
+    filters["tenant_id"] = tenant_id
+
+    try:
+        collection = db[collection_name]
+
+        if operation == "count":
+            count = await collection.count_documents(filters)
+            return {
+                "success": True,
+                "results": {
+                    "count": count,
+                    "collection": collection_name,
+                    "description": f"Total de {collection_name}"
+                },
+                "query_type": "fallback_count"
+            }
+
+        elif operation == "find":
+            cursor = collection.find(filters)
+
+            if parsed_query.get("sort"):
+                cursor = cursor.sort(parsed_query["sort"])
+
+            if parsed_query.get("limit"):
+                cursor = cursor.limit(parsed_query["limit"])
+
+            results = await cursor.to_list(parsed_query.get("limit", 100))
+
+            # Remove _id from results
+            for doc in results:
+                doc.pop("_id", None)
+
+            return {
+                "success": True,
+                "results": results,
+                "query_type": "fallback_find",
+                "count": len(results)
+            }
+
+        elif operation == "aggregate":
+            pipeline = [
+                {"$match": filters},
+                {"$group": {
+                    "_id": parsed_query["group_by"],
+                    "count": {"$sum": 1}
+                }},
+                {"$sort": {"count": -1}}
+            ]
+
+            results = await collection.aggregate(pipeline).to_list(100)
+
+            # Format results
+            formatted_results = [
+                {
+                    "group": result["_id"] if result["_id"] else "N/A",
+                    "count": result["count"]
+                }
+                for result in results
+            ]
+
+            return {
+                "success": True,
+                "results": formatted_results,
+                "query_type": "fallback_aggregate",
+                "description": f"{collection_name} agrupados por campo"
+            }
+
+        else:
+            # Default: find all
+            cursor = collection.find(filters).limit(50)
+            results = await cursor.to_list(50)
+            for doc in results:
+                doc.pop("_id", None)
+
+            return {
+                "success": True,
+                "results": results,
+                "query_type": "fallback_find_all",
+                "count": len(results)
+            }
+
+    except Exception as e:
+        logger.error(f"MongoDB query error: {e}")
+        return {
+            "success": False,
+            "error": f"Error executing query: {str(e)}",
+            "results": None
+        }
+
+
+async def query_database_with_ai(
+    query: str,
+    user_context: Optional[Dict[str, Any]] = None,
+    db=None
+) -> Dict[str, Any]:
+    """
+    Query the database using AI for Database service with MongoDB fallback.
+
+    This service first tries to use AI for Database. If that fails (402, timeout, etc),
+    it falls back to parsing the natural language query and executing it directly on MongoDB.
+
+    Args:
+        query: Natural language query (e.g., "Show me top 10 leads by budget")
+        user_context: Optional context about the user (tenant_id, filters, etc.)
+        db: MongoDB database instance (required for fallback)
+
+    Returns:
+        Dict with query results or error message
+    """
+    tenant_id = user_context.get("tenant_id") if user_context else None
+
+    # Try AI for Database first
+    if AIFORDB_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                payload = {"message": query}
+
+                if user_context and tenant_id:
+                    payload["context"] = {"tenant_id": tenant_id}
+
+                response = await client.post(
+                    AIFORDB_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {AIFORDB_API_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    return {
+                        "success": True,
+                        "results": data.get("results", data),
+                        "query": query,
+                        "source": "aifordatabase"
+                    }
+                else:
+                    logger.warning(f"AI for Database returned {response.status_code}, using fallback")
+
+        except httpx.TimeoutException:
+            logger.warning("AI for Database timed out, using fallback")
+        except Exception as e:
+            logger.warning(f"AI for Database error: {e}, using fallback")
+
+    # Fallback to direct MongoDB queries
+    if db is not None and tenant_id:
+        logger.info(f"Using fallback MongoDB query for: {query}")
+
+        parsed = parse_natural_language_query(query)
+        result = await execute_mongodb_query(db, parsed, tenant_id)
+
+        if result.get("success"):
+            result["source"] = "mongodb_fallback"
+            result["query"] = query
+            return result
+        else:
+            return {
+                "success": False,
+                "error": result.get("error", "Query failed"),
+                "query": query,
+                "message": "No se pudo ejecutar la consulta. Intenta ser más específico.",
+                "suggestions": [
+                    "How many leads?",
+                    "Top 10 leads by budget",
+                    "Leads by status",
+                    "Show me all leads"
+                ]
+            }
+    else:
+        return {
+            "success": False,
+            "error": "Database not available for fallback",
+            "query": query
+        }

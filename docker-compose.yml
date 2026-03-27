@@ -12,7 +12,7 @@ services:
       - mongodb_data:/data/db
       - ./mongodb-init:/docker-entrypoint-initdb.d
     ports:
-      - "27017:27017"
+      - "27018:27017"
     networks:
       - rovi-network
     healthcheck:
@@ -40,6 +40,7 @@ services:
 
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
+      AIFORDB_API_KEY: ${AIFORDB_API_KEY}
 
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
@@ -51,7 +52,7 @@ services:
       - ./backend:/app
       - backend_uploads:/app/uploads
     ports:
-      - "8000:8000"
+      - "8100:8000"
     depends_on:
       mongodb:
         condition: service_healthy
