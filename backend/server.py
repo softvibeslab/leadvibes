@@ -12,6 +12,7 @@ import random
 import csv
 import io
 import asyncio
+import math
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse,
@@ -43,6 +44,11 @@ from auth import (
     get_current_user, require_role
 )
 from ai_service import get_ai_response, analyze_lead, generate_sales_script, query_database_with_ai
+from module_tracker import (
+    CRM_MODULES, MVP_CONFIG, MVPTier, WEEKLY_PLAN,
+    get_modules_for_tier, get_module_info, get_completion_percentage,
+    get_next_modules, get_weekly_plan_summary, ModuleStatus
+)
 from seed_data import (
     SEED_BROKERS, SEED_LEADS, SEED_GAMIFICATION_RULES, SEED_SCRIPTS,
     generate_seed_activities, generate_seed_points
@@ -5020,6 +5026,197 @@ def generate_mock_leads(params: dict) -> list:
 
     # Retornar entre 3-8 leads aleatorios
     return random.sample(mock_data, random.randint(3, min(8, len(mock_data))))
+
+
+# ==================== MODULE TRACKER ====================
+
+@api_router.get("/modules")
+async def get_all_modules(current_user: dict = Depends(get_current_user)):
+    """Get all modules with their status"""
+    return {"modules": CRM_MODULES}
+
+
+@api_router.get("/modules/{module_id}")
+async def get_module_details(module_id: str, current_user: dict = Depends(get_current_user)):
+    """Get details of a specific module"""
+    module = CRM_MODULES.get(module_id)
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found")
+    return module
+
+
+@api_router.get("/mvp/config")
+async def get_mvp_config(current_user: dict = Depends(get_current_user)):
+    """Get all MVP tier configurations"""
+    return {"tiers": MVP_CONFIG}
+
+
+@api_router.get("/mvp/tier/{tier}")
+async def get_mvp_tier(tier: str, current_user: dict = Depends(get_current_user)):
+    """Get MVP configuration for a specific tier"""
+    try:
+        tier_enum = MVPTier(tier)
+        modules = get_modules_for_tier(tier_enum)
+        completion = get_completion_percentage(modules)
+
+        return {
+            "tier": tier,
+            "config": MVP_CONFIG[tier_enum],
+            "modules": modules,
+            "completion_percentage": completion,
+            "module_details": [CRM_MODULES.get(m) for m in modules if m in CRM_MODULES]
+        }
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid tier: {tier}")
+
+
+@api_router.get("/mvp/recommended")
+async def get_recommended_mvp(current_user: dict = Depends(get_current_user)):
+    """Get recommended MVP tier based on user account type"""
+    account_type = current_user.get("account_type", "individual")
+
+    if account_type == "individual":
+        # Recommending STANDARD for individuals
+        tier = MVPTier.STANDARD
+    else:
+        # Recommending PROFESSIONAL for agencies
+        tier = MVPTier.PROFESSIONAL
+
+    return {
+        "recommended_tier": tier.value,
+        "reason": f"Based on your {account_type} account type",
+        "config": MVP_CONFIG[tier]
+    }
+
+
+@api_router.get("/roadmap")
+async def get_implementation_roadmap(current_user: dict = Depends(get_current_user)):
+    """Get the 4-week implementation plan"""
+    return WEEKLY_PLAN
+
+
+@api_router.get("/roadmap/summary")
+async def get_roadmap_summary(current_user: dict = Depends(get_current_user)):
+    """Get summary of the implementation roadmap"""
+    return get_weekly_plan_summary()
+
+
+@api_router.post("/mvp/calculate")
+async def calculate_mvp(
+    requirements: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Calculate recommended MVP tier based on client requirements
+
+    Request body:
+    {
+        "team_size": int,  // Number of brokers
+        "leads_per_month": int,
+        "need_campaigns": bool,
+        "need_automation": bool,
+        "budget": int  // Monthly budget in MXN
+    }
+    """
+    team_size = requirements.get("team_size", 1)
+    need_campaigns = requirements.get("need_campaigns", False)
+    need_automation = requirements.get("need_automation", False)
+
+    # Determine tier based on requirements
+    if team_size == 1 and not need_campaigns:
+        tier = MVPTier.ESSENTIAL
+    elif team_size == 1 and need_campaigns and not need_automation:
+        tier = MVPTier.STANDARD
+    elif team_size <= 5 and not need_automation:
+        tier = MVPTier.PROFESSIONAL
+    else:
+        tier = MVPTier.ENTERPRISE
+
+    modules = get_modules_for_tier(tier)
+    completion = get_completion_percentage(modules)
+
+    return {
+        "recommended_tier": tier.value,
+        "tier_config": MVP_CONFIG[tier],
+        "modules": modules,
+        "completion_percentage": completion,
+        "estimated_hours_remaining": int(
+            MVP_CONFIG[tier]["estimated_hours"] * (1 - completion / 100)
+        ),
+        "estimated_weeks": math.ceil(
+            (MVP_CONFIG[tier]["estimated_hours"] * (1 - completion / 100)) / 40
+        )
+    }
+
+
+@api_router.get("/modules/next")
+async def get_next_modules_to_implement(
+    tier: str = "standard",
+    current_user: dict = Depends(get_current_user)
+):
+    """Get next recommended modules to implement"""
+    try:
+        tier_enum = MVPTier(tier)
+
+        # Get completed modules (those with 100% completion)
+        completed = [
+            m for m in CRM_MODULES.keys()
+            if CRM_MODULES[m].get("completion", 0) >= 90
+        ]
+
+        next_modules = get_next_modules(tier_enum, completed)
+
+        return {
+            "tier": tier,
+            "completed_modules": completed,
+            "next_modules": next_modules,
+            "module_details": [CRM_MODULES.get(m) for m in next_modules]
+        }
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid tier: {tier}")
+
+
+@api_router.get("/status/production")
+async def get_production_readiness(current_user: dict = Depends(get_current_user)):
+    """Check if the system is ready for production"""
+    # Check essential modules
+    essential_modules = [
+        "auth", "dashboard", "leads_pipeline",
+        "settings", "landing_page"
+    ]
+
+    all_ready = all(
+        CRM_MODULES.get(m, {}).get("completion", 0) >= 90
+        for m in essential_modules
+    )
+
+    # Calculate overall completion
+    overall_completion = get_completion_percentage(essential_modules)
+
+    # Find blockers
+    blockers = [
+        m for m in essential_modules
+        if CRM_MODULES.get(m, {}).get("completion", 0) < 90
+    ]
+
+    return {
+        "ready_for_production": all_ready,
+        "overall_completion": overall_completion,
+        "essential_modules_status": {
+            m: CRM_MODULES.get(m, {}).get("completion", 0)
+            for m in essential_modules
+        },
+        "blockers": blockers,
+        "recommendations": [
+            f"Complete {m} module" for m in blockers
+        ] if blockers else ["System ready for MVP launch"],
+        "estimated_days_to_launch": math.ceil(
+            sum(
+                CRM_MODULES.get(m, {}).get("estimated_hours", 0) * (1 - CRM_MODULES.get(m, {}).get("completion", 0) / 100)
+                for m in blockers
+            ) / 8
+        ) if blockers else 0
+    }
 
 
 # Include the router in the main app

@@ -21,7 +21,8 @@ import {
   Zap,
   Database,
   Search,
-  Package
+  Package,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -39,6 +40,7 @@ const individualNavItems = [
   { to: '/database-chat', icon: Database, label: 'Chat BD' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
+  { to: '/module-tracker', icon: BarChart3, label: 'Tracker' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
@@ -57,6 +59,7 @@ const agencyNavItems = [
   { to: '/database-chat', icon: Database, label: 'Chat BD' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
+  { to: '/module-tracker', icon: BarChart3, label: 'Tracker' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
