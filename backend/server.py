@@ -13,9 +13,10 @@ import csv
 import io
 import asyncio
 import math
+import jwt
 
 from models import (
-    User, UserCreate, UserLogin, UserResponse, TokenResponse,
+    User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest,
     Goal, GoalCreate,
     AIProfile, AIProfileCreate, AIProfileUpdate,
     Lead, LeadCreate, LeadUpdate, LeadStatus, LeadPriority,
@@ -40,8 +41,8 @@ from models import (
     ApifyJobRecord, ScrapedLead
 )
 from auth import (
-    get_password_hash, verify_password, create_access_token,
-    get_current_user, require_role
+    get_password_hash, verify_password, create_access_token, create_refresh_token,
+    get_current_user, require_role, get_refresh_token_user, JWT_EXPIRATION_MINUTES
 )
 from ai_service import get_ai_response, analyze_lead, generate_sales_script, query_database_with_ai
 from module_tracker import (
@@ -171,7 +172,7 @@ async def register(user_data: UserCreate):
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin):
-    """Login user"""
+    """Login user with access and refresh tokens"""
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
@@ -179,7 +180,8 @@ async def login(credentials: UserLogin):
     if not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
     
-    token = create_access_token({
+    # Create access token (15 min)
+    access_token = create_access_token({
         "sub": user["id"],
         "tenant_id": user["tenant_id"],
         "email": user["email"],
@@ -187,8 +189,32 @@ async def login(credentials: UserLogin):
         "name": user["name"]
     })
     
+    # Create refresh token (7 days)
+    token_jti, refresh_token = create_refresh_token({
+        "sub": user["id"],
+        "tenant_id": user["tenant_id"]
+    })
+    
+    # Store refresh token in database
+    await db.refresh_tokens.update_one(
+        {"jti": token_jti},
+        {"$set": {
+            "jti": token_jti,
+            "user_id": user["id"],
+            "tenant_id": user["tenant_id"],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+            "revoked": False,
+            "used": False
+        }},
+        upsert=True
+    )
+    
     return TokenResponse(
-        access_token=token,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=JWT_EXPIRATION_MINUTES * 60,  # Seconds
         user=UserResponse(
             id=user["id"],
             email=user["email"],
@@ -229,6 +255,188 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     }
 
     return response_data
+
+
+# ==================== REFRESH TOKEN ENDPOINTS ====================
+
+@api_router.post("/auth/refresh", response_model=TokenResponse)
+async def refresh_token(request: RefreshTokenRequest):
+    """
+    Refresh access token using refresh token.
+    Implements refresh token rotation: old token is marked as used, new one is created.
+    """
+    try:
+        # Decode refresh token
+        payload = jwt.decode(
+            request.refresh_token, 
+            os.environ['JWT_SECRET'], 
+            algorithms=[os.environ.get("JWT_ALGORITHM", "HS256")]
+        )
+        
+        token_type = payload.get("type")
+        token_jti = payload.get("jti")
+        
+        if token_type != "refresh" or not token_jti:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token inválido"
+            )
+        
+        # Validate refresh token in database and get user
+        user_info = await get_refresh_token_user(db, token_jti)
+        
+        # Mark old refresh token as used (token rotation)
+        await db.refresh_tokens.update_one(
+            {"jti": token_jti},
+            {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        # Create new access token
+        new_access_token = create_access_token({
+            "sub": user_info["user_id"],
+            "tenant_id": user_info["tenant_id"],
+            "email": user_info["email"],
+            "role": user_info["role"],
+            "name": user_info["name"]
+        })
+        
+        # Create new refresh token (rotation)
+        new_jti, new_refresh_token = create_refresh_token({
+            "sub": user_info["user_id"],
+            "tenant_id": user_info["tenant_id"]
+        })
+        
+        # Store new refresh token
+        await db.refresh_tokens.update_one(
+            {"jti": new_jti},
+            {"$set": {
+                "jti": new_jti,
+                "user_id": user_info["user_id"],
+                "tenant_id": user_info["tenant_id"],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+                "revoked": False,
+                "used": False
+            }},
+            upsert=True
+        )
+        
+        # Get full user info
+        user = await db.users.find_one({"id": user_info["user_id"]}, {"_id": 0})
+        
+        return TokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            expires_in=JWT_EXPIRATION_MINUTES * 60,
+            user=UserResponse(
+                id=user["id"],
+                email=user["email"],
+                name=user["name"],
+                role=user["role"],
+                avatar_url=user.get("avatar_url"),
+                phone=user.get("phone"),
+                is_active=user["is_active"],
+                onboarding_completed=user.get("onboarding_completed", False),
+                account_type=user.get("account_type", "individual")
+            )
+        )
+        
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido o expirado"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al refrescar token"
+        )
+
+
+@api_router.post("/auth/logout")
+async def logout(request: RefreshTokenRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Logout user by revoking the refresh token.
+    Access token will expire naturally after 15 minutes.
+    """
+    try:
+        # Decode token to get jti
+        payload = jwt.decode(
+            request.refresh_token,
+            os.environ['JWT_SECRET'],
+            algorithms=[os.environ.get("JWT_ALGORITHM", "HS256")]
+        )
+        
+        token_jti = payload.get("jti")
+        if not token_jti:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido"
+            )
+        
+        # Mark refresh token as revoked
+        result = await db.refresh_tokens.update_one(
+            {"jti": token_jti, "user_id": current_user["user_id"]},
+            {"$set": {
+                "revoked": True,
+                "revoked_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Refresh token no encontrado"
+            )
+        
+        return {"message": "Logout exitoso"}
+        
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during logout: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al hacer logout"
+        )
+
+
+@api_router.post("/auth/logout-all")
+async def logout_all(current_user: dict = Depends(get_current_user)):
+    """
+    Logout from all devices by revoking all refresh tokens for this user.
+    """
+    try:
+        # Revoke all refresh tokens for this user
+        result = await db.refresh_tokens.update_many(
+            {"user_id": current_user["user_id"], "revoked": False},
+            {"$set": {
+                "revoked": True,
+                "revoked_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        return {
+            "message": "Logout exitoso en todos los dispositivos",
+            "tokens_revoked": result.matched_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error during logout-all: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al hacer logout en todos los dispositivos"
+        )
+
 
 # ==================== GOALS/ONBOARDING ROUTES ====================
 

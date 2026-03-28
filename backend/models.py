@@ -273,8 +273,14 @@ class DashboardStats(BaseModel):
 # Token Response
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
+    expires_in: Optional[int] = None  # Seconds until access token expires
     user: UserResponse
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 # Calendar Event Models
 class CalendarEventCreate(BaseModel):
