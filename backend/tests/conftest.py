@@ -6,6 +6,14 @@ Los tests marcados @pytest.mark.integration usan `requests` contra una API remot
 """
 
 import os
+import sys
+from pathlib import Path
+
+# Fuerza el root de backend en sys.path para que imports como `from auth import ...`
+# funcionen igual en local y en CI durante la colección de tests.
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 # Valores seguros solo para tests locales/CI (sin Mongo real obligatorio para smoke)
 os.environ.setdefault("MONGO_URL", "mongodb://127.0.0.1:27017")
