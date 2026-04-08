@@ -1,39 +1,32 @@
-# Multi-stage build for React frontend
+# Multi-stage build for React frontend (yarn.lock en el repo)
 
-# Stage 1: Build the React application
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copiar package files
-COPY package*.json ./
+RUN apk add --no-cache yarn
 
-# Instalar dependencias
-RUN npm ci
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 
-# Copiar código
 COPY . .
 
-# Build arguments
-ARG REACT_APP_BACKEND_URL
-ARG REACT_APP_ENVIRONMENT
+ARG REACT_APP_BACKEND_URL=
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+ARG REACT_APP_ENVIRONMENT=
+ENV REACT_APP_ENVIRONMENT=$REACT_APP_ENVIRONMENT
 
-# Build
-RUN npm run build
+RUN yarn build
 
-# Production stage
 FROM nginx:alpine
 
-# Copy build from previous stage
-COPY --from=build /app/build /usr/share/nginx/html
+RUN apk add --no-cache curl
 
-# Copy nginx config
+COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Exponer puertos
 EXPOSE 80 443
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost/ || exit 1
 

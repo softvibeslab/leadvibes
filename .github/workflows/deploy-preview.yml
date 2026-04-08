@@ -30,12 +30,10 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
-      - name: Run backend tests
+      - name: Run backend tests (unit + smoke, sin integration)
         working-directory: ./backend
-        env:
-          REACT_APP_BACKEND_URL: http://localhost:8000
         run: |
-          pytest tests/ -v --tb=short || echo "Tests completed with status: $?"
+          pytest tests/ -v --tb=short -m "not integration"
 
   build:
     name: Build Preview Images

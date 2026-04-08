@@ -12,7 +12,7 @@ services:
       - mongodb_data:/data/db
       - ./mongodb-init:/docker-entrypoint-initdb.d
     ports:
-      - "27017:27017"
+      - "${MONGO_HOST_PORT:-27017}:27017"
     networks:
       - rovi-network
     healthcheck:
@@ -50,7 +50,7 @@ services:
     volumes:
       - backend_uploads:/app/uploads
     ports:
-      - "8000:8000"
+      - "${BACKEND_HOST_PORT:-8000}:8000"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -71,7 +71,7 @@ services:
     container_name: rovi-frontend
     restart: always
     ports:
-      - "3000:80"
+      - "${FRONTEND_HOST_PORT:-3000}:80"
     depends_on:
       backend:
         condition: service_healthy

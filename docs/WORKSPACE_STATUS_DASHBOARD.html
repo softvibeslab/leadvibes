@@ -1,0 +1,2361 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leadvibes Workspace Status Dashboard</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0d1727;
+      --panel: rgba(10, 20, 34, 0.88);
+      --card: rgba(14, 28, 46, 0.92);
+      --border: rgba(154, 173, 194, 0.18);
+      --text: #eef4ff;
+      --muted: #9aaec7;
+      --accent: #56d0ff;
+      --accent-2: #7ff0b8;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+      --operational: #1fce85;
+      --partial: #f4b65f;
+      --demo: #7ea8ff;
+      --planned: #c48cff;
+      --documented: #73d3c5;
+      --critical: #ff7b7b;
+      --chip-bg: rgba(255, 255, 255, 0.04);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(86, 208, 255, 0.18), transparent 24rem),
+        radial-gradient(circle at top right, rgba(127, 240, 184, 0.14), transparent 22rem),
+        linear-gradient(180deg, #07111f 0%, #050b14 100%);
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1600px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .hero {
+      background: linear-gradient(145deg, rgba(12, 25, 42, 0.95), rgba(9, 18, 31, 0.92));
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -120px auto;
+      width: 280px;
+      height: 280px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(126, 168, 255, 0.16), transparent 70%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(86, 208, 255, 0.08);
+      border: 1px solid rgba(86, 208, 255, 0.18);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 18px 0 10px;
+      font-size: clamp(32px, 4vw, 48px);
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 960px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .meta-line {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend,
+    .metrics,
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .metrics {
+      margin-top: 22px;
+    }
+
+    .metric-card {
+      flex: 1 1 180px;
+      min-width: 180px;
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .metric-value {
+      display: block;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .metric-label {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend {
+      margin-top: 18px;
+    }
+
+    .chip,
+    .filter-chip,
+    .folder-chip,
+    .mini-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: var(--chip-bg);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1;
+      text-decoration: none;
+    }
+
+    .mini-chip {
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+
+    .filter-chip {
+      cursor: pointer;
+      border-color: rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .filter-chip.active {
+      border-color: rgba(86, 208, 255, 0.35);
+      background: rgba(86, 208, 255, 0.12);
+      color: var(--text);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 10px;
+    }
+
+    .dot-operational,
+    .badge-operational { background: var(--operational); }
+    .dot-partial,
+    .badge-partial { background: var(--partial); }
+    .dot-demo,
+    .badge-demo { background: var(--demo); }
+    .dot-planned,
+    .badge-planned { background: var(--planned); }
+    .dot-documented,
+    .badge-documented { background: var(--documented); }
+
+    .status-label {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .panel {
+      margin-top: 24px;
+      padding: 24px;
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-head p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 820px;
+      line-height: 1.5;
+    }
+
+    .workstreams {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .workstream-card,
+    .flow-card,
+    .detail-card,
+    .risk-card {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--card);
+    }
+
+    .workstream-card {
+      padding: 18px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .card-top h3,
+    .flow-title,
+    .detail-card h3,
+    .risk-card h3 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+    }
+
+    .workstream-card p,
+    .flow-summary,
+    .detail-card p,
+    .risk-card p,
+    .note-list li,
+    .evidence-list li {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .metric-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .metric-inline .mini-chip {
+      color: var(--muted);
+    }
+
+    .folder-row,
+    .note-list,
+    .evidence-list,
+    .link-list,
+    .code-list,
+    .routes-list,
+    .api-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .folder-chip,
+    .code-list li,
+    .routes-list li,
+    .api-list li {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      color: #d5e6ff;
+      background: rgba(126, 168, 255, 0.08);
+      border-color: rgba(126, 168, 255, 0.16);
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 360px) 1fr;
+      gap: 14px 18px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .toolbar input {
+      width: 100%;
+      min-height: 48px;
+      padding: 0 14px;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.05);
+      outline: none;
+    }
+
+    .toolbar input:focus {
+      border-color: rgba(86, 208, 255, 0.35);
+      box-shadow: 0 0 0 3px rgba(86, 208, 255, 0.12);
+    }
+
+    .toolbar-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .explorer-grid {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.95fr) minmax(340px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .flow-column {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .flow-card {
+      padding: 16px;
+    }
+
+    .flow-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .flow-meta {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .entry-list {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .entry-button,
+    .flow-select {
+      width: 100%;
+      padding: 14px 16px;
+      text-align: left;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    .flow-select {
+      margin-top: 12px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .entry-button:hover,
+    .flow-select:hover,
+    .entry-button.active,
+    .flow-select.active {
+      transform: translateY(-1px);
+      border-color: rgba(86, 208, 255, 0.28);
+      background: rgba(86, 208, 255, 0.09);
+    }
+
+    .entry-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .entry-meta {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .detail-card {
+      padding: 20px;
+      position: sticky;
+      top: 20px;
+    }
+
+    .detail-card .detail-label {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .detail-card h3 {
+      font-size: 28px;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .detail-block {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .detail-block h4 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .detail-block ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .detail-block li + li {
+      margin-top: 8px;
+    }
+
+    .ref-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ref-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .ref-link span:last-child {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .gallery a {
+      display: block;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .gallery img {
+      display: block;
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+      background: #050b14;
+    }
+
+    .gallery figcaption {
+      padding: 10px 12px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .risk-card {
+      padding: 18px;
+    }
+
+    .risk-level {
+      display: inline-flex;
+      margin-bottom: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .risk-high { background: rgba(255, 123, 123, 0.85); }
+    .risk-medium { background: rgba(244, 182, 95, 0.85); color: #101520; }
+    .risk-low { background: rgba(115, 211, 197, 0.85); color: #0d1828; }
+
+    .empty-state {
+      padding: 24px;
+      border-radius: var(--radius-lg);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 1180px) {
+      .toolbar,
+      .explorer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-card {
+        position: static;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100vw - 20px, 100%);
+        padding-top: 20px;
+      }
+
+      .hero,
+      .panel {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .hero h1 {
+        font-size: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">Leadvibes Workspace Audit</div>
+      <h1>Dashboard de desarrollos, flujos y pantallas</h1>
+      <p>
+        Mapa navegable del repo para entender que productos tienes, donde viven, que tan conectados
+        estan hoy y donde siguen siendo demo, backlog o soporte documental.
+      </p>
+      <div class="meta-line">
+        Corte: 2026-04-07. Fuente: codigo local, docs existentes, specs `draft`, rutas React, endpoints FastAPI y assets Stitch exportados.
+      </div>
+      <div class="metrics" id="metricGrid"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Desarrollos Identificados</h2>
+          <p>
+            Cada tarjeta resume estado, carpetas y lectura operativa del desarrollo. El objetivo no es
+            solo listar carpetas, sino explicar si el modulo esta vivo, parcial o mayormente documental.
+          </p>
+        </div>
+      </div>
+      <div class="workstreams" id="workstreamGrid"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Explorador de Flujos</h2>
+          <p>
+            Filtra por area y estado. Puedes abrir un flujo completo o bajar al nivel de pantalla,
+            subflujo o dominio backend para ver rutas, endpoints, archivos y notas de estatus.
+          </p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input id="searchInput" type="search" placeholder="Buscar por desarrollo, flujo, pantalla, endpoint o carpeta">
+        <div class="toolbar-stack">
+          <div class="filters" id="statusFilters"></div>
+          <div class="filters" id="areaFilters"></div>
+        </div>
+      </div>
+
+      <div class="explorer-grid">
+        <div class="flow-column" id="flowColumn"></div>
+        <div id="detailPane"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Riesgos y brechas detectadas</h2>
+          <p>
+            Estos puntos no bloquean todo el repo, pero si cambian la lectura de estatus para varios
+            flujos. Conviene usarlos como backlog tecnico o como advertencias de operacion.
+          </p>
+        </div>
+      </div>
+      <div class="risk-grid" id="riskGrid"></div>
+    </section>
+  </div>
+
+  <script>
+    const data = {
+      summary: {
+        routes: 19,
+        webPages: 16,
+        backendEndpoints: 101,
+        pocketScreens: 6,
+        specs: 12,
+        backendTests: 6,
+        workflows: 3
+      },
+      statuses: {
+        operational: { label: "Operativo", dotClass: "dot-operational", badgeClass: "badge-operational" },
+        partial: { label: "Operativo con brechas", dotClass: "dot-partial", badgeClass: "badge-partial" },
+        demo: { label: "Demo navegable", dotClass: "dot-demo", badgeClass: "badge-demo" },
+        planned: { label: "Planeado", dotClass: "dot-planned", badgeClass: "badge-planned" },
+        documented: { label: "Documentado", dotClass: "dot-documented", badgeClass: "badge-documented" }
+      },
+      workstreams: [
+        {
+          id: "backend",
+          title: "Backend FastAPI",
+          status: "operational",
+          area: "Backend",
+          summary: "Core CRM monolitico con auth, leads, dashboard, calendario, campanas, analytics, importacion y automatizaciones sobre FastAPI + MongoDB.",
+          folders: ["backend/", "backend/tests/", "mongodb-init/"],
+          metrics: ["101 endpoints", "6 archivos de test", "1 server central"],
+          evidence: [
+            "server.py concentra dominios de negocio, integraciones y endpoints protegidos/publicos.",
+            "Los tests smoke y unitarios ya corren localmente; las integraciones siguen separadas por marker."
+          ],
+          flows: [
+            {
+              id: "backend-identity",
+              title: "Identidad y onboarding",
+              status: "operational",
+              summary: "Auth, goals y AI profile ya existen como dominio real del CRM.",
+              notes: [
+                "Registro, login y perfil usan JWT y tenancy derivada por usuario.",
+                "El onboarding web ademas hace seed de datos demo para arrancar rapido."
+              ],
+              entries: [
+                {
+                  id: "backend-auth",
+                  type: "dominio",
+                  title: "Auth API",
+                  status: "operational",
+                  summary: "Alta, login y lectura de usuario autenticado.",
+                  apis: ["POST /api/auth/register", "POST /api/auth/login", "GET /api/auth/me"],
+                  notes: [
+                    "Usado por web CRM y por Pocket en modo live.",
+                    "El token se construye con `sub`, `tenant_id`, `email`, `role` y `name`."
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "backend/auth.py", href: "../backend/auth.py" }
+                  ]
+                },
+                {
+                  id: "backend-onboarding",
+                  type: "dominio",
+                  title: "Goals y AI profile",
+                  status: "operational",
+                  summary: "Persistencia de metas, perfil IA y cierre de onboarding.",
+                  apis: ["POST /api/goals", "GET /api/goals", "POST /api/user/ai-profile", "GET /api/user/ai-profile", "PATCH /api/user/ai-profile", "POST /api/seed"],
+                  notes: [
+                    "Web onboarding guarda metas y preferencias del broker.",
+                    "El seed permite poblar datos base para demos o primeras pruebas."
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "backend/models.py", href: "../backend/models.py" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "backend-sales",
+              title: "Cockpit comercial",
+              status: "operational",
+              summary: "Dashboard, leads, activities, scripts, brokers y gamification estan implementados como core funcional.",
+              entries: [
+                {
+                  id: "backend-dashboard",
+                  type: "dominio",
+                  title: "Dashboard y leaderboard",
+                  status: "operational",
+                  summary: "KPIs principales, detalle por tarjeta, leaderboard y actividad reciente.",
+                  apis: [
+                    "GET /api/dashboard/stats",
+                    "GET /api/dashboard/kpi-detail/{kpi_type}",
+                    "GET /api/dashboard/leaderboard",
+                    "GET /api/dashboard/recent-activity"
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "backend/tests/test_leadvibes_crm.py", href: "../backend/tests/test_leadvibes_crm.py" }
+                  ]
+                },
+                {
+                  id: "backend-leads",
+                  type: "dominio",
+                  title: "Leads, activities, scripts y chat",
+                  status: "operational",
+                  summary: "CRUD de leads, timeline de actividad, analisis IA, generacion de guiones y chat asistido.",
+                  apis: [
+                    "GET /api/leads",
+                    "GET /api/leads/{lead_id}",
+                    "POST /api/leads",
+                    "PUT /api/leads/{lead_id}",
+                    "POST /api/leads/{lead_id}/analyze",
+                    "POST /api/leads/{lead_id}/generate-script",
+                    "POST /api/activities",
+                    "GET /api/activities",
+                    "GET /api/scripts",
+                    "POST /api/scripts",
+                    "POST /api/chat",
+                    "GET /api/chat/history"
+                  ],
+                  notes: [
+                    "Es el dominio mejor alineado entre backend, web y Pocket live.",
+                    "Los specs retrospectivos lo describen como feature 95% completada."
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "backend/tests/test_leadvibes_crm.py", href: "../backend/tests/test_leadvibes_crm.py" },
+                    { label: ".moai/specs/SPEC-LEAD-001/spec.md", href: "../.moai/specs/SPEC-LEAD-001/spec.md" }
+                  ]
+                },
+                {
+                  id: "backend-gamification",
+                  type: "dominio",
+                  title: "Brokers y gamification",
+                  status: "operational",
+                  summary: "Leaderboard, reglas de puntos y ledger de actividad del broker.",
+                  apis: [
+                    "GET /api/brokers",
+                    "GET /api/brokers/{broker_id}",
+                    "GET /api/gamification/rules",
+                    "POST /api/gamification/rules",
+                    "GET /api/gamification/points"
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: ".moai/specs/SPEC-GAMI-001/spec.md", href: "../.moai/specs/SPEC-GAMI-001/spec.md" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "backend-calendar",
+              title: "Agenda, calendar y round robin",
+              status: "partial",
+              summary: "Backend fuerte para calendario interno; Google y round robin ya existen pero el frente no esta completamente alineado.",
+              notes: [
+                "El dominio calendario esta bien poblado en API.",
+                "Google OAuth depende de credenciales reales y el frontend web tiene una brecha al pedir un endpoint de usuarios que hoy no existe."
+              ],
+              entries: [
+                {
+                  id: "backend-calendar-core",
+                  type: "dominio",
+                  title: "Calendario interno",
+                  status: "operational",
+                  summary: "CRUD de eventos, vista de hoy, completado y eliminacion.",
+                  apis: [
+                    "GET /api/calendar/events",
+                    "POST /api/calendar/events",
+                    "PUT /api/calendar/events/{event_id}",
+                    "DELETE /api/calendar/events/{event_id}",
+                    "GET /api/calendar/today"
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: ".moai/specs/SPEC-CAL-001/spec.md", href: "../.moai/specs/SPEC-CAL-001/spec.md" }
+                  ]
+                },
+                {
+                  id: "backend-google-calendar",
+                  type: "subflujo",
+                  title: "Google OAuth y sync",
+                  status: "partial",
+                  summary: "Rutas para login, callback, disconnect y sync con Google Calendar.",
+                  apis: [
+                    "GET /api/oauth/google/login",
+                    "GET /api/oauth/google/callback",
+                    "POST /api/oauth/google/disconnect",
+                    "GET /api/google-calendar/events",
+                    "POST /api/google-calendar/events",
+                    "POST /api/google-calendar/import",
+                    "POST /api/google-calendar/sync"
+                  ],
+                  notes: [
+                    "Requiere credenciales reales guardadas desde Settings.",
+                    "Los tests de integracion cubren el contrato, no necesariamente la credencial real."
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "backend/tests/test_google_calendar_email_templates.py", href: "../backend/tests/test_google_calendar_email_templates.py" }
+                  ]
+                },
+                {
+                  id: "backend-round-robin",
+                  type: "subflujo",
+                  title: "Round robin y asignacion",
+                  status: "operational",
+                  summary: "Configuracion y asignacion automatica de broker para eventos.",
+                  apis: [
+                    "GET /api/calendar/round-robin/config",
+                    "PUT /api/calendar/round-robin/config",
+                    "GET /api/calendar/round-robin/next-broker",
+                    "POST /api/calendar/assign",
+                    "GET /api/calendar/events/{event_id}/assignment"
+                  ],
+                  notes: [
+                    "Backend listo; el web calendar queda parcial porque intenta cargar brokers desde `/users?role=broker`."
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "frontend/src/components/calendar/RoundRobinConfig.jsx", href: "../frontend/src/components/calendar/RoundRobinConfig.jsx" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "backend-activation",
+              title: "Marketing, captura y comunicacion",
+              status: "partial",
+              summary: "Hay dominio para landing, campanas y plantillas, pero la operacion real depende de VAPI, Twilio y SendGrid.",
+              entries: [
+                {
+                  id: "backend-landing",
+                  type: "dominio",
+                  title: "Captura publica desde landing",
+                  status: "operational",
+                  summary: "Entrada publica para capturar un lead o solicitud desde la landing.",
+                  apis: ["POST /api/landing/lead", "GET /api/landing/leads"],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "frontend/src/components/landing/LeadFormSection.js", href: "../frontend/src/components/landing/LeadFormSection.js" }
+                  ]
+                },
+                {
+                  id: "backend-campaigns",
+                  type: "dominio",
+                  title: "Campanas, calls, sms y email",
+                  status: "partial",
+                  summary: "Gestion de campanas y records por canal.",
+                  apis: [
+                    "GET /api/campaigns",
+                    "POST /api/campaigns",
+                    "POST /api/campaigns/{campaign_id}/start",
+                    "GET /api/calls",
+                    "POST /api/calls/single",
+                    "GET /api/sms",
+                    "POST /api/sms/single",
+                    "GET /api/emails",
+                    "POST /api/emails/single",
+                    "GET /api/calls/{call_id}/analysis"
+                  ],
+                  notes: [
+                    "La feature existe, pero su estatus real depende de integraciones externas configuradas.",
+                    "El spec retrospectivo la ubica como 90% implementada."
+                  ],
+                  refs: [
+                    { label: ".moai/specs/SPEC-CAMP-001/spec.md", href: "../.moai/specs/SPEC-CAMP-001/spec.md" },
+                    { label: "backend/server.py", href: "../backend/server.py" }
+                  ]
+                },
+                {
+                  id: "backend-email-templates",
+                  type: "subflujo",
+                  title: "Email templates visuales",
+                  status: "partial",
+                  summary: "CRUD, preview, send-test y seed de plantillas para el editor visual web.",
+                  apis: [
+                    "GET /api/email-templates",
+                    "POST /api/email-templates",
+                    "PUT /api/email-templates/{template_id}",
+                    "DELETE /api/email-templates/{template_id}",
+                    "POST /api/email-templates/{template_id}/preview",
+                    "POST /api/email-templates/send-test",
+                    "POST /api/email-templates/seed"
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "backend/tests/test_google_calendar_email_templates.py", href: "../backend/tests/test_google_calendar_email_templates.py" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "backend-growth",
+              title: "Analytics, importacion y automatizaciones",
+              status: "partial",
+              summary: "Analytics e import ya estan bastante avanzados; automatizaciones sigue siendo la parte mas incompleta.",
+              entries: [
+                {
+                  id: "backend-analytics",
+                  type: "dominio",
+                  title: "Analytics basico",
+                  status: "operational",
+                  summary: "Overview, timeline, export y breakdown por fuente.",
+                  apis: [
+                    "GET /api/analytics/overview",
+                    "GET /api/analytics/by-source/{source}",
+                    "GET /api/analytics/timeline",
+                    "POST /api/analytics/metrics",
+                    "GET /api/analytics/export",
+                    "GET /api/analytics/communications"
+                  ],
+                  notes: [
+                    "Hay analytics usable hoy; los specs avanzados siguen en draft."
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: ".moai/specs/SPEC-ANAL-002/spec.md", href: "../.moai/specs/SPEC-ANAL-002/spec.md" }
+                  ]
+                },
+                {
+                  id: "backend-import",
+                  type: "dominio",
+                  title: "Importacion CSV",
+                  status: "operational",
+                  summary: "Upload, preview, execute, template y seguimiento de jobs.",
+                  apis: [
+                    "GET /api/import/fields",
+                    "POST /api/import/upload",
+                    "POST /api/import/preview",
+                    "POST /api/import/execute",
+                    "GET /api/import/jobs",
+                    "GET /api/import/jobs/{job_id}",
+                    "GET /api/import/template"
+                  ],
+                  refs: [
+                    { label: "backend/server.py", href: "../backend/server.py" },
+                    { label: "backend/tests/test_import_leads.py", href: "../backend/tests/test_import_leads.py" }
+                  ]
+                },
+                {
+                  id: "backend-automations",
+                  type: "dominio",
+                  title: "Automations y n8n",
+                  status: "partial",
+                  summary: "CRUD de workflows, activate/deactivate/test y variables, pero con cierre tecnico pendiente hacia n8n.",
+                  apis: [
+                    "GET /api/automations/workflows",
+                    "POST /api/automations/workflows",
+                    "GET /api/automations/workflows/{workflow_id}",
+                    "PUT /api/automations/workflows/{workflow_id}",
+                    "DELETE /api/automations/workflows/{workflow_id}",
+                    "POST /api/automations/workflows/{workflow_id}/activate",
+                    "POST /api/automations/workflows/{workflow_id}/deactivate",
+                    "POST /api/automations/workflows/{workflow_id}/test",
+                    "GET /api/automations/workflows/{workflow_id}/variables",
+                    "GET /api/automations/workflows/{workflow_id}/executions",
+                    "POST /api/automations/seed"
+                  ],
+                  notes: [
+                    "Las docs del cliente y la pagina web siguen reportando pendientes de integracion real.",
+                    "Es buen candidato para un sprint tecnico de cierre."
+                  ],
+                  refs: [
+                    { label: ".moai/specs/SPEC-AUTO-001/spec.md", href: "../.moai/specs/SPEC-AUTO-001/spec.md" },
+                    { label: "docs/CLIENT_MISION_INVERSION_360.md", href: "../docs/CLIENT_MISION_INVERSION_360.md" },
+                    { label: "backend/server.py", href: "../backend/server.py" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: "web",
+          title: "Rovi CRM Web",
+          status: "partial",
+          area: "Web",
+          summary: "Aplicacion React 19 con `19` rutas declaradas, auth protegida y un stack de pantallas de operacion bastante amplio.",
+          folders: ["frontend/", "frontend/src/pages/", "frontend/src/components/"],
+          metrics: ["19 rutas", "16 paginas", "Layout protegido + landing publica"],
+          evidence: [
+            "App.js define rutas publicas, privadas y editor de email a pantalla completa.",
+            "Gran parte de las paginas consumen la API real via AuthContext + axios."
+          ],
+          flows: [
+            {
+              id: "web-public",
+              title: "Captacion publica y acceso",
+              status: "operational",
+              summary: "Landing, contacto/demo, login, registro y onboarding real.",
+              entries: [
+                {
+                  id: "web-landing",
+                  type: "pantalla",
+                  title: "Landing publica",
+                  status: "operational",
+                  summary: "Entrada comercial principal con secciones de beneficio y formulario de captura.",
+                  routes: ["/", "/landing"],
+                  apis: ["POST /api/landing/lead"],
+                  refs: [
+                    { label: "frontend/src/pages/LandingPage.js", href: "../frontend/src/pages/LandingPage.js" },
+                    { label: "frontend/src/components/landing/LeadFormSection.js", href: "../frontend/src/components/landing/LeadFormSection.js" }
+                  ]
+                },
+                {
+                  id: "web-demo-request",
+                  type: "pantalla",
+                  title: "Demo request / contact sales",
+                  status: "operational",
+                  summary: "Pantalla publica de conversion para solicitar demo o hablar con ventas.",
+                  routes: ["/demo-request", "/contact-sales"],
+                  refs: [
+                    { label: "frontend/src/pages/DemoRequestPage.js", href: "../frontend/src/pages/DemoRequestPage.js" }
+                  ]
+                },
+                {
+                  id: "web-login",
+                  type: "pantalla",
+                  title: "Login y registro",
+                  status: "operational",
+                  summary: "Acceso web con seleccion de tipo de cuenta: broker individual o agencia.",
+                  routes: ["/login"],
+                  apis: ["POST /api/auth/login", "POST /api/auth/register", "GET /api/auth/me"],
+                  refs: [
+                    { label: "frontend/src/pages/LoginPage.js", href: "../frontend/src/pages/LoginPage.js" },
+                    { label: "frontend/src/context/AuthContext.js", href: "../frontend/src/context/AuthContext.js" }
+                  ]
+                },
+                {
+                  id: "web-onboarding",
+                  type: "pantalla",
+                  title: "Onboarding",
+                  status: "operational",
+                  summary: "Wizard para metas, ingresos, actividad y perfil IA.",
+                  routes: ["/onboarding"],
+                  apis: ["POST /api/goals", "POST /api/user/ai-profile", "POST /api/seed"],
+                  refs: [
+                    { label: "frontend/src/pages/OnboardingPage.js", href: "../frontend/src/pages/OnboardingPage.js" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "web-crm-core",
+              title: "Operacion diaria CRM",
+              status: "operational",
+              summary: "Dashboard, leads, brokers, gamification y scripts ya forman un flujo real y conectado.",
+              entries: [
+                {
+                  id: "web-dashboard",
+                  type: "pantalla",
+                  title: "Dashboard",
+                  status: "operational",
+                  summary: "Vista de KPIs, leaderboard, detalles por metrica y actividad reciente.",
+                  routes: ["/dashboard"],
+                  apis: [
+                    "GET /api/dashboard/stats",
+                    "GET /api/dashboard/recent-activity",
+                    "GET /api/dashboard/kpi-detail/{type}",
+                    "GET /api/dashboard/leaderboard",
+                    "GET /api/gamification/rules"
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/DashboardPage.js", href: "../frontend/src/pages/DashboardPage.js" }
+                  ]
+                },
+                {
+                  id: "web-leads",
+                  type: "pantalla",
+                  title: "Leads y pipeline",
+                  status: "operational",
+                  summary: "Tabla, kanban drag-and-drop, lead detail, quick actions, timeline y AI helpers.",
+                  routes: ["/leads"],
+                  apis: [
+                    "GET /api/leads",
+                    "PUT /api/leads/{lead_id}",
+                    "POST /api/leads",
+                    "GET /api/activities",
+                    "POST /api/activities",
+                    "POST /api/leads/{lead_id}/analyze",
+                    "POST /api/leads/{lead_id}/generate-script"
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/LeadsPage.js", href: "../frontend/src/pages/LeadsPage.js" },
+                    { label: ".moai/specs/SPEC-LEAD-001/spec.md", href: "../.moai/specs/SPEC-LEAD-001/spec.md" }
+                  ]
+                },
+                {
+                  id: "web-brokers",
+                  type: "pantalla",
+                  title: "Brokers",
+                  status: "operational",
+                  summary: "Ranking, modal de detalle y metricas de brokers.",
+                  routes: ["/brokers"],
+                  apis: ["GET /api/brokers", "GET /api/brokers/{broker_id}"],
+                  refs: [
+                    { label: "frontend/src/pages/BrokersPage.js", href: "../frontend/src/pages/BrokersPage.js" }
+                  ]
+                },
+                {
+                  id: "web-gamification",
+                  type: "pantalla",
+                  title: "Gamification",
+                  status: "operational",
+                  summary: "Reglas, leaderboard y ledger de puntos.",
+                  routes: ["/gamification"],
+                  apis: ["GET /api/dashboard/leaderboard", "GET /api/gamification/rules", "GET /api/gamification/points", "POST /api/gamification/rules"],
+                  refs: [
+                    { label: "frontend/src/pages/GamificationPage.js", href: "../frontend/src/pages/GamificationPage.js" },
+                    { label: ".moai/specs/SPEC-GAMI-001/spec.md", href: "../.moai/specs/SPEC-GAMI-001/spec.md" }
+                  ]
+                },
+                {
+                  id: "web-scripts",
+                  type: "pantalla",
+                  title: "Scripts",
+                  status: "operational",
+                  summary: "Biblioteca de guiones por categoria con create y copy.",
+                  routes: ["/scripts"],
+                  apis: ["GET /api/scripts", "POST /api/scripts"],
+                  refs: [
+                    { label: "frontend/src/pages/ScriptsPage.js", href: "../frontend/src/pages/ScriptsPage.js" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "web-operations",
+              title: "Agenda, importacion y activacion",
+              status: "partial",
+              summary: "Flujos fuertes en UI, pero con dependencias externas o pequenas brechas de contrato.",
+              entries: [
+                {
+                  id: "web-calendar",
+                  type: "pantalla",
+                  title: "Calendar",
+                  status: "partial",
+                  summary: "Vista mensual, eventos, round robin y asignacion.",
+                  routes: ["/calendar"],
+                  apis: [
+                    "GET /api/calendar/events",
+                    "POST /api/calendar/events",
+                    "PUT /api/calendar/events/{event_id}",
+                    "DELETE /api/calendar/events/{event_id}",
+                    "GET /api/calendar/round-robin/config",
+                    "PUT /api/calendar/round-robin/config",
+                    "POST /api/calendar/assign",
+                    "GET /users?role=broker (faltante)"
+                  ],
+                  notes: [
+                    "La llamada a `/users?role=broker` no encuentra backend hoy.",
+                    "El resto del flujo de eventos si tiene soporte real."
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/CalendarPage.js", href: "../frontend/src/pages/CalendarPage.js" },
+                    { label: "backend/server.py", href: "../backend/server.py" }
+                  ]
+                },
+                {
+                  id: "web-import",
+                  type: "pantalla",
+                  title: "Import leads",
+                  status: "partial",
+                  summary: "Wizard en cuatro pasos para CSV/Excel: upload, mapping, preview y execute.",
+                  routes: ["/import"],
+                  apis: ["POST /api/import/upload", "POST /api/import/preview", "POST /api/import/execute"],
+                  notes: [
+                    "La pagina usa `REACT_APP_BACKEND_URL` sin fallback relativo.",
+                    "El backend si tiene el pipeline completo."
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/ImportLeadsPage.js", href: "../frontend/src/pages/ImportLeadsPage.js" },
+                    { label: "backend/tests/test_import_leads.py", href: "../backend/tests/test_import_leads.py" }
+                  ]
+                },
+                {
+                  id: "web-campaigns",
+                  type: "pantalla",
+                  title: "Campaigns",
+                  status: "partial",
+                  summary: "Campanas multi-canal, records por canal, analisis de llamadas y uso de plantillas.",
+                  routes: ["/campaigns"],
+                  apis: [
+                    "GET /api/campaigns",
+                    "POST /api/campaigns",
+                    "POST /api/campaigns/{campaign_id}/start",
+                    "GET /api/calls",
+                    "GET /api/sms",
+                    "GET /api/emails",
+                    "GET /api/email-templates",
+                    "GET /api/settings/integrations",
+                    "GET /api/analytics/communications"
+                  ],
+                  notes: [
+                    "El propio UI muestra `Configuracion pendiente` en algunos bloques.",
+                    "Depende de providers externos y settings reales."
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/CampaignsPage.js", href: "../frontend/src/pages/CampaignsPage.js" },
+                    { label: ".moai/specs/SPEC-CAMP-001/spec.md", href: "../.moai/specs/SPEC-CAMP-001/spec.md" }
+                  ]
+                },
+                {
+                  id: "web-email-editor",
+                  type: "pantalla",
+                  title: "Email editor visual",
+                  status: "partial",
+                  summary: "Editor de bloques con preview, duplicado y persistencia de json_content.",
+                  routes: ["/email-templates/new", "/email-templates/:templateId"],
+                  apis: [
+                    "GET /api/email-templates/{id}",
+                    "POST /api/email-templates",
+                    "PUT /api/email-templates/{id}",
+                    "POST /api/email-templates/{id}/preview",
+                    "POST /api/email-templates/send-test"
+                  ],
+                  notes: [
+                    "Tambien usa `REACT_APP_BACKEND_URL` sin fallback.",
+                    "Su valor real depende de SendGrid y de las credenciales guardadas."
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/EmailEditorPage.js", href: "../frontend/src/pages/EmailEditorPage.js" },
+                    { label: "backend/tests/test_google_calendar_email_templates.py", href: "../backend/tests/test_google_calendar_email_templates.py" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "web-intelligence",
+              title: "Analytics, automations y settings",
+              status: "partial",
+              summary: "Inteligencia operativa usable hoy, pero con edge cases en configuracion e integraciones.",
+              entries: [
+                {
+                  id: "web-analytics",
+                  type: "pantalla",
+                  title: "Analytics",
+                  status: "operational",
+                  summary: "Graficas de overview, source breakdown, timeline y export CSV.",
+                  routes: ["/analytics"],
+                  apis: ["GET /api/analytics/overview", "GET /api/analytics/timeline", "GET /api/analytics/by-source/{source}", "GET /api/analytics/export"],
+                  refs: [
+                    { label: "frontend/src/pages/AnalyticsPage.js", href: "../frontend/src/pages/AnalyticsPage.js" }
+                  ]
+                },
+                {
+                  id: "web-automations",
+                  type: "pantalla",
+                  title: "Automations",
+                  status: "partial",
+                  summary: "Catalogo de workflows, activacion, prueba y configuracion dinamica.",
+                  routes: ["/automations"],
+                  apis: [
+                    "GET /api/automations/workflows",
+                    "POST /api/automations/workflows/{workflow_id}/activate",
+                    "POST /api/automations/workflows/{workflow_id}/deactivate",
+                    "POST /api/automations/workflows/{workflow_id}/test",
+                    "GET /api/automations/workflows/{workflow_id}/variables",
+                    "POST /api/automations/seed"
+                  ],
+                  notes: [
+                    "La pagina aun tiene `TODO` para abrir editor visual y ver detalles.",
+                    "Tambien usa `REACT_APP_BACKEND_URL` sin fallback en algunos fetch."
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/AutomationsPage.js", href: "../frontend/src/pages/AutomationsPage.js" },
+                    { label: "docs/CLIENT_MISION_INVERSION_360.md", href: "../docs/CLIENT_MISION_INVERSION_360.md" }
+                  ]
+                },
+                {
+                  id: "web-settings",
+                  type: "pantalla",
+                  title: "Settings e integraciones",
+                  status: "partial",
+                  summary: "Metas, VAPI, Twilio, SendGrid y Google Calendar desde un solo tab.",
+                  routes: ["/settings"],
+                  apis: [
+                    "GET /api/goals",
+                    "POST /api/goals",
+                    "GET /api/settings/integrations",
+                    "PUT /api/settings/integrations",
+                    "POST /api/settings/integrations/test-vapi",
+                    "POST /api/settings/integrations/test-twilio",
+                    "POST /api/settings/integrations/test-sendgrid",
+                    "GET /api/oauth/google/login",
+                    "POST /api/oauth/google/disconnect"
+                  ],
+                  notes: [
+                    "Tecnicamente listo para integrar, pero el estado final depende de keys y OAuth real."
+                  ],
+                  refs: [
+                    { label: "frontend/src/pages/SettingsPage.js", href: "../frontend/src/pages/SettingsPage.js" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: "pocket",
+          title: "Rovi Pocket",
+          status: "demo",
+          area: "Mobile",
+          summary: "Subproyecto Expo mobile-first para brokers, ya separado como submodulo y con shell UI fuerte apoyado en Stitch.",
+          folders: [
+            "apps/rovi-pocket/",
+            "apps/rovi-pocket/src/",
+            "apps/rovi-pocket/design/stitch/",
+            "apps/rovi-pocket/docs/"
+          ],
+          metrics: ["6 pantallas", "5 tabs + auth", "submodulo Git independiente"],
+          evidence: [
+            "La app corre en modo demo o live; live consume auth, dashboard y leads del backend actual.",
+            "La documentacion propia deja claro que el siguiente paso es sustituir mocks por clientes de datos reales."
+          ],
+          flows: [
+            {
+              id: "pocket-session",
+              title: "Acceso y sesion",
+              status: "partial",
+              summary: "Entrada mobile que ya puede conectar al backend real o caer a demo.",
+              entries: [
+                {
+                  id: "pocket-auth",
+                  type: "pantalla",
+                  title: "AuthScreen",
+                  status: "partial",
+                  summary: "Login contra backend real con fallback inmediato a modo demo.",
+                  apis: ["POST /api/auth/login", "GET /api/health"],
+                  notes: [
+                    "Muestra credenciales demo y Base URL actual.",
+                    "Es el punto que habilita la mezcla live/demo de toda la app."
+                  ],
+                  refs: [
+                    { label: "apps/rovi-pocket/src/screens/AuthScreen.tsx", href: "../apps/rovi-pocket/src/screens/AuthScreen.tsx" },
+                    { label: "apps/rovi-pocket/src/lib/pocketApi.ts", href: "../apps/rovi-pocket/src/lib/pocketApi.ts" },
+                    { label: "apps/rovi-pocket/App.tsx", href: "../apps/rovi-pocket/App.tsx" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "pocket-core",
+              title: "Cockpit del broker",
+              status: "partial",
+              summary: "Dashboard y leads son las zonas mas cercanas a producto real dentro de Pocket.",
+              entries: [
+                {
+                  id: "pocket-dashboard",
+                  type: "pantalla",
+                  title: "DashboardScreen",
+                  status: "partial",
+                  summary: "Hero de momentum, radar vivo, quick execution y plan IA.",
+                  apis: ["GET /api/dashboard/stats", "GET /api/dashboard/recent-activity", "GET /api/leads"],
+                  notes: [
+                    "En live usa stats, leads y perfil reales; varias cards siguen alimentadas por mocks."
+                  ],
+                  refs: [
+                    { label: "apps/rovi-pocket/src/screens/DashboardScreen.tsx", href: "../apps/rovi-pocket/src/screens/DashboardScreen.tsx" },
+                    { label: "apps/rovi-pocket/App.tsx", href: "../apps/rovi-pocket/App.tsx" }
+                  ]
+                },
+                {
+                  id: "pocket-leads",
+                  type: "pantalla",
+                  title: "LeadsScreen + Lead Insight Lab",
+                  status: "partial",
+                  summary: "Busqueda, insight lab, follow-up y salto a IA.",
+                  apis: ["GET /api/leads", "GET /api/leads/{lead_id}", "POST /api/leads/{lead_id}/generate-script"],
+                  notes: [
+                    "La lista y detalle pueden refrescarse desde backend; el shell visual sigue basado en UI local."
+                  ],
+                  refs: [
+                    { label: "apps/rovi-pocket/src/screens/LeadsScreen.tsx", href: "../apps/rovi-pocket/src/screens/LeadsScreen.tsx" },
+                    { label: "apps/rovi-pocket/src/lib/pocketApi.ts", href: "../apps/rovi-pocket/src/lib/pocketApi.ts" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "pocket-ai-agenda",
+              title: "Agenda y copilot",
+              status: "demo",
+              summary: "La UX esta muy bien dibujada, pero la mayoria del comportamiento sigue siendo local/demo.",
+              entries: [
+                {
+                  id: "pocket-agenda",
+                  type: "pantalla",
+                  title: "AgendaScreen",
+                  status: "demo",
+                  summary: "Planner del dia, timeline tactico y reglas vigiladas por IA.",
+                  notes: [
+                    "No consume agenda real aun; su valor hoy es validar la experiencia mobile.",
+                    "La propia doc de implementacion lo deja como siguiente integracion."
+                  ],
+                  refs: [
+                    { label: "apps/rovi-pocket/src/screens/AgendaScreen.tsx", href: "../apps/rovi-pocket/src/screens/AgendaScreen.tsx" },
+                    { label: "apps/rovi-pocket/docs/IMPLEMENTATION_STATUS.md", href: "../apps/rovi-pocket/docs/IMPLEMENTATION_STATUS.md" }
+                  ]
+                },
+                {
+                  id: "pocket-copilot",
+                  type: "pantalla",
+                  title: "CopilotScreen",
+                  status: "demo",
+                  summary: "Chat shell con prompts, thread y contexto del lead.",
+                  apis: ["POST /api/leads/{lead_id}/generate-script (accion puntual desde shell)"],
+                  notes: [
+                    "La conversacion principal aun es mock; solo algunas acciones del shell pegan al backend.",
+                    "El plan maestro lo posiciona como modulo fuerte de una fase posterior del MVP."
+                  ],
+                  refs: [
+                    { label: "apps/rovi-pocket/src/screens/CopilotScreen.tsx", href: "../apps/rovi-pocket/src/screens/CopilotScreen.tsx" },
+                    { label: "docs/ROVI_POCKET_MASTER_PLAN.md", href: "../docs/ROVI_POCKET_MASTER_PLAN.md" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "pocket-profile",
+              title: "Broker OS y rieles de utilidad",
+              status: "partial",
+              summary: "Perfil, rails flotantes y quick actions sirven hoy para demo y descubrimiento del producto.",
+              entries: [
+                {
+                  id: "pocket-profile-screen",
+                  type: "pantalla",
+                  title: "ProfileScreen",
+                  status: "partial",
+                  summary: "Metas, badges, integraciones y estado de sesion.",
+                  notes: [
+                    "Si la app esta en live, el perfil se hidrata; el estado de integraciones y landing sigue saliendo de mock."
+                  ],
+                  refs: [
+                    { label: "apps/rovi-pocket/src/screens/ProfileScreen.tsx", href: "../apps/rovi-pocket/src/screens/ProfileScreen.tsx" },
+                    { label: "apps/rovi-pocket/src/data/mock.ts", href: "../apps/rovi-pocket/src/data/mock.ts" }
+                  ]
+                },
+                {
+                  id: "pocket-rails",
+                  type: "subflujo",
+                  title: "DemoGuideOverlay, rails y quick actions",
+                  status: "demo",
+                  summary: "Capa de guia y shortcuts para demos de producto.",
+                  notes: [
+                    "Muy util para storytelling de producto, pero no debe confundirse con feature productiva."
+                  ],
+                  refs: [
+                    { label: "apps/rovi-pocket/src/components/demo.tsx", href: "../apps/rovi-pocket/src/components/demo.tsx" },
+                    { label: "apps/rovi-pocket/App.tsx", href: "../apps/rovi-pocket/App.tsx" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "pocket-design",
+              title: "Fuente visual y detalle de pantalla",
+              status: "documented",
+              summary: "Pocket tiene una cadena de referencia clara entre prompts, export Stitch y screenshots locales.",
+              entries: [
+                {
+                  id: "pocket-stitch-shell",
+                  type: "pantalla",
+                  title: "Stitch - App Shell",
+                  status: "documented",
+                  summary: "Referencia del shell base mobile.",
+                  refs: [
+                    { label: "screen.json", href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/37bb23261606493f8487654f284a0a06-rovi-pocket-app-shell/screen.json" },
+                    { label: "code.html", href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/37bb23261606493f8487654f284a0a06-rovi-pocket-app-shell/code.html" }
+                  ],
+                  screenshots: [
+                    {
+                      caption: "Rovi Pocket App Shell",
+                      src: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/37bb23261606493f8487654f284a0a06-rovi-pocket-app-shell/screenshot.png",
+                      href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/37bb23261606493f8487654f284a0a06-rovi-pocket-app-shell/screenshot.png"
+                    }
+                  ]
+                },
+                {
+                  id: "pocket-stitch-dashboard",
+                  type: "pantalla",
+                  title: "Stitch - Intelligent Dashboard",
+                  status: "documented",
+                  summary: "Referencia del tablero principal de ejecucion.",
+                  refs: [
+                    { label: "screen.json", href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/db0510169a9b47e386f75092e244175b-intelligent-dashboard/screen.json" }
+                  ],
+                  screenshots: [
+                    {
+                      caption: "Intelligent Dashboard",
+                      src: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/db0510169a9b47e386f75092e244175b-intelligent-dashboard/screenshot.png",
+                      href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/db0510169a9b47e386f75092e244175b-intelligent-dashboard/screenshot.png"
+                    }
+                  ]
+                },
+                {
+                  id: "pocket-stitch-leads",
+                  type: "pantalla",
+                  title: "Stitch - Leads List & Pipeline",
+                  status: "documented",
+                  summary: "Referencia visual de lista de leads y pipeline mobile.",
+                  refs: [
+                    { label: "screen.json", href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/5f5c8fce0f35472abb291fb38ed66517-leads-list-pipeline/screen.json" }
+                  ],
+                  screenshots: [
+                    {
+                      caption: "Leads List & Pipeline",
+                      src: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/5f5c8fce0f35472abb291fb38ed66517-leads-list-pipeline/screenshot.png",
+                      href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/5f5c8fce0f35472abb291fb38ed66517-leads-list-pipeline/screenshot.png"
+                    }
+                  ]
+                },
+                {
+                  id: "pocket-stitch-insight",
+                  type: "pantalla",
+                  title: "Stitch - Lead Insight Lab",
+                  status: "documented",
+                  summary: "Referencia visual de detalle inteligente del lead.",
+                  refs: [
+                    { label: "screen.json", href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/52758ffeb0ba48ebb2c06b890c9c63ae-lead-insight-lab/screen.json" }
+                  ],
+                  screenshots: [
+                    {
+                      caption: "Lead Insight Lab",
+                      src: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/52758ffeb0ba48ebb2c06b890c9c63ae-lead-insight-lab/screenshot.png",
+                      href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/52758ffeb0ba48ebb2c06b890c9c63ae-lead-insight-lab/screenshot.png"
+                    }
+                  ]
+                },
+                {
+                  id: "pocket-stitch-copilot",
+                  type: "pantalla",
+                  title: "Stitch - Conversational AI Assistant",
+                  status: "documented",
+                  summary: "Referencia visual del copiloto conversacional.",
+                  refs: [
+                    { label: "screen.json", href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/ce22426dd10a457d86cca3824903e99a-conversational-ai-assistant/screen.json" },
+                    { label: "docs/ROVI_POCKET_FIGMA_PROMPTS.md", href: "../docs/ROVI_POCKET_FIGMA_PROMPTS.md" }
+                  ],
+                  screenshots: [
+                    {
+                      caption: "Conversational AI Assistant",
+                      src: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/ce22426dd10a457d86cca3824903e99a-conversational-ai-assistant/screenshot.png",
+                      href: "../apps/rovi-pocket/design/stitch/rovi-pocket-12933692853021831749/screens/ce22426dd10a457d86cca3824903e99a-conversational-ai-assistant/screenshot.png"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: "infra",
+          title: "Infra y Delivery",
+          status: "documented",
+          area: "Infra",
+          summary: "Capas de docker, nginx y despliegue con GitHub Actions para development, preview y production.",
+          folders: [".github/workflows/", "deploy/", "docker-compose.yml", "scripts/"],
+          metrics: ["3 workflows", "compose por entorno", "deploy docs"],
+          evidence: [
+            "Hay pipelines separados para development, preview y production.",
+            "El despliegue usa GHCR, Docker Compose y SSH."
+          ],
+          flows: [
+            {
+              id: "infra-ci",
+              title: "CI/CD GitHub Actions",
+              status: "documented",
+              summary: "Pipelines por entorno con test, build/push y deploy.",
+              entries: [
+                {
+                  id: "infra-dev-workflow",
+                  type: "pipeline",
+                  title: "Development workflow",
+                  status: "documented",
+                  summary: "Corre tests backend, lint y despliegue a development.",
+                  notes: [
+                    "El lint del frontend no rompe pipeline porque termina con `|| true`."
+                  ],
+                  refs: [
+                    { label: ".github/workflows/deploy-development.yml", href: "../.github/workflows/deploy-development.yml" }
+                  ]
+                },
+                {
+                  id: "infra-preview-workflow",
+                  type: "pipeline",
+                  title: "Preview workflow",
+                  status: "documented",
+                  summary: "Compila imagenes preview y despliega a servidor de preview.",
+                  refs: [
+                    { label: ".github/workflows/deploy-preview.yml", href: "../.github/workflows/deploy-preview.yml" }
+                  ]
+                },
+                {
+                  id: "infra-prod-workflow",
+                  type: "pipeline",
+                  title: "Production workflow",
+                  status: "documented",
+                  summary: "Build, push y deploy por SSH a Hostinger con health check posterior.",
+                  refs: [
+                    { label: ".github/workflows/deploy-production.yml", href: "../.github/workflows/deploy-production.yml" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "infra-deploy-assets",
+              title: "Assets de despliegue",
+              status: "documented",
+              summary: "Compose, nginx y helpers de despliegue repetible.",
+              entries: [
+                {
+                  id: "infra-compose",
+                  type: "asset",
+                  title: "Docker y compose por entorno",
+                  status: "documented",
+                  summary: "Stacks para local, development, preview, hostinger y agentes.",
+                  refs: [
+                    { label: "docker-compose.yml", href: "../docker-compose.yml" },
+                    { label: "docker-compose.dev.yml", href: "../docker-compose.dev.yml" },
+                    { label: "docker-compose.preview.yml", href: "../docker-compose.preview.yml" },
+                    { label: "docker-compose.hostinger.yml", href: "../docker-compose.hostinger.yml" }
+                  ]
+                },
+                {
+                  id: "infra-deploy-docs",
+                  type: "asset",
+                  title: "Deploy docs y scripts",
+                  status: "documented",
+                  summary: "Runbooks de Hostinger y scripts de deploy/backup.",
+                  refs: [
+                    { label: "deploy/README.md", href: "../deploy/README.md" },
+                    { label: "deploy/HOSTINGER_DEPLOY.md", href: "../deploy/HOSTINGER_DEPLOY.md" },
+                    { label: "deploy/deploy.sh", href: "../deploy/deploy.sh" },
+                    { label: "deploy/backup.sh", href: "../deploy/backup.sh" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "infra-local",
+              title: "Operacion local",
+              status: "documented",
+              summary: "Ayudas para levantar localmente y documentar entorno docker.",
+              entries: [
+                {
+                  id: "infra-local-assets",
+                  type: "asset",
+                  title: "Local helper scripts",
+                  status: "documented",
+                  summary: "Muestras y scripts para entornos locales y docker local.",
+                  refs: [
+                    { label: "docker-local.sample", href: "../docker-local.sample" },
+                    { label: "scripts/docker-local-up.sh", href: "../scripts/docker-local-up.sh" },
+                    { label: "docs/DOCKER_LOCAL.md", href: "../docs/DOCKER_LOCAL.md" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          id: "docs",
+          title: "Docs, Specs y QA",
+          status: "documented",
+          area: "Docs",
+          summary: "El repo tiene una base documental amplia: operacion, Pocket, cliente, QA, specs Moai y reportes de prueba.",
+          folders: ["docs/", ".moai/specs/", "tests/", "test_reports/"],
+          metrics: ["12 specs draft", "planes QA por feature", "dashboards Pocket ya redactados"],
+          evidence: [
+            "docs/README.md y ROVI_OPERATIONS_INDEX organizan la documentacion operativa.",
+            "Las specs Moai mezclan documentacion retrospectiva de features existentes con roadmap futuro."
+          ],
+          flows: [
+            {
+              id: "docs-ops",
+              title: "Documentacion operativa",
+              status: "documented",
+              summary: "Go-live, infraestructura, checklist y runbooks del sistema actual.",
+              entries: [
+                {
+                  id: "docs-ops-index",
+                  type: "documento",
+                  title: "Indice de operaciones",
+                  status: "documented",
+                  summary: "Punto de entrada para despliegue, requisitos, tooling y sprint QA.",
+                  refs: [
+                    { label: "docs/README.md", href: "../docs/README.md" },
+                    { label: "docs/ROVI_OPERATIONS_INDEX.md", href: "../docs/ROVI_OPERATIONS_INDEX.md" },
+                    { label: "docs/GO_LIVE_AND_CLIENT_SETUP.md", href: "../docs/GO_LIVE_AND_CLIENT_SETUP.md" }
+                  ]
+                },
+                {
+                  id: "docs-client",
+                  type: "documento",
+                  title: "Cliente y requisitos",
+                  status: "documented",
+                  summary: "Material de alcance, requisitos e infraestructura para operacion comercial.",
+                  refs: [
+                    { label: "docs/CLIENT_MISION_INVERSION_360.md", href: "../docs/CLIENT_MISION_INVERSION_360.md" },
+                    { label: "docs/REQUIREMENTS_AND_INFRASTRUCTURE.md", href: "../docs/REQUIREMENTS_AND_INFRASTRUCTURE.md" },
+                    { label: "docs/DEPLOYMENT_URLS.md", href: "../docs/DEPLOYMENT_URLS.md" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "docs-pocket",
+              title: "Documentacion Pocket",
+              status: "documented",
+              summary: "Pocket ya tiene plan maestro, dashboard de ejecucion, kanban y prompts de Figma.",
+              entries: [
+                {
+                  id: "docs-pocket-master",
+                  type: "documento",
+                  title: "Plan maestro y dashboard de ejecucion",
+                  status: "documented",
+                  summary: "Roadmap MVP, modulos, sprints y fechas objetivo de Pocket.",
+                  refs: [
+                    { label: "docs/ROVI_POCKET_MASTER_PLAN.md", href: "../docs/ROVI_POCKET_MASTER_PLAN.md" },
+                    { label: "docs/ROVI_POCKET_EXECUTION_DASHBOARD.md", href: "../docs/ROVI_POCKET_EXECUTION_DASHBOARD.md" },
+                    { label: "docs/ROVI_POCKET_KANBAN.csv", href: "../docs/ROVI_POCKET_KANBAN.csv" }
+                  ]
+                },
+                {
+                  id: "docs-pocket-repo",
+                  type: "documento",
+                  title: "Repo setup y diseno",
+                  status: "documented",
+                  summary: "Guia para operar Pocket como repo separado/submodulo y prompts para diseno.",
+                  refs: [
+                    { label: "docs/ROVI_POCKET_REPO_SETUP.md", href: "../docs/ROVI_POCKET_REPO_SETUP.md" },
+                    { label: "docs/ROVI_POCKET_FIGMA_PROMPTS.md", href: "../docs/ROVI_POCKET_FIGMA_PROMPTS.md" },
+                    { label: "apps/rovi-pocket/README.md", href: "../apps/rovi-pocket/README.md" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "docs-specs",
+              title: "Specs Moai",
+              status: "planned",
+              summary: "Todos los specs siguen `draft`, pero no todos significan futuro: varios documentan features ya existentes con porcentaje de completitud.",
+              entries: [
+                {
+                  id: "docs-specs-retro",
+                  type: "spec",
+                  title: "Specs retrospectivos de features ya vivas",
+                  status: "planned",
+                  summary: "LEAD-001 (95%), CAMP-001 (90%), GAMI-001 (90%), CAL-001 (85%) y AI-001 (75%) describen modulos ya presentes en el codigo.",
+                  refs: [
+                    { label: ".moai/specs/SPEC-LEAD-001/spec.md", href: "../.moai/specs/SPEC-LEAD-001/spec.md" },
+                    { label: ".moai/specs/SPEC-CAMP-001/spec.md", href: "../.moai/specs/SPEC-CAMP-001/spec.md" },
+                    { label: ".moai/specs/SPEC-GAMI-001/spec.md", href: "../.moai/specs/SPEC-GAMI-001/spec.md" },
+                    { label: ".moai/specs/SPEC-CAL-001/spec.md", href: "../.moai/specs/SPEC-CAL-001/spec.md" },
+                    { label: ".moai/specs/SPEC-AI-001/spec.md", href: "../.moai/specs/SPEC-AI-001/spec.md" }
+                  ]
+                },
+                {
+                  id: "docs-specs-forward",
+                  type: "spec",
+                  title: "Specs de capacidad futura",
+                  status: "planned",
+                  summary: "ANAL-002, AUTO-001, COMM-001, PERF-001, PIPE-001, SCORE-001 y TEST-001 siguen describiendo expansion o cierre tecnico futuro.",
+                  refs: [
+                    { label: ".moai/specs/SPEC-ANAL-002/spec.md", href: "../.moai/specs/SPEC-ANAL-002/spec.md" },
+                    { label: ".moai/specs/SPEC-AUTO-001/spec.md", href: "../.moai/specs/SPEC-AUTO-001/spec.md" },
+                    { label: ".moai/specs/SPEC-COMM-001/spec.md", href: "../.moai/specs/SPEC-COMM-001/spec.md" },
+                    { label: ".moai/specs/SPEC-PERF-001/spec.md", href: "../.moai/specs/SPEC-PERF-001/spec.md" },
+                    { label: ".moai/specs/SPEC-PIPE-001/spec.md", href: "../.moai/specs/SPEC-PIPE-001/spec.md" },
+                    { label: ".moai/specs/SPEC-SCORE-001/spec.md", href: "../.moai/specs/SPEC-SCORE-001/spec.md" },
+                    { label: ".moai/specs/SPEC-TEST-001/spec.md", href: "../.moai/specs/SPEC-TEST-001/spec.md" }
+                  ]
+                }
+              ]
+            },
+            {
+              id: "docs-qa",
+              title: "QA y activos de prueba",
+              status: "partial",
+              summary: "La base de pruebas existe, pero hoy esta dividida entre smoke local y pruebas contra entornos reales.",
+              entries: [
+                {
+                  id: "docs-tests-local",
+                  type: "qa",
+                  title: "Smoke y unit tests locales",
+                  status: "partial",
+                  summary: "Cobertura minima estable para health check y auth crypto/JWT sin depender de servicios remotos.",
+                  refs: [
+                    { label: "backend/tests/test_api_smoke.py", href: "../backend/tests/test_api_smoke.py" },
+                    { label: "backend/tests/test_auth_unit.py", href: "../backend/tests/test_auth_unit.py" },
+                    { label: "backend/tests/conftest.py", href: "../backend/tests/conftest.py" }
+                  ]
+                },
+                {
+                  id: "docs-tests-integration",
+                  type: "qa",
+                  title: "Integration tests y planes manuales",
+                  status: "partial",
+                  summary: "Hay pruebas contra backend en ejecucion y planes por feature en markdown, pero CI aun excluye integrations.",
+                  refs: [
+                    { label: "backend/tests/test_leadvibes_crm.py", href: "../backend/tests/test_leadvibes_crm.py" },
+                    { label: "backend/tests/test_import_leads.py", href: "../backend/tests/test_import_leads.py" },
+                    { label: "backend/tests/test_google_calendar_email_templates.py", href: "../backend/tests/test_google_calendar_email_templates.py" },
+                    { label: "docs/SPRINT_USER_STORIES_QA.md", href: "../docs/SPRINT_USER_STORIES_QA.md" },
+                    { label: "tests/feature_3_automations_test_plan.md", href: "../tests/feature_3_automations_test_plan.md" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      risks: [
+        {
+          id: "risk-calendar-users",
+          level: "high",
+          title: "Calendar web pide un endpoint que el backend no expone",
+          detail: "La pagina `frontend/src/pages/CalendarPage.js` carga brokers desde `GET /users?role=broker`, pero no existe una ruta equivalente en `backend/server.py`.",
+          refs: [
+            { label: "frontend/src/pages/CalendarPage.js", href: "../frontend/src/pages/CalendarPage.js" },
+            { label: "backend/server.py", href: "../backend/server.py" }
+          ]
+        },
+        {
+          id: "risk-env-fallback",
+          level: "medium",
+          title: "Algunas pantallas web dependen de REACT_APP_BACKEND_URL sin fallback",
+          detail: "Import, EmailEditor y partes de Automations usan `fetch(${REACT_APP_BACKEND_URL}/api/...)` y no heredan el fallback relativo del AuthContext. Si falta el env, esos flujos se rompen aunque otras paginas sigan funcionando.",
+          refs: [
+            { label: "frontend/src/context/AuthContext.js", href: "../frontend/src/context/AuthContext.js" },
+            { label: "frontend/src/pages/ImportLeadsPage.js", href: "../frontend/src/pages/ImportLeadsPage.js" },
+            { label: "frontend/src/pages/EmailEditorPage.js", href: "../frontend/src/pages/EmailEditorPage.js" },
+            { label: "frontend/src/pages/AutomationsPage.js", href: "../frontend/src/pages/AutomationsPage.js" }
+          ]
+        },
+        {
+          id: "risk-automation-todos",
+          level: "medium",
+          title: "Automations sigue a medio cerrar en UI y docs",
+          detail: "La pagina tiene `TODO` visibles para editor/detalles y la documentacion de cliente menciona cierre tecnico pendiente para n8n/webhooks reales.",
+          refs: [
+            { label: "frontend/src/pages/AutomationsPage.js", href: "../frontend/src/pages/AutomationsPage.js" },
+            { label: "docs/CLIENT_MISION_INVERSION_360.md", href: "../docs/CLIENT_MISION_INVERSION_360.md" },
+            { label: ".moai/specs/SPEC-AUTO-001/spec.md", href: "../.moai/specs/SPEC-AUTO-001/spec.md" }
+          ]
+        },
+        {
+          id: "risk-ci-scope",
+          level: "medium",
+          title: "CI no valida integraciones reales",
+          detail: "Los workflows ejecutan `pytest -m \"not integration\"`, asi que Google, importacion real, comunicaciones y otros contratos viven fuera del pipeline automatizado.",
+          refs: [
+            { label: ".github/workflows/deploy-development.yml", href: "../.github/workflows/deploy-development.yml" },
+            { label: "backend/tests/test_google_calendar_email_templates.py", href: "../backend/tests/test_google_calendar_email_templates.py" },
+            { label: "backend/tests/test_import_leads.py", href: "../backend/tests/test_import_leads.py" }
+          ]
+        },
+        {
+          id: "risk-pocket-demo",
+          level: "low",
+          title: "Pocket mezcla demo y live de forma intencional",
+          detail: "No es un bug como tal, pero si cambia la lectura del estatus: Dashboard y Leads pueden hidratarse desde backend, mientras Agenda, Copilot conversacional y Profile siguen siendo principalmente UX demo.",
+          refs: [
+            { label: "apps/rovi-pocket/App.tsx", href: "../apps/rovi-pocket/App.tsx" },
+            { label: "apps/rovi-pocket/docs/IMPLEMENTATION_STATUS.md", href: "../apps/rovi-pocket/docs/IMPLEMENTATION_STATUS.md" }
+          ]
+        }
+      ]
+    };
+
+    const state = {
+      search: "",
+      status: "all",
+      area: "all",
+      selectedId: "web-dashboard"
+    };
+
+    const flatIndex = new Map();
+
+    function collectIndex() {
+      data.workstreams.forEach((workstream) => {
+        flatIndex.set(workstream.id, { kind: "workstream", workstream });
+        workstream.flows.forEach((flow) => {
+          flatIndex.set(flow.id, { kind: "flow", workstream, flow });
+          flow.entries.forEach((entry) => {
+            flatIndex.set(entry.id, { kind: "entry", workstream, flow, entry });
+          });
+        });
+      });
+    }
+
+    function statusBadge(status) {
+      const meta = data.statuses[status];
+      return `
+        <span class="chip">
+          <span class="status-dot ${meta.dotClass}"></span>
+          <span class="status-label">${meta.label}</span>
+        </span>
+      `;
+    }
+
+    function renderMetrics() {
+      const grid = document.getElementById("metricGrid");
+      const cards = [
+        { value: data.summary.backendEndpoints, label: "endpoints backend" },
+        { value: data.summary.routes, label: "rutas web declaradas" },
+        { value: data.summary.pocketScreens, label: "pantallas Pocket" },
+        { value: data.summary.specs, label: "specs draft" },
+        { value: data.summary.backendTests, label: "archivos de test backend" },
+        { value: data.summary.workflows, label: "workflows CI/CD" }
+      ];
+      grid.innerHTML = cards.map((card) => `
+        <div class="metric-card">
+          <span class="metric-value">${card.value}</span>
+          <span class="metric-label">${card.label}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderLegend() {
+      const legend = document.getElementById("legend");
+      legend.innerHTML = Object.values(data.statuses).map((meta) => `
+        <span class="chip">
+          <span class="status-dot ${meta.dotClass}"></span>
+          <span class="status-label">${meta.label}</span>
+        </span>
+      `).join("");
+    }
+
+    function renderWorkstreams() {
+      const container = document.getElementById("workstreamGrid");
+      container.innerHTML = data.workstreams.map((workstream) => `
+        <article class="workstream-card">
+          <div class="card-top">
+            <div>
+              <h3>${workstream.title}</h3>
+              <p>${workstream.summary}</p>
+            </div>
+            ${statusBadge(workstream.status)}
+          </div>
+
+          <div class="metric-inline">
+            ${workstream.metrics.map((metric) => `<span class="mini-chip">${metric}</span>`).join("")}
+          </div>
+
+          <div class="folder-row">
+            ${workstream.folders.map((folder) => `<span class="folder-chip">${folder}</span>`).join("")}
+          </div>
+
+          <ul class="evidence-list">
+            ${workstream.evidence.map((item) => `<li>${item}</li>`).join("")}
+          </ul>
+        </article>
+      `).join("");
+    }
+
+    function areaOptions() {
+      const unique = [...new Set(data.workstreams.map((workstream) => workstream.area))];
+      return ["all", ...unique];
+    }
+
+    function renderFilters() {
+      const statusEl = document.getElementById("statusFilters");
+      const areaEl = document.getElementById("areaFilters");
+
+      statusEl.innerHTML = ["all", ...Object.keys(data.statuses)].map((key) => {
+        const active = state.status === key ? "active" : "";
+        const label = key === "all" ? "Todos los estados" : data.statuses[key].label;
+        return `<button class="filter-chip ${active}" data-filter-type="status" data-filter-value="${key}">${label}</button>`;
+      }).join("");
+
+      areaEl.innerHTML = areaOptions().map((key) => {
+        const active = state.area === key ? "active" : "";
+        const label = key === "all" ? "Todas las areas" : key;
+        return `<button class="filter-chip ${active}" data-filter-type="area" data-filter-value="${key}">${label}</button>`;
+      }).join("");
+
+      document.querySelectorAll("[data-filter-type]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const type = button.getAttribute("data-filter-type");
+          const value = button.getAttribute("data-filter-value");
+          state[type] = value;
+          renderFilters();
+          renderFlows();
+          renderDetail();
+        });
+      });
+    }
+
+    function matchesSearch(text) {
+      return text.toLowerCase().includes(state.search.toLowerCase());
+    }
+
+    function textBlob(parts) {
+      return parts.filter(Boolean).join(" ").toLowerCase();
+    }
+
+    function flowVisible(workstream, flow) {
+      if (state.area !== "all" && workstream.area !== state.area) {
+        return false;
+      }
+
+      const flowMatchesStatus = state.status === "all" || flow.status === state.status;
+      const flowMatchesSearch = state.search === "" || matchesSearch(textBlob([
+        workstream.title,
+        flow.title,
+        flow.summary,
+        ...(flow.notes || [])
+      ]));
+
+      const visibleEntries = flow.entries.filter((entry) => {
+        const entryMatchesStatus = state.status === "all" || entry.status === state.status || flow.status === state.status;
+        const entryMatchesSearch = state.search === "" || matchesSearch(textBlob([
+          entry.title,
+          entry.summary,
+          ...(entry.routes || []),
+          ...(entry.apis || []),
+          ...(entry.notes || []),
+          ...(entry.refs || []).map((ref) => ref.label)
+        ]));
+        return entryMatchesStatus && entryMatchesSearch;
+      });
+
+      return (flowMatchesStatus && flowMatchesSearch) || visibleEntries.length > 0;
+    }
+
+    function visibleEntries(flow) {
+      return flow.entries.filter((entry) => {
+        const statusOk = state.status === "all" || entry.status === state.status || flow.status === state.status;
+        const areaBlob = textBlob([
+          entry.title,
+          entry.summary,
+          ...(entry.routes || []),
+          ...(entry.apis || []),
+          ...(entry.notes || [])
+        ]);
+        const searchOk = state.search === "" || matchesSearch(areaBlob);
+        return statusOk && searchOk;
+      });
+    }
+
+    function renderFlows() {
+      const column = document.getElementById("flowColumn");
+      const cards = [];
+      const visibleIds = [];
+
+      data.workstreams.forEach((workstream) => {
+        const visibleFlows = workstream.flows.filter((flow) => flowVisible(workstream, flow));
+        if (visibleFlows.length === 0) return;
+
+        cards.push(`
+          <article class="flow-card">
+            <div class="flow-head">
+              <div>
+                <div class="eyebrow" style="margin-bottom:10px;">${workstream.area}</div>
+                <div class="flow-title">${workstream.title}</div>
+                <p class="flow-summary">${workstream.summary}</p>
+              </div>
+              ${statusBadge(workstream.status)}
+            </div>
+            <div class="flow-meta">
+              ${workstream.folders.map((folder) => `<span class="mini-chip">${folder}</span>`).join("")}
+            </div>
+            <div class="entry-list">
+              ${visibleFlows.map((flow) => {
+                const flowActive = state.selectedId === flow.id ? "active" : "";
+                const entries = visibleEntries(flow);
+                visibleIds.push(flow.id);
+                entries.forEach((entry) => visibleIds.push(entry.id));
+                return `
+                  <div>
+                    <button class="flow-select ${flowActive}" data-target-id="${flow.id}">
+                      <span>
+                        <strong>${flow.title}</strong><br>
+                        <span style="color: var(--muted); font-size: 13px;">${flow.summary}</span>
+                      </span>
+                      <span class="mini-chip">${data.statuses[flow.status].label}</span>
+                    </button>
+                    <div class="entry-list">
+                      ${entries.map((entry) => {
+                        const active = state.selectedId === entry.id ? "active" : "";
+                        return `
+                          <button class="entry-button ${active}" data-target-id="${entry.id}">
+                            <div class="entry-title">${entry.title}</div>
+                            <div class="entry-meta">
+                              <span>${entry.type}</span>
+                              ${entry.routes ? `<span>${entry.routes.join(" , ")}</span>` : ""}
+                              ${entry.apis ? `<span>${entry.apis.length} referencias API</span>` : ""}
+                              <span>${data.statuses[entry.status].label}</span>
+                            </div>
+                          </button>
+                        `;
+                      }).join("")}
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </article>
+        `);
+      });
+
+      if (visibleIds.length > 0 && !visibleIds.includes(state.selectedId)) {
+        state.selectedId = visibleIds[0];
+      }
+
+      if (visibleIds.length === 0) {
+        state.selectedId = "";
+      }
+
+      column.innerHTML = cards.length > 0 ? cards.join("") : `<div class="empty-state">No hay resultados para el filtro actual.</div>`;
+
+      column.querySelectorAll("[data-target-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.selectedId = button.getAttribute("data-target-id");
+          renderFlows();
+          renderDetail();
+        });
+      });
+    }
+
+    function listSection(title, items, className) {
+      if (!items || items.length === 0) return "";
+      return `
+        <div class="detail-block">
+          <h4>${title}</h4>
+          <ul class="${className}">
+            ${items.map((item) => `<li>${item}</li>`).join("")}
+          </ul>
+        </div>
+      `;
+    }
+
+    function refsSection(refs) {
+      if (!refs || refs.length === 0) return "";
+      return `
+        <div class="detail-block">
+          <h4>Archivos y fuentes</h4>
+          <div class="ref-list">
+            ${refs.map((ref) => `
+              <a class="ref-link" href="${ref.href}">
+                <span>${ref.label}</span>
+                <span>abrir</span>
+              </a>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function gallerySection(screenshots) {
+      if (!screenshots || screenshots.length === 0) return "";
+      return `
+        <div class="detail-block">
+          <h4>Referencia visual</h4>
+          <div class="gallery">
+            ${screenshots.map((shot) => `
+              <figure style="margin:0;">
+                <a href="${shot.href}">
+                  <img src="${shot.src}" alt="${shot.caption}">
+                  <figcaption>${shot.caption}</figcaption>
+                </a>
+              </figure>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDetail() {
+      const pane = document.getElementById("detailPane");
+      const record = flatIndex.get(state.selectedId);
+
+      if (!record) {
+        pane.innerHTML = `<div class="detail-card"><div class="empty-state">Selecciona un flujo o pantalla.</div></div>`;
+        return;
+      }
+
+      if (record.kind === "flow") {
+        const { workstream, flow } = record;
+        pane.innerHTML = `
+          <article class="detail-card">
+            <span class="detail-label">${workstream.title}</span>
+            <h3>${flow.title}</h3>
+            <p>${flow.summary}</p>
+            <div class="flow-meta">
+              ${statusBadge(flow.status)}
+              <span class="mini-chip">${workstream.area}</span>
+              <span class="mini-chip">${flow.entries.length} items</span>
+            </div>
+            <div class="detail-grid">
+              ${listSection("Notas", flow.notes || [], "note-list")}
+              <div class="detail-block">
+                <h4>Items dentro del flujo</h4>
+                <ul>
+                  ${flow.entries.map((entry) => `<li>${entry.title} - ${data.statuses[entry.status].label}</li>`).join("")}
+                </ul>
+              </div>
+            </div>
+          </article>
+        `;
+        return;
+      }
+
+      if (record.kind === "entry") {
+        const { workstream, flow, entry } = record;
+        pane.innerHTML = `
+          <article class="detail-card">
+            <span class="detail-label">${workstream.title} / ${flow.title}</span>
+            <h3>${entry.title}</h3>
+            <p>${entry.summary}</p>
+            <div class="flow-meta">
+              ${statusBadge(entry.status)}
+              <span class="mini-chip">${entry.type}</span>
+              <span class="mini-chip">${workstream.area}</span>
+            </div>
+            <div class="detail-grid">
+              ${entry.routes ? `
+                <div class="detail-block">
+                  <h4>Rutas</h4>
+                  <ul class="routes-list">${entry.routes.map((route) => `<li>${route}</li>`).join("")}</ul>
+                </div>
+              ` : ""}
+              ${entry.apis ? `
+                <div class="detail-block">
+                  <h4>APIs relacionadas</h4>
+                  <ul class="api-list">${entry.apis.map((api) => `<li>${api}</li>`).join("")}</ul>
+                </div>
+              ` : ""}
+              ${listSection("Notas de estatus", entry.notes || [], "note-list")}
+              ${refsSection(entry.refs || [])}
+              ${gallerySection(entry.screenshots || [])}
+            </div>
+          </article>
+        `;
+      }
+    }
+
+    function renderRisks() {
+      const grid = document.getElementById("riskGrid");
+      grid.innerHTML = data.risks.map((risk) => `
+        <article class="risk-card">
+          <span class="risk-level risk-${risk.level}">${risk.level}</span>
+          <h3>${risk.title}</h3>
+          <p>${risk.detail}</p>
+          <div class="ref-list" style="margin-top:14px;">
+            ${risk.refs.map((ref) => `
+              <a class="ref-link" href="${ref.href}">
+                <span>${ref.label}</span>
+                <span>abrir</span>
+              </a>
+            `).join("")}
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function wireSearch() {
+      const input = document.getElementById("searchInput");
+      input.addEventListener("input", (event) => {
+        state.search = event.target.value.trim().toLowerCase();
+        renderFlows();
+        renderDetail();
+      });
+    }
+
+    collectIndex();
+    renderMetrics();
+    renderLegend();
+    renderWorkstreams();
+    renderFilters();
+    renderFlows();
+    renderDetail();
+    renderRisks();
+    wireSearch();
+  </script>
+</body>
+</html>

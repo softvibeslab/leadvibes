@@ -31,13 +31,20 @@ yarn test     # Run tests
 
 ### Docker
 ```bash
-docker-compose up -d                    # Local development (mongodb + backend + frontend)
-docker-compose -f docker-compose.dev.yml up -d       # Development environment
-docker-compose -f docker-compose.preview.yml up -d   # Preview environment
-docker-compose -f docker-compose.hostinger.yml up -d # Production (Hostinger deployment)
-docker-compose down -v                  # Stop and remove volumes
-docker-compose logs -f [service]        # Tail logs for a service
+# Local con puertos alternativos (evita 3000/8000/27017 ocupados):
+cp docker-local.sample .env   # ajusta FRONTEND_HOST_PORT / BACKEND_HOST_PORT / MONGO_HOST_PORT si hace falta
+docker compose up -d --build
+# UI http://localhost:13000 · API http://localhost:18080/api/health (valores por defecto en docker-local.sample)
+
+./scripts/docker-local-up.sh          # mismo flujo automatizado
+
+docker compose -f docker-compose.dev.yml up -d       # Development environment
+docker compose -f docker-compose.preview.yml up -d   # Preview environment
+docker compose -f docker-compose.hostinger.yml up -d # Production (Hostinger deployment)
+docker compose down -v                  # Stop and remove volumes
+docker compose logs -f [service]        # Tail logs for a service
 ```
+Ver [docs/DOCKER_LOCAL.md](docs/DOCKER_LOCAL.md) para detalle.
 
 **Docker services:**
 - `mongodb` - MongoDB 7 with persistent volume
@@ -54,16 +61,17 @@ See `docs/DEPLOYMENT_URLS.md` for complete deployment reference.
 ### Backend Testing
 ```bash
 cd backend
-pytest                                          # All tests
-pytest tests/test_leadvibes_crm.py             # Core API tests
-pytest tests/test_import_leads.py              # Import feature tests
-pytest tests/test_google_calendar_email_templates.py  # Calendar/email tests
+pytest                                          # Unit + smoke (default: excludes integration)
+pytest -m integration                           # Solo tests contra API remota (requests)
+pytest tests/test_leadvibes_crm.py             # Core API tests (integration)
+pytest tests/test_import_leads.py              # Import feature tests (integration)
+pytest tests/test_google_calendar_email_templates.py  # Calendar/email tests (integration)
 ```
 
 **Test configuration:**
-- Tests use `requests` library against a running backend (not TestClient)
-- Set `REACT_APP_BACKEND_URL` environment variable to target different environments
-- Default: `https://lead-bulk-upload.preview.emergentagent.com` (preview server)
+- Por defecto se excluyen tests `@pytest.mark.integration` (ver `backend/pytest.ini`).
+- Tests de integración usan `requests` contra un backend en ejecución; define `REACT_APP_BACKEND_URL`.
+- Smoke y unit (`test_api_smoke.py`, `test_auth_unit.py`) usan `TestClient` y no requieren Mongo para `/api/health`.
 
 ### Backend Linting & Formatting
 ```bash
