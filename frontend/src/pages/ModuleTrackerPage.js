@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import {
   CheckCircle2, Circle, AlertTriangle, Clock, Rocket,
   TrendingUp, Target, Calendar, Users, DollarSign,
   Layers, Zap, Settings, BarChart3, Package,
   ChevronRight, ChevronDown, Info, Loader2, Sparkles,
   BookOpen, LineChart, Radio, Wrench, Mail, Phone,
-  MessageSquare, FileText, Database, Search
+  MessageSquare, FileText, Database, Search, Trophy, Box
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -42,6 +43,93 @@ const MODULE_ICONS = {
   brokers: Users,
   settings: Settings,
   landing_page: Rocket
+};
+
+// Demo data for public access (without auth)
+const DEMO_MODULES = {
+  auth: { id: "auth", name: "Autenticación y Usuarios", description: "Registro, login, perfiles y gestión de usuarios", category: "core", completion: 100, tested: true, estimated_hours: 8, notes: "JWT, multi-tenancy, tipos de cuenta", dependencies: [], backend_endpoints: ["POST /api/auth/register", "POST /api/auth/login", "GET /api/auth/me"] },
+  dashboard: { id: "dashboard", name: "Dashboard Principal", description: "Vista general de KPIs, leaderboard y actividad", category: "core", completion: 100, tested: true, estimated_hours: 16, notes: "KPIs clickeables, modales de detalle", dependencies: ["auth", "gamification"], backend_endpoints: ["GET /api/dashboard/stats", "GET /api/dashboard/leaderboard"] },
+  leads_pipeline: { id: "leads_pipeline", name: "Pipeline de Leads", description: "Gestión de leads con kanban, filtros y seguimiento", category: "sales", completion: 95, tested: true, estimated_hours: 24, notes: "Kanban drag&drop, tabla, filtros dinámicos", dependencies: ["auth"], backend_endpoints: ["GET /api/leads", "POST /api/leads", "PUT /api/leads/{lead_id}"] },
+  import_leads: { id: "import_leads", name: "Importación de Leads", description: "Importar leads desde CSV/XLSX con mapeo de columnas", category: "sales", completion: 95, tested: true, estimated_hours: 16, notes: "Compatible con GHL, HubSpot, Pipedrive", dependencies: ["leads_pipeline"], backend_endpoints: ["POST /api/import/upload", "POST /api/import/preview"] },
+  calendar: { id: "calendar", name: "Calendario", description: "Gestión de eventos y citas con Google Calendar sync", category: "productivity", completion: 90, tested: true, estimated_hours: 20, notes: "OAuth Google Calendar, sync bidireccional", dependencies: ["auth"], backend_endpoints: ["GET /api/calendar/events", "POST /api/calendar/events"] },
+  gamification: { id: "gamification", name: "Gamificación", description: "Sistema de puntos, leaderboard y reglas personalizables", category: "engagement", completion: 90, tested: true, estimated_hours: 16, notes: "Puntos por actividad, leaderboard mensual", dependencies: ["auth"], backend_endpoints: ["GET /api/gamification/rules", "GET /api/gamification/points"] },
+  scripts: { id: "scripts", name: "Scripts de Venta", description: "Biblioteca de scripts de venta con IA", category: "sales", completion: 85, tested: true, estimated_hours: 8, notes: "Scripts predefinidos, generación con IA", dependencies: ["auth"], backend_endpoints: ["GET /api/scripts", "POST /api/scripts"] },
+  database_chat: { id: "database_chat", name: "Chat con Base de Datos", description: "Consultar datos en lenguaje natural", category: "ai", completion: 90, tested: true, estimated_hours: 12, notes: "IA para consultas en español", dependencies: ["leads_pipeline"], backend_endpoints: ["POST /api/database-chat"] },
+  campaigns: { id: "campaigns", name: "Campañas", description: "Campañas masivas de llamadas, SMS y email", category: "marketing", completion: 70, tested: false, estimated_hours: 32, notes: "Integración VAPI, Twilio, SendGrid pendiente", dependencies: ["leads_pipeline", "email_templates"], backend_endpoints: ["GET /api/campaigns", "POST /api/campaigns"] },
+  email_templates: { id: "email_templates", name: "Editor de Email Templates", description: "Editor visual de templates con drag-and-drop", category: "marketing", completion: 90, tested: true, estimated_hours: 24, notes: "Editor visual, variables dinámicas", dependencies: ["auth"], backend_endpoints: ["GET /api/email-templates", "POST /api/email-templates"] },
+  analytics: { id: "analytics", name: "Analytics Avanzado", description: "Reportes detallados de métricas y rendimiento", category: "analytics", completion: 80, tested: false, estimated_hours: 20, notes: "Métricas por canal, ROI, conversiones", dependencies: ["leads_pipeline", "campaigns"], backend_endpoints: ["GET /api/analytics/overview", "GET /api/analytics/by-source/{source}"] },
+  encuentra_leads: { id: "encuentra_leads", name: "Encuentra Leads (Scraping)", description: "Buscar leads en LinkedIn y Meta con Apify", category: "marketing", completion: 85, tested: false, estimated_hours: 16, notes: "Integración con Apify, templates de búsqueda", dependencies: ["leads_pipeline"], backend_endpoints: ["POST /api/scraper/run", "GET /api/scraper/jobs/{job_id}"] },
+  products: { id: "products", name: "Productos/Servicios", description: "Catálogo de productos y servicios a vender", category: "sales", completion: 85, tested: false, estimated_hours: 12, notes: "Templates por nicho, asignación a campañas", dependencies: ["auth"], backend_endpoints: ["GET /api/products", "POST /api/products"] },
+  automations: { id: "automations", name: "Automatizaciones (n8n)", description: "Workflows personalizados con n8n", category: "automation", completion: 75, tested: false, estimated_hours: 24, notes: "Integración con n8n webhooks pendiente", dependencies: ["leads_pipeline", "campaigns"], backend_endpoints: ["GET /api/automations/workflows", "POST /api/automations/workflows"] },
+  brokers: { id: "brokers", name: "Gestión de Brokers", description: "Administrar equipo de brokers (solo agencias)", category: "team", completion: 85, tested: true, estimated_hours: 12, notes: "Solo visible para cuentas tipo agency", dependencies: ["auth"], backend_endpoints: ["GET /api/brokers", "POST /api/brokers"] },
+  settings: { id: "settings", name: "Configuración de Integraciones", description: "Configurar VAPI, Twilio, SendGrid, Google, Apify", category: "core", completion: 90, tested: true, estimated_hours: 16, notes: "API keys, webhooks, OAuth", dependencies: ["auth"], backend_endpoints: ["GET /api/settings/integrations", "PUT /api/settings/integrations"] },
+  landing_page: { id: "landing_page", name: "Landing Page Pública", description: "Página de captura de leads", category: "marketing", completion: 100, tested: true, estimated_hours: 12, notes: "Secciones: Hero, Features, Testimonios, Form", dependencies: ["auth"], backend_endpoints: ["POST /api/landing/lead", "GET /api/landing/leads"] }
+};
+
+const DEMO_MVP_CONFIG = {
+  essential: {
+    name: "MVP Esencial",
+    description: "Para brokers individuales beginner",
+    modules: ["auth", "dashboard", "leads_pipeline", "settings", "landing_page"],
+    estimated_hours: 68,
+    price_point: "$49/mes"
+  },
+  standard: {
+    name: "MVP Estándar",
+    description: "Para brokers individuales experimentados",
+    modules: ["auth", "dashboard", "leads_pipeline", "import_leads", "calendar", "gamification", "scripts", "database_chat", "settings", "landing_page"],
+    estimated_hours: 132,
+    price_point: "$99/mes"
+  },
+  professional: {
+    name: "MVP Profesional",
+    description: "Para pequeñas agencias (2-5 brokers)",
+    modules: ["auth", "dashboard", "leads_pipeline", "import_leads", "calendar", "gamification", "scripts", "database_chat", "campaigns", "email_templates", "analytics", "encuentra_leads", "products", "brokers", "settings", "landing_page"],
+    estimated_hours: 268,
+    price_point: "$299/mes"
+  },
+  enterprise: {
+    name: "MVP Enterprise",
+    description: "Para agencias grandes (6+ brokers)",
+    modules: ["auth", "dashboard", "leads_pipeline", "import_leads", "calendar", "gamification", "scripts", "database_chat", "campaigns", "email_templates", "analytics", "encuentra_leads", "products", "automations", "brokers", "settings", "landing_page"],
+    estimated_hours: 292,
+    price_point: "$599/mes"
+  }
+};
+
+const DEMO_ROADMAP = {
+  week_1: {
+    name: "Semana 1: Fundamentos Críticos",
+    focus: "MVP Esencial funcional",
+    modules: ["auth", "leads_pipeline", "settings"],
+    tasks: ["Completar autenticación con JWT", "Pipeline de leads con CRUD completo", "Configuración de integraciones", "Tests end-to-end del flujo de leads"],
+    deliverables: ["Usuario puede registrarse y login", "CRUD completo de leads", "Sistema de filtros y búsqueda", "Persistencia en MongoDB"],
+    hours: 40
+  },
+  week_2: {
+    name: "Semana 2: Visualización y Actividad",
+    focus: "Dashboard + Calendario + Importación",
+    modules: ["dashboard", "calendar", "import_leads"],
+    tasks: ["Dashboard con KPIs en tiempo real", "Calendario con eventos", "Importación CSV/XLSX con mapeo", "Sync con Google Calendar (OAuth)"],
+    deliverables: ["Dashboard muestra stats correctos", "Importar 100 leads en < 2 minutos", "Crear eventos y sincronizar con Google"],
+    hours: 40
+  },
+  week_3: {
+    name: "Semana 3: Marketing y Conversión",
+    focus: "Campañas + Email Templates + Analytics",
+    modules: ["campaigns", "email_templates", "analytics"],
+    tasks: ["Completar integración VAPI (llamadas)", "Completar integración Twilio (SMS)", "Completar integración SendGrid (email)", "Reportes de analytics"],
+    deliverables: ["Lanzar campaña masiva de 100 leads", "Editor de emails funcional", "Analytics muestra métricas por campaña"],
+    hours: 40
+  },
+  week_4: {
+    name: "Semana 4: Scale y Automatización",
+    focus: "Automatizaciones + Scraping + Testing",
+    modules: ["automations", "encuentra_leads", "products"],
+    tasks: ["Integración con n8n", "Scraping de LinkedIn/Meta funcional", "Suite E2E completa", "Deploy a producción"],
+    deliverables: ["Workflows de n8n funcionando", "Encontrar 50 leads en LinkedIn", "95% de tests E2E pasando"],
+    hours: 40
+  }
 };
 
 // Category colors
@@ -129,8 +217,9 @@ const TIER_CONFIG = {
 };
 
 export const ModuleTrackerPage = () => {
-  const { api, isIndividual } = useAuth();
+  const { api, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [usingDemoData, setUsingDemoData] = useState(false);
   const [modules, setModules] = useState({});
   const [mvpConfig, setMvpConfig] = useState(null);
   const [recommendedTier, setRecommendedTier] = useState(null);
@@ -154,6 +243,28 @@ export const ModuleTrackerPage = () => {
   }, []);
 
   const loadData = async () => {
+    // If not authenticated, use demo data
+    if (!isAuthenticated || !api) {
+      console.log('Using demo data (no authentication)');
+      setModules(DEMO_MODULES);
+      setMvpConfig(DEMO_MVP_CONFIG);
+      setRecommendedTier({ recommended_tier: 'standard', reason: 'Demo mode - Standard tier for individuals' });
+      setRoadmap(DEMO_ROADMAP);
+
+      // Calculate production status
+      const avgCompletion = Object.values(DEMO_MODULES).reduce((sum, m) => sum + m.completion, 0) / Object.values(DEMO_MODULES).length;
+      setProductionStatus({
+        ready_for_production: avgCompletion >= 90,
+        overall_completion: avgCompletion,
+        estimated_days_to_launch: Math.max(0, Math.ceil((100 - avgCompletion) / 5))
+      });
+
+      setUsingDemoData(true);
+      setLoading(false);
+      return;
+    }
+
+    // Authenticated: try to load from API
     try {
       const [modulesRes, mvpRes, tierRes, roadmapRes, statusRes] = await Promise.all([
         api.get('/modules'),
@@ -168,15 +279,54 @@ export const ModuleTrackerPage = () => {
       setRecommendedTier(tierRes.data);
       setRoadmap(roadmapRes.data);
       setProductionStatus(statusRes.data);
+      setUsingDemoData(false);
     } catch (error) {
       console.error('Error loading module tracker:', error);
-      toast.error('Error cargando datos');
+      // Fallback to demo data on error
+      console.log('Falling back to demo data due to API error');
+      setModules(DEMO_MODULES);
+      setMvpConfig(DEMO_MVP_CONFIG);
+      setRecommendedTier({ recommended_tier: 'standard', reason: 'API Error - Standard tier demo' });
+      setRoadmap(DEMO_ROADMAP);
+      setUsingDemoData(true);
+      toast.warning('Modo demostración - API no disponible');
     } finally {
       setLoading(false);
     }
   };
 
   const calculateMVP = async () => {
+    // If using demo data, calculate client-side
+    if (usingDemoData || !isAuthenticated) {
+      let recommendedTier = 'essential';
+
+      if (requirements.team_size > 5 || requirements.need_automation) {
+        recommendedTier = 'enterprise';
+      } else if (requirements.team_size > 1 || requirements.need_campaigns) {
+        recommendedTier = 'professional';
+      } else if (requirements.leads_per_month > 100) {
+        recommendedTier = 'standard';
+      }
+
+      const tierModules = DEMO_MVP_CONFIG[recommendedTier].modules;
+      const avgCompletion = tierModules.reduce((sum, m) => sum + (DEMO_MODULES[m]?.completion || 0), 0) / tierModules.length;
+      const hoursRemaining = tierModules.reduce((sum, m) => {
+        const module = DEMO_MODULES[m];
+        return sum + (module ? module.estimated_hours * (1 - module.completion / 100) : 0);
+      }, 0);
+
+      setCalculatedMVP({
+        recommended_tier: recommendedTier,
+        tier_config: DEMO_MVP_CONFIG[recommendedTier],
+        completion_percentage: avgCompletion,
+        estimated_hours_remaining: Math.round(hoursRemaining),
+        estimated_weeks: Math.ceil(hoursRemaining / 40)
+      });
+      toast.success('MVP calculado (Modo Demo)');
+      return;
+    }
+
+    // Authenticated: call API
     try {
       const res = await api.post('/mvp/calculate', requirements);
       setCalculatedMVP(res.data);
@@ -221,8 +371,18 @@ export const ModuleTrackerPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-['Outfit']">Dashboard de Implementación</h1>
-          <p className="text-muted-foreground">Seguimiento del desarrollo del CRM y plan de producción</p>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-bold font-['Outfit']">Dashboard de Implementación</h1>
+            {usingDemoData && (
+              <Badge className="bg-purple-500 text-white text-xs px-2 py-1">
+                Modo Demo
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground">
+            Seguimiento del desarrollo del CRM y plan de producción
+            {usingDemoData && " (Datos de demostración - Haz login para ver datos en tiempo real)"}
+          </p>
         </div>
         {recommendedTier && (
           <Badge className={`${TIER_CONFIG[recommendedTier.recommended_tier]?.color} text-white text-sm px-4 py-2`}>

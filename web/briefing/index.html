@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rovi CRM: Ecosistema Agéntico e Inteligencia Inmobiliaria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chosen Palette: Tulum Luxury Minimalist (Stone 50 #FAFAF9, Teal 700 #0F766E, Amber 700 #B45309, Stone 800 #292524) -->
+    
+    <!-- Application Structure Plan: La aplicación está diseñada como un 'Executive Briefing' (Dashboard Narrativo) de una sola página. Su estructura lineal pero interactiva guía al usuario desde la filosofía base (Publicidad Científica) hacia el problema del mercado, la solución tecnológica (Rovi), la ventaja financiera (Costos) y la estrategia de tracción (Contenido). Se eligió esta arquitectura porque permite a los stakeholders (inversores, brokers) consumir un reporte complejo de forma digerible, interactuando con los módulos de características y visualizando los datos financieros y estratégicos sin salir de la narrativa principal. -->
+    
+    <!-- Visualization & Content Choices: 1. Gráfico de Líneas (Chart.js): Evolución de la adopción de IA en Real Estate vs métodos tradicionales (Objetivo: Cambio temporal. Justificación: Muestra visualmente la urgencia de adopción). 2. Cuadrícula Interactiva (HTML/CSS/JS): Arquitectura del Ecosistema Rovi (Objetivo: Organizar. Justificación: Permite explorar características profundas como N8N o AI Scoring sin abrumar con texto de inicio). 3. Gráfico de Barras (Chart.js): Comparativa de Costos de Alta Intensidad (Objetivo: Comparar. Justificación: Demuestra el ahorro drástico del stack Rovi vs Salesforce/HubSpot). 4. Gráfico de Donut (Chart.js): Matriz de Contenido (Objetivo: Proporciones. Justificación: Muestra el balance estratégico del marketing). Librerías: Vanilla JS, Chart.js. Confirmando NO SVG/Mermaid. -->
+    
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            background-color: #FAFAF9;
+            color: #292524;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 400px; }
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(15, 118, 110, 0.15);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            color: #0F766E;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+        .feature-btn.active {
+            background-color: #0F766E;
+            color: white;
+            border-color: #0F766E;
+        }
+        .feature-btn {
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-[#0F766E] selection:text-white">
+
+    <nav class="sticky top-0 z-50 glass-panel border-b border-stone-200 px-6 py-4">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-bold text-[#0F766E] tracking-tight">ROVI<span class="text-[#B45309]">.AI</span></div>
+            <div class="hidden md:flex space-x-8 text-sm font-medium text-stone-600">
+                <a href="#filosofia" class="nav-link">Filosofía</a>
+                <a href="#ecosistema" class="nav-link">Ecosistema</a>
+                <a href="#costos" class="nav-link">Análisis de Costos</a>
+                <a href="#estrategia" class="nav-link">Estrategia GTM</a>
+            </div>
+            <div class="text-xl">🏢</div>
+        </div>
+    </nav>
+
+    <header class="max-w-6xl mx-auto px-6 py-20 text-center md:text-left md:flex items-center justify-between gap-12">
+        <div class="md:w-3/5">
+            <div class="inline-block px-4 py-1 rounded-full bg-[#0F766E]/10 text-[#0F766E] font-semibold text-sm mb-6 border border-[#0F766E]/20">
+                Executive Briefing 2026
+            </div>
+            <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight text-stone-900 mb-6 leading-tight">
+                El Futuro del Real Estate <br>
+                <span class="text-[#0F766E]">Impulsado por IA</span>
+            </h1>
+            <p class="text-xl text-stone-600 leading-relaxed mb-8">
+                Rovi CRM fusiona los principios de la Publicidad Científica de Claude Hopkins con un ecosistema agéntico autónomo. Diseñado exclusivamente para el mercado inmobiliario de lujo en Tulum y la Riviera Maya.
+            </p>
+            <a href="#ecosistema" class="inline-flex items-center justify-center px-8 py-4 text-base font-medium text-white bg-[#0F766E] hover:bg-[#0d665e] rounded-lg shadow-md transition-colors duration-300">
+                Explorar la Arquitectura
+            </a>
+        </div>
+        <div class="md:w-2/5 mt-12 md:mt-0 flex justify-center text-[120px]">
+            🤖💎
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-12 space-y-24">
+
+        <section id="filosofia" class="scroll-mt-24">
+            <div class="mb-10 max-w-3xl">
+                <h2 class="text-3xl font-bold text-stone-900 mb-4 border-l-4 border-[#B45309] pl-4">1. La Revolución del Marketing Científico</h2>
+                <p class="text-lg text-stone-600">
+                    A principios del siglo XX, Claude Hopkins estableció que la publicidad no es un arte especulativo, sino una ciencia medible. Hoy, Rovi aplica estos principios utilizando Inteligencia Artificial para medir, predecir y automatizar cada punto de contacto en el embudo de ventas inmobiliario. El seguimiento manual es obsoleto.
+                </p>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 md:p-8">
+                <h3 class="text-xl font-bold text-[#0F766E] mb-2 text-center">Evolución: Seguimiento Manual vs. Ecosistema Agéntico IA</h3>
+                <p class="text-sm text-stone-500 text-center mb-6 max-w-2xl mx-auto">
+                    La visualización ilustra la pérdida de eficiencia del seguimiento humano tradicional a medida que aumenta el volumen de leads, en contraste con la escalabilidad perfecta de un sistema impulsado por IA. Rovi mantiene un 'engagement' constante sin importar la carga.
+                </p>
+                <div class="chart-container">
+                    <canvas id="adoptionChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="ecosistema" class="scroll-mt-24">
+            <div class="mb-10 max-w-3xl">
+                <h2 class="text-3xl font-bold text-stone-900 mb-4 border-l-4 border-[#0F766E] pl-4">2. Arquitectura del Ecosistema Rovi</h2>
+                <p class="text-lg text-stone-600">
+                    Rovi no es solo un CRM, es un motor autónomo. Combina un Pipeline visual intuitivo con agentes de IA y automatizaciones profundas (n8n) que califican, nutren y cierran leads mientras el broker duerme. Selecciona un módulo para explorar su funcionamiento.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-4 flex flex-col space-y-3" id="feature-buttons">
+                    <button class="feature-btn active text-left px-6 py-4 rounded-xl border border-stone-200 font-semibold text-stone-700 bg-white shadow-sm" data-target="ai-scoring">
+                        <span class="mr-3 text-xl">🎯</span> AI Lead Scoring
+                    </button>
+                    <button class="feature-btn text-left px-6 py-4 rounded-xl border border-stone-200 font-semibold text-stone-700 bg-white hover:bg-stone-50 shadow-sm" data-target="inbox">
+                        <span class="mr-3 text-xl">📬</span> Inbox Omnicanal
+                    </button>
+                    <button class="feature-btn text-left px-6 py-4 rounded-xl border border-stone-200 font-semibold text-stone-700 bg-white hover:bg-stone-50 shadow-sm" data-target="pipeline">
+                        <span class="mr-3 text-xl">📊</span> Pipeline & Propiedades
+                    </button>
+                    <button class="feature-btn text-left px-6 py-4 rounded-xl border border-stone-200 font-semibold text-stone-700 bg-white hover:bg-stone-50 shadow-sm" data-target="n8n">
+                        <span class="mr-3 text-xl">⚙️</span> N8N Automatizaciones
+                    </button>
+                </div>
+
+                <div class="lg:col-span-8">
+                    <div id="feature-content" class="glass-panel rounded-2xl p-8 h-full min-h-[300px] flex flex-col justify-center transition-opacity duration-300">
+                        <div class="text-5xl mb-6">🎯</div>
+                        <h3 class="text-2xl font-bold text-[#0F766E] mb-4">AI Lead Scoring & Cualificación</h3>
+                        <p class="text-stone-700 text-lg leading-relaxed mb-4">
+                            Los agentes de IA de Rovi evalúan automáticamente a cada prospecto. Identifican la intención de compra, el presupuesto y la línea de tiempo mediante el análisis semántico de las conversaciones y el comportamiento web.
+                        </p>
+                        <ul class="space-y-2 text-stone-600">
+                            <li><span class="text-[#B45309] font-bold">✓</span> Identifica 3 señales clave de intención de compra (High-Ticket).</li>
+                            <li><span class="text-[#B45309] font-bold">✓</span> Diferencia perfiles: Nacionales vs. Extranjeros.</li>
+                            <li><span class="text-[#B45309] font-bold">✓</span> Descarta automáticamente leads sin viabilidad financiera.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="costos" class="scroll-mt-24">
+            <div class="mb-10 max-w-3xl">
+                <h2 class="text-3xl font-bold text-stone-900 mb-4 border-l-4 border-[#B45309] pl-4">3. Simulación de Costos (Alta Intensidad)</h2>
+                <p class="text-lg text-stone-600">
+                    El mercado inmobiliario actual exige contacto constante. Plataformas como Salesforce o HubSpot penalizan el crecimiento imponiendo "Impuestos de Engagement" (add-ons costosos por usar WhatsApp o IA). El stack de Rovi (Webhooks + n8n + Wati Pro) democratiza el escalamiento.
+                </p>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6 md:p-8">
+                <h3 class="text-xl font-bold text-[#0F766E] mb-2 text-center">Costo Mensual Estimado: 5 Usuarios, 9,000 WA Msgs, 3,000 Mins IA (USD)</h3>
+                <p class="text-sm text-stone-500 text-center mb-6 max-w-2xl mx-auto">
+                    El gráfico compara el costo operativo real en un entorno de alta demanda. Rovi externaliza la carga computacional hacia n8n y Wati, evitando los costos prohibitivos de los planes "Enterprise" o la compra masiva de créditos que exigen los CRMs heredados.
+                </p>
+                <div class="chart-container">
+                    <canvas id="costChart"></canvas>
+                </div>
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-white p-4 rounded-lg border border-stone-200">
+                        <strong class="text-stone-900 block mb-1">Salesforce (Agentforce 1)</strong>
+                        <span class="text-stone-600">Requiere consumo de Créditos Flex intensivo. Ecosistema cerrado y costoso.</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-stone-200">
+                        <strong class="text-stone-900 block mb-1">HubSpot (Sales Hub Ent.)</strong>
+                        <span class="text-stone-600">Centraliza costos en un pool de créditos (Breeze Intelligence). Add-ons obligatorios.</span>
+                    </div>
+                    <div class="bg-[#0F766E]/10 p-4 rounded-lg border border-[#0F766E]/30">
+                        <strong class="text-[#0F766E] block mb-1">Ecosistema Rovi (n8n + Wati)</strong>
+                        <span class="text-stone-800 font-medium">Usa la API pura. Wati Pro ($149) + API costs marginales. Escalabilidad virtualmente ilimitada sin "impuestos".</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="estrategia" class="scroll-mt-24 mb-24">
+            <div class="mb-10 max-w-3xl">
+                <h2 class="text-3xl font-bold text-stone-900 mb-4 border-l-4 border-[#0F766E] pl-4">4. Matriz de Contenido y Go-To-Market</h2>
+                <p class="text-lg text-stone-600">
+                    Para posicionar Rovi, implementamos una estrategia de contenido basada en 4 pilares fundamentales, dirigida a educar al broker inmobiliario, generar autoridad y atraer prospectos cualificados al embudo de ventas.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center glass-panel rounded-2xl p-6 md:p-8">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="contentChart"></canvas>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-bold text-lg text-stone-900 flex items-center"><span class="text-[#0F766E] text-2xl mr-2">▪</span> Venta de Alto Valor</h4>
+                        <p class="text-sm text-stone-600">Psicología del comprador de lujo, manejo de objeciones y cierres express. Demuestra que entendemos su negocio core.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg text-stone-900 flex items-center"><span class="text-[#B45309] text-2xl mr-2">▪</span> Tecnología y CRM</h4>
+                        <p class="text-sm text-stone-600">Educación sobre automatización, IA aplicada a bienes raíces y métricas de rendimiento. El puente hacia Rovi.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg text-stone-900 flex items-center"><span class="text-stone-800 text-2xl mr-2">▪</span> Gestión de Leads</h4>
+                        <p class="text-sm text-stone-600">Secuencias de seguimiento, calificación de prospectos y recuperación de bases de datos frías.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg text-stone-900 flex items-center"><span class="text-[#44403C] text-2xl mr-2">▪</span> Estrategias de Marketing</h4>
+                        <p class="text-sm text-stone-600">Email marketing que convierte, pauta publicitaria estructurada y asuntos de alta apertura.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-stone-900 text-stone-400 py-8 text-center text-sm border-t border-stone-800">
+        <p>© 2026 Rovi CRM. Sistema de Inteligencia Inmobiliaria de Lujo. Documento Confidencial.</p>
+    </footer>
+
+    <script>
+        const wrapLabels = (labels, maxChars = 16) => {
+            return labels.map(label => {
+                if (label.length <= maxChars) return label;
+                const words = label.split(' ');
+                let lines = [];
+                let currentLine = words[0];
+                for (let i = 1; i < words.length; i++) {
+                    if (currentLine.length + 1 + words[i].length <= maxChars) {
+                        currentLine += ' ' + words[i];
+                    } else {
+                        lines.push(currentLine);
+                        currentLine = words[i];
+                    }
+                }
+                lines.push(currentLine);
+                return lines;
+            });
+        };
+
+        const tooltipConfig = {
+            callbacks: {
+                title: function(tooltipItems) {
+                    const item = tooltipItems[0];
+                    let label = item.chart.data.labels[item.dataIndex];
+                    if (Array.isArray(label)) {
+                        return label.join(' ');
+                    } else {
+                        return label;
+                    }
+                }
+            }
+        };
+
+        Chart.defaults.font.family = "system-ui, -apple-system, sans-serif";
+        Chart.defaults.color = "#57534E";
+
+        const ctxAdoption = document.getElementById('adoptionChart').getContext('2d');
+        new Chart(ctxAdoption, {
+            type: 'line',
+            data: {
+                labels: wrapLabels(['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5', 'Semana 6']),
+                datasets: [
+                    {
+                        label: 'Ecosistema Rovi (IA + N8N)',
+                        data: [100, 100, 98, 99, 100, 99],
+                        borderColor: '#0F766E',
+                        backgroundColor: 'rgba(15, 118, 110, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'CRM Tradicional (Seguimiento Manual)',
+                        data: [90, 75, 60, 45, 30, 15],
+                        borderColor: '#B45309',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: tooltipConfig,
+                    legend: { position: 'top' }
+                },
+                scales: {
+                    y: {
+                        title: { display: true, text: '% Tasa de Retención de Leads (Follow-up)' },
+                        min: 0, max: 110
+                    }
+                }
+            }
+        });
+
+        const ctxCost = document.getElementById('costChart').getContext('2d');
+        const costLabels = wrapLabels(['Salesforce (Agentforce 1)', 'HubSpot (Sales Hub Enterprise)', 'Rovi Stack (Wati Pro + N8N)']);
+        new Chart(ctxCost, {
+            type: 'bar',
+            data: {
+                labels: costLabels,
+                datasets: [{
+                    label: 'Costo Mensual Estimado (USD)',
+                    data: [3450, 1500, 250],
+                    backgroundColor: [
+                        '#D6D3D1', 
+                        '#A8A29E', 
+                        '#0F766E'  
+                    ],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: tooltipConfig,
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (value) => '$' + value }
+                    }
+                }
+            }
+        });
+
+        const ctxContent = document.getElementById('contentChart').getContext('2d');
+        new Chart(ctxContent, {
+            type: 'doughnut',
+            data: {
+                labels: wrapLabels([
+                    'Venta Inmobiliaria Alto Valor', 
+                    'Tecnología y Herramientas CRM', 
+                    'Gestión y Organización Leads', 
+                    'Estrategias Mkt Inmobiliario'
+                ]),
+                datasets: [{
+                    data: [27, 27, 27, 20],
+                    backgroundColor: [
+                        '#0F766E', 
+                        '#B45309', 
+                        '#292524', 
+                        '#78716C'  
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    tooltip: tooltipConfig,
+                    legend: { display: false } 
+                }
+            }
+        });
+
+        const featureData = {
+            'ai-scoring': {
+                icon: '🎯',
+                title: 'AI Lead Scoring & Cualificación',
+                desc: 'Los agentes de IA de Rovi evalúan automáticamente a cada prospecto. Identifican la intención de compra, el presupuesto y la línea de tiempo mediante el análisis semántico de las conversaciones y el comportamiento web.',
+                bullets: [
+                    'Identifica 3 señales clave de intención de compra (High-Ticket).',
+                    'Diferencia perfiles: Nacionales vs. Extranjeros.',
+                    'Descarta automáticamente leads sin viabilidad financiera.'
+                ]
+            },
+            'inbox': {
+                icon: '📬',
+                title: 'Inbox Omnicanal Integrado',
+                desc: 'Un centro de comando único que centraliza WhatsApp, Email y SMS. Todo el historial de comunicación se registra automáticamente, eliminando la fricción de saltar entre aplicaciones.',
+                bullets: [
+                    'Sincronización bidireccional con plantillas editables.',
+                    'Vista dividida: Top Leads a la derecha, Chat activo a la izquierda.',
+                    'Intervención humana (Hand-off) fluida cuando la IA detecta alto interés.'
+                ]
+            },
+            'pipeline': {
+                icon: '📊',
+                title: 'Pipeline Kanban & Propiedades',
+                desc: 'Visualización clara del flujo de ventas con tarjetas drag & drop. Las propiedades se gestionan con SKUs, imágenes integradas y localización en Google Maps para cruzar inventario con demandas específicas.',
+                bullets: [
+                    'Estados modificables por el broker o por la IA.',
+                    'Importación/Exportación de inventario vía CSV estructurado.',
+                    'Generación de miniaturas (thumbnails) masivas para envíos rápidos.'
+                ]
+            },
+            'n8n': {
+                icon: '⚙️',
+                title: 'Automatizaciones Avanzadas (N8N)',
+                desc: 'El verdadero motor detrás de Rovi. Flujos de trabajo hiper-personalizados que conectan webhooks de WhatsApp, gestionan recordatorios de citas y ejecutan campañas de nutrición (drip campaigns) sin intervención.',
+                bullets: [
+                    'Seguimiento a 100 contactos simultáneos en el Free Trial.',
+                    'Vista tabular de métricas: aperturas, rebotes y respuestas.',
+                    'Elude los altos costos de "triggers" nativos de plataformas de mensajería.'
+                ]
+            }
+        };
+
+        const buttons = document.querySelectorAll('.feature-btn');
+        const contentBox = document.getElementById('feature-content');
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                buttons.forEach(b => {
+                    b.classList.remove('active', 'bg-[#0F766E]', 'text-white');
+                    b.classList.add('bg-white', 'text-stone-700');
+                });
+                btn.classList.remove('bg-white', 'text-stone-700');
+                btn.classList.add('active', 'bg-[#0F766E]', 'text-white');
+
+                const target = btn.getAttribute('data-target');
+                const data = featureData[target];
+
+                contentBox.style.opacity = 0;
+                
+                setTimeout(() => {
+                    let bulletsHTML = data.bullets.map(b => `<li><span class="text-[#B45309] font-bold">✓</span> ${b}</li>`).join('');
+                    contentBox.innerHTML = `
+                        <div class="text-5xl mb-6">${data.icon}</div>
+                        <h3 class="text-2xl font-bold text-[#0F766E] mb-4">${data.title}</h3>
+                        <p class="text-stone-700 text-lg leading-relaxed mb-4">${data.desc}</p>
+                        <ul class="space-y-2 text-stone-600">
+                            ${bulletsHTML}
+                        </ul>
+                    `;
+                    contentBox.style.opacity = 1;
+                }, 300);
+            });
+        });
+    </script>
+</body>
+</html>

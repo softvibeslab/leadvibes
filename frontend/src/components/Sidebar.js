@@ -21,8 +21,7 @@ import {
   Zap,
   Database,
   Search,
-  Package,
-  BarChart3
+  Package
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';

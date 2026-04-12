@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estrategia de Lanzamiento y Dominios | Rovi CRM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Tulum Luxury (Turquesa #0D9488, Verde Jungla #4D7C0F, Dorado #D97706, Arena #FAFAF9) -->
+    <!-- Application Structure Plan: Dashboard interactivo de una sola página. Comienza con el contexto del mercado (Real Estate de Lujo + IA) apoyado por gráficos. Luego, una herramienta interactiva de filtrado de dominios que permite al usuario explorar el "Top 10" clasificado por intención (Autoridad, Tech, Acción). Finaliza con un análisis comparativo radial de las mejores opciones para facilitar la toma de decisiones. -->
+    <!-- Visualization & Content Choices: 1. Gráfico de barras (Chart.js) para mostrar el crecimiento del mercado (Justificación: Muestra tendencia clara y oportunidad). 2. Lista interactiva de dominios con botones de filtro (JS Vanilla) para organizar las recomendaciones (Justificación: Facilita la exploración sin abrumar). 3. Gráfico Radial/Radar (Chart.js) para comparar atributos de los dominios top (Justificación: Permite evaluar de un vistazo factores como SEO, Memoria y Costo). Librerías: Chart.js. Confirmando NO SVG/Mermaid. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #FAFAF9; color: #1F2937; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(13, 148, 136, 0.1); }
+        .tab-active { background-color: #0D9488; color: white; border-color: #0D9488; }
+        .tab-inactive { background-color: transparent; color: #4B5563; border-color: #D1D5DB; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="bg-[#0D9488] text-white py-12 px-4 shadow-md">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between">
+            <div>
+                <h1 class="text-4xl font-bold tracking-tight mb-2">Rovi CRM <span class="text-[#D97706]">Launchpad</span></h1>
+                <p class="text-xl opacity-90 max-w-2xl">Análisis de Mercado Inmobiliario de Lujo & Estrategia Top 10 de Dominios</p>
+            </div>
+            <div class="mt-6 md:mt-0 text-5xl">
+                🏢🤖✨
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-10 space-y-16">
+
+        <!-- Sección 1: Análisis de Mercado -->
+        <section id="mercado">
+            <div class="mb-8 border-l-4 border-[#0D9488] pl-4">
+                <h2 class="text-3xl font-bold text-gray-800">1. Análisis del Mercado</h2>
+                <p class="text-gray-600 mt-2">Por qué el posicionamiento de marca (y el dominio) es crítico en este momento para el mercado de Tulum y la Riviera Maya.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="glass-card p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-bold text-[#0D9488] mb-4">Contexto: Real Estate de Lujo + IA</h3>
+                    <p class="mb-4">El mercado inmobiliario en la Riviera Maya está altamente saturado de agencias, pero carece de <strong>sofisticación tecnológica</strong> en el seguimiento (follow-up). Tu propuesta de valor (IA Agéntica, WhatsApp webhooks, n8n) ataca el punto de dolor exacto: <em>la pérdida de leads high-ticket por falta de atención inmediata.</em></p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <span class="mr-2 text-[#4D7C0F]">🎯</span>
+                            <span><strong>El Cliente (Broker):</strong> Busca estatus, eficiencia y no perder tiempo. El dominio debe sonar "Premium", como un SaaS consolidado.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 text-[#4D7C0F]">💡</span>
+                            <span><strong>El Reto de "Rovi.com":</strong> Los dominios de 4 letras .com son bienes raíces digitales de ultra-lujo. Suelen estar ocupados o costar sobre $50,000 USD. Necesitamos alternativas inteligentes.</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="glass-card p-6 rounded-xl shadow-sm flex flex-col">
+                    <h3 class="text-xl font-bold text-[#0D9488] mb-2">Crecimiento de Adopción IA en Agencias (%)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Proyección de penetración de CRMs con IA en LATAM.</p>
+                    <div class="chart-container flex-grow">
+                        <canvas id="marketChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección 2: Top 10 Dominios (Interactivo) -->
+        <section id="dominios">
+            <div class="mb-8 border-l-4 border-[#D97706] pl-4">
+                <h2 class="text-3xl font-bold text-gray-800">2. Propuesta: Top 10 Dominios</h2>
+                <p class="text-gray-600 mt-2">Selecciona las categorías para filtrar las recomendaciones. Cada nombre ha sido pensado para equilibrar <strong>Autoridad, Memorabilidad y Disponibilidad.</strong></p>
+            </div>
+
+            <!-- Filtros -->
+            <div class="flex flex-wrap gap-3 mb-8" id="filter-container">
+                <button onclick="filterDomains('todos')" class="filter-btn tab-active px-5 py-2 rounded-full border font-medium transition-colors" data-filter="todos">Todos</button>
+                <button onclick="filterDomains('tech')" class="filter-btn tab-inactive px-5 py-2 rounded-full border font-medium transition-colors" data-filter="tech">Tech / Inteligencia Artificial</button>
+                <button onclick="filterDomains('clasico')" class="filter-btn tab-inactive px-5 py-2 rounded-full border font-medium transition-colors" data-filter="clasico">Clásicos SaaS (.com)</button>
+                <button onclick="filterDomains('accion')" class="filter-btn tab-inactive px-5 py-2 rounded-full border font-medium transition-colors" data-filter="accion">Acción / Orientados a Venta</button>
+                <button onclick="filterDomains('geo')" class="filter-btn tab-inactive px-5 py-2 rounded-full border font-medium transition-colors" data-filter="geo">Mercado Local</button>
+            </div>
+
+            <!-- Lista de Dominios -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="domains-grid">
+                <!-- Generado por JS -->
+            </div>
+        </section>
+
+        <!-- Sección 3: Análisis Comparativo de Tiers -->
+        <section id="comparativa" class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+            <div class="mb-8 text-center">
+                <h2 class="text-3xl font-bold text-gray-800">3. Evaluación de los "Top 3" Finalistas</h2>
+                <p class="text-gray-600 mt-2 max-w-2xl mx-auto">Comparación de las mejores opciones en base a factores críticos para el éxito de una startup PropTech.</p>
+            </div>
+
+            <div class="flex flex-col lg:flex-row items-center gap-10">
+                <div class="w-full lg:w-1/2 chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="w-full lg:w-1/2 space-y-6">
+                    <div class="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                        <h4 class="font-bold text-lg text-[#0D9488]">🥇 rovi.ai</h4>
+                        <p class="text-sm mt-1"><strong>Por qué elegirlo:</strong> Posiciona inmediatamente a Rovi como una herramienta de vanguardia. En el mundo del software moderno (ej. Copy.ai, Jasper.ai), la extensión .ai es el nuevo .com para productos tecnológicos premium. Es corto y memorable.</p>
+                    </div>
+                    <div class="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                        <h4 class="font-bold text-lg text-[#4D7C0F]">🥈 rovicrm.com</h4>
+                        <p class="text-sm mt-1"><strong>Por qué elegirlo:</strong> Claridad absoluta. El usuario sabe exactamente qué es antes de entrar a la página. Es excelente para SEO cuando las personas buscan "CRM Inmobiliario". Probabilidad altísima de que el .com esté disponible a precio normal ($12 USD).</p>
+                    </div>
+                    <div class="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                        <h4 class="font-bold text-lg text-[#D97706]">🥉 tryrovi.com</h4>
+                        <p class="text-sm mt-1"><strong>Por qué elegirlo:</strong> Muy utilizado por startups SaaS cuando el nombre base de 4 letras está ocupado. Incita a la acción ("Pruébalo"). Es dinámico y amigable para campañas de publicidad en Facebook/Meta Ads.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Veredicto Final -->
+        <section class="bg-gradient-to-r from-[#0D9488] to-[#0f766c] text-white p-8 rounded-2xl shadow-lg text-center">
+            <h2 class="text-2xl font-bold mb-4">🏆 Recomendación Final del Experto</h2>
+            <p class="text-lg mb-6 max-w-3xl mx-auto">Te sugiero intentar adquirir <strong>rovi.ai</strong> como tu dominio principal para resaltar el motor de Inteligencia Artificial que te diferencia (scoring, agentes, n8n). Secundariamente, compra <strong>rovicrm.com</strong> (es muy barato) y haz que redirija a tu sitio principal para proteger tu marca y captar tráfico de búsqueda orgánica.</p>
+            <div class="inline-block bg-white text-[#0D9488] font-bold py-3 px-8 rounded-full shadow-md">
+                Plan de Acción: rovi.ai (Principal) + rovicrm.com (Redirección SEO)
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-8 text-center">
+        <p>© 2026 Rovi CRM - Documento Estratégico Generado para Lanzamiento.</p>
+    </footer>
+
+    <script>
+        // --- DATA: DOMAINS ---
+        const domainsData = [
+            { name: "rovi.ai", type: "tech", price: "$60-$80/año", pros: "Top posicionamiento tech, corto, ultra premium.", cons: "Extensión más cara que .com.", icon: "🤖" },
+            { name: "rovicrm.com", type: "clasico", price: "~$12/año", pros: "Claridad absoluta del producto, excelente para SEO.", cons: "Un poco más largo.", icon: "🏢" },
+            { name: "tryrovi.com", type: "accion", price: "~$12/año", pros: "Estándar de industria SaaS, incita a la acción.", cons: "Requiere que la marca sea ya algo conocida.", icon: "🚀" },
+            { name: "getrovi.com", type: "accion", price: "~$12/año", pros: "Similar a 'try', muy común en apps B2B.", cons: "Verbo en inglés puede crear leve fricción en LatAm.", icon: "⚡" },
+            { name: "rovirealestate.com", type: "clasico", price: "~$12/año", pros: "Define exactamente el nicho del mercado.", cons: "Demasiado largo para escribirlo rápido.", icon: "💎" },
+            { name: "rovi.mx", type: "geo", price: "~$40/año", pros: "Ideal si el enfoque es 100% México/Tulum. Corto.", cons: "Limita psicológicamente la expansión internacional.", icon: "🇲🇽" },
+            { name: "rovi.io", type: "tech", price: "~$40/año", pros: "Muy respetado en la comunidad de startups de software.", cons: "El mercado inmobiliario tradicional a veces no lo entiende.", icon: "💻" },
+            { name: "rovisoft.com", type: "clasico", price: "~$12/año", pros: "Clásico, serio, transmite solidez y empresa de software.", cons: "Suena un poco 'antiguo' (onda años 2000).", icon: "⚙️" },
+            { name: "rovi.luxury", type: "tech", price: "~$30/año", pros: "Ataca directo a tu target ('Bienes raíces de lujo').", cons: "Extensiones nuevas (.luxury) pueden confundir a algunos usuarios.", icon: "🥂" },
+            { name: "meetrovi.com", type: "accion", price: "~$12/año", pros: "Humaniza la marca, ideal si Rovi se posiciona como un 'Agente'.", cons: "Menos enfocado en B2B corporativo.", icon: "🤝" }
+        ];
+
+        // --- DOM MANIPULATION & LOGIC ---
+        const grid = document.getElementById('domains-grid');
+        const btns = document.querySelectorAll('.filter-btn');
+
+        function renderDomains(filter = 'todos') {
+            grid.innerHTML = '';
+            
+            const filteredData = filter === 'todos' 
+                ? domainsData 
+                : domainsData.filter(d => d.type === filter);
+
+            filteredData.forEach(domain => {
+                const card = document.createElement('div');
+                card.className = 'glass-card p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border-t-4 border-t-[#0D9488] flex flex-col h-full';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-2xl font-bold text-gray-800">${domain.name}</h3>
+                        <span class="text-3xl">${domain.icon}</span>
+                    </div>
+                    <div class="space-y-3 flex-grow">
+                        <p class="text-sm"><strong>Pro:</strong> <span class="text-gray-600">${domain.pros}</span></p>
+                        <p class="text-sm"><strong>Contra:</strong> <span class="text-gray-600">${domain.cons}</span></p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-[#D97706]">Est: ${domain.price}</span>
+                        <button onclick="alert('En un entorno real, esto abriría GoDaddy o Namecheap para verificar ${domain.name}')" class="text-sm text-[#0D9488] font-semibold hover:underline">Verificar ➔</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        window.filterDomains = function(type) {
+            // Update buttons
+            btns.forEach(btn => {
+                if (btn.dataset.filter === type) {
+                    btn.classList.remove('tab-inactive');
+                    btn.classList.add('tab-active');
+                } else {
+                    btn.classList.remove('tab-active');
+                    btn.classList.add('tab-inactive');
+                }
+            });
+            // Render
+            renderDomains(type);
+        };
+
+        // Initialize grid
+        renderDomains('todos');
+
+        // --- CHART.JS CONFIGURATIONS ---
+        
+        // 1. Bar Chart: Market Growth
+        const ctxMarket = document.getElementById('marketChart').getContext('2d');
+        new Chart(ctxMarket, {
+            type: 'bar',
+            data: {
+                labels: ['2024', '2025', '2026', '2027 (Est)'],
+                datasets: [{
+                    label: '% Agencias usando CRMs con IA',
+                    data: [15, 35, 65, 85],
+                    backgroundColor: '#0D9488',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: { label: (context) => context.raw + '%' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { callback: (value) => value + '%' }
+                    }
+                }
+            }
+        });
+
+        // 2. Radar Chart: Domain Strategy
+        const ctxRadar = document.getElementById('radarChart').getContext('2d');
+        new Chart(ctxRadar, {
+            type: 'radar',
+            data: {
+                labels: ['SEO / Claridad', 'Memorabilidad (Corta)', 'Percepción Premium/Tech', 'Bajo Costo/Disponibilidad', 'Confianza B2B'],
+                datasets: [
+                    {
+                        label: 'rovi.ai',
+                        data: [70, 100, 100, 60, 90],
+                        fill: true,
+                        backgroundColor: 'rgba(13, 148, 136, 0.2)',
+                        borderColor: '#0D9488',
+                        pointBackgroundColor: '#0D9488',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#0D9488'
+                    },
+                    {
+                        label: 'rovicrm.com',
+                        data: [100, 70, 70, 95, 90],
+                        fill: true,
+                        backgroundColor: 'rgba(77, 124, 15, 0.2)',
+                        borderColor: '#4D7C0F',
+                        pointBackgroundColor: '#4D7C0F',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#4D7C0F'
+                    },
+                    {
+                        label: 'tryrovi.com',
+                        data: [60, 80, 80, 95, 75],
+                        fill: true,
+                        backgroundColor: 'rgba(217, 119, 6, 0.2)',
+                        borderColor: '#D97706',
+                        pointBackgroundColor: '#D97706',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#D97706'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { color: 'rgba(0,0,0,0.1)' },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

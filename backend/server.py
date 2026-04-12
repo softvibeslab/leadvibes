@@ -909,43 +909,126 @@ async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user))
 
 @api_router.post("/leads", response_model=dict)
 async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_current_user)):
-    """Create new lead"""
-    lead_id = str(uuid.uuid4())
-    lead_dict = lead_data.model_dump()
+    """Create new lead with validation"""
+    from validators import sanitize_lead_data, check_email_phone_uniqueness
+    
+    try:
+        # Sanitize and validate all input
+        sanitized_data = sanitize_lead_data(lead_data.model_dump())
+        
+        # Check uniqueness within tenant
+        await check_email_phone_uniqueness(
+            db,
+            sanitized_data.get('email'),
+            sanitized_data['phone'],
+            current_user["tenant_id"]
+        )
+        
+        # Create lead
+        lead_id = str(uuid.uuid4())
+        
+        # Set defaults if not provided
+        if "status" not in sanitized_data:
+            sanitized_data["status"] = "nuevo"
+        if "priority" not in sanitized_data:
+            sanitized_data["priority"] = "media"
+        
+        lead_doc = {
+            "id": lead_id,
+            "tenant_id": current_user["tenant_id"],
+            "created_by": current_user["user_id"],
+            **sanitized_data,
+            "intent_score": 50,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
 
-    # Set defaults only if not provided
-    if "status" not in lead_dict or not lead_dict["status"]:
-        lead_dict["status"] = "nuevo"
-    if "priority" not in lead_dict or not lead_dict["priority"]:
-        lead_dict["priority"] = "media"
-
-    lead_doc = {
-        "id": lead_id,
-        "tenant_id": current_user["tenant_id"],
-        **lead_dict,
-        "intent_score": 50,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat()
-    }
-
-    await db.leads.insert_one(lead_doc)
-    return {"message": "Lead creado exitosamente", "id": lead_id}
+        await db.leads.insert_one(lead_doc)
+        
+        return {
+            "message": "Lead creado exitosamente", 
+            "id": lead_id,
+            "phone": sanitized_data['phone']  # Return formatted phone
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating lead: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al crear lead: {str(e)}"
+        )
 
 @api_router.put("/leads/{lead_id}", response_model=dict)
 async def update_lead(lead_id: str, lead_data: LeadUpdate, current_user: dict = Depends(get_current_user)):
-    """Update lead"""
-    update_dict = {k: v for k, v in lead_data.model_dump().items() if v is not None}
-    update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+    """Update lead with validation"""
+    from validators import sanitize_lead_data, check_email_phone_uniqueness
     
-    result = await db.leads.update_one(
-        {"id": lead_id, "tenant_id": current_user["tenant_id"]},
-        {"$set": update_dict}
-    )
+    # Check if lead exists and belongs to tenant
+    existing = await db.leads.find_one({
+        "id": lead_id,
+        "tenant_id": current_user["tenant_id"]
+    })
     
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead no encontrado"
+        )
     
-    return {"message": "Lead actualizado exitosamente"}
+    try:
+        # Get update data (only non-None fields)
+        update_data = {k: v for k, v in lead_data.model_dump().items() if v is not None}
+        
+        if not update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se proporcionaron campos para actualizar"
+            )
+        
+        # Sanitize if name, phone, email, or text fields are being updated
+        if any(field in update_data for field in ['name', 'phone', 'email', 'notes', 'property_interest', 'company', 'position']):
+            sanitized = sanitize_lead_data({
+                **existing,
+                **update_data
+            })
+            
+            # Update only the fields being changed
+            update_dict = {
+                k: sanitized[k] 
+                for k in update_data.keys() 
+                if k in sanitized
+            }
+        else:
+            update_dict = update_data
+        
+        # Check uniqueness if email or phone is being updated
+        if 'email' in update_dict or 'phone' in update_dict:
+            await check_email_phone_uniqueness(
+                db,
+                update_dict.get('email') or existing.get('email'),
+                update_dict.get('phone') or existing['phone'],
+                current_user["tenant_id"],
+                exclude_lead_id=lead_id
+            )
+        
+        update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        result = await db.leads.update_one(
+            {"id": lead_id, "tenant_id": current_user["tenant_id"]},
+            {"$set": update_dict}
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+        return {"message": "Lead actualizado exitosamente"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar lead: {str(e)}")
 
 @api_router.post("/leads/{lead_id}/analyze", response_model=dict)
 async def analyze_lead_ai(lead_id: str, current_user: dict = Depends(get_current_user)):

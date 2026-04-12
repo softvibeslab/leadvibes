@@ -83,6 +83,9 @@ function AppRoutes() {
       <Route path="/demo-request" element={<DemoRequestPage />} />
       <Route path="/contact-sales" element={<DemoRequestPage enterprise />} />
 
+      {/* Module Tracker - Public */}
+      <Route path="/module-tracker" element={<ModuleTrackerPage />} />
+
       {/* Public routes */}
       <Route
         path="/login"
@@ -122,7 +125,6 @@ function AppRoutes() {
         <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/encuentra-leads" element={<EncuentraLeadsPage />} />
         <Route path="/products" element={<ProductsPage />} />
-        <Route path="/module-tracker" element={<ModuleTrackerPage />} />
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/database-chat" element={<DatabaseChatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
