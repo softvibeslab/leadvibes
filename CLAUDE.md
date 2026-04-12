@@ -31,20 +31,21 @@ yarn test     # Run tests
 
 ### Docker
 ```bash
-# Local con puertos alternativos (evita 3000/8000/27017 ocupados):
-cp docker-local.sample .env   # ajusta FRONTEND_HOST_PORT / BACKEND_HOST_PORT / MONGO_HOST_PORT si hace falta
+# Local development (alt ports to avoid conflicts):
+cp docker-local.sample .env   # Adjust FRONTEND_HOST_PORT / BACKEND_HOST_PORT / MONGO_HOST_PORT if needed
 docker compose up -d --build
-# UI http://localhost:13000 · API http://localhost:18080/api/health (valores por defecto en docker-local.sample)
+# UI http://localhost:13000 · API http://localhost:18080/api/health (default values in docker-local.sample)
 
-./scripts/docker-local-up.sh          # mismo flujo automatizado
+./scripts/docker-local-up.sh          # Automated local setup
 
-docker compose -f docker-compose.dev.yml up -d       # Development environment
-docker compose -f docker-compose.preview.yml up -d   # Preview environment
-docker compose -f docker-compose.hostinger.yml up -d # Production (Hostinger deployment)
-docker compose down -v                  # Stop and remove volumes
-docker compose logs -f [service]        # Tail logs for a service
+# Multi-environment deployment (VPS):
+docker compose -f docker-compose.hostinger.yml up -d   # Production (ports: 8000, 3000)
+docker compose -f docker-compose.dev.yml up -d         # Development (ports: 8100, 3100)
+docker compose -f docker-compose.preview.yml up -d     # Preview (ports: 8200, 3200)
+docker compose down -v                                  # Stop and remove volumes
+docker compose logs -f [service]                        # Tail logs for a service
 ```
-Ver [docs/DOCKER_LOCAL.md](docs/DOCKER_LOCAL.md) para detalle.
+See [docs/DOCKER_LOCAL.md](docs/DOCKER_LOCAL.md) for local development details.
 
 **Docker services:**
 - `mongodb` - MongoDB 7 with persistent volume
@@ -52,26 +53,33 @@ Ver [docs/DOCKER_LOCAL.md](docs/DOCKER_LOCAL.md) para detalle.
 - `frontend` - React build served via nginx
 
 **Multi-environment deployment:**
-- Production: `srv1318804.hstgr.cloud` (ports: 8000, 3000)
-- Development: `dev.srv1318804.hstgr.cloud` (ports: 8100, 3100)
-- Preview: `preview.srv1318804.hstgr.cloud` (ports: 8200, 3200)
+Each environment uses a dedicated docker-compose file with unique container names and port mappings to avoid conflicts. All environments deploy to the same VPS (`srv1318804.hstgr.cloud`) using nginx subdomain routing.
 
-See `docs/DEPLOYMENT_URLS.md` for complete deployment reference.
+| Environment | Docker Compose File | External Ports | URL |
+|-------------|-------------------|----------------|-----|
+| Production | `docker-compose.hostinger.yml` | 8000 (backend), 3000 (frontend) | `http://srv1318804.hstgr.cloud` |
+| Development | `docker-compose.dev.yml` | 8100 (backend), 3100 (frontend) | `http://dev.srv1318804.hstgr.cloud` |
+| Preview | `docker-compose.preview.yml` | 8200 (backend), 3200 (frontend) | `http://preview.srv1318804.hstgr.cloud` |
+
+See `docs/DEPLOYMENT_URLS.md` for complete deployment reference including nginx config and GitHub secrets.
 
 ### Backend Testing
 ```bash
 cd backend
-pytest                                          # Unit + smoke (default: excludes integration)
-pytest -m integration                           # Solo tests contra API remota (requests)
+pytest                                          # Run unit + smoke tests only (default)
+pytest -m integration                           # Run integration tests only
 pytest tests/test_leadvibes_crm.py             # Core API tests (integration)
 pytest tests/test_import_leads.py              # Import feature tests (integration)
 pytest tests/test_google_calendar_email_templates.py  # Calendar/email tests (integration)
+pytest tests/test_api_smoke.py                 # Health check smoke test (unit)
+pytest tests/test_auth_unit.py                 # Auth unit tests (unit)
 ```
 
-**Test configuration:**
-- Por defecto se excluyen tests `@pytest.mark.integration` (ver `backend/pytest.ini`).
-- Tests de integración usan `requests` contra un backend en ejecución; define `REACT_APP_BACKEND_URL`.
-- Smoke y unit (`test_api_smoke.py`, `test_auth_unit.py`) usan `TestClient` y no requieren Mongo para `/api/health`.
+**Test types and configuration:**
+- **Unit tests**: Use FastAPI TestClient, don't require running server or MongoDB (e.g., `test_api_smoke.py`, `test_auth_unit.py`)
+- **Integration tests**: Use `requests` against a running backend server, require `REACT_APP_BACKEND_URL` env var and seeded data (e.g., `test_leadvibes_crm.py`, `test_import_leads.py`)
+- By default, pytest excludes integration tests (`@pytest.mark.integration`) - see `backend/pytest.ini`
+- Integration tests require the backend to be running with seeded data for successful execution
 
 ### Backend Linting & Formatting
 ```bash
@@ -107,6 +115,9 @@ yarn lint                      # Run ESLint (configured via craco)
 - Backend: `GET /api/health` - Returns `{"status": "healthy"}`
 - Frontend (nginx): Serves on port 80 in production, 3000 in development
 
+**Production request routing:**
+In production Docker deployments, nginx proxies `/api/*` requests to the backend container (port 8000) while serving React app files directly for all other routes. See `frontend/nginx.conf`.
+
 ### Frontend Structure (`frontend/src/`)
 - `App.js` - React Router with public/protected routes
 - `context/AuthContext.js` - JWT auth, axios instance with interceptors
@@ -121,7 +132,8 @@ yarn lint                      # Run ESLint (configured via craco)
 - API calls through `api` from AuthContext (auto-includes auth header)
 - `account_type` on user determines UI (individual vs agency)
 - Production builds use multi-stage Docker with nginx (`frontend/nginx.conf`)
-- Path alias `@/` maps to `src/` directory
+- Path alias `@/` maps to `src/` directory (configured in `craco.config.js`)
+- Visual edits and health check plugins only load in development mode (not in production builds)
 
 ### Multi-Tenancy & User Types
 
@@ -197,11 +209,14 @@ Theme toggles between light/dark via `next-themes`.
 
 ## Important Notes
 
-- **AI Service**: Falls back gracefully if `emergentintegrations` package is unavailable (not in PyPI)
-- **CORS**: Backend must allow frontend origin for cross-origin requests
+- **AI Service**: The `emergentintegrations` package is not available in PyPI (commented out in requirements.txt). AI features fall back gracefully if unavailable.
+- **CORS**: Backend must allow frontend origin for cross-origin requests. Configure via `CORS_ORIGINS` env var.
 - **Docker volumes**: `mongodb_data` and `backend_uploads` persist across container restarts
 - **Health checks**: Both containers have healthcheck endpoints for orchestration
-- **Testing**: Tests use `requests` library directly against a running backend server (not pytest-asyncio or FastAPI TestClient)
+- **Testing**: Integration tests use `requests` library against running backend; unit/smoke tests use FastAPI TestClient
 - **Frontend build**: Uses craco for custom webpack configuration; visual edits plugins only load in development mode
-- **CI/CD**: GitHub Actions workflows deploy to 3 environments (main→production, dev→development, rovi_deploy→preview)
+- **CI/CD branch mappings**: GitHub Actions workflows deploy on push to specific branches:
+  - `main` → Production (`srv1318804.hstgr.cloud`)
+  - `dev` → Development (`dev.srv1318804.hstgr.cloud`)
+  - `rovi_deploy` → Preview (`preview.srv1318804.hstgr.cloud`)
 - **Server setup**: Run `deploy/setup-server.sh` on the VPS to configure nginx, docker, and subdomains

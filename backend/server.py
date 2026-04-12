@@ -45,6 +45,9 @@ from seed_data import (
     generate_seed_activities, generate_seed_points
 )
 
+# Import Pocket API
+from pocket_api import pocket_router
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -4480,6 +4483,9 @@ async def get_event_assignment(
 
 # Include the router in the main app
 app.include_router(api_router)
+
+# Include Pocket API router
+app.include_router(pocket_router)
 
 app.add_middleware(
     CORSMiddleware,
