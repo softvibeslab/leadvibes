@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Leaf, Target, TrendingUp, Users, DollarSign, CheckCircle, Loader2, Sparkles } from 'lucide-react';
+import { Leaf, Target, TrendingUp, Users, DollarSign, CheckCircle, Loader2, Sparkles, Brain, Zap } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
 import { Textarea } from '../components/ui/textarea.jsx';
+import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
 
 export const OnboardingPage = () => {
@@ -22,7 +23,14 @@ export const OnboardingPage = () => {
     leads_contactados: 50,
     tasa_conversion: 10,
     apartados_mes: 10,
-    periodo: 'mensual'
+    periodo: 'mensual',
+    // Nuevos campos
+    contactos_base_datos: 100,
+    nivel_expertise: 3,
+    necesidades_diarias: [],
+    requiere_canalizacion: false,
+    integraciones_activas: [],
+    kpis_personalizados: {}
   });
   const [aiProfile, setAiProfile] = useState({
     experience: '',
@@ -32,7 +40,7 @@ export const OnboardingPage = () => {
     goals: ''
   });
 
-  const totalSteps = 4;
+  const totalSteps = 6;  // Aumentado de 4 a 6
   const progress = (step / totalSteps) * 100;
 
   const handleNext = () => {
@@ -50,8 +58,10 @@ export const OnboardingPage = () => {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // Save goals
-      await api.post('/goals', goals);
+      // Save goals with all new fields
+      await api.post('/user/onboarding-complete', goals, {
+        headers: { 'Content-Type': 'application/json' }
+      });
 
       // Save AI profile
       if (aiProfile.experience || aiProfile.style) {
@@ -320,6 +330,195 @@ export const OnboardingPage = () => {
                   <p className="text-sm text-primary">
                     ✨ Tu asistente IA usará esta información para darte respuestas personalizadas, consejos adaptados a tu experiencia y scripts con tu estilo.
                   </p>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <Brain className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <CardTitle>Expertise y Configuración</CardTitle>
+                    <CardDescription>Ayúdanos a entender tu nivel y necesidades</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Tamaño de tu base de contactos</Label>
+                  <Input
+                    type="number"
+                    value={goals.contactos_base_datos}
+                    onChange={(e) => setGoals({ ...goals, contactos_base_datos: parseInt(e.target.value) || 0 })}
+                    placeholder="100"
+                  />
+                  <p className="text-xs text-muted-foreground">¿Cuántos contactos tienes en total?</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Nivel de expertise en atención completa al cliente (1-5)</Label>
+                  <Select
+                    value={goals.nivel_expertise.toString()}
+                    onValueChange={(v) => setGoals({ ...goals, nivel_expertise: parseInt(v) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Principiante</SelectItem>
+                      <SelectItem value="2">2 - Básico</SelectItem>
+                      <SelectItem value="3">3 - Intermedio</SelectItem>
+                      <SelectItem value="4">4 - Avanzado</SelectItem>
+                      <SelectItem value="5">5 - Experto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Desde la consulta hasta el cierre</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>¿En qué áreas necesitas mejorar? (Selecciona todas las aplicables)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Cierre', 'Seguimiento', 'Calificación', 'Presentación', 'Negociación', 'Prospectación'].map((area) => (
+                      <div key={area} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          id={`area-${area}`}
+                          checked={goals.necesidades_diarias.includes(area.toLowerCase())}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setGoals({
+                                ...goals,
+                                necesidades_diarias: [...goals.necesidades_diarias, area.toLowerCase()]
+                              });
+                            } else {
+                              setGoals({
+                                ...goals,
+                                necesidades_diarias: goals.necesidades_diarias.filter(a => a !== area.toLowerCase())
+                              });
+                            }
+                          }}
+                        />
+                        <label htmlFor={`area-${area}`} className="text-sm cursor-pointer flex-1">
+                          {area}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <Checkbox
+                    id="canalizacion"
+                    checked={goals.requiere_canalizacion}
+                    onCheckedChange={(checked) => setGoals({ ...goals, requiere_canalizacion: checked })}
+                  />
+                  <label htmlFor="canalizacion" className="text-sm cursor-pointer flex-1">
+                    Requiero canalización con mi líder directo para mayor aprendizaje
+                  </label>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {step === 6 && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <CardTitle>Integraciones y KPIs</CardTitle>
+                    <CardDescription>Configura tus integraciones y métricas personalizadas</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Integraciones a conectar</Label>
+                  <p className="text-xs text-muted-foreground mb-3">Selecciona las integraciones que deseas usar</p>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'vapi', label: 'VAPI (Llamadas IA)', icon: '📞' },
+                      { key: 'twilio', label: 'Twilio (SMS)', icon: '💬' },
+                      { key: 'sendgrid', label: 'SendGrid (Email)', icon: '📧' },
+                      { key: 'google_calendar', label: 'Google Calendar', icon: '📅' }
+                    ].map((integration) => (
+                      <div key={integration.key} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          id={`integration-${integration.key}`}
+                          checked={goals.integraciones_activas.includes(integration.key)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setGoals({
+                                ...goals,
+                                integraciones_activas: [...goals.integraciones_activas, integration.key]
+                              });
+                            } else {
+                              setGoals({
+                                ...goals,
+                                integraciones_activas: goals.integraciones_activas.filter(i => i !== integration.key)
+                              });
+                            }
+                          }}
+                        />
+                        <label htmlFor={`integration-${integration.key}`} className="text-sm cursor-pointer flex-1 flex items-center gap-2">
+                          <span>{integration.icon}</span>
+                          <span>{integration.label}</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>KPIs Personalizados (Opcional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Puedes configurar KPIs personalizados más adelante en Configuración
+                  </p>
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                    <p className="text-sm text-amber-700">
+                      💡 Los KPIs que configuraste en los pasos anteriores serán tus metas principales.
+                      Podrás ajustarlas y agregar métricas personalizadas en cualquier momento desde tu dashboard.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Resumen de Configuración
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Ventas/mes</p>
+                      <p className="font-medium">{goals.ventas_mes}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Ingresos objetivo</p>
+                      <p className="font-medium">${goals.ingresos_objetivo.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Base de contactos</p>
+                      <p className="font-medium">{goals.contactos_base_datos}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Nivel expertise</p>
+                      <p className="font-medium">{goals.nivel_expertise}/5</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Integraciones</p>
+                      <p className="font-medium">{goals.integraciones_activas.length} seleccionadas</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Áreas a mejorar</p>
+                      <p className="font-medium">{goals.necesidades_diarias.length} seleccionadas</p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </>

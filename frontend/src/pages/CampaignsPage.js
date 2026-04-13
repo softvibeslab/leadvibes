@@ -4,7 +4,7 @@ import {
   Phone, MessageSquare, Plus, Play, Pause, CheckCircle, Clock,
   Users, Send, Loader2, PhoneCall, MessageCircle, BarChart3,
   Brain, TrendingUp, AlertCircle, Filter, Search, X, Eye, Mail, MailOpen,
-  Grid3x3, Sparkles, Folder, FileEdit
+  Grid3x3, Sparkles, Folder, FileEdit, Table2, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -32,6 +32,14 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { Checkbox } from '../components/ui/checkbox';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -561,11 +569,110 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
   );
 };
 
+// NUEVO: Campaigns Table View Component
+const CampaignsTableView = ({ campaigns, onSort, sortConfig, onStart, onViewDetails }) => {
+  const SortableHeader = ({ column, label }) => {
+    const isActive = sortConfig.key === column;
+    return (
+      <TableHead
+        className="cursor-pointer hover:bg-muted/50 select-none"
+        onClick={() => onSort(column)}
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isActive ? (
+            sortConfig.direction === 'asc' ?
+              <ArrowUp className="w-3 h-3" /> :
+              <ArrowDown className="w-3 h-3" />
+          ) : (
+            <ArrowUpDown className="w-3 h-3 opacity-30" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
+  return (
+    <Card>
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/30">
+            <SortableHeader column="name" label="Nombre" />
+            <SortableHeader column="status" label="Estatus" />
+            <SortableHeader column="delivery_status" label="Estatus Envío" />
+            <SortableHeader column="open_rate" label="% Apertura" />
+            <SortableHeader column="bounce_rate" label="% Rebote" />
+            <SortableHeader column="responses" label="Respuestas" />
+            <SortableHeader column="conversion_rate" label="% Conversión" />
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {campaigns.map((campaign) => {
+            const status = campaignStatusConfig[campaign.status] || campaignStatusConfig.draft;
+            const StatusIcon = status.icon;
+            const metrics = campaign.metrics || {};
+
+            return (
+              <TableRow key={campaign.id}>
+                <TableCell className="font-medium">{campaign.name}</TableCell>
+                <TableCell>
+                  <Badge className={`${status.color} text-white text-xs`}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {status.label}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">
+                    {metrics.delivery_status || '-'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {campaign.campaign_type === 'email' ? (
+                    <span className={metrics.open_rate > 20 ? 'text-green-500 font-medium' : ''}>
+                      {metrics.open_rate?.toFixed(1)}%
+                    </span>
+                  ) : '-'}
+                </TableCell>
+                <TableCell>
+                  <span className={metrics.bounce_rate > 10 ? 'text-red-500' : ''}>
+                    {metrics.bounce_rate?.toFixed(1)}%
+                  </span>
+                </TableCell>
+                <TableCell>{metrics.responses || 0}</TableCell>
+                <TableCell>
+                  <span className={metrics.conversion_rate > 5 ? 'text-green-500 font-medium' : ''}>
+                    {metrics.conversion_rate?.toFixed(1)}%
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => onViewDetails(campaign)}>
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    {campaign.status === 'draft' && (
+                      <Button size="sm" onClick={() => onStart(campaign.id)}>
+                        <Play className="w-3 h-3 mr-1" /> Iniciar
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+};
+
 // Main Component
 export const CampaignsPage = () => {
   const { api, token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState([]);
+  const [view, setView] = useState('table');  // NUEVO: 'table' or 'cards'
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });  // NUEVO
   const [callRecords, setCallRecords] = useState([]);
   const [smsRecords, setSmsRecords] = useState([]);
   const [emailRecords, setEmailRecords] = useState([]);
@@ -812,6 +919,30 @@ export const CampaignsPage = () => {
         </Card>
       </div>
 
+      {/* NUEVO: View Toggle */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-semibold">Campañas Activas</h2>
+          <p className="text-sm text-muted-foreground">{campaigns.length} campañas totales</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={view === 'table' ? 'default' : 'outline'}
+            onClick={() => { setView('table'); loadData(); }}
+          >
+            <Table2 className="w-4 h-4 mr-2" />
+            Tabla
+          </Button>
+          <Button
+            variant={view === 'cards' ? 'default' : 'outline'}
+            onClick={() => { setView('cards'); loadData(); }}
+          >
+            <Grid3x3 className="w-4 h-4 mr-2" />
+            Cards
+          </Button>
+        </div>
+      </div>
+
       {/* Main Content */}
       <Tabs defaultValue="campaigns" className="space-y-4">
         <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
@@ -840,23 +971,37 @@ export const CampaignsPage = () => {
         {/* Campaigns Tab */}
         <TabsContent value="campaigns">
           {campaigns.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {campaigns.map(campaign => (
-                <CampaignCard
-                  key={campaign.id}
-                  campaign={campaign}
-                  onStart={handleStartCampaign}
-                  onViewDetails={(c) => console.log('View details', c)}
-                />
-              ))}
-            </div>
+            view === 'table' ? (
+              <CampaignsTableView
+                campaigns={campaigns}
+                onSort={(key) => {
+                  const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                  setSortConfig({ key, direction });
+                  loadData();
+                }}
+                sortConfig={sortConfig}
+                onStart={handleStartCampaign}
+                onViewDetails={(c) => console.log('View details', c)}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {campaigns.map(campaign => (
+                  <CampaignCard
+                    key={campaign.id}
+                    campaign={campaign}
+                    onStart={handleStartCampaign}
+                    onViewDetails={(c) => console.log('View details', c)}
+                  />
+                ))}
+              </div>
+            )
           ) : (
             <Card>
               <CardContent className="p-8 text-center">
                 <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
                 <p className="text-muted-foreground">No hay campañas creadas</p>
-                <Button 
-                  variant="link" 
+                <Button
+                  variant="link"
                   className="mt-2"
                   onClick={() => setShowNewModal(true)}
                 >

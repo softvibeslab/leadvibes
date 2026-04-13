@@ -725,14 +725,46 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
     budget_mxn: 0,
     property_interest: '',
     notes: '',
+    custom_fields: {}, // NUEVO: Campos personalizados
+    properties: [] // NUEVO: Propiedades asociadas
+  });
+
+  const [showPropertySection, setShowPropertySection] = useState(false);
+  const [tempProperty, setTempProperty] = useState({
+    titulo: '',
+    tipo: 'venta',
+    precio: '',
+    ubicacion: ''
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validar máximo 3 campos custom
+    const customFieldsCount = Object.keys(form.custom_fields || {}).filter(
+      key => form.custom_fields[key].trim() !== ''
+    ).length;
+
+    if (customFieldsCount > 3) {
+      toast.error('Máximo 3 campos personalizados permitidos');
+      return;
+    }
+
     setLoading(true);
     try {
+      // Crear lead
       await api.post('/leads', form);
-      toast.success('Lead creado exitosamente');
+
+      // Si hay propiedades, crearlas
+      if (form.properties && form.properties.length > 0) {
+        for (const prop of form.properties) {
+          await api.post('/properties', prop);
+        }
+        toast.success(`Lead y ${form.properties.length} propiedades creadas exitosamente`);
+      } else {
+        toast.success('Lead creado exitosamente');
+      }
+
       onCreated();
       onClose();
       setForm({
@@ -743,6 +775,8 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
         budget_mxn: 0,
         property_interest: '',
         notes: '',
+        custom_fields: {},
+        properties: []
       });
     } catch (error) {
       toast.error('Error al crear lead');
@@ -751,9 +785,45 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
     }
   };
 
+  const addProperty = () => {
+    if (!tempProperty.titulo || !tempProperty.precio) {
+      toast.error('Completa los datos de la propiedad');
+      return;
+    }
+
+    setForm({
+      ...form,
+      properties: [
+        ...form.properties,
+        {
+          sku: `PROP-${Date.now().toString().slice(-4)}`,
+          titulo: tempProperty.titulo,
+          property_type: tempProperty.tipo,
+          precio_mxn: parseFloat(tempProperty.precio),
+          ubicacion: tempProperty.ubicacion,
+          lat: 20.21,
+          lng: -87.47,
+          descripcion: '',
+          imagenes: [],
+          caracteristicas: {}
+        }
+      ]
+    });
+
+    setTempProperty({ titulo: '', tipo: 'venta', precio: '', ubicacion: '' });
+    toast.success('Propiedad agregada');
+  };
+
+  const removeProperty = (index) => {
+    setForm({
+      ...form,
+      properties: form.properties.filter((_, i) => i !== index)
+    });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nuevo Lead</DialogTitle>
           <DialogDescription>Agrega un nuevo prospecto al sistema</DialogDescription>
@@ -831,6 +901,127 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
               placeholder="Notas adicionales..."
             />
           </div>
+
+          {/* NUEVO: Campos personalizados (máximo 3) */}
+          <div className="space-y-2">
+            <Label>Campos Personalizados (máximo 3)</Label>
+            <div className="space-y-2">
+              {['campo1', 'campo2', 'campo3'].map((campo, idx) => (
+                <div key={campo} className="flex gap-2">
+                  <Input
+                    placeholder={`Nombre del campo ${idx + 1}`}
+                    value={Object.keys(form.custom_fields)[idx] || ''}
+                    onChange={(e) => {
+                      const keys = Object.keys(form.custom_fields);
+                      const values = Object.values(form.custom_fields);
+                      const newCustomFields = {};
+                      if (keys[idx]) {
+                        const value = values[idx];
+                        if (e.target.value) {
+                          newCustomFields[e.target.value] = value;
+                        }
+                      }
+                      // Mantener otros campos
+                      keys.forEach((k, i) => {
+                        if (i !== idx && k) newCustomFields[k] = values[i];
+                      });
+                      setForm({ ...form, custom_fields: newCustomFields });
+                    }}
+                  />
+                  <Input
+                    placeholder="Valor"
+                    value={Object.values(form.custom_fields)[idx] || ''}
+                    onChange={(e) => {
+                      const keys = Object.keys(form.custom_fields);
+                      const values = Object.values(form.custom_fields);
+                      const newCustomFields = { ...form.custom_fields };
+                      if (keys[idx]) {
+                        newCustomFields[keys[idx]] = e.target.value;
+                        setForm({ ...form, custom_fields: newCustomFields });
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* NUEVO: Sección de propiedades */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Asociar Propiedades</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPropertySection(!showPropertySection)}
+              >
+                {showPropertySection ? 'Ocultar' : 'Mostrar'}
+              </Button>
+            </div>
+
+            {showPropertySection && (
+              <div className="space-y-3 p-4 border rounded-lg">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Título de propiedad"
+                    value={tempProperty.titulo}
+                    onChange={(e) => setTempProperty({ ...tempProperty, titulo: e.target.value })}
+                  />
+                  <Select
+                    value={tempProperty.tipo}
+                    onValueChange={(v) => setTempProperty({ ...tempProperty, tipo: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="venta">Venta</SelectItem>
+                      <SelectItem value="renta">Renta</SelectItem>
+                      <SelectItem value="subarrendamiento">Subarrendamiento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Precio"
+                    value={tempProperty.precio}
+                    onChange={(e) => setTempProperty({ ...tempProperty, precio: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Ubicación"
+                    value={tempProperty.ubicacion}
+                    onChange={(e) => setTempProperty({ ...tempProperty, ubicacion: e.target.value })}
+                  />
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addProperty}>
+                  + Agregar Propiedad
+                </Button>
+
+                {/* Lista de propiedades agregadas */}
+                {form.properties.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Propiedades a crear ({form.properties.length})</Label>
+                    {form.properties.map((prop, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
+                        <span className="text-sm">{prop.titulo}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeProperty(idx)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} className="rounded-full">
               Cancelar
