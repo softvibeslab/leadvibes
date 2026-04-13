@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   Calendar as CalendarIcon, Plus, Clock, Phone, Video, MapPin, User,
   ChevronLeft, ChevronRight, Check, Trash2, Loader2, RefreshCw, Settings,
-  Table2, Calendar, ArrowUpDown, ArrowUp, ArrowDown, List
+  Table2, ArrowUpDown, ArrowUp, ArrowDown, List
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
