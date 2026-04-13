@@ -176,7 +176,7 @@ async def pocket_copilot_query(
 
     except Exception as e:
         # Fallback to basic response
-    return {
+        return {
         "response": f"Entiendo tu consulta sobre {context['query_type']}. Para ayudarte mejor, necesito que me des más detalles específicos.",
         "context_used": "fallback",
         "actions": [],
