@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FileText, Plus, Search, Copy, Loader2, Tag, Sparkles } from 'lucide-react';
+import { FileText, Plus, Search, Copy, Loader2, Tag, Sparkles, Mail, Edit } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -26,6 +26,8 @@ import {
 } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
+import { EmailTemplateCard } from '../components/email/EmailTemplateCard.jsx';
+import { EmailTemplatePreviewDialog } from '../components/email/EmailTemplatePreview.jsx';
 
 const categoryConfig = {
   apertura: { label: 'Apertura', color: 'bg-blue-500' },
@@ -265,6 +267,27 @@ export const ScriptsPage = () => {
   const [selectedScript, setSelectedScript] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
 
+  // NUEVO: Email Templates
+  const [emailTemplates, setEmailTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState('all');
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [showEmailEditorModal, setShowEmailEditorModal] = useState(false);
+
+  useEffect(() => {
+    loadScripts();
+    loadEmailTemplates();
+  }, []);
+
+  const loadEmailTemplates = async () => {
+    try {
+      const res = await api.get('/email-templates');
+      setEmailTemplates(res.data || []);
+    } catch (error) {
+      console.error('Error loading email templates:', error);
+    }
+  };
   useEffect(() => {
     loadScripts();
   }, [categoryFilter]);
@@ -322,6 +345,55 @@ export const ScriptsPage = () => {
         </Tabs>
       </div>
 
+      {/* NUEVO: Email Template Editor */}
+      <Card className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/20">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Mail className="w-5 h-5 text-purple-500" />
+                Diseño de Correos
+              </CardTitle>
+              <CardDescription>
+                Crea y personaliza plantillas de correo para tus campañas
+              </CardDescription>
+            </div>
+            <Button
+              onClick={() => setShowEmailEditorModal(true)}
+              className="rounded-full"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Crear Plantilla
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {emailTemplates.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {emailTemplates.slice(0, 6).map((template) => (
+                <EmailTemplateCard
+                  key={template.id}
+                  template={template}
+                  onEdit={() => {
+                    setSelectedTemplate(template);
+                    setShowEmailEditorModal(true);
+                  }}
+                  onPreview={() => {
+                    setSelectedTemplate(template);
+                    setShowTemplatePreview(true);
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No hay plantillas de correo creadas</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Scripts Grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -363,6 +435,16 @@ export const ScriptsPage = () => {
         onClose={() => setShowNewModal(false)}
         onCreated={loadScripts}
         api={api}
+      />
+
+      {/* Email Template Preview Dialog */}
+      <EmailTemplatePreviewDialog
+        template={selectedTemplate}
+        isOpen={showTemplatePreview}
+        onClose={() => {
+          setShowTemplatePreview(false);
+          setSelectedTemplate(null);
+        }}
       />
     </div>
   );

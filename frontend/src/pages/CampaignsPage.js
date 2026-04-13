@@ -39,12 +39,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/table';
+} from '../components/ui/table.jsx';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { EmailTemplateCard } from '../components/email/EmailTemplateCard';
-import { EmailTemplatePreviewDialog } from '../components/email/EmailTemplatePreview';
+import { EmailTemplateCard } from '../components/email/EmailTemplateCard.jsx';
+import { EmailTemplatePreviewDialog } from '../components/email/EmailTemplatePreview.jsx';
 
 // Status config
 const campaignStatusConfig = {

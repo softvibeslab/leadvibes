@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   Calendar as CalendarIcon, Plus, Clock, Phone, Video, MapPin, User,
-  ChevronLeft, ChevronRight, Check, Trash2, Loader2, RefreshCw, Settings
+  ChevronLeft, ChevronRight, Check, Trash2, Loader2, RefreshCw, Settings,
+  Table2, Calendar, ArrowUpDown, ArrowUp, ArrowDown, List
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -28,6 +29,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table.jsx';
 import { toast } from 'sonner';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -299,6 +308,111 @@ const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads, b
   );
 };
 
+// NUEVO: Calendar Table View Component
+const CalendarTableView = ({ events, onSort, sortConfig, onComplete, onDelete }) => {
+  const SortableHeader = ({ column, label }) => {
+    const isActive = sortConfig.key === column;
+    return (
+      <TableHead
+        className="cursor-pointer hover:bg-muted/50 select-none"
+        onClick={() => onSort(column)}
+      >
+        <div className="flex items-center gap-1">
+          {label}
+          {isActive ? (
+            sortConfig.direction === 'asc' ?
+              <ArrowUp className="w-3 h-3" /> :
+              <ArrowDown className="w-3 h-3" />
+          ) : (
+            <ArrowUpDown className="w-3 h-3 opacity-30" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high': return 'bg-red-500';
+      case 'medium': return 'bg-amber-500';
+      case 'low': return 'bg-green-500';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  return (
+    <Card>
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/30">
+            <SortableHeader column="title" label="Título" />
+            <SortableHeader column="event_type" label="Tipo" />
+            <SortableHeader column="start_time" label="Fecha" />
+            <SortableHeader column="lead_id" label="Lead" />
+            <TableHead>Priority</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {events.map((event) => {
+            const config = eventTypeConfig[event.event_type] || eventTypeConfig.otro;
+            const Icon = config.icon;
+
+            return (
+              <TableRow key={event.id} className={event.completed ? 'opacity-50' : ''}>
+                <TableCell className="font-medium">{event.title}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">
+                    <Icon className="w-3 h-3 mr-1" />
+                    {config.label}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {format(new Date(event.start_time), "d MMM yyyy, HH:mm", { locale: es })}
+                </TableCell>
+                <TableCell>
+                  {event.lead ? (
+                    <span className="text-sm">{event.lead.name}</span>
+                  ) : '-'}
+                </TableCell>
+                <TableCell>
+                  <div className={`w-2 h-2 rounded-full ${getPriorityColor(event.priority || 'normal')}`} />
+                </TableCell>
+                <TableCell>
+                  <Badge variant={event.completed ? "secondary" : "default"}>
+                    {event.completed ? 'Completado' : 'Pendiente'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    {!event.completed && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onComplete(event.id)}
+                      >
+                        <Check className="w-4 h-4 text-green-500" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onDelete(event.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+};
+
 export const CalendarPage = () => {
   const { api } = useAuth();
   const [events, setEvents] = useState([]);
@@ -307,6 +421,8 @@ export const CalendarPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [view, setView] = useState('month');  // NUEVO: 'month', 'week', 'day', 'table'
+  const [sortConfig, setSortConfig] = useState({ key: 'start_time', direction: 'asc' });  // NUEVO
   const [showNewModal, setShowNewModal] = useState(false);
   const [showRoundRobinConfig, setShowRoundRobinConfig] = useState(false);
 
@@ -385,6 +501,33 @@ export const CalendarPage = () => {
           <p className="text-sm sm:text-base text-muted-foreground">Gestiona tus actividades y seguimientos</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* NUEVO: View Toggle */}
+          <div className="flex bg-muted rounded-lg p-1">
+            <Button
+              variant={view === 'month' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('month')}
+              className="h-8 px-3"
+            >
+              <Calendar className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={view === 'week' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('week')}
+              className="h-8 px-3"
+            >
+              Lista
+            </Button>
+            <Button
+              variant={view === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('table')}
+              className="h-8 px-3"
+            >
+              <Table2 className="w-4 h-4" />
+            </Button>
+          </div>
           <Button
             variant="outline"
             onClick={() => setShowRoundRobinConfig(true)}
@@ -411,6 +554,20 @@ export const CalendarPage = () => {
               <Skeleton className="h-[300px] sm:h-[400px] w-full" />
             </CardContent>
           </Card>
+        </div>
+      ) : view === 'table' ? (
+        /* NUEVO: Table View */
+        <div className="lg:col-span-3">
+          <CalendarTableView
+            events={events}
+            onSort={(key) => {
+              const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+              setSortConfig({ key, direction });
+            }}
+            sortConfig={sortConfig}
+            onComplete={handleCompleteEvent}
+            onDelete={handleDeleteEvent}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">

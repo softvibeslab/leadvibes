@@ -18,7 +18,9 @@ import {
   Radio,
   Upload,
   BarChart3,
-  Zap
+  Zap,
+  Building,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -27,6 +29,8 @@ import { Separator } from '../components/ui/separator';
 const individualNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
+  { to: '/properties', icon: Building, label: 'Propiedades' },
+  { to: '/inbox', icon: MessageCircle, label: 'Inbox' },
   { to: '/import', icon: Upload, label: 'Importar Leads' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
@@ -40,6 +44,8 @@ const individualNavItems = [
 const agencyNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
+  { to: '/properties', icon: Building, label: 'Propiedades' },
+  { to: '/inbox', icon: MessageCircle, label: 'Inbox' },
   { to: '/import', icon: Upload, label: 'Importar Leads' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
