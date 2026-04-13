@@ -18,6 +18,8 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AutomationsPage } from './pages/AutomationsPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
+import { PropertiesPage } from './pages/PropertiesPage';
+import { InboxPage } from './pages/InboxPage';
 import { LandingPage } from './pages/LandingPage';
 import { DemoRequestPage } from './pages/DemoRequestPage';
 import './App.css';
@@ -109,6 +111,8 @@ function AppRoutes() {
       >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/leads" element={<LeadsPage />} />
+        <Route path="/properties" element={<PropertiesPage />} />
+        <Route path="/inbox" element={<InboxPage />} />
         <Route path="/brokers" element={<BrokersPage />} />
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
