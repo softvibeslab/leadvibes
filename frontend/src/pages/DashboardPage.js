@@ -731,7 +731,6 @@ export const DashboardPage = () => {
     }
   };
 
-  const handleKpiClick = async (type) => {
 
   const handleKpiClick = async (type) => {
     setLoadingKpi(true);
