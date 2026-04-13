@@ -33,7 +33,9 @@ from models import (
     ImportJob, ImportStatus, ImportMappingRequest, ColumnMapping,
     CampaignMetrics, AnalyticsDashboard,
     AutomationWorkflow, AutomationWorkflowCreate, AutomationExecution,
-    RoundRobinConfig, CalendarAssignment
+    RoundRobinConfig, CalendarAssignment,
+    Property, PropertyCreate, PropertyType,
+    ConversationMessage, ConversationThread
 )
 from auth import (
     get_password_hash, verify_password, create_access_token,
@@ -633,6 +635,174 @@ async def get_recent_activity(limit: int = 10, current_user: dict = Depends(get_
     
     return [serialize_doc(a) for a in activities]
 
+@api_router.get("/dashboard/broker-daily-summary")
+async def get_broker_daily_summary(current_user: dict = Depends(get_current_user)):
+    """Resumen diario para broker: leads a contactar, actividades, prioridades"""
+    tenant_id = current_user["tenant_id"]
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+
+    # Leads a contactar hoy (nuevos o contactados)
+    leads_to_contact = await db.leads.count_documents({
+        "tenant_id": tenant_id,
+        "status": {"$in": ["nuevo", "contactado"]},
+        "created_at": {"$gte": today_start.isoformat()}
+    })
+
+    # Actividades programadas hoy
+    today_activities = await db.calendar_events.count_documents({
+        "tenant_id": tenant_id,
+        "start_time": {"$gte": today_start.isoformat(), "$lte": today_end.isoformat()},
+        "completed": False
+    })
+
+    # Top leads cualificados (intent_score > 70)
+    top_leads = await db.leads.find({
+        "tenant_id": tenant_id,
+        "intent_score": {"$gte": 70},
+        "status": {"$ne": "venta"}
+    }, {"_id": 0}).sort("intent_score", -1).limit(3).to_list(3)
+
+    # Leads urgentes (prioridad urgente, sin actividad reciente)
+    two_days_ago = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    urgent_leads = await db.leads.find({
+        "tenant_id": tenant_id,
+        "priority": "urgente",
+        "$or": [
+            {"last_contact": {"$lt": two_days_ago}},
+            {"last_contact": None}
+        ]
+    }, {"_id": 0}).limit(3).to_list(3)
+
+    return {
+        "leads_to_contact": leads_to_contact,
+        "today_activities": today_activities,
+        "top_qualified_leads": [serialize_doc(l) for l in top_leads],
+        "urgent_leads": [serialize_doc(l) for l in urgent_leads]
+    }
+
+@api_router.get("/dashboard/ai-insights")
+async def get_ai_insights(current_user: dict = Depends(get_current_user)):
+    """Insights de IA para el broker"""
+    tenant_id = current_user["tenant_id"]
+
+    # Leads estancados (sin movimiento en 7 días)
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    stuck_leads = await db.leads.find({
+        "tenant_id": tenant_id,
+        "status": {"$in": ["calificacion", "presentacion"]},
+        "updated_at": {"$lt": seven_days_ago}
+    }, {"_id": 0}).limit(5).to_list(5)
+
+    # Análisis de salud del pipeline
+    pipeline_health = await db.leads.aggregate([
+        {"$match": {"tenant_id": tenant_id}},
+        {"$group": {
+            "_id": "$status",
+            "count": {"$sum": 1}
+        }}
+    ]).to_list(None)
+
+    # Recomendaciones basadas en datos
+    recommendations = []
+    if stuck_leads:
+        recommendations.append({
+            "type": "warning",
+            "text": f"Tienes {len(stuck_leads)} leads estancados que requieren seguimiento inmediato"
+        })
+
+    return {
+        "recommendations": recommendations,
+        "stuck_leads": [serialize_doc(l) for l in stuck_leads],
+        "pipeline_health": {p["_id"]: p["count"] for p in pipeline_health}
+    }
+
+# ==================== USER ONBOARDING ROUTES ====================
+
+@api_router.get("/user/onboarding-status")
+async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
+    """Verificar estado del onboarding"""
+    user = await db.users.find_one(
+        {"id": current_user["user_id"]},
+        {"_id": 0, "onboarding_completed": 1, "created_at": 1}
+    )
+
+    goal = await db.goals.find_one(
+        {"user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+
+    # Verificar campos nuevos del onboarding mejorado
+    has_new_fields = False
+    if goal:
+        has_new_fields = any(
+            goal.get(field) is not None
+            for field in ["contactos_base_datos", "nivel_expertise", "necesidades_diarias"]
+        )
+
+    return {
+        "onboarding_completed": user.get("onboarding_completed", False) if user else False,
+        "has_new_fields": has_new_fields,
+        "user_created_at": user.get("created_at") if user else None
+    }
+
+@api_router.post("/user/onboarding-complete")
+async def complete_onboarding(
+    goals_data: GoalCreate,
+    ai_profile_data: Optional[AIProfileCreate] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Completar onboarding con todos los campos mejorados"""
+    user_id = current_user["user_id"]
+    tenant_id = current_user["tenant_id"]
+
+    # Guardar goals con campos nuevos
+    goal_id = str(uuid.uuid4())
+    goal_doc = {
+        "id": goal_id,
+        "user_id": user_id,
+        "tenant_id": tenant_id,
+        **goals_data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    await db.goals.update_one(
+        {"user_id": user_id},
+        {"$set": goal_doc},
+        upsert=True
+    )
+
+    # Guardar AI profile si se proporciona
+    if ai_profile_data and (ai_profile_data.experience or ai_profile_data.style):
+        ai_profile_id = str(uuid.uuid4())
+        ai_profile_doc = {
+            "id": ai_profile_id,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            **ai_profile_data.model_dump(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        await db.ai_profiles.update_one(
+            {"user_id": user_id},
+            {"$set": ai_profile_doc},
+            upsert=True
+        )
+
+    # Marcar onboarding como completo
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"onboarding_completed": True}}
+    )
+
+    return {
+        "message": "Onboarding completado exitosamente",
+        "goal_id": goal_id,
+        "onboarding_completed": True
+    }
+
 # ==================== LEADS ROUTES ====================
 
 @api_router.get("/leads", response_model=List[dict])
@@ -1161,6 +1331,177 @@ async def seed_demo_data(current_user: dict = Depends(get_current_user)):
     
     return {"message": "Datos de demo cargados exitosamente", "brokers": 5, "leads": 20}
 
+# ==================== INBOX OMNICANAL ====================
+
+@api_router.get("/inbox/conversations")
+async def list_conversations(
+    filter_type: str = "all",  # "all", "unanswered"
+    channel: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Listar conversaciones del inbox omnicanal"""
+    tenant_id = current_user["tenant_id"]
+
+    # Pipeline para agrupar mensajes en conversaciones
+    pipeline = [
+        {"$match": {"tenant_id": tenant_id}},
+        {"$group": {
+            "_id": "$lead_id",
+            "lead_name": {"$first": "$lead_name"},
+            "channel": {"$first": "$channel"},
+            "last_message_at": {"$max": "$created_at"},
+            "is_unanswered": {
+                "$max": {
+                    "$cond": [
+                        {"$and": [
+                            {"$eq": ["$direction", "inbound"]},
+                            {"$eq": ["$responded", False]}
+                        ]},
+                        True,
+                        False
+                    ]
+                }
+            },
+            "message_count": {"$sum": 1}
+        }},
+        {"$sort": {"last_message_at": -1}}
+    ]
+
+    # Filtrar por tipo
+    if filter_type == "unanswered":
+        # Agregar un stage $match al inicio para filtrar mensajes no contestados
+        pipeline.insert(0, {
+            "$match": {
+                "$and": [
+                    {"direction": "inbound"},
+                    {"responded": False}
+                ]
+            }
+        })
+
+    if channel:
+        pipeline.insert(0, {"$match": {"channel": channel}})
+
+    conversations = await db.conversation_messages.aggregate(pipeline).to_list(100)
+
+    # Formatear respuesta
+    result = []
+    for conv in conversations:
+        result.append({
+            "id": conv["_id"],
+            "lead_name": conv.get("lead_name", "Desconocido"),
+            "channel": conv.get("channel", "whatsapp"),
+            "last_message_at": conv.get("last_message_at"),
+            "is_unanswered": conv.get("is_unanswered", False),
+            "message_count": conv.get("message_count", 0)
+        })
+
+    return result
+
+@api_router.get("/inbox/conversations/{lead_id}/messages")
+async def get_conversation_messages(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtener mensajes de una conversación"""
+    messages = await db.conversation_messages.find({
+        "tenant_id": current_user["tenant_id"],
+        "lead_id": lead_id
+    }, {"_id": 0}).sort("created_at", 1).to_list(100)
+
+    return [serialize_doc(m) for m in messages]
+
+@api_router.post("/inbox/conversations/{lead_id}/messages")
+async def send_message(
+    lead_id: str,
+    request_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Enviar mensaje a través del canal correspondiente"""
+    content = request_data.get("content")
+    channel = request_data.get("channel", "whatsapp")
+
+    if not content:
+        raise HTTPException(status_code=400, detail="El contenido es requerido")
+
+    # Obtener info del lead
+    lead = await db.leads.find_one({"id": lead_id}, {"_id": 0, "name": 1, "phone": 1, "email": 1})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    # Crear mensaje
+    message_id = str(uuid.uuid4())
+    message_doc = {
+        "id": message_id,
+        "tenant_id": current_user["tenant_id"],
+        "user_id": current_user["user_id"],
+        "lead_id": lead_id,
+        "lead_name": lead.get("name", "Desconocido"),
+        "channel": channel,
+        "direction": "outbound",
+        "content": content,
+        "metadata": {},
+        "read": True,
+        "responded": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    await db.conversation_messages.insert_one(message_doc)
+
+    # TODO: Implementar envío real a través del proveedor
+    # if channel == "whatsapp":
+    #     await send_whatsapp_message(lead.get("phone"), content)
+    # elif channel == "email":
+    #     await send_email_message(lead.get("email"), content)
+
+    return serialize_doc(message_doc)
+
+@api_router.get("/inbox/ai-insights")
+async def get_inbox_ai_insights(current_user: dict = Depends(get_current_user)):
+    """Obtener insights de IA para el inbox"""
+    tenant_id = current_user["tenant_id"]
+
+    # Top leads del día (alta intención, sin contacto reciente)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    top_leads = await db.leads.find({
+        "tenant_id": tenant_id,
+        "intent_score": {"$gte": 70},
+        "status": {"$ne": "venta"}
+    }, {"_id": 0}).sort("intent_score", -1).limit(5).to_list(5)
+
+    # Prioridades (leads urgentes sin respuesta)
+    urgent_unanswered = await db.leads.find({
+        "tenant_id": tenant_id,
+        "priority": "urgente"
+    }, {"_id": 0}).limit(5).to_list(5)
+
+    # Sugerencias de IA
+    suggestions = []
+    if urgent_unanswered:
+        suggestions.append({
+            "type": "urgent",
+            "text": f"Tienes {len(urgent_unanswered)} leads urgentes que requieren atención inmediata"
+        })
+
+    if top_leads:
+        suggestions.append({
+            "type": "opportunity",
+            "text": f"{len(top_leads)} leads con alta probabilidad de cierre listos para seguir"
+        })
+
+    return {
+        "top_leads": [serialize_doc(l) for l in top_leads],
+        "priorities": [
+            {
+                "id": l["id"],
+                "lead_name": l["name"],
+                "reason": "Lead urgente sin seguimiento reciente"
+            }
+            for l in urgent_unanswered
+        ],
+        "suggestions": suggestions
+    }
+
 # ==================== CALENDAR ROUTES ====================
 
 @api_router.get("/calendar/events", response_model=List[dict])
@@ -1558,20 +1899,329 @@ async def test_twilio_connection(current_user: dict = Depends(get_current_user))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
 
+# ==================== PROPERTIES / INMUEBLES ====================
+
+@api_router.get("/properties")
+async def list_properties(
+    skip: int = 0,
+    limit: int = 50,
+    property_type: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    ubicacion: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Listar propiedades con filtros"""
+    tenant_id = current_user["tenant_id"]
+    filter_dict = {"tenant_id": tenant_id, "activo": True}
+
+    if property_type:
+        filter_dict["property_type"] = property_type
+    if min_price is not None:
+        filter_dict["precio_mxn"] = {"$gte": min_price}
+    if max_price is not None:
+        if "precio_mxn" in filter_dict:
+            filter_dict["precio_mxn"]["$lte"] = max_price
+        else:
+            filter_dict["precio_mxn"] = {"$lte": max_price}
+    if ubicacion:
+        filter_dict["ubicacion"] = {"$regex": ubicacion, "$options": "i"}
+
+    properties = await db.properties.find(filter_dict, {"_id": 0}).skip(skip).limit(limit).sort("creado_en", -1).to_list(limit)
+    return [serialize_doc(p) for p in properties]
+
+@api_router.get("/properties/{property_id}")
+async def get_property(property_id: str, current_user: dict = Depends(get_current_user)):
+    """Obtener una propiedad por ID"""
+    property_data = await db.properties.find_one({
+        "id": property_id,
+        "tenant_id": current_user["tenant_id"]
+    }, {"_id": 0})
+
+    if not property_data:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada")
+
+    return serialize_doc(property_data)
+
+@api_router.post("/properties")
+async def create_property(property_data: PropertyCreate, current_user: dict = Depends(get_current_user)):
+    """Crear nueva propiedad"""
+    # Generar SKU si no se proporciona
+    if not property_data.sku:
+        property_data.sku = f"PROP-{uuid.uuid4().hex[:8].upper()}"
+
+    property_dict = property_data.model_dump()
+    property_id = str(uuid.uuid4())
+    property_dict["id"] = property_id
+    property_dict["tenant_id"] = current_user["tenant_id"]
+    property_dict["user_id"] = current_user["user_id"]
+    property_dict["creado_en"] = datetime.now(timezone.utc).isoformat()
+    property_dict["actualizado_en"] = datetime.now(timezone.utc).isoformat()
+    property_dict["activo"] = True
+
+    # Validar máximo 3 campos custom
+    custom_fields_count = len(property_dict.get("caracteristicas", {}))
+    if custom_fields_count > 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Máximo 3 campos personalizados permitidos"
+        )
+
+    result = await db.properties.insert_one(property_dict)
+    property_dict["_id"] = str(result.inserted_id)
+
+    return serialize_doc(property_dict)
+
+@api_router.put("/properties/{property_id}")
+async def update_property(
+    property_id: str,
+    property_data: PropertyCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Actualizar propiedad existente"""
+    # Validar máximo 3 campos custom
+    custom_fields_count = len(property_data.caracteristicas or {})
+    if custom_fields_count > 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Máximo 3 campos personalizados permitidos"
+        )
+
+    update_dict = property_data.model_dump()
+    update_dict["actualizado_en"] = datetime.now(timezone.utc).isoformat()
+
+    result = await db.properties.update_one(
+        {"id": property_id, "tenant_id": current_user["tenant_id"]},
+        {"$set": update_dict}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada")
+
+    return {"message": "Propiedad actualizada exitosamente"}
+
+@api_router.delete("/properties/{property_id}")
+async def delete_property(property_id: str, current_user: dict = Depends(get_current_user)):
+    """Eliminar propiedad (soft delete)"""
+    result = await db.properties.update_one(
+        {"id": property_id, "tenant_id": current_user["tenant_id"]},
+        {"$set": {"activo": False, "actualizado_en": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Propiedad no encontrada")
+
+    return {"message": "Propiedad eliminada exitosamente"}
+
+@api_router.post("/properties/bulk-share")
+async def bulk_share_properties(
+    request_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Compartir múltiples propiedades por correo o WhatsApp"""
+    property_ids = request_data.get("property_ids", [])
+    medium = request_data.get("medium")  # "email" or "whatsapp"
+    lead_ids = request_data.get("lead_ids", [])
+    template = request_data.get("template")
+
+    if not property_ids:
+        raise HTTPException(status_code=400, detail="Se requiere al menos una propiedad")
+
+    if not lead_ids:
+        raise HTTPException(status_code=400, detail="Se requiere al menos un lead")
+
+    # Obtener propiedades
+    properties = await db.properties.find({
+        "id": {"$in": property_ids},
+        "tenant_id": current_user["tenant_id"],
+        "activo": True
+    }, {"_id": 0}).to_list(None)
+
+    if not properties:
+        raise HTTPException(status_code=404, detail="No se encontraron las propiedades")
+
+    # TODO: Implementar envío real por email/WhatsApp
+    # Por ahora retornar success
+
+    return {
+        "status": "queued",
+        "count": len(properties),
+        "medium": medium,
+        "lead_ids": lead_ids,
+        "message": f"Enviando {len(properties)} propiedades por {medium}"
+    }
+
+@api_router.get("/properties/export-template")
+async def export_properties_template(current_user: dict = Depends(get_current_user)):
+    """Descargar plantilla CSV para importar propiedades"""
+    from fastapi.responses import Response
+
+    csv_content = """sku,titulo,descripcion,property_type,precio_mxn,ubicacion,lat,lng,metros_cuadrados,recamaras,banos,estacionamiento,imagen_url
+PROP-001,Lote en La Veleta,Lote de 400m2 en zona residencial,venta,2500000,La Veleta Tulum,20.2109,-87.4651,400,0,0,0,https://example.com/image1.jpg
+PROP-002,Casa en Aldea Zama,Casa de 3 recamaras con piscina,venta,5500000,Aldea Zama Tulum,20.2150,-87.4700,250,3,2,2,https://example.com/image2.jpg
+PROP-003,Departamento en Centro,Depa de 2 recamaras vista rooftop,renta,18000,Tulum Centro,20.2100,-87.4650,120,2,1,1,https://example.com/image3.jpg
+"""
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=properties_template.csv"}
+    )
+
+@api_router.post("/properties/import")
+async def import_properties(
+    file: UploadFile = File(...),
+    skip_duplicates: bool = True,
+    current_user: dict = Depends(get_current_user)
+):
+    """Importar propiedades desde CSV"""
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="El archivo debe ser CSV")
+
+    content = await file.read()
+    import_count = 0
+    skipped_count = 0
+    error_count = 0
+    errors = []
+
+    try:
+        csv_reader = csv.DictReader(io.StringIO(content.decode('utf-8')))
+
+        for row in csv_reader:
+            try:
+                # Validar campos requeridos
+                if not row.get('sku') or not row.get('titulo'):
+                    errors.append(f"Fila inválida: {row}")
+                    error_count += 1
+                    continue
+
+                # Verificar duplicados si se solicita
+                if skip_duplicates:
+                    existing = await db.properties.find_one({
+                        "sku": row['sku'],
+                        "tenant_id": current_user["tenant_id"]
+                    })
+                    if existing:
+                        skipped_count += 1
+                        continue
+
+                # Crear propiedad
+                property_dict = {
+                    "id": str(uuid.uuid4()),
+                    "sku": row['sku'],
+                    "titulo": row['titulo'],
+                    "descripcion": row.get('descripcion', ''),
+                    "property_type": row.get('property_type', 'venta'),
+                    "precio_mxn": float(row.get('precio_mxn', 0)),
+                    "ubicacion": row.get('ubicacion', ''),
+                    "lat": float(row.get('lat', 0)),
+                    "lng": float(row.get('lng', 0)),
+                    "metros_cuadrados": float(row.get('metros_cuadrados', 0)) if row.get('metros_cuadrados') else None,
+                    "recamaras": int(row.get('recamaras', 0)) if row.get('recamaras') else None,
+                    "banos": int(row.get('banos', 0)) if row.get('banos') else None,
+                    "estacionamiento": int(row.get('estacionamiento', 0)) if row.get('estacionamiento') else None,
+                    "imagenes": [row['imagen_url']] if row.get('imagen_url') else [],
+                    "caracteristicas": {},
+                    "tenant_id": current_user["tenant_id"],
+                    "user_id": current_user["user_id"],
+                    "creado_en": datetime.now(timezone.utc).isoformat(),
+                    "actualizado_en": datetime.now(timezone.utc).isoformat(),
+                    "activo": True
+                }
+
+                await db.properties.insert_one(property_dict)
+                import_count += 1
+
+            except Exception as e:
+                errors.append(f"Error en fila {row}: {str(e)}")
+                error_count += 1
+
+        return {
+            "message": "Importación completada",
+            "imported_count": import_count,
+            "skipped_count": skipped_count,
+            "error_count": error_count,
+            "errors": errors[:10]  # Retornar primeros 10 errores
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al procesar archivo: {str(e)}")
+
 # ==================== CAMPAIGNS ====================
 
 @api_router.get("/campaigns")
 async def get_campaigns(
+    view: str = "table",  # 'table' or 'cards'
+    status_filter: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
     campaign_type: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all campaigns"""
+    """Get all campaigns with performance metrics"""
     tenant_id = await get_or_create_tenant(current_user["user_id"])
     query = {"tenant_id": tenant_id}
     if campaign_type:
         query["campaign_type"] = campaign_type
-    
+    if status_filter:
+        query["status"] = status_filter
+
     campaigns = await db.campaigns.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+    # Enriquecer con métricas de rendimiento
+    for campaign in campaigns:
+        total_recipients = campaign.get("total_recipients", 0)
+        sent_count = campaign.get("sent_count", 0)
+        delivered_count = campaign.get("delivered_count", 0)
+        failed_count = campaign.get("failed_count", 0)
+
+        # Calcular métricas
+        delivery_status = "queued"
+        if sent_count > 0:
+            delivery_status = "sent"
+        if delivered_count > 0:
+            delivery_status = "delivered"
+        if failed_count > 0 and failed_count == total_recipients:
+            delivery_status = "failed"
+
+        # Métricas de email (si aplica)
+        open_rate = 0.0
+        if campaign.get("campaign_type") == "email":
+            # Simular open rate (en producción, obtener de EmailRecord)
+            open_rate = min((sent_count / total_recipients * 100) if total_recipients > 0 else 0, 100)
+
+        bounce_rate = (failed_count / total_recipients * 100) if total_recipients > 0 else 0.0
+
+        # Respuestas (simulado, en producción obtener de activities)
+        responses = 0  # TODO: Implementar conteo real de respuestas
+
+        # Tasa de conversión (leads cualificados / total recipients)
+        conversion_rate = 0.0
+        if total_recipients > 0:
+            qualified_leads = await db.leads.count_documents({
+                "tenant_id": tenant_id,
+                "status": {"$in": ["calificacion", "presentacion", "apartado", "venta"]}
+            })
+            conversion_rate = min((qualified_leads / total_recipients * 100), 100)
+
+        campaign["metrics"] = {
+            "status": campaign.get("status", "draft"),
+            "delivery_status": delivery_status,
+            "open_rate": round(open_rate, 1),
+            "bounce_rate": round(bounce_rate, 1),
+            "responses": responses,
+            "conversion_rate": round(conversion_rate, 1)
+        }
+
+    # Ordenar según campo especificado
+    reverse_sort = sort_order == "desc"
+    if sort_by == "created_at":
+        campaigns.sort(key=lambda x: x.get("created_at", ""), reverse=reverse_sort)
+    elif sort_by in ["status", "delivery_status"]:
+        campaigns.sort(key=lambda x: x.get("metrics", {}).get(sort_by, ""), reverse=reverse_sort)
+    elif sort_by in ["open_rate", "bounce_rate", "conversion_rate"]:
+        campaigns.sort(key=lambda x: x.get("metrics", {}).get(sort_by, 0), reverse=reverse_sort)
+
     return [serialize_doc(c) for c in campaigns]
 
 @api_router.post("/campaigns")

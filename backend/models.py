@@ -112,6 +112,13 @@ class GoalCreate(BaseModel):
     tasa_conversion: float = 10.0
     apartados_mes: int = 10
     periodo: str = "mensual"
+    # NUEVOS CAMPOS - Broker Funnel Enhancement
+    contactos_base_datos: int = 100  # Tamaño de base de contactos
+    nivel_expertise: int = 3  # 1-5, atención completa al cliente
+    necesidades_diarias: List[str] = []  # ["cierre", "seguimiento", "calificacion"]
+    requiere_canalizacion: bool = False  # Necesita ayuda de líder
+    integraciones_activas: List[str] = []  # ["vapi", "twilio", "sendgrid", "google_calendar"]
+    kpis_personalizados: Dict[str, Any] = {}  # KPIs dinámicos
 
 class Goal(GoalCreate):
     model_config = ConfigDict(extra="ignore")
@@ -718,3 +725,71 @@ class CalendarAssignment(BaseModel):
     assignment_type: str  # "manual" or "round_robin"
     assigned_by: str  # user ID who made the assignment
     created_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== PROPERTIES / INMUEBLES ====================
+
+class PropertyType(str, Enum):
+    VENTA = "venta"
+    RENTA = "renta"
+    SUBARRENDAMIENTO = "subarrendamiento"
+
+class PropertyCreate(BaseModel):
+    """Modelo para crear una nueva propiedad"""
+    sku: str  # Identificador único obligatorio
+    titulo: str
+    descripcion: str
+    property_type: PropertyType
+    precio_mxn: float
+    ubicacion: str  # Dirección completa
+    lat: float  # Para Google Maps
+    lng: float  # Para Google Maps
+    caracteristicas: Dict[str, Any] = {}  # Campos custom (máximo 3)
+    imagenes: List[str] = []  # URLs de imágenes
+    metros_cuadrados: Optional[float] = None
+    recamaras: Optional[int] = None
+    banos: Optional[int] = None
+    estacionamiento: Optional[int] = None
+
+class Property(PropertyCreate):
+    """Modelo completo de propiedad"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    user_id: str  # Broker propietario
+    creado_en: datetime = Field(default_factory=now_utc)
+    actualizado_en: datetime = Field(default_factory=now_utc)
+    activo: bool = True
+
+
+# ==================== INBOX OMNICANAL ====================
+
+class ConversationMessage(BaseModel):
+    """Mensaje en una conversación del inbox omnicanal"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    user_id: str  # Broker
+    lead_id: str
+    lead_name: str
+    channel: str  # "whatsapp", "email", "telegram"
+    direction: str  # "inbound" or "outbound"
+    content: str
+    metadata: Dict[str, Any] = {}  # attachments, etc.
+    read: bool = False
+    responded: bool = False  # Si el broker ha respondido
+    created_at: datetime = Field(default_factory=now_utc)
+
+class ConversationThread(BaseModel):
+    """Hilo de conversación del inbox omnicanal"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    user_id: str
+    lead_id: str
+    lead_name: str
+    channel: str
+    last_message_at: datetime = Field(default_factory=now_utc)
+    is_unanswered: bool = True  # No contestado por broker
+    message_count: int = 0
+    priority: str = "normal"  # "normal", "high", "urgent"

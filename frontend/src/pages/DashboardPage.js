@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   Trophy, TrendingUp, Users, Bookmark, ShoppingCart, Activity,
   Crown, Medal, Phone, Video, MessageCircle, Mail, MapPin, Loader2,
-  X, Calendar, DollarSign, Target, Star, ChevronRight
+  X, Calendar, DollarSign, Target, Star, ChevronRight, Sparkles,
+  CheckCircle, AlertCircle, ArrowUpRight, Bot, Download, Upload
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
@@ -19,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const activityIcons = {
@@ -438,6 +439,215 @@ const GamificationRule = ({ rule }) => {
   );
 };
 
+// ==================== NEW BROKER-FOCUSED WIDGETS ====================
+
+// Daily Operations Widget
+const DailyOperationsWidget = ({ data, loading }) => {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-primary" />
+          Resumen del Día
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-primary/5 rounded-lg">
+            <p className="text-xs text-muted-foreground">Leads a contactar</p>
+            <p className="text-2xl font-bold">{data?.leads_to_contact || 0}</p>
+          </div>
+          <div className="p-3 bg-secondary/5 rounded-lg">
+            <p className="text-xs text-muted-foreground">Actividades hoy</p>
+            <p className="text-2xl font-bold">{data?.today_activities || 0}</p>
+          </div>
+        </div>
+
+        {/* Top leads cualificados */}
+        {data?.top_qualified_leads && data.top_qualified_leads.length > 0 && (
+          <div>
+            <h4 className="font-medium mb-2 flex items-center gap-2">
+              <Star className="w-4 h-4 text-yellow-500" />
+              Top Leads Cualificados
+            </h4>
+            <div className="space-y-2">
+              {data.top_qualified_leads.slice(0, 3).map(lead => (
+                <div key={lead.id} className="flex items-center justify-between p-2 bg-green-500/10 rounded">
+                  <span className="text-sm font-medium">{lead.name}</span>
+                  <Badge className="bg-green-500">{lead.intent_score}% intención</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Leads urgentes */}
+        {data?.urgent_leads && data.urgent_leads.length > 0 && (
+          <div>
+            <h4 className="font-medium mb-2 flex items-center gap-2 text-red-500">
+              <AlertCircle className="w-4 h-4" />
+              Atención Inmediata
+            </h4>
+            <div className="space-y-2">
+              {data.urgent_leads.slice(0, 3).map(lead => (
+                <div key={lead.id} className="flex items-center justify-between p-2 bg-red-500/10 rounded">
+                  <span className="text-sm font-medium">{lead.name}</span>
+                  <Badge variant="destructive">Urgente</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// AI Insights Widget
+const AIInsightsWidget = ({ insights, loading }) => {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-32 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bot className="w-5 h-5 text-primary" />
+          Insights de IA
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {insights?.recommendations && insights.recommendations.length > 0 ? (
+          <div className="space-y-2">
+            {insights.recommendations.map((rec, idx) => (
+              <div key={idx} className="p-3 bg-primary/5 rounded border border-primary/20">
+                <p className="text-sm">{rec.text}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No hay insights disponibles en este momento
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Integrated Calendar Mini-view
+const IntegratedCalendarMiniview = ({ events }) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Calendar className="w-5 h-5 text-primary" />
+          Próximas Actividades
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {events && events.length > 0 ? (
+          <ScrollArea className="h-48">
+            <div className="space-y-2">
+              {events.slice(0, 5).map(event => (
+                <div key={event.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
+                  <div className={`w-2 h-2 rounded-full ${
+                    event.completed ? 'bg-green-500' : 'bg-amber-500'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(event.start_time), "HH:mm")}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No hay actividades programadas hoy
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Import Guide Widget
+const ImportGuideWidget = () => {
+  const { api } = useAuth();
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await api.get('/leads/export-template', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'leads_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading template:', error);
+    }
+  };
+
+  return (
+    <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Upload className="w-5 h-5 text-primary" />
+          Importar Leads
+        </CardTitle>
+        <CardDescription>
+          Importa tus contactos desde otro CRM
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Arrastra un archivo o usa nuestra plantilla CSV para importar tus leads correctamente
+        </p>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleDownloadTemplate} variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Descargar Plantilla
+          </Button>
+          <Button size="sm" onClick={() => window.location.href = '/import'}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const DashboardPage = () => {
   const { api, isIndividual } = useAuth();
   const [stats, setStats] = useState(null);
@@ -445,7 +655,14 @@ export const DashboardPage = () => {
   const [activities, setActivities] = useState([]);
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
+  // New broker-focused states
+  const [dailySummary, setDailySummary] = useState(null);
+  const [aiInsights, setAiInsights] = useState(null);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [loadingDaily, setLoadingDaily] = useState(false);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+
   // KPI Modal state
   const [kpiModal, setKpiModal] = useState({ open: false, type: null, data: null });
   const [loadingKpi, setLoadingKpi] = useState(false);
@@ -461,12 +678,12 @@ export const DashboardPage = () => {
         api.get('/dashboard/recent-activity?limit=10'),
         api.get('/gamification/rules'),
       ];
-      
+
       // Only load leaderboard for agency users
       if (!isIndividual) {
         requests.push(api.get('/dashboard/leaderboard'));
       }
-      
+
       const results = await Promise.all(requests);
       setStats(results[0].data);
       setActivities(results[1].data);
@@ -479,7 +696,42 @@ export const DashboardPage = () => {
     } finally {
       setLoading(false);
     }
+
+    // Load new broker-focused data
+    loadBrokerDailyData();
   };
+
+  const loadBrokerDailyData = async () => {
+    setLoadingDaily(true);
+    setLoadingInsights(true);
+
+    try {
+      // Load daily summary
+      const summaryResponse = await api.get('/dashboard/broker-daily-summary');
+      setDailySummary(summaryResponse.data);
+
+      // Load AI insights
+      const insightsResponse = await api.get('/dashboard/ai-insights');
+      setAiInsights(insightsResponse.data);
+
+      // Load today's calendar events
+      const today = new Date();
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+      const eventsResponse = await api.get('/calendar/events', {
+        params: { start_date: startOfDay, end_date: endOfDay }
+      });
+      setCalendarEvents(eventsResponse.data || []);
+    } catch (error) {
+      console.error('Error loading broker daily data:', error);
+    } finally {
+      setLoadingDaily(false);
+      setLoadingInsights(false);
+    }
+  };
+
+  const handleKpiClick = async (type) => {
 
   const handleKpiClick = async (type) => {
     setLoadingKpi(true);
@@ -557,6 +809,14 @@ export const DashboardPage = () => {
             onClick={() => handleKpiClick('brokers')}
           />
         )}
+      </div>
+
+      {/* NEW: Broker-Focused Daily Operations */}
+      <div className={`grid grid-cols-1 ${isIndividual ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4 sm:gap-6`}>
+        <DailyOperationsWidget data={dailySummary} loading={loadingDaily} />
+        <AIInsightsWidget insights={aiInsights} loading={loadingInsights} />
+        <IntegratedCalendarMiniview events={calendarEvents} />
+        <ImportGuideWidget />
       </div>
 
       {/* Main Content */}
