@@ -19,7 +19,9 @@ import { AutomationsPage } from './pages/AutomationsPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
 import { LandingPage } from './pages/LandingPage';
+import { BrokerLandingPage } from './pages/BrokerLandingPage';
 import { DemoRequestPage } from './pages/DemoRequestPage';
+import { LeadSearchDashboard } from './pages/LeadSearchDashboard';
 import './App.css';
 
 // Protected Route component
@@ -71,9 +73,10 @@ const PublicRoute = ({ children }) => {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Landing Page - Public */}
+      {/* Landing Pages - Public */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/landing" element={<LandingPage />} />
+      <Route path="/for-brokers" element={<BrokerLandingPage />} />
 
       {/* Demo Request Page - Public */}
       <Route path="/demo-request" element={<DemoRequestPage />} />
@@ -99,6 +102,9 @@ function AppRoutes() {
         }
       />
 
+      {/* Lead Search - Public (sin autenticación) */}
+      <Route path="/lead-search" element={<LeadSearchDashboard />} />
+
       {/* Protected routes with Layout */}
       <Route
         element={
@@ -121,21 +127,21 @@ function AppRoutes() {
       </Route>
 
       {/* Email Editor - Full screen without Layout */}
-      <Route 
-        path="/email-templates/new" 
+      <Route
+        path="/email-templates/new"
         element={
           <ProtectedRoute>
             <EmailEditorPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/email-templates/:templateId" 
+      <Route
+        path="/email-templates/:templateId"
         element={
           <ProtectedRoute>
             <EmailEditorPage />
           </ProtectedRoute>
-        } 
+        }
       />
 
       {/* Default redirect */}
