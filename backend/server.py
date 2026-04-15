@@ -749,7 +749,6 @@ async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
 @api_router.post("/user/onboarding-complete")
 async def complete_onboarding(
     goals_data: GoalCreate,
-    ai_profile_data: Optional[AIProfileCreate] = None,
     current_user: dict = Depends(get_current_user)
 ):
     """Completar onboarding con todos los campos mejorados"""
@@ -772,24 +771,6 @@ async def complete_onboarding(
         {"$set": goal_doc},
         upsert=True
     )
-
-    # Guardar AI profile si se proporciona
-    if ai_profile_data and (ai_profile_data.experience or ai_profile_data.style):
-        ai_profile_id = str(uuid.uuid4())
-        ai_profile_doc = {
-            "id": ai_profile_id,
-            "user_id": user_id,
-            "tenant_id": tenant_id,
-            **ai_profile_data.model_dump(),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }
-
-        await db.ai_profiles.update_one(
-            {"user_id": user_id},
-            {"$set": ai_profile_doc},
-            upsert=True
-        )
 
     # Marcar onboarding como completo
     await db.users.update_one(

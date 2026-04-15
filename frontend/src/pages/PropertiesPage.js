@@ -45,7 +45,7 @@ export const PropertiesPage = () => {
   const [selectedProperties, setSelectedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    property_type: '',
+    property_type: 'all',
     min_price: '',
     max_price: '',
     ubicacion: ''
@@ -67,7 +67,7 @@ export const PropertiesPage = () => {
     setLoading(true);
     try {
       const params = {};
-      if (filters.property_type) params.property_type = filters.property_type;
+      if (filters.property_type && filters.property_type !== 'all') params.property_type = filters.property_type;
       if (filters.min_price) params.min_price = parseFloat(filters.min_price);
       if (filters.max_price) params.max_price = parseFloat(filters.max_price);
       if (filters.ubicacion) params.ubicacion = filters.ubicacion;
@@ -259,7 +259,7 @@ export const PropertiesPage = () => {
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="venta">Venta</SelectItem>
               <SelectItem value="renta">Renta</SelectItem>
               <SelectItem value="subarrendamiento">Subarrendamiento</SelectItem>
