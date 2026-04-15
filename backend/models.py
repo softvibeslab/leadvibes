@@ -793,3 +793,45 @@ class ConversationThread(BaseModel):
     is_unanswered: bool = True  # No contestado por broker
     message_count: int = 0
     priority: str = "normal"  # "normal", "high", "urgent"
+
+class InboxWebhook(BaseModel):
+    """Webhook recibido de plataformas de mensajería"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    source: str  # "respond_io", "twilio", "telegram", etc.
+    event_type: str  # "message.received", "message.updated", etc.
+    payload: Dict[str, Any]  # Payload completo del webhook
+    processed: bool = False  # Si ya fue procesado
+    processing_attempts: int = 0  # Veces que se intentó procesar
+    error_message: Optional[str] = None  # Error si falló
+    created_at: datetime = Field(default_factory=now_utc)
+    processed_at: Optional[datetime] = None
+
+class InboxChannelConfig(BaseModel):
+    """Configuración de canal de mensajería por tenant"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    channel: str  # "whatsapp", "telegram", "instagram", "sms", "email"
+    platform: str  # "respond_io", "twilio", "direct_api", etc.
+    credentials: Dict[str, Any] = {}  # API tokens, webhooks secrets, etc.
+    enabled: bool = True
+    configuration: Dict[str, Any] = {}  # Configuración adicional (plantillas, horarios, etc.)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+class InboxMessageTemplate(BaseModel):
+    """Plantilla de respuesta rápida para el inbox"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    name: str  # Nombre de la plantilla
+    category: str  # "saludo", "agendar", "seguimiento", "cierre", etc.
+    content: str  # Contenido del mensaje
+    variables: List[str] = []  # Variables que puede contener ({{nombre}}, {{propiedad}}, etc.)
+    channels: List[str] = []  # Canales donde aplica (vacío = todos)
+    usage_count: int = 0  # Veces que se ha usado
+    active: bool = True
+    created_by: str  # user_id del creador
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)

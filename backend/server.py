@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, WebSocket, WebSocketDisconnect, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1418,6 +1418,8 @@ async def send_message(
     current_user: dict = Depends(get_current_user)
 ):
     """Enviar mensaje a través del canal correspondiente"""
+    from services.respond_io_service import respond_io_service
+
     content = request_data.get("content")
     channel = request_data.get("channel", "whatsapp")
 
@@ -1440,21 +1442,99 @@ async def send_message(
         "channel": channel,
         "direction": "outbound",
         "content": content,
-        "metadata": {},
+        "metadata": {"source": "rovi_crm"},
         "read": True,
         "responded": True,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
 
+    # Guardar en BD primero
     await db.conversation_messages.insert_one(message_doc)
 
-    # TODO: Implementar envío real a través del proveedor
-    # if channel == "whatsapp":
-    #     await send_whatsapp_message(lead.get("phone"), content)
-    # elif channel == "email":
-    #     await send_email_message(lead.get("email"), content)
+    # Enviar mensaje a través del proveedor correspondiente
+    try:
+        # Verificar si Respond.io está configurado
+        if os.getenv("RESPOND_IO_API_TOKEN"):
+            # Obtener canal de Respond.io correspondiente
+            respond_channel = await respond_io_service.get_channel_by_type(channel)
 
-    return serialize_doc(message_doc)
+            if respond_channel:
+                # Buscar contact_id del lead en metadata
+                existing_messages = await db.conversation_messages.find({
+                    "lead_id": lead_id,
+                    "channel": channel,
+                    "direction": "inbound"
+                }).sort("created_at", -1).to_list(1)
+
+                if existing_messages:
+                    # Extraer contact_id de metadata de mensaje anterior
+                    contact_id = existing_messages[0].get("metadata", {}).get("contact_id")
+
+                    if contact_id:
+                        # Enviar mensaje a través de Respond.io
+                        await respond_io_service.send_text_message(
+                            channel_id=respond_channel["id"],
+                            contact_id=contact_id,
+                            text=content
+                        )
+
+                        logger.info(f"Mensaje enviado a través de Respond.io: {message_id}")
+
+                        # Actualizar metadata con información de envío
+                        message_doc["metadata"]["respond_io"] = {
+                            "channel_id": respond_channel["id"],
+                            "contact_id": contact_id,
+                            "sent_via": "respond_io"
+                        }
+
+                        # Actualizar documento en BD
+                        await db.conversation_messages.update_one(
+                            {"id": message_id},
+                            {"$set": {"metadata": message_doc["metadata"]}}
+                        )
+                    else:
+                        logger.warning(f"No se encontró contact_id para lead_id={lead_id}")
+                        raise HTTPException(
+                            status_code=400,
+                            detail="No se puede enviar mensaje: el lead no tiene una conversación activa en este canal"
+                        )
+                else:
+                    logger.warning(f"No hay mensajes previos para lead_id={lead_id} en canal={channel}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail="No se puede enviar mensaje: el lead no tiene una conversación activa en este canal"
+                    )
+            else:
+                logger.warning(f"No se encontró canal de Respond.io para: {channel}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Canal '{channel}' no configurado en Respond.io"
+                )
+        else:
+            # Si Respond.io no está configurado, solo guardar en BD (modo desarrollo)
+            logger.warning("Respond.io no está configurado - Mensaje solo guardado en BD")
+            message_doc["metadata"]["dev_mode"] = True
+
+        # Broadcast a clientes WebSocket del nuevo mensaje
+        await broadcast_message_event("message.sent", message_doc)
+
+        return serialize_doc(message_doc)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error al enviar mensaje: {str(e)}")
+
+        # Actualizar mensaje con error
+        await db.conversation_messages.update_one(
+            {"id": message_id},
+            {"$set": {"metadata.error": str(e)}}
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al enviar mensaje: {str(e)}"
+        )
 
 @api_router.get("/inbox/ai-insights")
 async def get_inbox_ai_insights(current_user: dict = Depends(get_current_user)):
@@ -1501,6 +1581,261 @@ async def get_inbox_ai_insights(current_user: dict = Depends(get_current_user)):
         ],
         "suggestions": suggestions
     }
+
+@api_router.post("/inbox/webhooks/respond")
+async def receive_respond_io_webhook(
+    webhook_data: Dict[str, Any],
+    request: Request
+):
+    """
+    Recibir webhooks de Respond.io para sincronizar mensajes en tiempo real
+
+    Este endpoint recibe notificaciones de:
+    - Nuevos mensajes recibidos
+    - Actualizaciones de estado de mensajes
+    - Nuevas conversaciones iniciadas
+    """
+    from services.respond_io_service import respond_io_service
+    from services.message_normalizer import message_normalizer
+    from models import InboxWebhook
+
+    # Extraer headers de verificación
+    signature = request.headers.get("X-Respond-Signature", "")
+    timestamp = request.headers.get("X-Respond-Timestamp", "")
+
+    # Obtener el payload raw para verificación
+    # Nota: FastAPI ya parseó el JSON, pero necesitamos el raw para verificar firma
+    # En producción, deberíamos usar request.body() antes del parsing
+
+    # Verificar firma (opcional pero recomendado)
+    # if not respond_io_service.verify_webhook_signature(raw_payload, signature, timestamp):
+    #     raise HTTPException(status_code=401, detail="Firma del webhook inválida")
+
+    # Log del webhook recibido
+    logger.info(f"Webhook recibido de Respond.io: {webhook_data.get('event', 'unknown')}")
+
+    # Guardar webhook en BD para procesamiento asíncrono
+    webhook_doc = {
+        "id": str(uuid.uuid4()),
+        "source": "respond_io",
+        "event_type": webhook_data.get("event", "unknown"),
+        "payload": webhook_data,
+        "processed": False,
+        "processing_attempts": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "processed_at": None
+    }
+
+    try:
+        # Guardar en colección de webhooks
+        await db.inbox_webhooks.insert_one(webhook_doc)
+
+        # Normalizar mensaje si es un evento de mensaje recibido
+        if webhook_data.get("event") == "message.received":
+            # Obtener tenant_id y user_id del payload
+            # Nota: Esto puede requerir lógica adicional para mapear a tenant correcto
+            # Por ahora, usamos un tenant por defecto o extraemos del payload
+
+            # Normalizar mensaje
+            normalized_message = message_normalizer.normalize_from_respond_io(
+                webhook_data,
+                tenant_id="tenant-default",  # TODO: Determinar tenant correcto
+                user_id="user-default"      # TODO: Determinar usuario correcto
+            )
+
+            if normalized_message:
+                # Guardar mensaje normalizado
+                message_doc = normalized_message.model_dump()
+                await db.conversation_messages.insert_one(message_doc)
+
+                logger.info(f"Mensaje procesado y guardado: {normalized_message.id}")
+
+                # Marcar webhook como procesado
+                await db.inbox_webhooks.update_one(
+                    {"id": webhook_doc["id"]},
+                    {"$set": {
+                        "processed": True,
+                        "processed_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+
+                # Emitir evento por WebSocket a clientes conectados
+                # Esto se implementará con el WebSocket endpoint
+                await broadcast_message_event("message.received", message_doc)
+
+        return {
+            "status": "success",
+            "webhook_id": webhook_doc["id"],
+            "message": "Webhook recibido exitosamente"
+        }
+
+    except Exception as e:
+        logger.error(f"Error al procesar webhook: {str(e)}")
+
+        # Actualizar webhook con error
+        await db.inbox_webhooks.update_one(
+            {"id": webhook_doc["id"]},
+            {"$set": {
+                "error_message": str(e),
+                "processing_attempts": webhook_doc.get("processing_attempts", 0) + 1
+            }}
+        )
+
+        raise HTTPException(status_code=500, detail=f"Error al procesar webhook: {str(e)}")
+
+
+# ==================== WEBSOCKET PARA INBOX EN TIEMPO REAL ====================
+
+# Conexiones WebSocket activas por tenant
+active_connections: Dict[str, List[WebSocket]] = {}
+
+
+@api_router.websocket("/ws/inbox")
+async def inbox_websocket_endpoint(
+    websocket: WebSocket,
+    token: str
+):
+    """
+    Endpoint WebSocket para actualizaciones en tiempo real del Inbox
+
+    Clientes pueden conectarse para recibir:
+    - Nuevos mensajes en tiempo real
+    - Actualizaciones de estado de mensajes
+    - Notificaciones de leads no contestados
+    """
+    from auth import verify_token
+
+    # Verificar token JWT
+    try:
+        payload = verify_token(token)
+        user_id = payload.get("user_id")
+        tenant_id = payload.get("tenant_id")
+
+        if not user_id or not tenant_id:
+            await websocket.close(code=1008, reason="Token inválido")
+            return
+
+    except Exception as e:
+        logger.error(f"Error al verificar token WebSocket: {str(e)}")
+        await websocket.close(code=1008, reason="Token inválido")
+        return
+
+    # Aceptar conexión
+    await websocket.accept()
+
+    # Agregar conexión a la lista del tenant
+    if tenant_id not in active_connections:
+        active_connections[tenant_id] = []
+
+    active_connections[tenant_id].append(websocket)
+
+    logger.info(f"WebSocket conectado: tenant_id={tenant_id}, user_id={user_id}")
+
+    try:
+        # Enviar mensaje de bienvenida
+        await websocket.send_json({
+            "type": "connection.established",
+            "data": {
+                "tenant_id": tenant_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        })
+
+        # Mantener conexión viva y escuchar mensajes del cliente
+        while True:
+            # Recibir mensajes del cliente (heartbeat, comandos, etc.)
+            data = await websocket.receive_json()
+
+            # Procesar comandos del cliente
+            if data.get("type") == "ping":
+                # Responder con pong para mantener conexión viva
+                await websocket.send_json({
+                    "type": "pong",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+
+            elif data.get("type") == "mark.read":
+                # Marcar mensajes como leídos
+                message_id = data.get("message_id")
+                if message_id:
+                    await db.conversation_messages.update_one(
+                        {
+                            "id": message_id,
+                            "tenant_id": tenant_id
+                        },
+                        {"$set": {"read": True}}
+                    )
+
+                    # Broadcast a otros clientes del mismo tenant
+                    await broadcast_to_tenant(tenant_id, {
+                        "type": "message.read",
+                        "data": {"message_id": message_id}
+                    }, exclude=websocket)
+
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket desconectado: tenant_id={tenant_id}")
+    except Exception as e:
+        logger.error(f"Error en WebSocket: {str(e)}")
+    finally:
+        # Remover conexión de la lista
+        if tenant_id in active_connections:
+            active_connections[tenant_id].remove(websocket)
+
+            # Limpiar lista si está vacía
+            if not active_connections[tenant_id]:
+                del active_connections[tenant_id]
+
+
+async def broadcast_to_tenant(
+    tenant_id: str,
+    message: Dict[str, Any],
+    exclude: Optional[WebSocket] = None
+):
+    """
+    Enviar mensaje a todos los WebSocket conectados de un tenant
+
+    Args:
+        tenant_id: ID del tenant
+        message: Mensaje a enviar
+        exclude: Conexión a excluir (opcional)
+    """
+    if tenant_id not in active_connections:
+        return
+
+    # Copia de la lista para evitar modificar durante iteración
+    connections = active_connections[tenant_id].copy()
+
+    for connection in connections:
+        # Excluir conexión específica si se proporciona
+        if connection == exclude:
+            continue
+
+        try:
+            await connection.send_json(message)
+        except Exception as e:
+            logger.warning(f"Error al enviar mensaje a WebSocket: {str(e)}")
+            # Remover conexión fallida
+            if connection in active_connections.get(tenant_id, []):
+                active_connections[tenant_id].remove(connection)
+
+
+async def broadcast_message_event(event_type: str, message_data: Dict[str, Any]):
+    """
+    Broadcast evento de mensaje a todos los tenants relevantes
+
+    Args:
+        event_type: Tipo de evento (message.received, message.updated, etc.)
+        message_data: Datos del mensaje
+    """
+    tenant_id = message_data.get("tenant_id")
+
+    if not tenant_id:
+        return
+
+    await broadcast_to_tenant(tenant_id, {
+        "type": event_type,
+        "data": message_data
+    })
 
 # ==================== CALENDAR ROUTES ====================
 

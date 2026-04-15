@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   MessageCircle, Mail, Send, Bot, Filter, Search, Clock,
-  CheckCircle, AlertCircle, ArrowRight, Phone, Loader2
+  CheckCircle, AlertCircle, ArrowRight, Phone, Loader2, Wifi
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -13,9 +13,10 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useInboxWebSocket } from '../components/InboxWebSocket';
 
 export const InboxPage = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -23,19 +24,65 @@ export const InboxPage = () => {
   const [aiInsights, setAiInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
 
-  // Polling para mensajes nuevos
+  // Cargar datos iniciales
   useEffect(() => {
     loadConversations();
     loadAIInsights();
-
-    const interval = setInterval(() => {
-      loadConversations();
-      loadAIInsights();
-    }, 10000);  // 10 segundos
-
-    return () => clearInterval(interval);
   }, [filter]);
+
+  // Manejar mensajes del WebSocket
+  const handleWebSocketMessage = useCallback((eventType, data) => {
+    switch (eventType) {
+      case 'message.received':
+      case 'message.sent':
+        // Actualizar conversaciones si es un mensaje nuevo
+        if (eventType === 'message.received' || data.direction === 'outbound') {
+          loadConversations();
+        }
+
+        // Si es el chat actual, agregar mensaje
+        if (selectedConversation && data.lead_id === selectedConversation.id) {
+          setMessages(prev => [...prev, data]);
+        }
+
+        // Si es un mensaje enviado y tenemos un chat seleccionado, actualizar estado
+        if (eventType === 'message.sent' && selectedConversation) {
+          // Actualizar contador de mensajes
+          setConversations(prev =>
+            prev.map(conv =>
+              conv.id === selectedConversation.id
+                ? { ...conv, message_count: conv.message_count + 1 }
+                : conv
+            )
+          );
+        }
+        break;
+
+      case 'message.read':
+        // Actualizar estado de lectura en mensajes
+        if (selectedConversation) {
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === data.message_id ? { ...msg, read: true } : msg
+            )
+          );
+        }
+        break;
+
+      default:
+        console.log('Evento WebSocket no manejado:', eventType);
+    }
+  }, [selectedConversation]);
+
+  // Conectar WebSocket
+  const { isConnected } = useInboxWebSocket(
+    user?.token,
+    handleWebSocketMessage,
+    () => setWsConnected(true),
+    () => setWsConnected(false)
+  );
 
   const loadConversations = async () => {
     try {
@@ -131,7 +178,15 @@ export const InboxPage = () => {
               Todas tus conversaciones en un solo lugar
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Indicador de conexión WebSocket */}
+            <div className={`flex items-center gap-1 text-xs ${
+              wsConnected ? 'text-green-500' : 'text-gray-400'
+            }`}>
+              <Wifi className="w-3 h-3" />
+              <span>{wsConnected ? 'Conectado' : 'Desconectado'}</span>
+            </div>
+
             <Button
               variant={filter === 'all' ? 'default' : 'outline'}
               onClick={() => setFilter('all')}
