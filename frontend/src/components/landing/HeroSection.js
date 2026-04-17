@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Play, Check, Building2, TrendingUp, Zap, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -6,8 +6,6 @@ import { Link } from 'react-router-dom';
 export const HeroSection = () => {
   const [email, setEmail] = useState('');
   const [showVideoModal, setShowVideoModal] = useState(false);
-  const [videoLoading, setVideoLoading] = useState(true);
-  const videoRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -21,33 +19,6 @@ export const HeroSection = () => {
 
   const handleCloseVideo = () => {
     setShowVideoModal(false);
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
-  };
-
-  useEffect(() => {
-    if (showVideoModal && videoRef.current) {
-      setVideoLoading(true);
-      videoRef.current.playbackRate = 1.3;
-      videoRef.current.play().catch(err => console.log('Autoplay prevented:', err));
-    }
-  }, [showVideoModal]);
-
-  const handleVideoLoadStart = () => {
-    setVideoLoading(true);
-  };
-
-  const handleVideoCanPlay = () => {
-    setVideoLoading(false);
-  };
-
-  const handleVideoWaiting = () => {
-    setVideoLoading(true);
-  };
-
-  const handleVideoPlaying = () => {
-    setVideoLoading(false);
   };
 
   return (
@@ -304,38 +275,17 @@ export const HeroSection = () => {
               <X className="w-8 h-8" />
             </button>
 
-            {/* Video Container */}
-            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
-              {/* Loading Indicator */}
-              {videoLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 z-10">
-                  <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 border-4 border-[#00D9FF] border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-white/80 text-lg">Cargando video...</p>
-                    <p className="text-white/50 text-sm mt-2">Esto puede tomar unos segundos</p>
-                  </div>
-                </div>
-              )}
-
-              <video
-                ref={videoRef}
-                className="w-full"
-                controls
-                autoPlay
-                preload="metadata"
-                playsInline
-                controlsList="nodownload"
-                onLoadStart={handleVideoLoadStart}
-                onCanPlay={handleVideoCanPlay}
-                onWaiting={handleVideoWaiting}
-                onPlaying={handleVideoPlaying}
-              >
-                <source
-                  src="https://www.softvibes.com.mx/rovi/demo.mp4"
-                  type="video/mp4"
+            {/* Video Container - Loom Embed */}
+            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
+              <div className="relative" style={{ paddingBottom: '56.25%' /* 16:9 Aspect Ratio */ }}>
+                <iframe
+                  src="https://www.loom.com/embed/11ff86de4edd428cbc586bf44b75b421"
+                  frameBorder="0"
+                  allowFullScreen
+                  className="absolute inset-0 w-full h-full"
+                  title="Demo de Rovi CRM"
                 />
-                Tu navegador no soporta reproducción de video.
-              </video>
+              </div>
             </div>
 
             {/* CTA Section */}
