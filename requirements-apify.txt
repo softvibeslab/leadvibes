@@ -1,0 +1,14 @@
+# Apify MCP - Requisitos para Python Agent SDK
+# Nota: Debido a conflictos con rpds-py del sistema, se recomienda
+# usar un virtual environment o Docker para ejecutar estos scripts
+
+# Opción 1: Usar virtual environment
+# python3 -m venv venv
+# source venv/bin/activate
+# pip install -r requirements-apify.txt
+
+claude-agent-sdk>=0.1.58
+anyio>=4.0.0
+
+# Si tienes problemas con rpds-py, intenta:
+# pip install --upgrade rpds-py --force-reinstall --ignore-installed
