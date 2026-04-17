@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, Check, Building2, TrendingUp, Zap } from 'lucide-react';
+import { ArrowRight, Play, Check, Building2, TrendingUp, Zap, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const HeroSection = () => {
   const [email, setEmail] = useState('');
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const videoRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -12,8 +14,26 @@ export const HeroSection = () => {
     window.location.href = `/demo-request?email=${encodeURIComponent(email)}`;
   };
 
+  const handleOpenVideo = () => {
+    setShowVideoModal(true);
+  };
+
+  const handleCloseVideo = () => {
+    setShowVideoModal(false);
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+  };
+
+  useEffect(() => {
+    if (showVideoModal && videoRef.current) {
+      videoRef.current.playbackRate = 1.3;
+      videoRef.current.play().catch(err => console.log('Autoplay prevented:', err));
+    }
+  }, [showVideoModal]);
+
   return (
-    <section className="relative min-h-screen overflow-hidden bg-gradient-to-br from-teal-900 via-teal-800 to-emerald-900">
+    <section className="relative min-h-screen overflow-hidden gradient-velocity">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
@@ -25,19 +45,19 @@ export const HeroSection = () => {
       <motion.div
         animate={{ y: [0, -20, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-20 right-10 w-72 h-72 bg-amber-500/20 rounded-full blur-3xl"
+        className="absolute top-20 right-10 w-72 h-72 bg-[#00D9FF]/20 rounded-full blur-3xl"
       />
       <motion.div
         animate={{ y: [0, 20, 0] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-20 left-10 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl"
+        className="absolute bottom-20 left-10 w-96 h-96 bg-[#7C3AED]/20 rounded-full blur-3xl"
       />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
         {/* Navigation */}
         <nav className="flex items-center justify-between mb-16">
           <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#00D9FF] to-[#0A4DAF] rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">R</span>
             </div>
             <span className="text-2xl font-bold text-white">Rovi CRM</span>
@@ -49,15 +69,14 @@ export const HeroSection = () => {
             <a href="#pricing" className="text-white/80 hover:text-white transition">Precios</a>
           </div>
           <div className="flex items-center space-x-4">
-            <Link to="/login" className="text-white/80 hover:text-white transition">
-              Iniciar Sesión
-            </Link>
-            <Link
-              to="/demo-request"
-              className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2.5 rounded-full font-semibold transition transform hover:scale-105"
+            <a
+              href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20solicitar%20una%20demo%20de%20Rovi%20CRM"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#00D9FF] hover:bg-[#33E1FF] text-[#062B5F] px-6 py-2.5 rounded-full font-semibold transition transform hover:scale-105 shadow-glow-accent"
             >
               Solicitar Demo
-            </Link>
+            </a>
           </div>
         </nav>
 
@@ -69,13 +88,13 @@ export const HeroSection = () => {
             transition={{ duration: 0.8 }}
           >
             <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-              <span className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full mr-2">NUEVO</span>
+              <span className="bg-[#7C3AED] text-white text-xs font-bold px-2 py-1 rounded-full mr-2">NUEVO</span>
               <span className="text-white/90 text-sm">IA integrada para maximizar tus ventas</span>
             </div>
 
             <h1 className="text-5xl lg:text-7xl font-bold text-white mb-6 leading-tight">
               El CRM que
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00D9FF] to-[#7C3AED]">
                 {' '}
                 revoluciona
               </span>
@@ -96,7 +115,10 @@ export const HeroSection = () => {
                 Comenzar Gratis
                 <ArrowRight className="ml-2 group-hover:translate-x-1 transition" />
               </Link>
-              <button className="group flex items-center justify-center px-8 py-4 rounded-full font-semibold text-lg text-white border-2 border-white/30 hover:border-white/50 hover:bg-white/10 transition">
+              <button
+                onClick={handleOpenVideo}
+                className="group flex items-center justify-center px-8 py-4 rounded-full font-semibold text-lg text-white border-2 border-white/30 hover:border-white/50 hover:bg-white/10 transition"
+              >
                 <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition" />
                 Ver Demo
               </button>
@@ -104,9 +126,9 @@ export const HeroSection = () => {
 
             <div className="grid grid-cols-3 gap-6">
               {[
-                { icon: Building2, label: '500+', sublabel: 'Inmobiliarias' },
-                { icon: TrendingUp, label: '+45%', sublabel: 'Más ventas' },
-                { icon: Zap, label: '10x', sublabel: 'Más rápido' },
+                { icon: Building2, label: '10+ años', sublabel: 'Experiencia en Real Estate' },
+                { icon: TrendingUp, label: '+45%', sublabel: 'Aumento en conversiones' },
+                { icon: Zap, label: '24/7', sublabel: 'Soporte especializado' },
               ].map((stat, i) => (
                 <motion.div
                   key={i}
@@ -228,20 +250,18 @@ export const HeroSection = () => {
           </motion.div>
         </div>
 
-        {/* Trusted By */}
+        {/* Experience Badge */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
           className="mt-20 text-center"
         >
-          <p className="text-white/60 mb-8">Confían en nosotros las mejores inmobiliarias de México</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 opacity-60">
-            {['Tulum Premier', 'Caribe Realty', 'Mayan Lands', 'Akumal Estates', 'Puerto Aventuras'].map((company, i) => (
-              <div key={i} className="text-white text-xl font-semibold">
-                {company}
-              </div>
-            ))}
+          <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-6 py-3">
+            <Zap className="w-5 h-5 text-[#00D9FF] mr-2" />
+            <span className="text-white/90 text-sm font-medium">
+              Desarrollado por expertos en tecnología e inmobiliario
+            </span>
           </div>
         </motion.div>
       </div>
@@ -252,6 +272,64 @@ export const HeroSection = () => {
           <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="hsl(var(--background))" />
         </svg>
       </div>
+
+      {/* Video Modal */}
+      {showVideoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-5xl">
+            {/* Close Button */}
+            <button
+              onClick={handleCloseVideo}
+              className="absolute -top-12 right-0 text-white hover:text-[#00D9FF] transition z-10"
+              aria-label="Cerrar video"
+            >
+              <X className="w-8 h-8" />
+            </button>
+
+            {/* Video Container */}
+            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
+              <video
+                ref={videoRef}
+                className="w-full"
+                controls
+                autoPlay
+                controlsList="nodownload"
+              >
+                <source
+                  src="https://www.softvibes.com.mx/rovi/demo.mp4"
+                  type="video/mp4"
+                />
+                Tu navegador no soporta reproducción de video.
+              </video>
+            </div>
+
+            {/* CTA Section */}
+            <div className="mt-6 text-center">
+              <p className="text-white/80 text-lg mb-4">
+                ¿Te gusta lo que ves? <span className="text-[#00D9FF] font-semibold">Comienza gratis hoy</span>
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  to="/demo-request"
+                  onClick={handleCloseVideo}
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
+                >
+                  Solicitar Demo Gratuita
+                </Link>
+                <a
+                  href="https://wa.me/525580483839?text=Hola,%20vi%20el%20demo%20y%20me%20interesa%20Rovi%20CRM"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleCloseVideo}
+                  className="bg-[#00D9FF] hover:bg-[#33E1FF] text-[#062B5F] px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
+                >
+                  Contactar por WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
