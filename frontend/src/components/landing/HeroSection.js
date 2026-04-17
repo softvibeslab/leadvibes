@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 export const HeroSection = () => {
   const [email, setEmail] = useState('');
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(true);
   const videoRef = useRef(null);
 
   const handleSubmit = (e) => {
@@ -27,10 +28,27 @@ export const HeroSection = () => {
 
   useEffect(() => {
     if (showVideoModal && videoRef.current) {
+      setVideoLoading(true);
       videoRef.current.playbackRate = 1.3;
       videoRef.current.play().catch(err => console.log('Autoplay prevented:', err));
     }
   }, [showVideoModal]);
+
+  const handleVideoLoadStart = () => {
+    setVideoLoading(true);
+  };
+
+  const handleVideoCanPlay = () => {
+    setVideoLoading(false);
+  };
+
+  const handleVideoWaiting = () => {
+    setVideoLoading(true);
+  };
+
+  const handleVideoPlaying = () => {
+    setVideoLoading(false);
+  };
 
   return (
     <section className="relative min-h-screen overflow-hidden gradient-velocity">
@@ -287,13 +305,30 @@ export const HeroSection = () => {
             </button>
 
             {/* Video Container */}
-            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
+              {/* Loading Indicator */}
+              {videoLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 z-10">
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 border-4 border-[#00D9FF] border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-white/80 text-lg">Cargando video...</p>
+                    <p className="text-white/50 text-sm mt-2">Esto puede tomar unos segundos</p>
+                  </div>
+                </div>
+              )}
+
               <video
                 ref={videoRef}
                 className="w-full"
                 controls
                 autoPlay
+                preload="metadata"
+                playsInline
                 controlsList="nodownload"
+                onLoadStart={handleVideoLoadStart}
+                onCanPlay={handleVideoCanPlay}
+                onWaiting={handleVideoWaiting}
+                onPlaying={handleVideoPlaying}
               >
                 <source
                   src="https://www.softvibes.com.mx/rovi/demo.mp4"
