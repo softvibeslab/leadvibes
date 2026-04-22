@@ -21,64 +21,68 @@ code {
 
 @layer base {
     :root {
-        /* Tulum Luxury Palette - Light Mode */
-        --background: 30 6% 90%; /* #E7E5E4 Beige Arena */
-        --foreground: 220 9% 20%;
+        /* Rovi AI Tech Palette - Light Mode */
+        --background: 210 40% 98%; /* #F8FAFC Arctic Surface */
+        --foreground: 215 25% 27%; /* #1E293B Charcoal Ink */
         --card: 0 0% 100%;
-        --card-foreground: 220 9% 20%;
+        --card-foreground: 215 25% 27%;
         --popover: 0 0% 100%;
-        --popover-foreground: 220 9% 20%;
-        --primary: 174 84% 32%; /* #0D9488 Turquesa Profundo */
+        --popover-foreground: 215 25% 27%;
+        --primary: 217 89% 36%; /* #0A4DAF Deep Velocity Blue */
         --primary-foreground: 0 0% 100%;
-        --secondary: 88 81% 27%; /* #4D7C0F Verde Jungla */
+        --secondary: 262 75% 50%; /* #7C3AED Neural Violet */
         --secondary-foreground: 0 0% 100%;
-        --muted: 30 6% 85%;
-        --muted-foreground: 220 9% 46%; /* #6B7280 Gris Piedra */
-        --accent: 32 95% 44%; /* #D97706 Dorado Cálido */
+        --muted: 210 40% 96%;
+        --muted-foreground: 215 20% 65%; /* #64748B Slate Gray */
+        --accent: 187 100% 50%; /* #00D9FF Electric Cyan */
         --accent-foreground: 0 0% 100%;
-        --destructive: 0 84% 60%; /* #EF4444 Rojo Coral */
+        --destructive: 0 84% 60%; /* #EF4444 Crimson Edge */
         --destructive-foreground: 0 0% 100%;
-        --success: 160 84% 39%; /* #10B981 Verde Esmeralda */
+        --success: 160 84% 39%; /* #10B981 Growth Mint */
         --success-foreground: 0 0% 100%;
-        --border: 30 6% 80%;
-        --input: 30 6% 80%;
-        --ring: 174 84% 32%;
-        --chart-1: 174 84% 32%;
-        --chart-2: 88 81% 27%;
-        --chart-3: 32 95% 44%;
+        --warning: 38 92% 50%; /* #F59E0B Solar Amber */
+        --warning-foreground: 0 0% 100%;
+        --border: 215 25% 85%;
+        --input: 215 25% 85%;
+        --ring: 217 89% 36%;
+        --chart-1: 217 89% 36%;
+        --chart-2: 187 100% 50%;
+        --chart-3: 262 75% 50%;
         --chart-4: 160 84% 39%;
-        --chart-5: 0 84% 60%;
+        --chart-5: 38 92% 50%;
         --radius: 0.75rem;
     }
 
     .dark {
-        /* Tulum Luxury Palette - Dark Mode */
-        --background: 220 14% 14%; /* #1F2937 */
-        --foreground: 30 6% 90%;
-        --card: 220 14% 18%;
-        --card-foreground: 30 6% 90%;
-        --popover: 220 14% 18%;
-        --popover-foreground: 30 6% 90%;
-        --primary: 174 84% 32%; /* #0D9488 Turquesa Profundo */
+        /* Rovi AI Tech Palette - Dark Mode */
+        --background: 222 47% 11%; /* #0F172A Obsidian Base */
+        --foreground: 210 40% 98%; /* #F8FAFC Arctic White */
+        --card: 215 25% 27%; /* #1E293B Deep Slate */
+        --card-foreground: 210 40% 98%;
+        --popover: 215 25% 27%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 217 70% 53%; /* #3370D9 Velocity Light */
         --primary-foreground: 0 0% 100%;
-        --secondary: 88 81% 27%; /* #4D7C0F Verde Jungla */
+        --secondary: 262 90% 67%; /* #8B5CF6 Neural Violet Light */
         --secondary-foreground: 0 0% 100%;
-        --muted: 220 14% 25%;
-        --muted-foreground: 220 9% 60%;
-        --accent: 32 95% 44%; /* #D97706 Dorado Cálido */
+        --muted: 215 25% 33%; /* #334155 Light Slate */
+        --muted-foreground: 210 17% 65%; /* #94A3B8 Cool Gray */
+        --accent: 187 100% 60%; /* #33E1FF Electric Cyan Light */
         --accent-foreground: 0 0% 100%;
-        --destructive: 0 84% 50%;
+        --destructive: 0 89% 51%; /* #DC2626 Crimson Edge Dark */
         --destructive-foreground: 0 0% 100%;
-        --success: 160 84% 39%;
+        --success: 160 93% 31%; /* #059669 Growth Mint Dark */
         --success-foreground: 0 0% 100%;
-        --border: 220 14% 25%;
-        --input: 220 14% 25%;
-        --ring: 174 84% 32%;
-        --chart-1: 174 84% 40%;
-        --chart-2: 88 81% 35%;
-        --chart-3: 32 95% 50%;
-        --chart-4: 160 84% 45%;
-        --chart-5: 0 84% 55%;
+        --warning: 38 92% 50%;
+        --warning-foreground: 0 0% 100%;
+        --border: 215 25% 33%;
+        --input: 215 25% 33%;
+        --ring: 217 70% 53%;
+        --chart-1: 217 89% 46%;
+        --chart-2: 187 100% 60%;
+        --chart-3: 262 90% 67%;
+        --chart-4: 160 93% 41%;
+        --chart-5: 38 92% 55%;
     }
 }
 
@@ -95,34 +99,75 @@ code {
     .glass-light {
         @apply bg-white/70 backdrop-blur-lg border border-white/20;
     }
-    
+
     .glass-dark {
         @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/30;
     }
-    
+
     .shadow-soft {
         box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
     }
-    
+
+    /* Rovi AI Tech Glow Effects */
     .shadow-glow-primary {
-        box-shadow: 0 0 20px rgba(13, 148, 136, 0.3);
+        box-shadow: 0 0 20px rgba(10, 77, 175, 0.4);
     }
-    
+
+    .shadow-glow-primary-strong {
+        box-shadow: 0 0 40px rgba(10, 77, 175, 0.6);
+    }
+
     .shadow-glow-accent {
-        box-shadow: 0 0 20px rgba(217, 119, 6, 0.3);
+        box-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
     }
-    
-    .gradient-tulum {
-        background: linear-gradient(135deg, #0D9488 0%, #4D7C0F 100%);
+
+    .shadow-glow-accent-strong {
+        box-shadow: 0 0 40px rgba(0, 217, 255, 0.7);
     }
-    
+
+    .shadow-glow-violet {
+        box-shadow: 0 0 30px rgba(124, 58, 237, 0.4);
+    }
+
+    .shadow-glow-success {
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Rovi AI Tech Gradients */
+    .gradient-velocity {
+        background: linear-gradient(135deg, #0F172A 0%, #062B5F 40%, #0A4DAF 100%);
+    }
+
+    .gradient-neural {
+        background: linear-gradient(135deg, #7C3AED 0%, #00D9FF 100%);
+    }
+
+    .gradient-primary {
+        background: linear-gradient(135deg, #0A4DAF 0%, #062B5F 100%);
+    }
+
+    .gradient-growth {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    }
+
     .gradient-gold {
-        background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
     }
-    
-    .text-gradient-tulum {
+
+    /* Text Gradients */
+    .text-gradient-primary {
         @apply bg-clip-text text-transparent;
-        background-image: linear-gradient(135deg, #0D9488 0%, #4D7C0F 100%);
+        background-image: linear-gradient(135deg, #0A4DAF 0%, #00D9FF 100%);
+    }
+
+    .text-gradient-neural {
+        @apply bg-clip-text text-transparent;
+        background-image: linear-gradient(135deg, #7C3AED 0%, #00D9FF 100%);
+    }
+
+    .text-gradient-velocity {
+        @apply bg-clip-text text-transparent;
+        background-image: linear-gradient(135deg, #0F172A 0%, #0A4DAF 100%);
     }
 }
 

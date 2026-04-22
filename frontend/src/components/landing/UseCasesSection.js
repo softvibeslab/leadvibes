@@ -9,8 +9,8 @@ export const UseCasesSection = () => {
       title: 'Broker Individual',
       subtitle: 'Para agentes independientes',
       icon: User,
-      color: 'from-blue-500 to-cyan-500',
-      bgPattern: 'bg-blue-500/10',
+      color: 'gradient-neural',
+      bgPattern: 'bg-[#00D9FF]/10',
       quote: 'Antes perdía el 40% de mis leads por no dar seguimiento. Ahora Rovi lo hace por mí.',
       author: 'Carlos Mendoza',
       role: 'Broker Independiente, Tulum',
@@ -32,8 +32,8 @@ export const UseCasesSection = () => {
       title: 'Agencia Inmobiliaria',
       subtitle: 'Para equipos de ventas',
       icon: Building2,
-      color: 'from-emerald-500 to-teal-500',
-      bgPattern: 'bg-emerald-500/10',
+      color: 'gradient-growth',
+      bgPattern: 'bg-[#10B981]/10',
       quote: 'Nuestra productividad aumentó 127% en el primer trimestre. Los brokers aman la gamificación.',
       author: 'María González',
       role: 'Directora de Ventas, Caribe Realty',
@@ -56,8 +56,8 @@ export const UseCasesSection = () => {
       title: 'Desarrollador Inmobiliario',
       subtitle: 'Para proyectos con ventas internas',
       icon: Building2,
-      color: 'from-amber-500 to-orange-500',
-      bgPattern: 'bg-amber-500/10',
+      color: 'gradient-gold',
+      bgPattern: 'bg-[#F59E0B]/10',
       quote: 'Rovi nos ayudó a vender el 80% de Phase 1 en 4 meses. La integración de IA es increíble.',
       author: 'Roberto Hernández',
       role: 'Director Comercial, Mayan Developments',
@@ -111,12 +111,12 @@ export const UseCasesSection = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <span className="inline-block bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-4">
+          <span className="inline-block bg-[#7C3AED]/10 text-[#7C3AED] px-4 py-2 rounded-full text-sm font-semibold mb-4">
             CASOS DE USO
           </span>
           <h2 className="text-4xl lg:text-5xl font-bold mb-6">
             Soluciones para cada tipo de
-            <span className="text-primary"> negocio</span>
+            <span className="text-gradient-neural"> negocio</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Ya seas un broker independiente o una gran inmobiliaria, Rovi se adapta a tus necesidades.
@@ -136,14 +136,14 @@ export const UseCasesSection = () => {
                 className="relative"
               >
                 <div className="bg-card rounded-2xl p-6 border border-border h-full">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-teal-600 flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-4 shadow-glow-primary">
                     <scenario.icon className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="text-xl font-bold mb-4">{scenario.title}</h3>
 
                   <div className="space-y-4">
-                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                      <div className="text-xs text-red-500 font-semibold mb-1">ANTES</div>
+                    <div className="p-3 bg-[#EF4444]/10 border border-[#EF4444]/20 rounded-lg">
+                      <div className="text-xs text-[#EF4444] font-semibold mb-1">ANTES</div>
                       <p className="text-sm text-muted-foreground">{scenario.before}</p>
                     </div>
 
@@ -151,14 +151,14 @@ export const UseCasesSection = () => {
                       <ArrowRight className="w-6 h-6 text-muted-foreground" />
                     </div>
 
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                      <div className="text-xs text-emerald-500 font-semibold mb-1">CON ROVI</div>
+                    <div className="p-3 bg-[#10B981]/10 border border-[#10B981]/20 rounded-lg">
+                      <div className="text-xs text-[#10B981] font-semibold mb-1">CON ROVI</div>
                       <p className="text-sm text-muted-foreground">{scenario.after}</p>
                     </div>
                   </div>
 
                   <div className="mt-4 pt-4 border-t border-border text-center">
-                    <span className="text-primary font-semibold">{scenario.improvement}</span>
+                    <span className="text-gradient-primary font-semibold">{scenario.improvement}</span>
                   </div>
                 </div>
               </motion.div>
@@ -166,102 +166,83 @@ export const UseCasesSection = () => {
           </div>
         </div>
 
-        {/* Plans/Cards */}
-        <div className="grid md:grid-cols-3 gap-8">
-          {useCases.map((useCase, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className="relative"
-            >
-              {useCase.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                  Más Popular
-                </div>
-              )}
-
-              <div className={`bg-card rounded-3xl p-8 border ${useCase.popular ? 'border-primary shadow-xl' : 'border-border'} h-full flex flex-col`}>
-                {/* Header */}
-                <div className="text-center mb-6">
-                  <div className={`inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br ${useCase.color} items-center justify-center text-3xl mb-4`}>
-                    {useCase.image}
-                  </div>
-                  <h3 className="text-2xl font-bold mb-1">{useCase.title}</h3>
-                  <p className="text-muted-foreground">{useCase.subtitle}</p>
-                </div>
-
-                {/* Price */}
-                <div className="text-center mb-6">
-                  <div className="text-3xl font-bold">{useCase.price}</div>
-                </div>
-
-                {/* Features */}
-                <div className="flex-1 space-y-3 mb-6">
-                  {useCase.features.map((feature, i) => (
-                    <div key={i} className="flex items-center">
-                      {feature.included ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 mr-3 flex-shrink-0" />
-                      ) : (
-                        <div className="w-5 h-5 mr-3 flex-shrink-0 flex items-center justify-center">
-                          <div className="w-3 h-3 rounded-full bg-muted" />
-                        </div>
-                      )}
-                      <span className={feature.included ? '' : 'text-muted-foreground line-through'}>
-                        {feature.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Testimonial */}
-                <div className="bg-muted/30 rounded-xl p-4 mb-6">
-                  <p className="text-sm italic mb-3">"{useCase.quote}"</p>
-                  <div className="text-xs">
-                    <div className="font-semibold">{useCase.author}</div>
-                    <div className="text-muted-foreground">{useCase.role}</div>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <Link
-                  to="/demo-request"
-                  className={`block text-center py-3 rounded-xl font-semibold transition ${
-                    useCase.popular
-                      ? 'bg-gradient-to-r from-primary to-teal-600 text-white hover:shadow-lg'
-                      : 'bg-muted hover:bg-muted/70'
-                  }`}
-                >
-                  {useCase.cta}
-                </Link>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Enterprise CTA */}
+        {/* Single CTA - Sin Precios */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mt-16 bg-gradient-to-r from-primary/10 to-teal-600/10 rounded-3xl p-8 md:p-12 text-center border border-primary/20"
+          className="gradient-velocity rounded-3xl p-8 md:p-16 text-center border border-[#0A4DAF]/30 shadow-glow-primary-strong"
         >
-          <h3 className="text-2xl md:text-3xl font-bold mb-4">
-            ¿Necesitas una solución enterprise personalizada?
+          {/* Badge */}
+          <div className="inline-block bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full text-sm font-semibold mb-6">
+            Soluciones Personalizadas
+          </div>
+
+          {/* Heading */}
+          <h3 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-white">
+            Precios según las necesidades
+            <span className="block mt-2">de tu negocio</span>
           </h3>
-          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Ofrecemos implementaciones personalizadas, integración con tus sistemas existentes,
-            y soporte dedicado para grandes desarrollos inmobiliarios.
+
+          {/* Description */}
+          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-3xl mx-auto">
+            Cada inmobiliaria es diferente. Diseñamos un plan a tu medida
+            según el tamaño de tu equipo, volumen de leads y objetivos de crecimiento.
           </p>
-          <Link
-            to="/contact-sales"
-            className="inline-flex items-center bg-gradient-to-r from-primary to-teal-600 text-white px-8 py-3 rounded-full font-semibold hover:shadow-lg transition"
-          >
-            Contactar Ventas Enterprise
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Link>
+
+          {/* Benefits */}
+          <div className="grid md:grid-cols-3 gap-6 mb-10 max-w-4xl mx-auto">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+              <div className="text-3xl mb-3">🎯</div>
+              <h4 className="text-white font-semibold mb-2">Sin Costos Ocultos</h4>
+              <p className="text-white/80 text-sm">Transparencia total en tu inversión</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+              <div className="text-3xl mb-3">📈</div>
+              <h4 className="text-white font-semibold mb-2">ROI Medible</h4>
+              <p className="text-white/80 text-sm">Métricas claras de retorno</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+              <div className="text-3xl mb-3">🤝</div>
+              <h4 className="text-white font-semibold mb-2">Soporte Dedicado</h4>
+              <p className="text-white/80 text-sm">Implementación y capacitación</p>
+            </div>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              to="/demo-request"
+              className="inline-flex items-center justify-center bg-white text-[#0A4DAF] px-8 py-4 rounded-full font-bold text-lg hover:bg-white/90 transition shadow-xl hover:shadow-2xl transform hover:scale-105"
+            >
+              Solicitar Cotización Personalizada
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Link>
+            <a
+              href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20cotizar%20Rovi%20CRM%20para%20mi%20inmobiliaria"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center bg-white/20 backdrop-blur-sm text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/30 transition border-2 border-white/30"
+            >
+              WhatsApp Directo
+            </a>
+          </div>
+
+          {/* Trust Badges */}
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-white/80 text-sm">
+            <div className="flex items-center">
+              <CheckCircle2 className="w-5 h-5 mr-2" />
+              <span>Demo Gratuita</span>
+            </div>
+            <div className="flex items-center">
+              <CheckCircle2 className="w-5 h-5 mr-2" />
+              <span>Sin Contrato Forzoso</span>
+            </div>
+            <div className="flex items-center">
+              <CheckCircle2 className="w-5 h-5 mr-2" />
+              <span>Implementación en 48h</span>
+            </div>
+          </div>
         </motion.div>
       </div>
     </section>

@@ -22,29 +22,52 @@ export const LeadFormSection = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    try {
-      // Enviar lead al backend
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'https://lead-bulk-upload.preview.emergentagent.com'}/api/landing/lead`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+    // Construir mensaje de WhatsApp con los datos del formulario
+    const accountTypeText = formData.accountType === 'individual' ? 'Broker Independiente' : 'Inmobiliaria';
 
-      if (response.ok) {
-        setIsSuccess(true);
-        toast.success('¡Gracias! Nos pondremos en contacto pronto.');
-      } else {
-        throw new Error('Error al enviar');
-      }
-    } catch (error) {
-      toast.error('Hubo un error. Por favor intenta nuevamente.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    const message = `🏠 *NUEVO LEAD DESDE LANDING PAGE*
+
+📋 *DATOS DE CONTACTO*
+━━━━━━━━━━━━━━━
+👤 *Nombre:* ${formData.name}
+📧 *Email:* ${formData.email}
+📱 *Teléfono:* ${formData.phone}
+🏢 *Empresa:* ${formData.company || 'No especificada'}
+
+🎯 *TIPO DE CUENTA*
+━━━━━━━━━━━━━━━
+${accountTypeText}
+
+💬 *MENSAJE*
+━━━━━━━━━━━━━━━
+${formData.message || 'Sin mensaje adicional'}
+
+---
+📌 Enviado desde rovicrm.com`;
+
+    // Codificar mensaje para URL
+    const encodedMessage = encodeURIComponent(message);
+
+    // Número de WhatsApp
+    const whatsappNumber = '525580483839';
+
+    // Abrir WhatsApp con el mensaje
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+
+    // Mostrar mensaje de éxito
+    toast.success('¡Abriendo WhatsApp!');
+
+    // Abrir en nueva pestaña
+    window.open(whatsappUrl, '_blank');
+
+    // Mostrar estado de éxito
+    setIsSuccess(true);
+
+    setIsSubmitting(false);
   };
 
   const benefits = [
@@ -66,26 +89,33 @@ export const LeadFormSection = () => {
             <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
               <CheckCircle2 className="w-10 h-10 text-emerald-500" />
             </div>
-            <h2 className="text-3xl font-bold mb-4">¡Solicitud Recibida!</h2>
+            <h2 className="text-3xl font-bold mb-4">¡WhatsApp Abierto!</h2>
             <p className="text-xl text-muted-foreground mb-8">
-              Gracias por tu interés en Rovi CRM. Un miembro de nuestro equipo te contactará
-              en las próximas 24 horas para agendar tu demo personalizada.
+              Gracias por tu interés en Rovi CRM. Hemos abierto WhatsApp con toda tu información
+              prellenada. Solo presiona "Enviar" para contactarnos directamente.
             </p>
             <div className="bg-muted/30 rounded-xl p-6 mb-8">
-              <p className="text-sm text-muted-foreground mb-2">Mientras tanto, puedes:</p>
+              <p className="text-sm text-muted-foreground mb-2">¿No se abrió WhatsApp?</p>
               <div className="flex flex-wrap justify-center gap-4">
+                <a
+                  href="https://wa.me/525580483839"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Abrir WhatsApp manualmente
+                </a>
+                <span className="text-muted-foreground">•</span>
                 <a href="#features" className="text-primary hover:underline">Ver funcionalidades</a>
                 <span className="text-muted-foreground">•</span>
-                <a href="#use-cases" className="text-primary hover:underline">Ver casos de uso</a>
-                <span className="text-muted-foreground">•</span>
-                <a href="mailto:hola@rovicrm.com" className="text-primary hover:underline">Contactarnos directamente</a>
+                <a href="mailto:rovicrm@softvibes.com.mx" className="text-primary hover:underline">Enviar email</a>
               </div>
             </div>
             <button
               onClick={() => setIsSuccess(false)}
               className="text-primary hover:underline"
             >
-              Enviar otra solicitud
+              Enviar otro mensaje
             </button>
           </motion.div>
         </div>
@@ -104,17 +134,17 @@ export const LeadFormSection = () => {
             viewport={{ once: true }}
           >
             <span className="inline-block bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-4">
-              COMIENZA GRATIS
+              CONTACTO DIRECTO
             </span>
             <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Solicita tu{' '}
+              Contáctanos por{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-teal-600">
-                demo personalizada
+                WhatsApp
               </span>
             </h2>
             <p className="text-xl text-muted-foreground mb-8">
-              Descubre cómo Rovi CRM puede ayudarte a vender más. En 30 minutos te mostramos
-              todo lo que necesitas para transformar tu proceso de ventas.
+              Completa el formulario y te contactaremos de inmediato por WhatsApp.
+              Sin intermediarios, respuesta directa en minutos.
             </p>
 
             <div className="space-y-4 mb-8">
@@ -134,9 +164,9 @@ export const LeadFormSection = () => {
             </div>
 
             <div className="bg-card/50 backdrop-blur-sm rounded-xl p-6 border border-border">
-              <p className="text-sm text-muted-foreground mb-2">¿Prefieres llamar?</p>
-              <a href="tel:+529984123456" className="text-2xl font-bold text-primary hover:underline">
-                +52 998 412 3456
+              <p className="text-sm text-muted-foreground mb-2">¿Prefieres WhatsApp?</p>
+              <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20solicitar%20una%20demo%20de%20Rovi%20CRM" target="_blank" rel="noopener noreferrer" className="text-2xl font-bold text-primary hover:underline">
+                +52 55 8048 3839
               </a>
             </div>
           </motion.div>
@@ -148,7 +178,7 @@ export const LeadFormSection = () => {
             viewport={{ once: true }}
           >
             <div className="bg-card rounded-3xl p-8 shadow-xl border border-border">
-              <h3 className="text-2xl font-bold mb-6">Solicita tu Demo</h3>
+              <h3 className="text-2xl font-bold mb-6">Contáctanos por WhatsApp</h3>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
@@ -261,17 +291,17 @@ export const LeadFormSection = () => {
                   className="w-full bg-gradient-to-r from-primary to-teal-600 hover:from-primary/90 hover:to-teal-600/90 text-white py-4 rounded-xl font-semibold text-lg transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
                 >
                   {isSubmitting ? (
-                    'Enviando...'
+                    'Abriendo WhatsApp...'
                   ) : (
                     <>
-                      Solicitar Demo Gratis
+                      Enviar por WhatsApp
                       <Send className="w-5 h-5 ml-2" />
                     </>
                   )}
                 </button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  Al enviar este formulario, aceptas nuestra política de privacidad.
+                  Al enviar este formulario, se abrirá WhatsApp con tu información prellenada.
                   No compartimos tus datos con terceros.
                 </p>
               </form>

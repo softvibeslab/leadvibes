@@ -22,7 +22,7 @@ export const Footer = () => {
       { label: 'Centro de Ayuda', href: '#' },
       { label: 'Documentación', href: '#' },
       { label: 'Estado del Sistema', href: '#' },
-      { label: 'Contacto', href: 'mailto:hola@rovicrm.com' },
+      { label: 'Contacto', href: 'mailto:rovicrm@softvibes.com.mx' },
     ],
     legal: [
       { label: 'Términos de Servicio', href: '#' },
@@ -58,17 +58,17 @@ export const Footer = () => {
             </p>
 
             <div className="space-y-3">
-              <a href="mailto:hola@rovicrm.com" className="flex items-center text-slate-400 hover:text-white transition">
+              <a href="mailto:rovicrm@softvibes.com.mx" className="flex items-center text-slate-400 hover:text-white transition">
                 <Mail className="w-5 h-5 mr-3" />
-                hola@rovicrm.com
+                rovicrm@softvibes.com.mx
               </a>
-              <a href="tel:+529984123456" className="flex items-center text-slate-400 hover:text-white transition">
+              <a href="https://wa.me/525580483839" target="_blank" rel="noopener noreferrer" className="flex items-center text-slate-400 hover:text-white transition">
                 <Phone className="w-5 h-5 mr-3" />
-                +52 998 412 3456
+                +52 55 8048 3839
               </a>
               <div className="flex items-center text-slate-400">
                 <MapPin className="w-5 h-5 mr-3" />
-                Tulum, Quintana Roo, México
+                México
               </div>
             </div>
 
@@ -168,9 +168,6 @@ export const Footer = () => {
             </p>
             <div className="flex items-center space-x-4">
               <span className="text-slate-400 text-sm">Hecho con ❤️ en México</span>
-              <Link to="/login" className="text-primary hover:text-primary/80 text-sm font-semibold">
-                Iniciar Sesión
-              </Link>
             </div>
           </div>
         </div>

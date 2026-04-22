@@ -13,10 +13,10 @@ export const BenefitsSection = () => {
   const stats = [
     { icon: TrendingUp, value: '45%', label: 'Aumento en conversión', desc: 'Promedio en los primeros 3 meses' },
     { icon: Clock, value: '3.5h', label: 'Ahorradas por día', desc: 'En tareas administrativas' },
-    { icon: Users, value: '2,500+', label: 'Brokers activos', desc: 'Usando Rovi CRM diariamente' },
-    { icon: Target, value: '89%', label: 'Tasa de retención', desc: 'Clientes que renuevan anualmente' },
-    { icon: DollarSign, value: '$500M', label: 'En ventas gestionadas', desc: 'Volumen total anual en plataforma' },
-    { icon: Award, value: '#1', label: 'CRM inmobiliario', desc: 'En México y Latinoamérica' },
+    { icon: Users, value: '10+', label: 'Años experiencia', desc: 'En sector real estate' },
+    { icon: Target, value: '24/7', label: 'Soporte activo', desc: 'Equipo especializado' },
+    { icon: DollarSign, value: '30%', label: 'Ahorro en tiempo', desc: 'Automatización de procesos' },
+    { icon: Award, value: '100%', label: 'En español', desc: 'Diseñado para México' },
   ];
 
   const benefits = [
