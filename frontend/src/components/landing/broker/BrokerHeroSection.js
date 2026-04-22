@@ -24,15 +24,15 @@ export const BrokerHeroSection = () => {
       <motion.div
         animate={{ y: [0, -20, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-20 right-10 w-72 h-72 bg-[#00D9FF]/20 rounded-full blur-3xl"
+        className="absolute top-20 right-10 w-48 h-48 sm:w-72 sm:h-72 bg-[#00D9FF]/20 rounded-full blur-3xl"
       />
       <motion.div
         animate={{ y: [0, 20, 0] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-20 left-10 w-96 h-96 bg-[#7C3AED]/20 rounded-full blur-3xl"
+        className="absolute bottom-20 left-10 w-64 h-64 sm:w-96 sm:h-96 bg-[#7C3AED]/20 rounded-full blur-3xl"
       />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-16 sm:pb-32">
         {/* Navigation */}
         <nav className="flex items-center justify-between mb-16">
           <div className="flex items-center space-x-2">
