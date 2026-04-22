@@ -4,6 +4,8 @@ Tests: /api/import/upload, /api/import/preview, /api/import/execute
 """
 
 import pytest
+
+pytestmark = pytest.mark.integration
 import requests
 import os
 import io

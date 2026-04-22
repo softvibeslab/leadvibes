@@ -1,0 +1,59 @@
+name: Historia de usuario
+description: Feature o mejora descrita desde el punto de vista del usuario (MVP / backlog).
+title: "[US] "
+body:
+  - type: dropdown
+    id: epic
+    attributes:
+      label: Épica
+      description: Agrupa el trabajo por módulo (ver docs/SPRINT_USER_STORIES_QA.md).
+      options:
+        - E1 — Autenticación y onboarding
+        - E2 — Leads y pipeline
+        - E3 — Importación
+        - E4 — Integraciones
+        - E5 — Campañas
+        - E6 — Plantillas email
+        - E7 — Calendario
+        - E8 — Brokers y gamificación
+        - E9 — Analíticas
+        - E10 — Automatizaciones
+        - E11 — Landing / público
+        - E12 — IA
+    validations:
+      required: true
+
+  - type: textarea
+    id: story
+    attributes:
+      label: Historia
+      description: "Formato: Como [rol], quiero [acción], para [beneficio]."
+      placeholder: Como broker, quiero filtrar leads por fuente, para priorizar el día.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+      description: Lista comprobable (Given / When / Then o checkboxes).
+      placeholder: "- [ ] ...\n- [ ] ..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridad
+      options:
+        - P0 — Bloquea MVP
+        - P1 — Importante
+        - P2 — Después del piloto
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notas / enlaces
+      description: Mockups, API relacionada, PRs.

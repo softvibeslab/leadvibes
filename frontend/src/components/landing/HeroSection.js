@@ -53,9 +53,9 @@ export const HeroSection = () => {
           </div>
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-white/80 hover:text-white transition">Funcionalidades</a>
-            <a href="#benefits" className="text-white/80 hover:text-white transition">Beneficios</a>
-            <a href="#use-cases" className="text-white/80 hover:text-white transition">Casos de Uso</a>
-            <a href="#pricing" className="text-white/80 hover:text-white transition">Precios</a>
+            <a href="#integrations" className="text-white/80 hover:text-white transition">Integraciones</a>
+            <a href="#roi" className="text-white/80 hover:text-white transition">Calculadora ROI</a>
+            <a href="#faq" className="text-white/80 hover:text-white transition">FAQ</a>
           </div>
           <div className="flex items-center space-x-4">
             <a
@@ -238,7 +238,6 @@ export const HeroSection = () => {
             </motion.div>
           </motion.div>
         </div>
-
         {/* Experience Badge */}
         <motion.div
           initial={{ opacity: 0 }}

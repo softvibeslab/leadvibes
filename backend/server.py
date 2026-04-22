@@ -2120,7 +2120,7 @@ async def test_vapi_connection(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="VAPI no configurado")
     
     try:
-        from vapi import Vapi
+        from vapi_server_sdk import Vapi
         vapi_client = Vapi(token=settings["vapi_api_key"])
         # Try to list calls to verify connection
         calls = vapi_client.calls.list(limit=1)
@@ -2235,7 +2235,7 @@ async def start_campaign(
             raise HTTPException(status_code=400, detail="VAPI no está configurado")
         
         try:
-            from vapi import Vapi
+            from vapi_server_sdk import Vapi
             vapi_client = Vapi(token=settings["vapi_api_key"])
             
             for lead in leads:
@@ -2408,7 +2408,7 @@ async def create_single_call(
         raise HTTPException(status_code=404, detail="Lead no encontrado")
     
     try:
-        from vapi import Vapi
+        from vapi_server_sdk import Vapi
         vapi_client = Vapi(token=settings["vapi_api_key"])
         
         call_params = {
@@ -3817,12 +3817,15 @@ async def get_analytics_timeline(
         "date": {"$gte": start_dt, "$lte": end_dt}
     }
 
+    # Determine date format based on granularity
+    date_format = "%Y-%m-%d" if granularity == "daily" else "%Y-%U"
+
     # Group by date and source
     pipeline = [
         {"$match": date_filter},
         {"$group": {
             "_id": {
-                "date": {"$dateToString": {"format": "%Y-%m-%d" if granularity == "daily" else "%Y-%U", "date": "$date"}},
+                "date": {"$dateToString": {"format": date_format, "date": "$date"}},
                 "source": "$source"
             },
             "impressions": {"$sum": "$impressions"},

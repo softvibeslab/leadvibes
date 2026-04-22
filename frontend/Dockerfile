@@ -1,41 +1,33 @@
-# Multi-stage build for React frontend
+# Multi-stage build for React frontend (yarn.lock en el repo)
 
-# Stage 1: Build the React application
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json yarn.lock ./
+RUN apk add --no-cache yarn
 
-# Install dependencies
+COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
-# Copy source code
 COPY . .
 
-# Build the application
+ARG REACT_APP_BACKEND_URL=
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+ARG REACT_APP_ENVIRONMENT=
+ENV REACT_APP_ENVIRONMENT=$REACT_APP_ENVIRONMENT
+
 RUN yarn build
 
-# Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Copy custom nginx config
+RUN apk add --no-cache curl
+
+COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built files from builder stage
-COPY --from=builder /app/build /usr/share/nginx/html
+EXPOSE 80 443
 
-# Add labels
-LABEL maintainer="Rovi CRM"
-LABEL description="Rovi CRM Frontend - React application"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
 
-# Expose port 80
-EXPOSE 80
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
-
-# Start nginx
 CMD ["nginx", "-g", "daemon off;"]

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Upload, FileSpreadsheet, ArrowRight, ArrowLeft, Check, AlertCircle,
-  Loader2, MapPin, CheckCircle2, XCircle, Users, FileWarning, X
+  Loader2, MapPin, CheckCircle2, XCircle, Users, FileWarning, X, Download
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -258,13 +258,26 @@ export const ImportLeadsPage = () => {
   const renderUploadStep = () => (
     <Card className="border-dashed">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-primary" />
-          Subir archivo de leads
-        </CardTitle>
-        <CardDescription>
-          Soportamos archivos CSV y Excel (.xlsx). El archivo debe tener una fila de encabezados.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-primary" />
+              Subir archivo de leads
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Soportamos archivos CSV y Excel (.xlsx). El archivo debe tener una fila de encabezados.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open('/plantilla_leads.csv', '_blank')}
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Descargar Plantilla
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div

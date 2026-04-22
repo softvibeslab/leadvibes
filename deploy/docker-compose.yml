@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # MongoDB Database
+  # ============================================
+  mongodb:
+    image: mongo:7.0
+    container_name: leadvibes-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${DB_NAME}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - leadvibes-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ============================================
+  # Backend API (FastAPI)
+  # ============================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: leadvibes-backend
+    restart: unless-stopped
+    environment:
+      # Environment
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # Database
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${DB_NAME}?authSource=admin
+      DB_NAME: ${DB_NAME}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+
+      # AI Service (Optional)
+      EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY:-}
+
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,https://leadvibes.com}
+
+      # Integrations (Optional)
+      VAPI_API_KEY: ${VAPI_API_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+
+      # Google Calendar (Optional)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - leadvibes-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - backend_logs:/app/logs
+
+  # ============================================
+  # Frontend (React)
+  # ============================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_BACKEND_URL: ${REACT_APP_BACKEND_URL:-http://localhost:8000}
+        REACT_APP_ENVIRONMENT: ${ENVIRONMENT:-production}
+    container_name: leadvibes-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - leadvibes-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  leadvibes-network:
+    driver: bridge
+    name: leadvibes-network
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  mongodb_data:
+    driver: local
+    name: leadvibes_mongodb_data
+  mongodb_config:
+    driver: local
+    name: leadvibes_mongodb_config
+  backend_logs:
+    driver: local
+    name: leadvibes_backend_logs

@@ -5,6 +5,8 @@ Tests for Google Calendar Integration and Visual Email Template Editor features
 """
 
 import pytest
+
+pytestmark = pytest.mark.integration
 import requests
 import os
 import json

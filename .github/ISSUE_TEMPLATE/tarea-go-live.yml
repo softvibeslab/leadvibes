@@ -1,0 +1,35 @@
+name: Tarea go-live / operaciones
+description: Checklist de infraestructura, deploy o setup con cliente (DWY).
+title: "[Go-live] "
+body:
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Fase
+      options:
+        - Fase 0 — Pre-requisitos
+        - Fase 1 — Infra y secretos
+        - Fase 2 — Deploy y smoke tests
+        - Fase 3 — Integraciones
+        - Fase 4–5 — Setup cliente DWY
+        - Fase 6 — Cierre piloto
+    validations:
+      required: true
+
+  - type: textarea
+    id: task
+    attributes:
+      label: Qué hay que hacer
+      placeholder: Ej. Configurar CORS con https:// en producción tras Certbot.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: refs
+    attributes:
+      label: Documentación relacionada
+      options:
+        - label: Revisé docs/EXECUTION_CHECKLIST.md
+          required: false
+        - label: Revisé docs/DEPLOYMENT_URLS.md
+          required: false

@@ -13,8 +13,6 @@ services:
       MONGO_INITDB_DATABASE: ${DB_NAME:-rovi_crm}
     volumes:
       - mongodb_data:/data/db
-    ports:
-      - "27017:27017"
     networks:
       - rovi-network
 
@@ -44,8 +42,6 @@ services:
       # Environment
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
-    volumes:
-      - ./backend:/app
     ports:
       - "8000:8000"
     expose:

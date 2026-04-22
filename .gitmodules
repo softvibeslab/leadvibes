@@ -1,0 +1,3 @@
+[submodule "apps/rovi-pocket"]
+	path = apps/rovi-pocket
+	url = https://github.com/softvibeslab/rovi_pocket.git

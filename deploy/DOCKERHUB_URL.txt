@@ -1,0 +1,75 @@
+# LeadVibes - Docker Hub Deployment
+
+## URL para Administrador de Docker
+
+Si usas un panel de Docker Compose que requiere una URL, tienes estas opciones:
+
+### Opción 1: Repositorio GitHub Completo (RECOMENDADO)
+```
+URL: https://github.com/softvibeslab/leadvibes
+```
+
+El sistema automáticamente:
+- Detectará el docker-compose.yml
+- Detectará los Dockerfiles
+- Construirá las imágenes
+- Desplegará los contenedores
+
+### Opción 2: Docker Hub Images
+
+**Backend Image:**
+```
+docker.io/leadvibes-backend:latest
+```
+
+**Frontend Image:**
+```
+docker.io/leadvibes-frontend:latest
+```
+
+**MongoDB Image:**
+```
+mongo:7.0
+```
+
+### Opción 3: Docker Compose Raw
+
+Copia el contenido de `docker-compose.yml` y pégalo directamente en el panel.
+
+---
+
+## Instrucciones por Panel
+
+### Hostinger / cPanel / Plesk
+
+1. **Acceder al panel de hosting**
+2. **Buscar "Docker" o "Docker Compose"**
+3. **Crear nuevo proyecto**
+4. **Pegar URL o contenido**
+5. **Configurar variables de entorno**
+6. **Click "Deploy"**
+
+### Configuración de Variables de Entorno
+
+Asegúrate de configurar estas variables CRÍTICAS:
+
+```
+MONGO_ROOT_PASSWORD=tu_password_aqui
+JWT_SECRET=tu_jwt_secret_aqui
+CORS_ORIGINS=https://tu-dominio.com
+REACT_APP_BACKEND_URL=https://api.tu-dominio.com
+```
+
+---
+
+## Nombre del Proyecto Sugerido
+
+- **Producción**: `leadvibes-production`
+- **Staging**: `leadvibes-staging`
+- **Preview**: `leadvibes-preview`
+
+---
+
+## Soporte
+
+Si el panel no puede leer desde GitHub, usa la Opción 3 (Docker Compose Raw) y copia el contenido del archivo directamente.

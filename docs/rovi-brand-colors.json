@@ -1,0 +1,345 @@
+{
+  "brand": {
+    "name": "Rovi CRM",
+    "version": "1.0",
+    "palette": "Rovi AI Tech Palette",
+    "created": "2026-04",
+    "description": "Premium AI-powered Real Estate Tech branding"
+  },
+  "colors": {
+    "primary": {
+      "name": "Deep Velocity Blue",
+      "hex": "#0A4DAF",
+      "rgb": "rgb(10, 77, 175)",
+      "hsl": "hsl(217, 89%, 36%)",
+      "usage": "Botones principales, links, branding, headers"
+    },
+    "primaryDark": {
+      "name": "Midnight Forge",
+      "hex": "#062B5F",
+      "rgb": "rgb(6, 43, 95)",
+      "hsl": "hsl(217, 89%, 20%)",
+      "usage": "Headers, sidebar, estados hover primarios, fondos oscuros"
+    },
+    "primaryLight": {
+      "name": "Velocity Light",
+      "hex": "#3370D9",
+      "rgb": "rgb(51, 112, 217)",
+      "hsl": "hsl(217, 70%, 53%)",
+      "usage": "Hovers, highlights, elementos sutiles"
+    },
+    "accent": {
+      "name": "Electric Cyan",
+      "hex": "#00D9FF",
+      "rgb": "rgb(0, 217, 255)",
+      "hsl": "hsl(187, 100%, 50%)",
+      "usage": "CTAs, notificaciones, AI indicators, estados activos"
+    },
+    "accentHover": {
+      "name": "Electric Cyan Light",
+      "hex": "#33E1FF",
+      "rgb": "rgb(51, 225, 255)",
+      "hsl": "hsl(187, 100%, 60%)",
+      "usage": "Hover states del accent"
+    },
+    "secondary": {
+      "name": "Neural Violet",
+      "hex": "#7C3AED",
+      "rgb": "rgb(124, 58, 237)",
+      "hsl": "hsl(262, 75%, 50%)",
+      "usage": "Badges de IA, features avanzadas, gradientes"
+    },
+    "secondaryLight": {
+      "name": "Neural Violet Light",
+      "hex": "#8B5CF6",
+      "rgb": "rgb(139, 92, 246)",
+      "hsl": "hsl(262, 90%, 67%)",
+      "usage": "Hovers, elementos violeta más claros"
+    }
+  },
+  "neutrals": {
+    "backgroundDark": {
+      "name": "Obsidian Base",
+      "hex": "#0F172A",
+      "rgb": "rgb(15, 23, 42)",
+      "hsl": "hsl(222, 47%, 11%)",
+      "usage": "Background dark mode, cards profundos"
+    },
+    "backgroundLight": {
+      "name": "Arctic Surface",
+      "hex": "#F8FAFC",
+      "rgb": "rgb(248, 250, 252)",
+      "hsl": "hsl(210, 40%, 98%)",
+      "usage": "Background light mode, cards"
+    },
+    "surface": {
+      "name": "Deep Slate",
+      "hex": "#1E293B",
+      "rgb": "rgb(30, 41, 59)",
+      "hsl": "hsl(215, 25%, 27%)",
+      "usage": "Surface elevada, cards en dark mode"
+    },
+    "surfaceLight": {
+      "name": "Light Slate",
+      "hex": "#334155",
+      "rgb": "rgb(51, 65, 85)",
+      "hsl": "hsl(215, 25%, 33%)",
+      "usage": "Surface elevada en light mode"
+    }
+  },
+  "functional": {
+    "success": {
+      "name": "Growth Mint",
+      "hex": "#10B981",
+      "rgb": "rgb(16, 185, 129)",
+      "hsl": "hsl(160, 84%, 39%)",
+      "usage": "Estados positivos, conversión, éxito"
+    },
+    "successDark": {
+      "name": "Growth Mint Dark",
+      "hex": "#059669",
+      "rgb": "rgb(5, 150, 105)",
+      "hsl": "hsl(160, 93%, 31%)",
+      "usage": "Success states en fondos oscuros"
+    },
+    "warning": {
+      "name": "Solar Amber",
+      "hex": "#F59E0B",
+      "rgb": "rgb(245, 158, 11)",
+      "hsl": "hsl(38, 92%, 50%)",
+      "usage": "Alertas, estados intermedios"
+    },
+    "error": {
+      "name": "Crimson Edge",
+      "hex": "#EF4444",
+      "rgb": "rgb(239, 68, 68)",
+      "hsl": "hsl(0, 84%, 60%)",
+      "usage": "Errores, destructive, estados críticos"
+    },
+    "errorDark": {
+      "name": "Crimson Edge Dark",
+      "hex": "#DC2626",
+      "rgb": "rgb(220, 38, 38)",
+      "hsl": "hsl(0, 89%, 51%)",
+      "usage": "Error states en fondos oscuros"
+    }
+  },
+  "text": {
+    "primary": {
+      "name": "Charcoal Ink",
+      "hex": "#1E293B",
+      "rgb": "rgb(30, 41, 59)",
+      "hsl": "hsl(215, 25%, 27%)",
+      "usage": "Texto principal en light mode"
+    },
+    "secondary": {
+      "name": "Slate Gray",
+      "hex": "#64748B",
+      "rgb": "rgb(100, 116, 139)",
+      "hsl": "hsl(215, 20%, 65%)",
+      "usage": "Texto secundario, labels, metadata"
+    },
+    "muted": {
+      "name": "Cool Gray",
+      "hex": "#94A3B8",
+      "rgb": "rgb(148, 163, 184)",
+      "hsl": "hsl(210, 17%, 65%)",
+      "usage": "Texto deshabilitado, placeholders"
+    },
+    "inverted": {
+      "name": "Arctic White",
+      "hex": "#F8FAFC",
+      "rgb": "rgb(248, 250, 252)",
+      "hsl": "hsl(210, 40%, 98%)",
+      "usage": "Texto sobre fondos oscuros"
+    }
+  },
+  "gradients": {
+    "velocity": {
+      "name": "Gradient Velocity",
+      "css": "linear-gradient(135deg, #0F172A 0%, #062B5F 40%, #0A4DAF 100%)",
+      "usage": "Hero sections, backgrounds principales, landing pages"
+    },
+    "neural": {
+      "name": "Gradient Neural",
+      "css": "linear-gradient(135deg, #7C3AED 0%, #00D9FF 100%)",
+      "usage": "Features de IA, badges 'Powered by AI', elementos avanzados"
+    },
+    "primary": {
+      "name": "Gradient Primary",
+      "css": "linear-gradient(135deg, #0A4DAF 0%, #062B5F 100%)",
+      "usage": "Botones primarios, cards importantes, headers"
+    },
+    "growth": {
+      "name": "Gradient Growth",
+      "css": "linear-gradient(135deg, #10B981 0%, #059669 100%)",
+      "usage": "Success states, métricas positivas, growth indicators"
+    },
+    "gold": {
+      "name": "Gradient Gold",
+      "css": "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
+      "usage": "Warning states, destacados especiales"
+    }
+  },
+  "shadows": {
+    "primary": {
+      "name": "Primary Glow",
+      "css": "0 0 20px rgba(10, 77, 175, 0.4)",
+      "usage": "Elementos principales, hover states"
+    },
+    "primaryStrong": {
+      "name": "Primary Glow Strong",
+      "css": "0 0 40px rgba(10, 77, 175, 0.6)",
+      "usage": "Hero elements, CTAs principales"
+    },
+    "accent": {
+      "name": "Accent Glow",
+      "css": "0 0 30px rgba(0, 217, 255, 0.5)",
+      "usage": "AI indicators, elementos destacados"
+    },
+    "accentStrong": {
+      "name": "Accent Glow Strong",
+      "css": "0 0 40px rgba(0, 217, 255, 0.7)",
+      "usage": "Hero CTAs, elementos que requieren máxima atención"
+    },
+    "violet": {
+      "name": "Violet Glow",
+      "css": "0 0 30px rgba(124, 58, 237, 0.4)",
+      "usage": "Features de IA, elementos avanzados"
+    },
+    "success": {
+      "name": "Success Glow",
+      "css": "0 0 20px rgba(16, 185, 129, 0.4)",
+      "usage": "Success states, confirmaciones"
+    }
+  },
+  "opacity": {
+    "primary": {
+      "5": "rgba(10, 77, 175, 0.05)",
+      "10": "rgba(10, 77, 175, 0.1)",
+      "15": "rgba(10, 77, 175, 0.15)",
+      "20": "rgba(10, 77, 175, 0.2)",
+      "30": "rgba(10, 77, 175, 0.3)"
+    },
+    "accent": {
+      "5": "rgba(0, 217, 255, 0.05)",
+      "10": "rgba(0, 217, 255, 0.1)",
+      "15": "rgba(0, 217, 255, 0.15)",
+      "20": "rgba(0, 217, 255, 0.2)",
+      "30": "rgba(0, 217, 255, 0.3)"
+    },
+    "secondary": {
+      "5": "rgba(124, 58, 237, 0.05)",
+      "10": "rgba(124, 58, 237, 0.1)",
+      "15": "rgba(124, 58, 237, 0.15)",
+      "20": "rgba(124, 58, 237, 0.2)",
+      "30": "rgba(124, 58, 237, 0.3)"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "primary": {
+        "name": "Outfit",
+        "family": "'Outfit', sans-serif",
+        "weights": [300, 400, 500, 600, 700, 800],
+        "usage": "Headings (h1-h6), títulos, elementos destacados"
+      },
+      "secondary": {
+        "name": "Plus Jakarta Sans",
+        "family": "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+        "weights": [300, 400, 500, 600, 700],
+        "usage": "Body text, párrafos, UI elements"
+      }
+    },
+    "scale": {
+      "display": {
+        "fontSize": "4.5rem",
+        "lineHeight": "1.1",
+        "fontWeight": "700",
+        "letterSpacing": "-0.025em"
+      },
+      "h1": {
+        "fontSize": "3rem",
+        "lineHeight": "1.2",
+        "fontWeight": "700",
+        "letterSpacing": "-0.025em"
+      },
+      "h2": {
+        "fontSize": "2.25rem",
+        "lineHeight": "1.3",
+        "fontWeight": "600",
+        "letterSpacing": "-0.025em"
+      },
+      "h3": {
+        "fontSize": "1.875rem",
+        "lineHeight": "1.4",
+        "fontWeight": "600",
+        "letterSpacing": "-0.015em"
+      },
+      "h4": {
+        "fontSize": "1.5rem",
+        "lineHeight": "1.5",
+        "fontWeight": "600"
+      },
+      "bodyLarge": {
+        "fontSize": "1.125rem",
+        "lineHeight": "1.7",
+        "fontWeight": "400"
+      },
+      "body": {
+        "fontSize": "1rem",
+        "lineHeight": "1.6",
+        "fontWeight": "400"
+      },
+      "bodySmall": {
+        "fontSize": "0.875rem",
+        "lineHeight": "1.5",
+        "fontWeight": "400"
+      },
+      "caption": {
+        "fontSize": "0.75rem",
+        "lineHeight": "1.4",
+        "fontWeight": "500"
+      }
+    }
+  },
+  "spacing": {
+    "xs": "0.25rem",
+    "sm": "0.5rem",
+    "md": "1rem",
+    "lg": "1.5rem",
+    "xl": "2rem",
+    "2xl": "3rem",
+    "3xl": "4rem"
+  },
+  "borderRadius": {
+    "sm": "0.5rem",
+    "md": "0.75rem",
+    "lg": "1rem",
+    "xl": "1.5rem",
+    "2xl": "2rem",
+    "3xl": "3rem",
+    "full": "9999px"
+  },
+  "animation": {
+    "fast": "150ms",
+    "base": "300ms",
+    "slow": "500ms"
+  },
+  "breakpoints": {
+    "sm": "640px",
+    "md": "768px",
+    "lg": "1024px",
+    "xl": "1280px",
+    "2xl": "1536px"
+  },
+  "zIndex": {
+    "dropdown": "1000",
+    "sticky": "1020",
+    "fixed": "1030",
+    "modalBackdrop": "1040",
+    "modal": "1050",
+    "popover": "1060",
+    "tooltip": "1070"
+  }
+}
