@@ -109,13 +109,13 @@ export const BrokerTestimonialsSection = () => {
               </div>
 
               {/* Author */}
-              <div className="flex items-center pt-6 border-t border-border">
-                <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${testimonial.color} flex items-center justify-center text-white font-bold text-xl mr-4`}>
+              <div className="flex items-center pt-4 sm:pt-6 border-t border-border">
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br ${testimonial.color} flex items-center justify-center text-white font-bold text-lg sm:text-xl mr-3 sm:mr-4`}>
                   {testimonial.image}
                 </div>
                 <div>
-                  <div className="font-bold text-lg">{testimonial.name}</div>
-                  <div className="text-muted-foreground text-sm">{testimonial.role}</div>
+                  <div className="font-bold text-base sm:text-lg">{testimonial.name}</div>
+                  <div className="text-muted-foreground text-xs sm:text-sm">{testimonial.role}</div>
                   <div className="text-muted-foreground text-xs">{testimonial.location}</div>
                 </div>
               </div>

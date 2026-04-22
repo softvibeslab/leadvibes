@@ -117,21 +117,21 @@ export const BrokerLaunchForm = () => {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
           >
-            <span className="inline-block bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-4">
+            <span className="inline-block bg-primary/20 text-primary px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold mb-3 sm:mb-4">
               LANZAMIENTO OFICIAL
             </span>
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+            <h2 className="text-2xl sm:text-3xl lg:text-5xl font-bold mb-4 sm:mb-6">
               Únete a la lista de
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-dark">
                 {' '}espera
               </span>
             </h2>
-            <p className="text-xl text-muted-foreground mb-8">
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8">
               Sé de los primeros en acceder a Rovi CRM diseñado específicamente para brokers independientes.
               Registro gratuito con beneficios exclusivos.
             </p>
 
-            <div className="space-y-4 mb-8">
+            <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
               {benefits.map((benefit, index) => (
                 <motion.div
                   key={index}

@@ -127,22 +127,22 @@ export const BrokerBenefitsSection = () => {
               viewport={{ once: true }}
               transition={{ delay: categoryIndex * 0.1 }}
             >
-              <div className="bg-card rounded-3xl p-8 border border-border shadow-lg">
+              <div className="bg-card rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-border shadow-lg">
                 {/* Category Header */}
-                <div className="flex items-center mb-8">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center flex-shrink-0 mr-6">
-                    <category.icon className="w-8 h-8 text-white" />
+                <div className="flex items-center mb-6 sm:mb-8">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center flex-shrink-0 mr-4 sm:mr-6">
+                    <category.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-2xl lg:text-3xl font-bold mb-2">{category.title}</h3>
-                    <p className="text-muted-foreground text-lg">{category.description}</p>
+                    <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2">{category.title}</h3>
+                    <p className="text-muted-foreground text-sm sm:text-base sm:text-lg">{category.description}</p>
                   </div>
                 </div>
 
                 {/* Benefits List */}
-                <div className="grid md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                   {category.benefits.map((benefit, benefitIndex) => (
-                    <div key={benefitIndex} className="bg-background rounded-xl p-6 border border-border">
+                    <div key={benefitIndex} className="bg-background rounded-xl p-4 sm:p-6 border border-border">
                       <h4 className="font-bold text-lg mb-3 flex items-start">
                         <CheckCircle2 className="w-5 h-5 text-primary mr-2 flex-shrink-0 mt-1" />
                         {benefit.title}
