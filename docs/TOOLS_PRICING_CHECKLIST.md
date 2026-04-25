@@ -2,6 +2,14 @@
 
 **Aviso:** Los precios de terceros cambian por región y fecha. Usa los enlaces de **Documentación / Pricing** para confirmar el importe actual. El precio comercial de **Rovi** es el definido por tu negocio (ej. presentación Raven: Plan Pro **299 USD/mes** hasta 5 usuarios).
 
+## Calculadora interactiva en el frontend
+
+- Ruta pública: `/pricing-calculator`
+- Objetivo: modelar costo mensual real para broker individual o equipos de 5 a 10 brokers
+- Incluye: costos fijos, `Apify`, `respond.io`, WhatsApp Meta, SMS, llamadas con Vapi, email, uso del agente IA y matriz por 100/200/300/400/1000 contactos
+- Scraping: matriz adicional de adquisición de base para `100` a `5000` leads filtrados
+- Nota: WhatsApp y voz deben ajustarse según país, categoría de plantilla, carrier y proveedor de STT/LLM/TTS
+
 ---
 
 ## 1. Checklist maestro (pre go-live)

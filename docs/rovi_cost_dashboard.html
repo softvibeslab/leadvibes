@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rovi Cost Dashboard</title>
+    <style>
+        :root {
+            --bg: #f5f5f4;
+            --panel: rgba(255, 255, 255, 0.9);
+            --line: #d6d3d1;
+            --text: #1c1917;
+            --muted: #57534e;
+            --teal: #0f766e;
+            --amber: #b45309;
+            --emerald: #047857;
+            --soft: #ecfeff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top, rgba(15, 118, 110, 0.12), transparent 32%),
+                linear-gradient(180deg, #fafaf9 0%, var(--bg) 100%);
+        }
+
+        .wrap {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 20px 56px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(15, 118, 110, 0.12);
+            border-radius: 22px;
+            box-shadow: 0 10px 30px rgba(28, 25, 23, 0.06);
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-main,
+        .hero-side,
+        .section {
+            padding: 24px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--teal);
+            background: rgba(15, 118, 110, 0.08);
+            border: 1px solid rgba(15, 118, 110, 0.16);
+            border-radius: 999px;
+            padding: 8px 12px;
+        }
+
+        h1 {
+            font-size: clamp(2.2rem, 5vw, 4rem);
+            line-height: 1.02;
+            margin: 16px 0 12px;
+        }
+
+        h2 {
+            margin: 0 0 8px;
+            font-size: 1.35rem;
+        }
+
+        p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .hero-side ul {
+            margin: 14px 0 0;
+            padding-left: 18px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+            display: grid;
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+        .metric {
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.75);
+        }
+
+        .metric .label {
+            font-size: 0.86rem;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .metric .value {
+            font-size: clamp(1.4rem, 3vw, 2.2rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .metric.highlight {
+            background: linear-gradient(180deg, rgba(236, 253, 245, 0.95), rgba(209, 250, 229, 0.75));
+            border-color: rgba(4, 120, 87, 0.18);
+        }
+
+        .section {
+            margin-top: 20px;
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .section-head p {
+            max-width: 760px;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .field label {
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .field input,
+        .field select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: #fff;
+            color: var(--text);
+            font: inherit;
+        }
+
+        .preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        button {
+            border: 1px solid rgba(15, 118, 110, 0.16);
+            background: white;
+            color: var(--text);
+            border-radius: 999px;
+            padding: 10px 14px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.18s ease;
+        }
+
+        button:hover {
+            border-color: rgba(15, 118, 110, 0.5);
+            color: var(--teal);
+        }
+
+        button.active {
+            background: var(--teal);
+            border-color: var(--teal);
+            color: white;
+        }
+
+        .cost-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 18px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .cost-item .name {
+            font-weight: 700;
+        }
+
+        .cost-item .meta {
+            font-size: 0.88rem;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: rgba(180, 83, 9, 0.08);
+            color: var(--amber);
+            font-size: 0.76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .note {
+            margin-top: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(15, 118, 110, 0.06);
+            border: 1px solid rgba(15, 118, 110, 0.1);
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.55;
+        }
+
+        .explain-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .explain-card {
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.76);
+        }
+
+        .explain-card h3 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+        }
+
+        .explain-card p {
+            font-size: 0.92rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+        }
+
+        th {
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        tbody tr.active-row {
+            background: rgba(15, 118, 110, 0.06);
+        }
+
+        .plan-card {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.75);
+        }
+
+        .plan-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+
+        .plan-price {
+            font-size: 1.55rem;
+            font-weight: 800;
+        }
+
+        .plan-meta {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .mini {
+            border-radius: 14px;
+            padding: 12px;
+            background: var(--soft);
+            border: 1px solid rgba(15, 118, 110, 0.1);
+        }
+
+        .mini .k {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .mini .v {
+            display: block;
+            font-weight: 800;
+        }
+
+        @media (max-width: 1080px) {
+            .hero,
+            .grid-2,
+            .grid-3,
+            .grid-4,
+            .field-grid,
+            .plan-meta {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .hero,
+            .grid-2,
+            .grid-3,
+            .grid-4,
+            .field-grid,
+            .plan-meta {
+                grid-template-columns: 1fr;
+            }
+
+            .section-head,
+            .plan-top,
+            .cost-item {
+                flex-direction: column;
+                align-items: start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <section class="hero">
+            <div class="panel hero-main">
+                <div class="eyebrow">Rovi Cost Dashboard</div>
+                <h1>Dashboard básico para estimar costos reales de Rovi</h1>
+                <p>
+                    Este HTML calcula adquisición de leads con Apify, operación de la base con respond.io, WhatsApp, SMS,
+                    Vapi y OpenAI, y además propone un precio sugerido con margen.
+                </p>
+                <div class="note">
+                    <strong>Cómo leer este dashboard:</strong> primero defines el tipo de cliente, luego ajustas costos fijos y variables,
+                    después revisas el costo integral y finalmente comparas escenarios por volumen. Está pensado para que marketing pueda
+                    construir propuestas realistas sin depender del equipo técnico.
+                </div>
+                <div class="grid-4" id="top-metrics"></div>
+            </div>
+            <div class="panel hero-side">
+                <h2>Qué puedes ver aquí</h2>
+                <p>Una versión standalone para revisar costos rápido sin levantar el frontend.</p>
+                <ul>
+                    <li>Presets para broker, equipo de 5 y equipo de 10 brokers.</li>
+                    <li>Matriz operativa por 100 a 1000 contactos.</li>
+                    <li>Matriz de scraping con Apify por 100 a 5000 leads.</li>
+                    <li>Precio sugerido, margen bruto, CAC por lead y costo por broker.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="panel section">
+            <div class="section-head">
+                <div>
+                    <h2>Guía rápida: qué significa cada bloque</h2>
+                    <p>Esta sección te ayuda a interpretar el dashboard con enfoque comercial y de marketing.</p>
+                </div>
+            </div>
+            <div class="explain-grid">
+                <div class="explain-card">
+                    <h3>Costo adquisición base</h3>
+                    <p>Es lo que cuesta construir o conseguir la base inicial de leads usando scraping con Apify. Este costo responde a: “¿Cuánto me cuesta conseguir los contactos?”</p>
+                </div>
+                <div class="explain-card">
+                    <h3>Costo operación</h3>
+                    <p>Es lo que cuesta trabajar esa base ya conseguida: mensajes, llamadas, IA, emails, plataforma y herramientas activas del mes.</p>
+                </div>
+                <div class="explain-card">
+                    <h3>Costo integral</h3>
+                    <p>Es la suma de adquisición + operación. Este es el costo real más completo para construir y mover el sistema comercial.</p>
+                </div>
+                <div class="explain-card">
+                    <h3>Precio sugerido</h3>
+                    <p>Es el costo integral más el margen objetivo. Te ayuda a pensar la propuesta comercial, no solo el costo interno.</p>
+                </div>
+                <div class="explain-card">
+                    <h3>CAC por lead scrapeado</h3>
+                    <p>Es el costo por conseguir cada lead desde Apify. Te sirve para comparar si la adquisición de base está cara o barata.</p>
+                </div>
+                <div class="explain-card">
+                    <h3>Costo operativo por contacto</h3>
+                    <p>Es el costo de nutrir, contactar y seguir a cada lead. Sirve para proyectar campañas más grandes con mayor claridad.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel section">
+            <div class="section-head">
+                <div>
+                    <h2>Escenario</h2>
+                    <p>Define el tipo de cliente, la base y el margen objetivo. Los presets actualizan también la licencia sugerida de Rovi.</p>
+                </div>
+            </div>
+            <div class="field-grid">
+                <div class="field">
+                    <label for="teamSize">Número de brokers</label>
+                    <input id="teamSize" type="number" min="1" max="10" value="1">
+                </div>
+                <div class="field">
+                    <label for="contacts">Contactos trabajados al mes</label>
+                    <input id="contacts" type="number" min="1" value="100">
+                </div>
+                <div class="field">
+                    <label for="marginPercent">Margen objetivo %</label>
+                    <input id="marginPercent" type="number" min="0" value="60">
+                </div>
+                <div class="field">
+                    <label for="roviLicense">Licencia Rovi sugerida</label>
+                    <input id="roviLicense" type="number" min="0" step="0.01" value="149">
+                </div>
+            </div>
+            <div class="note">
+                <strong>Qué significa cada dato:</strong>
+                <br>Número de brokers: cuántas personas del equipo usarán Rovi.
+                <br>Contactos trabajados al mes: cuántos leads quieres tocar realmente ese mes.
+                <br>Margen objetivo: cuánto quieres ganar sobre tu costo.
+                <br>Licencia Rovi sugerida: precio comercial base que quieres defender frente al cliente.
+            </div>
+            <div class="preset-row">
+                <button data-preset="broker" class="preset active">Broker individual</button>
+                <button data-preset="team5" class="preset">Desarrolladora 5 brokers</button>
+                <button data-preset="team10" class="preset">Desarrolladora 10 brokers</button>
+            </div>
+        </section>
+
+        <section class="grid-2">
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Costos fijos mensuales</h2>
+                        <p>Infraestructura, herramientas y suscripciones base.</p>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field"><label>VPS / Hostinger</label><input id="vpsHostinger" type="number" step="0.01" value="9.99"></div>
+                    <div class="field"><label>MongoDB</label><input id="mongodb" type="number" step="0.01" value="30"></div>
+                    <div class="field"><label>GitHub Team</label><input id="githubTeam" type="number" step="0.01" value="4"></div>
+                    <div class="field"><label>Dominio / SSL</label><input id="domainSsl" type="number" step="0.01" value="2"></div>
+                    <div class="field"><label>respond.io plan</label><input id="respondIoPlan" type="number" step="0.01" value="159"></div>
+                    <div class="field"><label>Apify plan</label><input id="apifyPlan" type="number" step="0.01" value="29"></div>
+                    <div class="field"><label>Apify actor rental</label><input id="apifyActorRental" type="number" step="0.01" value="0"></div>
+                    <div class="field"><label>SendGrid plan</label><input id="sendgridPlan" type="number" step="0.01" value="19.95"></div>
+                    <div class="field"><label>Twilio número</label><input id="twilioNumber" type="number" step="0.01" value="6.5"></div>
+                    <div class="field"><label>Otros tools</label><input id="miscTools" type="number" step="0.01" value="0"></div>
+                </div>
+                <div class="note">
+                    <strong>Cómo leer costos fijos:</strong>
+                    estos se pagan aunque envíes pocos mensajes. Son la base mínima para operar el sistema.
+                    <br>VPS: servidor.
+                    <br>MongoDB: base de datos.
+                    <br>GitHub: repositorio/colaboración técnica.
+                    <br>respond.io: plataforma de mensajería.
+                    <br>Apify plan: infraestructura de scraping.
+                    <br>Actor rental: costo del actor concreto que use el scraping.
+                    <br>SendGrid: email.
+                    <br>Twilio número: número asignado para voz/SMS.
+                </div>
+            </div>
+
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Toques y uso del agente</h2>
+                        <p>Frecuencia de contacto por lead y costo de IA texto.</p>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field"><label>WA dentro de ventana</label><input id="whatsappService" type="number" step="0.1" value="2"></div>
+                    <div class="field"><label>WA plantilla</label><input id="whatsappTemplate" type="number" step="0.1" value="1"></div>
+                    <div class="field"><label>SMS por contacto</label><input id="smsTouches" type="number" step="0.1" value="0.5"></div>
+                    <div class="field"><label>Llamadas por contacto</label><input id="callTouches" type="number" step="0.05" value="0.35"></div>
+                    <div class="field"><label>Min promedio llamada</label><input id="avgCallMinutes" type="number" step="0.1" value="2.5"></div>
+                    <div class="field"><label>Emails por contacto</label><input id="emailTouches" type="number" step="0.1" value="2"></div>
+                    <div class="field"><label>Consultas IA por broker</label><input id="queriesPerBroker" type="number" step="1" value="80"></div>
+                    <div class="field"><label>Input tokens por consulta</label><input id="avgInputTokens" type="number" step="100" value="1500"></div>
+                    <div class="field"><label>Output tokens por consulta</label><input id="avgOutputTokens" type="number" step="100" value="500"></div>
+                </div>
+                <div class="note">
+                    <strong>Cómo leer toques y uso del agente:</strong>
+                    aquí defines la intensidad comercial.
+                    <br>WhatsApp dentro de ventana: mensajes libres dentro de la conversación activa.
+                    <br>WhatsApp plantilla: mensajes de salida proactiva.
+                    <br>SMS por contacto: cuántos SMS promedio recibe cada lead.
+                    <br>Llamadas por contacto y minutos: presión comercial por voz.
+                    <br>Consultas IA por broker: cuánto usa el equipo al agente digital para analizar, responder o preparar seguimientos.
+                </div>
+            </div>
+        </section>
+
+        <section class="grid-2">
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Tarifas operativas</h2>
+                        <p>WhatsApp, SMS, voz e IA. Todos los campos son editables.</p>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field"><label>respond.io servicio</label><input id="waRespondService" type="number" step="0.0001" value="0"></div>
+                    <div class="field"><label>respond.io plantilla</label><input id="waRespondTemplate" type="number" step="0.0001" value="0"></div>
+                    <div class="field"><label>Meta plantilla</label><input id="waMetaTemplate" type="number" step="0.0001" value="0.0034"></div>
+                    <div class="field"><label>Meta servicio por conversación</label><input id="waMetaServiceConversation" type="number" step="0.0001" value="0"></div>
+                    <div class="field"><label>SMS por segmento</label><input id="smsPerSegment" type="number" step="0.0001" value="0.1819"></div>
+                    <div class="field"><label>Email por mensaje</label><input id="emailPerMessage" type="number" step="0.0001" value="0"></div>
+                    <div class="field"><label>Vapi por minuto</label><input id="vapiPerMinute" type="number" step="0.0001" value="0.05"></div>
+                    <div class="field"><label>Twilio voz por minuto</label><input id="twilioVoicePerMinute" type="number" step="0.0001" value="0.016"></div>
+                    <div class="field"><label>STT por minuto</label><input id="sttPerMinute" type="number" step="0.0001" value="0.01"></div>
+                    <div class="field"><label>LLM voz por minuto</label><input id="llmVoicePerMinute" type="number" step="0.0001" value="0.02"></div>
+                    <div class="field"><label>TTS por minuto</label><input id="ttsPerMinute" type="number" step="0.0001" value="0.04"></div>
+                    <div class="field"><label>OpenAI input / 1M</label><input id="openAiInputPerMillion" type="number" step="0.01" value="0.75"></div>
+                    <div class="field"><label>OpenAI output / 1M</label><input id="openAiOutputPerMillion" type="number" step="0.01" value="4.5"></div>
+                </div>
+                <div class="note">
+                    <strong>Cómo leer tarifas operativas:</strong>
+                    estos son costos por uso.
+                    <br>Meta plantilla: lo que cobra WhatsApp por mensaje plantilla.
+                    <br>Meta servicio por conversación: si aplica, lo que cuesta abrir o mantener conversaciones de servicio.
+                    <br>Vapi + Twilio voz + STT + LLM + TTS: juntos forman el costo real por minuto de llamada con agente.
+                    <br>OpenAI input/output: costo del agente de texto que consulta la base o ayuda al broker.
+                </div>
+            </div>
+
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Scraping con Apify</h2>
+                        <p>Modelo editable por 1,000 leads filtrados.</p>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field"><label>CU rate</label><input id="apifyComputeUnitRate" type="number" step="0.01" value="0.2"></div>
+                    <div class="field"><label>Proxy GB</label><input id="apifyProxyGbRate" type="number" step="0.01" value="8"></div>
+                    <div class="field"><label>CU por 1,000 leads</label><input id="apifyAvgCuPer1000Leads" type="number" step="0.1" value="1.5"></div>
+                    <div class="field"><label>GB proxy por 1,000 leads</label><input id="apifyProxyGbPer1000Leads" type="number" step="0.01" value="0.15"></div>
+                    <div class="field"><label>Extra por 1,000 leads</label><input id="apifyExtraCostPer1000Leads" type="number" step="0.01" value="0"></div>
+                </div>
+                <div class="note">
+                    <strong>Cómo leer Apify:</strong>
+                    Apify no suele ser “precio fijo por lead”, depende del actor, proxies, retries y filtros.
+                    <br>CU rate: costo de cómputo.
+                    <br>Proxy GB: tráfico proxy consumido.
+                    <br>CU por 1,000 leads y GB por 1,000 leads: tus supuestos de eficiencia.
+                    <br>Extra por 1,000 leads: aquí puedes meter costos adicionales como validación o almacenamiento.
+                </div>
+                <div class="grid-2" style="margin-top:18px;" id="scraping-metrics"></div>
+            </div>
+        </section>
+
+        <section class="grid-2">
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Desglose del escenario actual</h2>
+                        <p>Distribución de adquisición y operación para el escenario seleccionado.</p>
+                    </div>
+                    <span class="pill" id="voice-pill">Costo voz / min</span>
+                </div>
+                <div class="cost-list" id="cost-list"></div>
+            </div>
+
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Planes empaquetados Rovi</h2>
+                        <p>Referencia rápida para broker, desarrolladora de 5 y desarrolladora de 10 brokers.</p>
+                    </div>
+                </div>
+                <div class="grid-3" id="packaged-plans"></div>
+            </div>
+        </section>
+
+        <section class="grid-2">
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Matriz operativa</h2>
+                        <p>Costo de operación de la base por 100, 200, 300, 400 y 1000 contactos.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Contactos</th>
+                            <th>Variable</th>
+                            <th>Total</th>
+                            <th>Total / contacto</th>
+                            <th>Total / broker</th>
+                        </tr>
+                    </thead>
+                    <tbody id="operations-table"></tbody>
+                </table>
+            </div>
+
+            <div class="panel section">
+                <div class="section-head">
+                    <div>
+                        <h2>Matriz Apify</h2>
+                        <p>Costo de adquisición de base desde 100 hasta 5000 leads filtrados.</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Leads</th>
+                            <th>Variable</th>
+                            <th>Total Apify</th>
+                            <th>Costo / lead</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scraping-table"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel section">
+            <div class="section-head">
+                <div>
+                    <h2>Escenarios recomendados para marketing</h2>
+                    <p>Úsalos como guía para construir propuestas, campañas o argumentos de pricing.</p>
+                </div>
+            </div>
+            <div class="grid-3" id="scenario-guide"></div>
+        </section>
+    </div>
+
+    <script>
+        const CONTACT_PRESETS = [100, 200, 300, 400, 1000];
+        const SCRAPING_PRESETS = [100, 200, 300, 400, 1000, 2000, 3000, 4000, 5000];
+
+        const TEAM_PRESETS = {
+            broker: {
+                teamSize: 1,
+                contacts: 100,
+                roviLicense: 149,
+                touches: { whatsappService: 2, whatsappTemplate: 1, sms: 0.5, calls: 0.35, avgCallMinutes: 2.5, emails: 2 },
+                ai: { queriesPerBroker: 80, avgInputTokens: 1500, avgOutputTokens: 500 }
+            },
+            team5: {
+                teamSize: 5,
+                contacts: 400,
+                roviLicense: 449,
+                touches: { whatsappService: 2, whatsappTemplate: 2, sms: 1, calls: 0.5, avgCallMinutes: 3, emails: 3 },
+                ai: { queriesPerBroker: 120, avgInputTokens: 1800, avgOutputTokens: 650 }
+            },
+            team10: {
+                teamSize: 10,
+                contacts: 1000,
+                roviLicense: 899,
+                touches: { whatsappService: 3, whatsappTemplate: 2, sms: 1, calls: 0.75, avgCallMinutes: 3.5, emails: 4 },
+                ai: { queriesPerBroker: 150, avgInputTokens: 1800, avgOutputTokens: 700 }
+            }
+        };
+
+        const ids = [
+            'teamSize','contacts','marginPercent','roviLicense',
+            'vpsHostinger','mongodb','githubTeam','domainSsl','respondIoPlan','apifyPlan','apifyActorRental','sendgridPlan','twilioNumber','miscTools',
+            'whatsappService','whatsappTemplate','smsTouches','callTouches','avgCallMinutes','emailTouches','queriesPerBroker','avgInputTokens','avgOutputTokens',
+            'waRespondService','waRespondTemplate','waMetaTemplate','waMetaServiceConversation','smsPerSegment','emailPerMessage',
+            'vapiPerMinute','twilioVoicePerMinute','sttPerMinute','llmVoicePerMinute','ttsPerMinute','openAiInputPerMillion','openAiOutputPerMillion',
+            'apifyComputeUnitRate','apifyProxyGbRate','apifyAvgCuPer1000Leads','apifyProxyGbPer1000Leads','apifyExtraCostPer1000Leads'
+        ];
+
+        const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+
+        function money(value) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
+        }
+
+        function number(value, max = 2) {
+            return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: max }).format(Number.isFinite(value) ? value : 0);
+        }
+
+        function value(id) {
+            return Number(el[id].value || 0);
+        }
+
+        function fixedCosts() {
+            return {
+                roviLicense: value('roviLicense'),
+                vpsHostinger: value('vpsHostinger'),
+                mongodb: value('mongodb'),
+                githubTeam: value('githubTeam'),
+                domainSsl: value('domainSsl'),
+                respondIoPlan: value('respondIoPlan'),
+                apifyPlan: value('apifyPlan'),
+                apifyActorRental: value('apifyActorRental'),
+                sendgridPlan: value('sendgridPlan'),
+                twilioNumber: value('twilioNumber'),
+                miscTools: value('miscTools')
+            };
+        }
+
+        function voiceMinuteCost() {
+            return value('vapiPerMinute') + value('twilioVoicePerMinute') + value('sttPerMinute') + value('llmVoicePerMinute') + value('ttsPerMinute');
+        }
+
+        function calculateOperations(contactCount, teamCount = value('teamSize')) {
+            const fixed = fixedCosts();
+            const fixedTotal =
+                fixed.roviLicense + fixed.vpsHostinger + fixed.mongodb + fixed.githubTeam + fixed.domainSsl +
+                fixed.respondIoPlan + fixed.apifyPlan + fixed.apifyActorRental + fixed.sendgridPlan +
+                fixed.twilioNumber + fixed.miscTools;
+
+            const waServiceMessages = contactCount * value('whatsappService');
+            const waTemplateMessages = contactCount * value('whatsappTemplate');
+            const waServiceConversations = contactCount * value('whatsappService');
+            const smsSegments = contactCount * value('smsTouches');
+            const calls = contactCount * value('callTouches');
+            const callMinutes = calls * value('avgCallMinutes');
+            const emails = contactCount * value('emailTouches');
+
+            const waServiceCost = waServiceMessages * value('waRespondService') + waServiceConversations * value('waMetaServiceConversation');
+            const waTemplateCost = waTemplateMessages * (value('waRespondTemplate') + value('waMetaTemplate'));
+            const smsCost = smsSegments * value('smsPerSegment');
+            const voiceCost = callMinutes * voiceMinuteCost();
+            const emailCost = emails * value('emailPerMessage');
+
+            const totalQueries = teamCount * value('queriesPerBroker');
+            const totalInputTokens = totalQueries * value('avgInputTokens');
+            const totalOutputTokens = totalQueries * value('avgOutputTokens');
+            const aiCost = (totalInputTokens / 1000000) * value('openAiInputPerMillion') + (totalOutputTokens / 1000000) * value('openAiOutputPerMillion');
+
+            const variableTotal = waServiceCost + waTemplateCost + smsCost + voiceCost + emailCost + aiCost;
+            const total = fixedTotal + variableTotal;
+
+            return {
+                fixedTotal,
+                variableTotal,
+                total,
+                costPerBroker: teamCount ? total / teamCount : 0,
+                totalCostPerContact: contactCount ? total / contactCount : 0,
+                variableCostPerContact: contactCount ? variableTotal / contactCount : 0,
+                contactsPerBroker: teamCount ? contactCount / teamCount : 0,
+                channels: {
+                    waServiceMessages,
+                    waTemplateMessages,
+                    waServiceConversations,
+                    smsSegments,
+                    callMinutes,
+                    emails,
+                    totalQueries
+                },
+                costs: {
+                    waServiceCost,
+                    waTemplateCost,
+                    smsCost,
+                    voiceCost,
+                    emailCost,
+                    aiCost
+                }
+            };
+        }
+
+        function calculateScraping(leadCount) {
+            const fixed = fixedCosts();
+            const blocks = leadCount / 1000;
+            const fixedApifyCost = fixed.apifyPlan + fixed.apifyActorRental;
+            const computeCost = blocks * value('apifyAvgCuPer1000Leads') * value('apifyComputeUnitRate');
+            const proxyCost = blocks * value('apifyProxyGbPer1000Leads') * value('apifyProxyGbRate');
+            const extraCost = blocks * value('apifyExtraCostPer1000Leads');
+            const variableTotal = computeCost + proxyCost + extraCost;
+            const total = fixedApifyCost + variableTotal;
+
+            return {
+                fixedApifyCost,
+                variableTotal,
+                total,
+                computeCost,
+                proxyCost,
+                extraCost,
+                costPerLead: leadCount ? total / leadCount : 0
+            };
+        }
+
+        function applyPreset(key) {
+            const preset = TEAM_PRESETS[key];
+            el.teamSize.value = preset.teamSize;
+            el.contacts.value = preset.contacts;
+            el.roviLicense.value = preset.roviLicense;
+            el.whatsappService.value = preset.touches.whatsappService;
+            el.whatsappTemplate.value = preset.touches.whatsappTemplate;
+            el.smsTouches.value = preset.touches.sms;
+            el.callTouches.value = preset.touches.calls;
+            el.avgCallMinutes.value = preset.touches.avgCallMinutes;
+            el.emailTouches.value = preset.touches.emails;
+            el.queriesPerBroker.value = preset.ai.queriesPerBroker;
+            el.avgInputTokens.value = preset.ai.avgInputTokens;
+            el.avgOutputTokens.value = preset.ai.avgOutputTokens;
+            document.querySelectorAll('.preset').forEach((button) => {
+                button.classList.toggle('active', button.dataset.preset === key);
+            });
+            render();
+        }
+
+        function renderTopMetrics(ops, scraping) {
+            const contacts = value('contacts');
+            const marginPercent = value('marginPercent');
+            const integralCost = ops.total + scraping.total;
+            const suggestedPrice = integralCost * (1 + marginPercent / 100);
+            const grossMargin = suggestedPrice - integralCost;
+
+            document.getElementById('top-metrics').innerHTML = `
+                <div class="metric">
+                    <div class="label">Costo adquisición base</div>
+                    <div class="value">${money(scraping.total)}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Costo operación</div>
+                    <div class="value">${money(ops.total)}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Costo integral</div>
+                    <div class="value">${money(integralCost)}</div>
+                </div>
+                <div class="metric highlight">
+                    <div class="label">Precio sugerido</div>
+                    <div class="value">${money(suggestedPrice)}</div>
+                    <div class="label" style="margin-top:8px;">Margen bruto ${money(grossMargin)} · ${contacts ? money(suggestedPrice / contacts) : money(0)} por contacto</div>
+                </div>
+            `;
+        }
+
+        function renderScrapingMetrics(scraping) {
+            document.getElementById('scraping-metrics').innerHTML = `
+                <div class="metric">
+                    <div class="label">Costo Apify actual</div>
+                    <div class="value">${money(scraping.total)}</div>
+                    <div class="label" style="margin-top:8px;">Fijo ${money(scraping.fixedApifyCost)} + variable ${money(scraping.variableTotal)}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Costo por lead scrapeado</div>
+                    <div class="value">${money(scraping.costPerLead)}</div>
+                    <div class="label" style="margin-top:8px;">Compute ${money(scraping.computeCost)} · Proxies ${money(scraping.proxyCost)}</div>
+                </div>
+            `;
+        }
+
+        function renderCostList(ops, scraping) {
+            document.getElementById('voice-pill').textContent = `Costo voz / min ${money(voiceMinuteCost())}`;
+            const rows = [
+                ['Scraping Apify de la base', `${number(value('contacts'), 0)} leads filtrados`, scraping.total],
+                ['WhatsApp dentro de ventana', `${number(ops.channels.waServiceMessages)} mensajes / ${number(ops.channels.waServiceConversations)} conversaciones`, ops.costs.waServiceCost],
+                ['WhatsApp plantilla', `${number(ops.channels.waTemplateMessages)} mensajes`, ops.costs.waTemplateCost],
+                ['SMS', `${number(ops.channels.smsSegments)} segmentos`, ops.costs.smsCost],
+                ['Llamadas con agente Vapi', `${number(ops.channels.callMinutes)} min`, ops.costs.voiceCost],
+                ['Emails', `${number(ops.channels.emails)} envíos`, ops.costs.emailCost],
+                ['Agente IA', `${number(ops.channels.totalQueries)} consultas`, ops.costs.aiCost]
+            ];
+            document.getElementById('cost-list').innerHTML = rows.map(([name, meta, cost]) => `
+                <div class="cost-item">
+                    <div>
+                        <div class="name">${name}</div>
+                        <div class="meta">${meta}</div>
+                    </div>
+                    <div class="plan-price">${money(cost)}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderOperationsTable() {
+            const currentContacts = value('contacts');
+            document.getElementById('operations-table').innerHTML = CONTACT_PRESETS.map((count) => {
+                const ops = calculateOperations(count);
+                return `
+                    <tr class="${count === currentContacts ? 'active-row' : ''}">
+                        <td>${number(count, 0)}</td>
+                        <td>${money(ops.variableTotal)}</td>
+                        <td>${money(ops.total)}</td>
+                        <td>${money(ops.totalCostPerContact)}</td>
+                        <td>${money(ops.costPerBroker)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderScrapingTable() {
+            const currentContacts = value('contacts');
+            document.getElementById('scraping-table').innerHTML = SCRAPING_PRESETS.map((count) => {
+                const scraping = calculateScraping(count);
+                return `
+                    <tr class="${count === currentContacts ? 'active-row' : ''}">
+                        <td>${number(count, 0)}</td>
+                        <td>${money(scraping.variableTotal)}</td>
+                        <td>${money(scraping.total)}</td>
+                        <td>${money(scraping.costPerLead)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderPackagedPlans() {
+            const cards = Object.entries(TEAM_PRESETS).map(([key, preset]) => {
+                const savedTeamSize = value('teamSize');
+                const ops = calculateOperations(preset.contacts, preset.teamSize);
+                const scraping = calculateScraping(preset.contacts);
+                const totalCost = ops.total + scraping.total;
+                const marginAmount = preset.roviLicense - totalCost;
+                const marginPct = totalCost ? (marginAmount / totalCost) * 100 : 0;
+
+                return `
+                    <div class="plan-card">
+                        <div class="plan-top">
+                            <div>
+                                <div class="pill">${preset.teamSize} brokers</div>
+                                <h2 style="margin-top:10px;">${key === 'broker' ? 'Broker individual' : key === 'team5' ? 'Desarrolladora 5 brokers' : 'Desarrolladora 10 brokers'}</h2>
+                                <p>${number(preset.contacts, 0)} contactos</p>
+                            </div>
+                            <div class="plan-price">${money(preset.roviLicense)}</div>
+                        </div>
+                        <div class="plan-meta">
+                            <div class="mini"><span class="k">Scraping</span><span class="v">${money(scraping.total)}</span></div>
+                            <div class="mini"><span class="k">Operación</span><span class="v">${money(ops.total)}</span></div>
+                            <div class="mini"><span class="k">Margen bruto</span><span class="v">${money(marginAmount)}</span></div>
+                            <div class="mini"><span class="k">Margen %</span><span class="v">${number(marginPct)}%</span></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('packaged-plans').innerHTML = cards;
+        }
+
+        function renderScenarioGuide() {
+            const scenarios = [
+                {
+                    title: 'Escenario conservador',
+                    text: 'Úsalo cuando el cliente quiere validar el sistema sin arriesgar demasiado. Normalmente broker individual o equipo pequeño, con base moderada y pocos toques por lead.',
+                    when: 'Ideal para demos, pilotos, primeras campañas o clientes con presupuesto controlado.'
+                },
+                {
+                    title: 'Escenario comercial agresivo',
+                    text: 'Úsalo cuando el objetivo es velocidad de respuesta, más presión comercial y mayor cobertura de la base con WhatsApp, llamadas y seguimiento automático.',
+                    when: 'Ideal para desarrolladoras, preventas activas o lanzamientos con fuerte empuje.'
+                },
+                {
+                    title: 'Escenario de escalamiento',
+                    text: 'Úsalo cuando ya sabes que la base crecerá y necesitas justificar por qué sube el costo, pero también por qué baja el costo relativo por broker o por contacto.',
+                    when: 'Ideal para defender planes de 5 a 10 brokers y mostrar economía de escala.'
+                }
+            ];
+
+            document.getElementById('scenario-guide').innerHTML = scenarios.map((scenario) => `
+                <div class="explain-card">
+                    <h3>${scenario.title}</h3>
+                    <p>${scenario.text}</p>
+                    <div class="note" style="margin-top:12px;">
+                        <strong>Cuándo usarlo:</strong><br>${scenario.when}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function render() {
+            const ops = calculateOperations(value('contacts'));
+            const scraping = calculateScraping(value('contacts'));
+            renderTopMetrics(ops, scraping);
+            renderScrapingMetrics(scraping);
+            renderCostList(ops, scraping);
+            renderOperationsTable();
+            renderScrapingTable();
+            renderPackagedPlans();
+            renderScenarioGuide();
+        }
+
+        ids.forEach((id) => {
+            el[id].addEventListener('input', render);
+        });
+
+        document.querySelectorAll('.preset').forEach((button) => {
+            button.addEventListener('click', () => applyPreset(button.dataset.preset));
+        });
+
+        applyPreset('broker');
+    </script>
+</body>
+</html>

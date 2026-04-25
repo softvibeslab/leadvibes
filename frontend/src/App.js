@@ -26,6 +26,7 @@ import { LandingPage } from './pages/LandingPage';
 import { BrokerLandingPage } from './pages/BrokerLandingPage';
 import { DemoRequestPage } from './pages/DemoRequestPage';
 import { LeadSearchDashboard } from './pages/LeadSearchDashboard';
+import { PricingCalculatorPage } from './pages/PricingCalculatorPage';
 import './App.css';
 
 // Protected Route component
@@ -88,6 +89,7 @@ function AppRoutes() {
 
       {/* Module Tracker - Public */}
       <Route path="/module-tracker" element={<ModuleTrackerPage />} />
+      <Route path="/pricing-calculator" element={<PricingCalculatorPage />} />
 
       {/* Public routes */}
       <Route
