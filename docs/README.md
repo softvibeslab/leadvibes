@@ -7,6 +7,7 @@ Documentación técnica y de entrega (setup cliente DWY, requisitos, infraestruc
 - **[ROVI_OPERATIONS_INDEX.md](./ROVI_OPERATIONS_INDEX.md)** — Índice maestro  
 - **[WORKSPACE_STATUS_SUMMARY.md](./WORKSPACE_STATUS_SUMMARY.md)** — Inventario actual del workspace: desarrollos, estatus y carpetas
 - **[WORKSPACE_STATUS_DASHBOARD.html](./WORKSPACE_STATUS_DASHBOARD.html)** — Dashboard visual para explorar flujos, subflujos y pantallas del repo
+- **[PRODUCTION_READINESS_DASHBOARD.html](./PRODUCTION_READINESS_DASHBOARD.html)** — Dashboard visual del informe de readiness para VPS y salida a productivo
 - [GO_LIVE_AND_CLIENT_SETUP.md](./GO_LIVE_AND_CLIENT_SETUP.md) — Plan y paso a paso en vivo + cliente  
 - [REQUIREMENTS_AND_INFRASTRUCTURE.md](./REQUIREMENTS_AND_INFRASTRUCTURE.md) — Requisitos e infraestructura  
 - [TOOLS_PRICING_CHECKLIST.md](./TOOLS_PRICING_CHECKLIST.md) — Checklist, precios y enlaces  
