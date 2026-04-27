@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -90,6 +90,63 @@ def serialize_doc(doc: dict) -> dict:
 async def get_or_create_tenant(user_id: str) -> str:
     """Get or create tenant for user"""
     return f"tenant-{user_id[:8]}"
+
+def personalize_email_content(template: dict, lead: dict, broker_data: dict = None) -> dict:
+    """
+    Personaliza el contenido del email reemplazando variables
+
+    Args:
+        template: Plantilla de email con html_content y variables
+        lead: Datos del lead
+        broker_data: Datos del broker (opcional)
+
+    Returns:
+        dict con subject y html_content personalizados
+    """
+    # Extraer nombre del lead (primer palabra o completo)
+    lead_name = lead.get('name', 'Cliente')
+    first_name = lead_name.split()[0] if lead_name else 'Estimado/a'
+
+    # Mapeo de variables del lead a variables de la plantilla
+    var_mapping = {
+        # Lead data
+        'nombre': first_name,
+        'nombre_completo': lead_name,
+        'email': lead.get('email', ''),
+        'telefono': lead.get('phone', ''),
+        'compania': lead.get('company', ''),
+        'puesto': lead.get('position', ''),
+        'ubicacion': lead.get('location_preference', ''),
+
+        # Broker/Company data
+        'broker_name': broker_data.get('name', 'Tu Agente Inmobiliario') if broker_data else 'Tu Agente Inmobiliario',
+        'broker_signature': f"{broker_data.get('name', 'Tu Agente')}<br/>{broker_data.get('company_name', 'Rovi Real Estate')}<br/>{broker_data.get('phone', '')}" if broker_data else 'Tu Agente<br/>Rovi Real Estate<br/>+52 55 1234 5678',
+        'company_name': broker_data.get('company_name', 'Rovi Real Estate') if broker_data else 'Rovi Real Estate',
+
+        # Property data (por defecto)
+        'propiedad': 'Propiedad destacada en Tulum',
+        'property_address': 'Av. Kukulcán, Km 4, Tulum, Quintana Roo',
+        'property_price': '$450,000 USD',
+        'property_image': 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600',
+    }
+
+    # Reemplazar en el subject
+    subject = template.get('subject', '')
+    for var_key, var_value in var_mapping.items():
+        # Soportar ambos formatos: {{variable}} y {variable}
+        subject = subject.replace('{{' + var_key + '}}', str(var_value))
+        subject = subject.replace('{' + var_key + '}', str(var_value))
+
+    # Reemplazar en el contenido HTML
+    html_content = template.get('html_content', '')
+    for var_key, var_value in var_mapping.items():
+        html_content = html_content.replace('{{' + var_key + '}}', str(var_value))
+        html_content = html_content.replace('{' + var_key + '}', str(var_value))
+
+    return {
+        'subject': subject,
+        'html_content': html_content
+    }
 
 # ==================== AUTH ROUTES ====================
 
@@ -2308,39 +2365,67 @@ async def start_campaign(
         # Process Emails with SendGrid
         if not settings or not settings.get("sendgrid_enabled"):
             raise HTTPException(status_code=400, detail="SendGrid no está configurado")
-        
+
+        # Get template if specified
+        template = None
+        if campaign.get("email_template_id"):
+            template = await db.email_templates.find_one({
+                "id": campaign["email_template_id"],
+                "tenant_id": tenant_id
+            }, {"_id": 0})
+
+        # Get broker data for personalization
+        broker_data = {
+            "name": current_user.get("name", "Tu Agente"),
+            "company_name": "Rovi Real Estate",
+            "phone": current_user.get("phone", "+52 55 1234 5678")
+        }
+
         try:
             from sendgrid import SendGridAPIClient
             from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking
-            
+
             sg = SendGridAPIClient(settings["sendgrid_api_key"])
-            
+
             for lead in leads:
                 if not lead.get("email"):
                     results["failed"] += 1
                     results["errors"].append(f"{lead['name']}: Sin email")
                     continue
-                    
+
                 try:
-                    # Personalize message
-                    subject = campaign.get("email_subject", "Mensaje de Rovi").replace("{nombre}", lead["name"])
-                    html_content = campaign.get("message_template", "").replace("{nombre}", lead["name"])
-                    
+                    # Personalize content
+                    if template:
+                        # Use email template with advanced variable replacement
+                        personalized = personalize_email_content(template, lead, broker_data)
+                        subject = personalized['subject']
+                        html_content = personalized['html_content']
+                    else:
+                        # Use basic campaign template
+                        subject = campaign.get("email_subject", "Mensaje de Rovi")
+                        html_content = campaign.get("message_template", "")
+                        # Basic replacement
+                        subject = subject.replace("{nombre}", lead["name"])
+                        html_content = html_content.replace("{nombre}", lead["name"])
+
                     message = Mail(
                         from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "Rovi")),
                         to_emails=lead["email"],
                         subject=subject,
                         html_content=html_content
                     )
-                    
+
                     # Enable tracking
                     tracking_settings = TrackingSettings()
                     tracking_settings.click_tracking = ClickTracking(enable=True)
                     tracking_settings.open_tracking = OpenTracking(enable=True)
                     message.tracking_settings = tracking_settings
-                    
+
+                    # Add custom argument for webhook tracking
+                    message.custom_args = {"rovi_email_id": f"{lead['id']}-{campaign_id}"}
+
                     response = sg.send(message)
-                    
+
                     email_record = EmailRecord(
                         user_id=current_user["user_id"],
                         tenant_id=tenant_id,
@@ -3270,12 +3355,16 @@ async def preview_email_template(
 
 @api_router.post("/email-templates/send-test")
 async def send_test_email(
-    template_id: str,
     request_data: Dict[str, Any],
     current_user: dict = Depends(get_current_user)
 ):
     """Send a test email using a template"""
     tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    # Get template_id from request body
+    template_id = request_data.get("template_id")
+    if not template_id:
+        raise HTTPException(status_code=422, detail="template_id es requerido")
 
     # Get template
     template = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id}, {"_id": 0})
@@ -5511,6 +5600,72 @@ async def get_production_readiness(current_user: dict = Depends(get_current_user
             ) / 8
         ) if blockers else 0
     }
+
+
+# ==================== WEBHOOKS ====================
+
+@api_router.post("/webhooks/sendgrid")
+async def sendgrid_webhook(request: Request):
+    """
+    Webhook para eventos de SendGrid (opens, clicks, bounces, etc.)
+    Actualiza el estatus de los emails basado en los eventos
+    """
+    from fastapi import BackgroundTasks
+    import json
+
+    try:
+        # Get raw body
+        body = await request.body()
+
+        # SendGrid events come as array of JSON objects
+        events = json.loads(body.decode('utf-8'))
+
+        # Process each event
+        for event in events:
+            # Get custom argument with email ID
+            custom_args = event.get('custom_args', {})
+            email_id = custom_args.get('rovi_email_id')
+
+            if not email_id:
+                continue
+
+            # Event type mapping
+            event_type = event.get('event')  # open, click, bounce, dropped, etc.
+            status_map = {
+                'open': EmailStatus.OPENED,
+                'click': EmailStatus.CLICKED,
+                'bounce': EmailStatus.BOUNCED,
+                'dropped': EmailStatus.FAILED,
+                'spamreport': EmailStatus.FAILED,
+                'delivered': EmailStatus.DELIVERED,
+            }
+
+            new_status = status_map.get(event_type)
+            if new_status:
+                # Extract lead ID from email_id (format: "lead_id-campaign_id")
+                lead_id = email_id.split('-')[0] if '-' in email_id else email_id
+
+                # Update email record status
+                await db.email_records.update_one(
+                    {
+                        "lead_id": lead_id,
+                        "campaign_id": email_id.split('-')[1] if '-' in email_id else None
+                    },
+                    {
+                        "$set": {
+                            "status": new_status.value,
+                            "updated_at": datetime.now(timezone.utc)
+                        }
+                    }
+                )
+
+                logger.info(f"Email {email_id} updated to {new_status.value} via SendGrid webhook")
+
+        return {"status": "ok", "processed": len(events)}
+
+    except Exception as e:
+        logger.error(f"Error processing SendGrid webhook: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
 
 # Include the router in the main app

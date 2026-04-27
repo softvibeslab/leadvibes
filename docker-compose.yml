@@ -48,6 +48,11 @@ services:
       # Environment
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
+
+      # SendGrid
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_SENDER_EMAIL: ${SENDGRID_SENDER_EMAIL:-noreply@rovirealestate.com}
+      SENDGRID_SENDER_NAME: ${SENDGRID_SENDER_NAME:-Rovi Real Estate}
     volumes:
       - backend_uploads:/app/uploads
     ports:

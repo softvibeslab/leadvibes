@@ -317,13 +317,14 @@ const AnalysisModal = ({ isOpen, onClose, analysis }) => {
 };
 
 // New Campaign Modal
-const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
+const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads, emailTemplates }) => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
     campaign_type: 'call',
     message_template: '',
     email_subject: '',
+    email_template_id: '',
     lead_ids: [],
     use_filter: false,
     filter_status: [],
@@ -346,13 +347,14 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
         campaign_type: form.campaign_type,
         message_template: form.message_template,
         email_subject: form.email_subject,
+        email_template_id: form.email_template_id || undefined,
         lead_ids: form.use_filter ? [] : form.lead_ids,
         lead_filter: form.use_filter ? {
           status: form.filter_status.length > 0 ? form.filter_status : undefined,
           priority: form.filter_priority.length > 0 ? form.filter_priority : undefined
         } : undefined
       };
-      
+
       await api.post('/campaigns', payload);
       toast.success('Campaña creada');
       onCreated();
@@ -362,6 +364,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
         campaign_type: 'call',
         message_template: '',
         email_subject: '',
+        email_template_id: '',
         lead_ids: [],
         use_filter: false,
         filter_status: [],
@@ -456,27 +459,106 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads }) => {
           
           {form.campaign_type === 'email' && (
             <div className="space-y-4">
+              {/* Email Template Selection */}
               <div className="space-y-2">
-                <Label>Asunto del Email</Label>
-                <Input
-                  value={form.email_subject}
-                  onChange={(e) => setForm({ ...form, email_subject: e.target.value })}
-                  placeholder="¡Hola {nombre}! Tenemos una propiedad perfecta para ti"
-                />
+                <Label>Plantilla de Email</Label>
+                <Select
+                  value={form.email_template_id}
+                  onValueChange={(value) => {
+                    const template = emailTemplates.find(t => t.id === value);
+                    setForm({
+                      ...form,
+                      email_template_id: value,
+                      email_subject: template?.subject || '',
+                      message_template: template?.html_content || ''
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una plantilla o crea una personalizada" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Personalizada</SelectItem>
+                    {emailTemplates.map(template => (
+                      <SelectItem key={template.id} value={template.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{template.name}</span>
+                          <span className="text-xs text-muted-foreground">{template.subject}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {emailTemplates.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No hay plantillas. Ve a la pestaña "Plantillas" para crear una.
+                  </p>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label>Contenido HTML</Label>
-                <Textarea
-                  value={form.message_template}
-                  onChange={(e) => setForm({ ...form, message_template: e.target.value })}
-                  placeholder={`<h1>Hola {nombre}</h1>\n<p>Te presentamos las mejores opciones...</p>\n<a href="#">Ver propiedades</a>`}
-                  rows={6}
-                  className="font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Usa {'{nombre}'} para personalizar. Soporta HTML completo.
-                </p>
-              </div>
+
+              {/* Custom Email Content (when no template selected) */}
+              {!form.email_template_id && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Asunto del Email</Label>
+                    <Input
+                      value={form.email_subject}
+                      onChange={(e) => setForm({ ...form, email_subject: e.target.value })}
+                      placeholder="¡Hola {{nombre}}! Tenemos una propiedad perfecta para ti"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Usa {'{{nombre}}'}, {'{{propiedad}}'}, {'{{precio}}'}, etc. para personalizar
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contenido HTML</Label>
+                    <Textarea
+                      value={form.message_template}
+                      onChange={(e) => setForm({ ...form, message_template: e.target.value })}
+                      placeholder={`<h1>Hola {{nombre}}</h1>\n<p>Te presentamos las mejores opciones...</p>\n<a href="#">Ver propiedades</a>`}
+                      rows={6}
+                      className="font-mono text-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Soporta HTML completo. Usa {'{{variable}}'} para personalizar.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Template Preview (when template selected) */}
+              {form.email_template_id && (
+                <div className="p-3 rounded-lg bg-muted/50 border">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-sm">Plantilla Seleccionada</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setForm({ ...form, email_template_id: '', email_subject: '', message_template: '' })}
+                    >
+                      Cambiar
+                    </Button>
+                  </div>
+                  {emailTemplates.filter(t => t.id === form.email_template_id).map(template => (
+                    <div key={template.id} className="space-y-1">
+                      <p className="text-sm font-medium">{template.name}</p>
+                      <p className="text-xs text-muted-foreground">{template.subject}</p>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {template.variables?.slice(0, 5).map((variable, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {'{{' + variable + '}}'}
+                          </Badge>
+                        ))}
+                        {template.variables?.length > 5 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{template.variables.length - 5} más
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           
@@ -1093,6 +1175,7 @@ export const CampaignsPage = () => {
         onCreated={loadData}
         api={api}
         leads={leads}
+        emailTemplates={emailTemplates}
       />
 
       <AnalysisModal

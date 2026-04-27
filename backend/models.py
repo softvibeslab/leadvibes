@@ -388,6 +388,8 @@ class CampaignCreate(BaseModel):
     name: str
     campaign_type: CampaignType
     message_template: Optional[str] = None  # For SMS
+    email_subject: Optional[str] = None  # For Email campaigns
+    email_template_id: Optional[str] = None  # Use existing email template
     lead_ids: List[str] = []
     lead_filter: Optional[Dict[str, Any]] = None  # Filter criteria
     scheduled_at: Optional[datetime] = None

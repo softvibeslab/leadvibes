@@ -128,7 +128,7 @@ export const EmailTemplatePreviewDialog = ({ isOpen, onClose, template, token })
               title="Email Preview"
               className="w-full border-0"
               style={{ minHeight: '400px', height: 'auto' }}
-              sandbox="allow-same-origin"
+              sandbox="allow-same-origin allow-scripts"
             />
           )}
         </div>
