@@ -44,6 +44,11 @@ from auth import (
     get_password_hash, verify_password, create_access_token, create_refresh_token,
     get_current_user, get_current_user_optional, require_role, get_refresh_token_user, JWT_EXPIRATION_MINUTES
 )
+from auth_improvements import logout_user, cleanup_expired_tokens, validate_email_phone_unique, check_auth_rate_limit
+from leads_improvements import (
+    validate_lead_unique_fields, get_leads_advanced_filters, delete_lead,
+    bulk_update_leads_status, bulk_delete_leads
+)
 from ai_service import get_ai_response, analyze_lead, generate_sales_script, query_database_with_ai
 from module_tracker import (
     CRM_MODULES, MVP_CONFIG, MVPTier, WEEKLY_PLAN,
@@ -495,6 +500,15 @@ async def logout_all(current_user: dict = Depends(get_current_user)):
         )
 
 
+@api_router.post("/auth/cleanup-tokens")
+async def cleanup_tokens(current_user: dict = Depends(require_role(["admin"]))):
+    """
+    Cleanup de refresh tokens expirados (admin only)
+    Elimina tokens expirados o revocados hace más de 30 días
+    """
+    return await cleanup_expired_tokens(db)
+
+
 # ==================== GOALS/ONBOARDING ROUTES ====================
 
 @api_router.post("/goals", response_model=dict)
@@ -906,33 +920,47 @@ async def get_recent_activity(limit: int = 10, current_user: dict = Depends(get_
 
 # ==================== LEADS ROUTES ====================
 
-@api_router.get("/leads", response_model=List[dict])
+@api_router.get("/leads")
 async def get_leads(
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    assigned_broker_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    status: Optional[List[LeadStatus]] = Query(None),
+    priority: Optional[List[LeadPriority]] = Query(None),
+    source: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
     search: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    page: int = 1,
+    page_size: int = 50
 ):
-    """Get all leads with filters"""
-    tenant_id = current_user["tenant_id"]
-    
-    query = {"tenant_id": tenant_id}
-    if status:
-        query["status"] = status
-    if priority:
-        query["priority"] = priority
-    if assigned_broker_id:
-        query["assigned_broker_id"] = assigned_broker_id
-    if search:
-        query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}},
-            {"phone": {"$regex": search, "$options": "i"}}
-        ]
-    
-    leads = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return [serialize_doc(l) for l in leads]
+    """
+    Get leads con filtros avanzados y búsqueda en tiempo real
+    Incluye paginación y múltiples filtros simultáneos
+    """
+    result = await get_leads_advanced_filters(
+        db=db,
+        tenant_id=current_user["tenant_id"],
+        current_user=current_user,
+        status=status,
+        priority=priority,
+        source=source,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size
+    )
+
+    return {
+        "leads": [serialize_doc(l) for l in result["leads"]],
+        "total": result["total"],
+        "page": result["page"],
+        "page_size": result["page_size"],
+        "total_pages": result["total_pages"]
+    }
 
 @api_router.get("/leads/{lead_id}", response_model=dict)
 async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
@@ -966,19 +994,19 @@ async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user))
 
 @api_router.post("/leads", response_model=dict)
 async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_current_user)):
-    """Create new lead with validation"""
+    """Create new lead con validación de campos únicos"""
     from validators import sanitize_lead_data, check_email_phone_uniqueness
-    
+    from leads_improvements import validate_lead_unique_fields
+
     try:
         # Sanitize and validate all input
         sanitized_data = sanitize_lead_data(lead_data.model_dump())
-        
-        # Check uniqueness within tenant
-        await check_email_phone_uniqueness(
-            db,
-            sanitized_data.get('email'),
-            sanitized_data['phone'],
-            current_user["tenant_id"]
+
+        # Validar email/phone únicos dentro del tenant
+        await validate_lead_unique_fields(
+            db=db,
+            lead_data=sanitized_data,
+            tenant_id=current_user["tenant_id"]
         )
         
         # Create lead
@@ -1086,6 +1114,41 @@ async def update_lead(lead_id: str, lead_data: LeadUpdate, current_user: dict = 
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al actualizar lead: {str(e)}")
+
+
+@api_router.delete("/leads/{lead_id}")
+async def delete_lead_endpoint(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Soft delete de un lead (marca como deleted)
+    Previene pérdida de datos accidental
+    """
+    return await delete_lead(db, lead_id, current_user)
+
+
+@api_router.put("/leads/bulk/status")
+async def bulk_update_status(
+    lead_ids: List[str],
+    new_status: LeadStatus,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Actualizar status de múltiples leads (bulk operation)
+    """
+    return await bulk_update_leads_status(db, lead_ids, new_status, current_user)
+
+
+@api_router.delete("/leads/bulk")
+async def bulk_delete_endpoint(
+    lead_ids: List[str],
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Soft delete de múltiples leads (bulk operation)
+    """
+    return await bulk_delete_leads(db, lead_ids, current_user)
 
 @api_router.post("/leads/{lead_id}/analyze", response_model=dict)
 async def analyze_lead_ai(lead_id: str, current_user: dict = Depends(get_current_user)):
@@ -5673,8 +5736,7 @@ async def sendgrid_webhook(request: Request):
 @api_router.post("/webhooks/external-lead")
 async def receive_external_lead_webhook(
     webhook_data: Dict[str, Any],
-    request: Request,
-    current_user: dict = Depends(get_current_user_optional)
+    request: Request
 ):
     """
     Procesa webhooks de fuentes externas (Facebook, WhatsApp, etc.)
@@ -5699,8 +5761,6 @@ async def receive_external_lead_webhook(
     }
     """
     try:
-        tenant_id = await get_or_create_tenant(current_user["user_id"]) if current_user else "tenant-webhook"
-
         # Extraer datos del webhook
         webhook_content = webhook_data.get("webhook_lead_data", {})
         event_type = webhook_content.get("event_type", "unknown")
@@ -5796,6 +5856,9 @@ async def receive_external_lead_webhook(
             priority = LeadPriority.BAJA
 
         # Crear documento de lead
+        # Tenant_id: usar 'tenant-webhook' para webhooks externos sin autenticación
+        tenant_id_to_use = "tenant-webhook"  # Para webhooks externos
+
         new_lead = Lead(
             name=personal_info.get("full_name", f"{personal_info.get('first_name', '')} {personal_info.get('last_name', '')}".strip()),
             email=email if email else None,
@@ -5811,7 +5874,7 @@ async def receive_external_lead_webhook(
             position=personal_info.get("title"),
             assigned_broker_id=None,
             created_by=None,
-            tenant_id=tenant_id,
+            tenant_id=tenant_id_to_use,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
             ai_analysis={
