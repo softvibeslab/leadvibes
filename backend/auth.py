@@ -91,6 +91,29 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         "name": payload.get("name", "")
     }
 
+async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict | None:
+    """
+    Versión opcional de get_current_user para webhooks externos.
+    Retorna el usuario si se proporciona token, None si no.
+    """
+    try:
+        if credentials and credentials.credentials:
+            token = credentials.credentials
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+            if user_id:
+                return {
+                    "user_id": user_id,
+                    "tenant_id": payload.get("tenant_id", ""),
+                    "email": payload.get("email", ""),
+                    "role": payload.get("role", "broker"),
+                    "name": payload.get("name", "")
+                }
+    except Exception:
+        pass  # Si hay error con el token, retornar None
+
+    return None  # No hay usuario válido
+
 def require_role(allowed_roles: list):
     async def role_checker(current_user: dict = Depends(get_current_user)):
         if current_user["role"] not in allowed_roles:

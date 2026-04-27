@@ -42,7 +42,7 @@ from models import (
 )
 from auth import (
     get_password_hash, verify_password, create_access_token, create_refresh_token,
-    get_current_user, require_role, get_refresh_token_user, JWT_EXPIRATION_MINUTES
+    get_current_user, get_current_user_optional, require_role, get_refresh_token_user, JWT_EXPIRATION_MINUTES
 )
 from ai_service import get_ai_response, analyze_lead, generate_sales_script, query_database_with_ai
 from module_tracker import (
@@ -5666,6 +5666,243 @@ async def sendgrid_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error processing SendGrid webhook: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+
+# ==================== EXTERNAL WEBHOOKS ====================
+
+@api_router.post("/webhooks/external-lead")
+async def receive_external_lead_webhook(
+    webhook_data: Dict[str, Any],
+    request: Request,
+    current_user: dict = Depends(get_current_user_optional)
+):
+    """
+    Procesa webhooks de fuentes externas (Facebook, WhatsApp, etc.)
+
+    Formato esperado (basado en webhook_lead_example.json):
+    {
+      "webhook_lead_data": {
+        "version": "1.0",
+        "event_type": "lead_created",
+        "timestamp": "2025-01-18T10:30:00Z",
+        "lead_data": {
+          "personal_info": {...},
+          "contact_info": {...},
+          "location": {...},
+          "preferences": {...},
+          "profile_analysis": {...},
+          "metadata": {...}
+        },
+        "email_campaign_config": {...},
+        "phone_call_config": {...}
+      }
+    }
+    """
+    try:
+        tenant_id = await get_or_create_tenant(current_user["user_id"]) if current_user else "tenant-webhook"
+
+        # Extraer datos del webhook
+        webhook_content = webhook_data.get("webhook_lead_data", {})
+        event_type = webhook_content.get("event_type", "unknown")
+        lead_data = webhook_content.get("lead_data", {})
+
+        logger.info(f"🎯 Webhook externo recibido: {event_type}")
+        logger.info(f"👤 Lead: {lead_data.get('personal_info', {}).get('full_name', 'Unknown')}")
+
+        # Crear lead en Rovi CRM
+        personal_info = lead_data.get("personal_info", {})
+        contact_info = lead_data.get("contact_info", {})
+        location = lead_data.get("location", {})
+        preferences = lead_data.get("preferences", {})
+        profile_analysis = lead_data.get("profile_analysis", {})
+        metadata = lead_data.get("metadata", {})
+
+        # Extraer teléfono e email
+        phone_obj = contact_info.get("primary_phone", {})
+        phone_number = phone_obj.get("number", "")
+        phone_type = phone_obj.get("type", "mobile")
+        is_verified = phone_obj.get("verified", False)
+
+        email_obj = contact_info.get("email", {})
+        email = email_obj.get("address", "")
+        email_verified = email_obj.get("verified", False)
+
+        # Mapear ubicación
+        location_parts = []
+        if location.get("city"):
+            location_parts.append(location["city"])
+        if location.get("state"):
+            location_parts.append(location["state"])
+        if location.get("country"):
+            location_parts.append(location["country"])
+        location_preference = ", ".join(location_parts) if location_parts else None
+
+        # Calcular presupuesto desde análisis
+        budget_range = profile_analysis.get("budget_range", {})
+        budget_mxn = 0
+        if budget_range:
+            # Convertir USD a MXN (aprox) si es necesario
+            budget_mxn = budget_range.get("max", 0) * 18  # Tasa de cambio aproximada
+
+        # Crear nota con información completa
+        notes_parts = []
+
+        # Fuente del lead
+        source = metadata.get("utm_source", "webhook")
+        campaign = metadata.get("utm_campaign", "")
+        if campaign:
+            notes_parts.append(f"Campaña: {campaign}")
+        notes_parts.append(f"Fuente: {source}")
+
+        # Información de contacto
+        if personal_info.get("company"):
+            notes_parts.append(f"Empresa: {personal_info['company']}")
+        if personal_info.get("notes"):
+            notes_parts.append(f"Notas: {personal_info['notes']}")
+
+        # Preferencias de propiedad
+        prop_prefs = profile_analysis.get("property_preferences", {})
+        if prop_prefs:
+            property_type = prop_prefs.get("type", "")
+            bedrooms = prop_prefs.get("bedrooms", 0)
+            if property_type or bedrooms:
+                notes_parts.append(f"Busca: {property_type} con {bedrooms} recámaras")
+
+        # Timeline
+        timeline = profile_analysis.get("timeline", "")
+        if timeline:
+            notes_parts.append(f"Timeline: {timeline}")
+
+        # Metadatos adicionales
+        landing_page = metadata.get("landing_page", "")
+        if landing_page:
+            notes_parts.append(f"Landing page: {landing_page}")
+
+        referral = metadata.get("referral_source", "")
+        if referral:
+            notes_parts.append(f"Referido por: {referral}")
+
+        notes = "\n".join(notes_parts) if notes_parts else None
+
+        # Determinar prioridad basado en lead_score
+        lead_score = profile_analysis.get("lead_score", 50)
+        if lead_score >= 80:
+            priority = LeadPriority.URGENTE
+        elif lead_score >= 60:
+            priority = LeadPriority.ALTA
+        elif lead_score >= 40:
+            priority = LeadPriority.MEDIA
+        else:
+            priority = LeadPriority.BAJA
+
+        # Crear documento de lead
+        new_lead = Lead(
+            name=personal_info.get("full_name", f"{personal_info.get('first_name', '')} {personal_info.get('last_name', '')}".strip()),
+            email=email if email else None,
+            phone=phone_number if phone_number else "+52 000 000 0000",
+            status=LeadStatus.NUEVO,
+            priority=priority,
+            source=f"{source}_{event_type}",
+            budget_mxn=budget_mxn,
+            property_interest=f"{prop_prefs.get('type', 'propiedad')} en {location.get('city', 'zona')}" if prop_prefs else None,
+            location_preference=location_preference,
+            notes=notes,
+            company=personal_info.get("company"),
+            position=personal_info.get("title"),
+            assigned_broker_id=None,
+            created_by=None,
+            tenant_id=tenant_id,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            ai_analysis={
+                "lead_score": lead_score,
+                "interest_level": profile_analysis.get("interest_level", "unknown"),
+                "timeline": profile_analysis.get("timeline", ""),
+                "financing": profile_analysis.get("financing", ""),
+                "investment_type": profile_analysis.get("investment_type", ""),
+                "webhook_source": source,
+                "webhook_event_type": event_type,
+                "webhook_timestamp": webhook_content.get("timestamp", "")
+            },
+            intent_score=lead_score,
+            next_action="contactar" if lead_score >= 60 else "evaluar"
+        )
+
+        # Insertar en base de datos
+        result = await db.leads.insert_one(new_lead.model_dump())
+        created_lead_id = result.inserted_id
+
+        logger.info(f"✅ Lead creado desde webhook: {created_lead_id}")
+
+        # Si hay configuración de email campaign, procesarla
+        email_config = webhook_content.get("email_campaign_config")
+        if email_config and email:
+            try:
+                from sendgrid import SendGridAPIClient
+                from sendgrid.helpers.mail import Mail
+
+                sg = SendGridAPIClient(os.environ.get("SENDGRID_API_KEY"))
+
+                # Personalizar contenido
+                personalization = email_config.get("personalization", {})
+                template_data = personalization.get("template_data", {})
+                contenido = template_data.get("contenido_personalizado", {})
+
+                # Reemplazar variables en subject
+                subject = personalization.get("subject", "")
+                for key, value in template_data.items():
+                    if isinstance(value, str):
+                        subject = subject.replace("{{" + key + "}}", value)
+                        subject = subject.replace("{" + key + "}", value)
+
+                # Crear contenido HTML básico
+                html_content = f"""
+                <html>
+                <body>
+                    <h2>{contenido.get('saludo', 'Hola')}</h2>
+                    <p>{contenido.get('mensaje_principal', '')}</p>
+                    <p>{contenido.get('firma', 'El equipo de Rovi Real Estate')}</p>
+                </body>
+                </html>
+                """
+
+                message = Mail(
+                    from_email=(personalization.get("sender_info", {}).get("email", "noreply@rovirealestate.com"),
+                               personalization.get("sender_info", {}).get("name", "Rovi Real Estate")),
+                    to_emails=personalization.get("recipient_email", email),
+                    subject=subject,
+                    html_content=html_content
+                )
+
+                # Enviar email
+                response = sg.send(message)
+
+                logger.info(f"📧 Email enviado a {email} - Status: {response.status_code}")
+
+            except Exception as e:
+                logger.warning(f"No se pudo enviar email automático: {str(e)}")
+
+        # Respuesta exitosa
+        return {
+            "status": "success",
+            "message": "Lead procesado correctamente",
+            "lead_id": str(created_lead_id),
+            "lead_name": new_lead.name,
+            "lead_email": new_lead.email,
+            "lead_phone": new_lead.phone,
+            "lead_score": lead_score,
+            "priority": priority,
+            "next_action": "contactar" if lead_score >= 60 else "evaluar",
+            "webhook_event": event_type,
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error procesando webhook externo: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error procesando webhook: {str(e)}"
+        )
 
 
 # Include the router in the main app
