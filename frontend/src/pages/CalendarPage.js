@@ -325,7 +325,7 @@ export const CalendarPage = () => {
         api.get('/users?role=broker'), // Load brokers for assignment
       ]);
       setEvents(eventsRes.data);
-      setLeads(leadsRes.data);
+      setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : (leadsRes.data?.leads || []));
       setBrokers(brokersRes.data || []);
     } catch (error) {
       console.error('Error loading calendar data:', error);

@@ -18,13 +18,13 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Search, Plus, Phone, MessageCircle, Mail, Video, MapPin,
   Sparkles, Loader2, DollarSign, TrendingUp, GripVertical,
-  LayoutGrid, Table2, X, ArrowUpDown, ArrowUp, ArrowDown, Filter
+  LayoutGrid, Table2, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, Settings2, Edit, Trash2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent } from '../components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Progress } from '../components/ui/progress';
@@ -45,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import { Switch } from '../components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
   Table,
@@ -55,6 +56,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
+import { DuplicateDetectionModal } from '../components/DuplicateDetectionModal';
 
 const statusConfig = {
   nuevo: { label: 'Nuevo', color: 'bg-blue-500', textColor: 'text-blue-500', bgLight: 'bg-blue-500/10' },
@@ -79,6 +81,57 @@ const sourceConfig = {
   'Google Ads': { label: 'Google', color: 'bg-green-500' },
   'Referido': { label: 'Referido', color: 'bg-purple-500' },
   'WhatsApp': { label: 'WhatsApp', color: 'bg-emerald-500' },
+};
+
+const normalizeLeadCustomFieldValue = (field, value) => {
+  if (field.field_type === 'number') {
+    return Number(value || 0);
+  }
+  if (field.field_type === 'boolean') {
+    return Boolean(value);
+  }
+  if (field.field_type === 'multi_select') {
+    return Array.isArray(value) ? value : String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+  }
+  return value;
+};
+
+const prettifyLeadCustomFieldValue = (value) => {
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+  return value || 'Sin valor';
+};
+
+const matchesLeadCustomFieldFilter = (field, leadValue, filterValue) => {
+  if (filterValue === undefined || filterValue === null || filterValue === '') {
+    return true;
+  }
+
+  if (field.field_type === 'boolean') {
+    if (filterValue === 'all') return true;
+    return Boolean(leadValue) === (filterValue === 'true');
+  }
+
+  if (Array.isArray(leadValue)) {
+    const normalizedFilter = String(filterValue).trim().toLowerCase();
+    return leadValue.some((item) => String(item).toLowerCase().includes(normalizedFilter));
+  }
+
+  return String(leadValue ?? '').toLowerCase().includes(String(filterValue).trim().toLowerCase());
+};
+
+const EMPTY_CUSTOM_FIELD = {
+  label: '',
+  key: '',
+  entity_type: 'leads',
+  field_type: 'text',
+  options: [],
+  required: false,
+  is_active: true,
+  show_in_table: false,
+  show_in_card: false,
+  show_in_filters: false,
+  sort_order: 0,
 };
 
 // Filter Bubble Component
@@ -106,7 +159,9 @@ const ActiveFilterTag = ({ label, onRemove }) => (
 );
 
 // Table View Component
-const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort }) => {
+const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort, customFields = [] }) => {
+  const visibleCustomFields = customFields.filter((field) => field.show_in_table).slice(0, 3);
+
   const SortableHeader = ({ column, label }) => {
     const isActive = sortConfig.key === column;
     return (
@@ -140,6 +195,9 @@ const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort
               <SortableHeader column="priority" label="Prioridad" />
               <SortableHeader column="source" label="Fuente" />
               <SortableHeader column="budget_mxn" label="Presupuesto" />
+              {visibleCustomFields.map((field) => (
+                <TableHead key={field.id}>{field.label}</TableHead>
+              ))}
               <SortableHeader column="intent_score" label="Intención" />
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -190,6 +248,11 @@ const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort
                   <TableCell className="text-sm font-medium">
                     ${lead.budget_mxn?.toLocaleString()}
                   </TableCell>
+                  {visibleCustomFields.map((field) => (
+                    <TableCell key={field.id} className="text-sm">
+                      {prettifyLeadCustomFieldValue(lead.custom_fields_data?.[field.key])}
+                    </TableCell>
+                  ))}
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Progress value={lead.intent_score} className="w-16 h-1.5" />
@@ -220,7 +283,7 @@ const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort
             })}
             {leads.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8 + visibleCustomFields.length} className="text-center py-8 text-muted-foreground">
                   No se encontraron leads con los filtros aplicados
                 </TableCell>
               </TableRow>
@@ -375,18 +438,31 @@ const DroppableColumn = ({ status, leads, onLeadClick, children }) => {
   );
 };
 
-const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
+const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api, customFields = [] }) => {
   const [activeTab, setActiveTab] = useState('info');
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingScript, setGeneratingScript] = useState(false);
   const [script, setScript] = useState('');
   const [activities, setActivities] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [interests, setInterests] = useState([]);
+  const [loadingInterests, setLoadingInterests] = useState(false);
+  const [savingInterest, setSavingInterest] = useState(false);
   const [newActivity, setNewActivity] = useState({ type: 'llamada', description: '', outcome: '' });
   const [addingActivity, setAddingActivity] = useState(false);
+  const [interestForm, setInterestForm] = useState({
+    product_id: 'none',
+    interest_type: 'principal',
+    interest_status: 'nuevo_interes',
+    priority: 'media',
+    notes: '',
+  });
 
   useEffect(() => {
     if (lead && isOpen) {
       loadActivities();
+      loadProducts();
+      loadInterests();
     }
   }, [lead, isOpen]);
 
@@ -396,6 +472,36 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
       setActivities(res.data);
     } catch (error) {
       console.error('Error loading activities:', error);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const res = await api.get('/products');
+      setProducts(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error('Error loading products for lead interests:', error);
+    }
+  };
+
+  const loadInterests = async () => {
+    setLoadingInterests(true);
+    try {
+      const res = await api.get(`/leads/${lead.id}/interests`);
+      setInterests(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      toast.error('No se pudieron cargar los productos de interés');
+    } finally {
+      setLoadingInterests(false);
+    }
+  };
+
+  const refreshLeadDetails = async () => {
+    try {
+      const res = await api.get(`/leads/${lead.id}`);
+      onUpdate(res.data);
+    } catch (error) {
+      console.error('Error refreshing lead details:', error);
     }
   };
 
@@ -455,6 +561,60 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
     }
   };
 
+  const handleCreateInterest = async () => {
+    if (!interestForm.product_id || interestForm.product_id === 'none') {
+      toast.error('Selecciona un producto o servicio');
+      return;
+    }
+
+    setSavingInterest(true);
+    try {
+      await api.post('/lead-product-interests', {
+        lead_id: lead.id,
+        product_id: interestForm.product_id,
+        interest_type: interestForm.interest_type,
+        interest_status: interestForm.interest_status,
+        priority: interestForm.priority,
+        source: 'manual',
+        notes: interestForm.notes || null,
+      });
+      toast.success('Producto vinculado al lead');
+      setInterestForm({
+        product_id: 'none',
+        interest_type: 'principal',
+        interest_status: 'nuevo_interes',
+        priority: 'media',
+        notes: '',
+      });
+      await Promise.all([loadInterests(), refreshLeadDetails()]);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo vincular el producto');
+    } finally {
+      setSavingInterest(false);
+    }
+  };
+
+  const handleUpdateInterest = async (interestId, payload) => {
+    try {
+      await api.put(`/lead-product-interests/${interestId}`, payload);
+      await Promise.all([loadInterests(), refreshLeadDetails()]);
+      toast.success('Interés actualizado');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo actualizar el interés');
+    }
+  };
+
+  const handleDeleteInterest = async (interestId) => {
+    if (!window.confirm('¿Desvincular este producto del lead?')) return;
+    try {
+      await api.delete(`/lead-product-interests/${interestId}`);
+      await Promise.all([loadInterests(), refreshLeadDetails()]);
+      toast.success('Interés eliminado');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo eliminar el interés');
+    }
+  };
+
   if (!lead) return null;
 
   const status = statusConfig[lead.status];
@@ -462,8 +622,8 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] max-w-3xl min-h-0 flex-col overflow-hidden p-0">
+        <DialogHeader className="border-b px-6 pb-4 pt-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <Avatar className="w-14 h-14">
@@ -494,16 +654,16 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
           </div>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid grid-cols-4 w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col overflow-hidden px-6">
+          <TabsList className="mt-4 grid w-full grid-cols-4">
             <TabsTrigger value="info">Información</TabsTrigger>
             <TabsTrigger value="activities">Actividades</TabsTrigger>
             <TabsTrigger value="analysis">Análisis IA</TabsTrigger>
             <TabsTrigger value="script">Script</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 mt-4">
-            <TabsContent value="info" className="space-y-4 pr-4">
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-2">
+            <TabsContent value="info" className="space-y-4 pb-6 pr-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Presupuesto</Label>
@@ -524,12 +684,204 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                     <span>{lead.property_interest || 'Sin especificar'}</span>
                   </div>
                 </div>
+                <div className="space-y-3 col-span-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Propiedades / productos de interés</Label>
+                    <Badge variant="outline">{interests.length}</Badge>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+                    {loadingInterests ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      </div>
+                    ) : interests.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Aún no hay productos vinculados a este lead.</p>
+                    ) : (
+                      interests.map((interest) => (
+                        <div key={interest.id} className="rounded-xl border border-border/70 bg-card/70 p-3 space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-medium">{interest.product?.title || 'Producto sin título'}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {interest.product?.sku || 'Sin SKU'} • {interest.product?.niche || 'Sin nicho'}
+                              </p>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteInterest(interest.id)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <Label className="mb-2 block">Tipo</Label>
+                              <Select
+                                value={interest.interest_type}
+                                onValueChange={(value) => handleUpdateInterest(interest.id, { interest_type: value })}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="principal">Principal</SelectItem>
+                                  <SelectItem value="secundario">Secundario</SelectItem>
+                                  <SelectItem value="upsell">Upsell</SelectItem>
+                                  <SelectItem value="cross_sell">Cross sell</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="mb-2 block">Estado</Label>
+                              <Select
+                                value={interest.interest_status}
+                                onValueChange={(value) => handleUpdateInterest(interest.id, { interest_status: value })}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="nuevo_interes">Nuevo interés</SelectItem>
+                                  <SelectItem value="contactado">Contactado</SelectItem>
+                                  <SelectItem value="envio_info">Envío info</SelectItem>
+                                  <SelectItem value="visita_agendada">Visita agendada</SelectItem>
+                                  <SelectItem value="negociacion">Negociación</SelectItem>
+                                  <SelectItem value="descartado">Descartado</SelectItem>
+                                  <SelectItem value="cerrado">Cerrado</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="mb-2 block">Prioridad</Label>
+                              <Select
+                                value={interest.priority}
+                                onValueChange={(value) => handleUpdateInterest(interest.id, { priority: value })}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="baja">Baja</SelectItem>
+                                  <SelectItem value="media">Media</SelectItem>
+                                  <SelectItem value="alta">Alta</SelectItem>
+                                  <SelectItem value="urgente">Urgente</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {interest.notes && (
+                            <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+                              {interest.notes}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-dashed border-border/70 p-4 space-y-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Vincular nuevo producto o servicio</p>
+                        <p className="text-xs text-muted-foreground">Selecciona el producto y guarda el vínculo desde aquí mismo.</p>
+                      </div>
+                      <Button onClick={handleCreateInterest} disabled={savingInterest} className="rounded-full sm:self-start">
+                        {savingInterest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Guardar vínculo
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="md:col-span-2">
+                        <Label className="mb-2 block">Producto</Label>
+                        <Select
+                          value={interestForm.product_id}
+                          onValueChange={(value) => setInterestForm((prev) => ({ ...prev, product_id: value }))}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Selecciona un producto" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Selecciona un producto</SelectItem>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.title} ({product.sku})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Tipo</Label>
+                        <Select
+                          value={interestForm.interest_type}
+                          onValueChange={(value) => setInterestForm((prev) => ({ ...prev, interest_type: value }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="principal">Principal</SelectItem>
+                            <SelectItem value="secundario">Secundario</SelectItem>
+                            <SelectItem value="upsell">Upsell</SelectItem>
+                            <SelectItem value="cross_sell">Cross sell</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Estado</Label>
+                        <Select
+                          value={interestForm.interest_status}
+                          onValueChange={(value) => setInterestForm((prev) => ({ ...prev, interest_status: value }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="nuevo_interes">Nuevo interés</SelectItem>
+                            <SelectItem value="contactado">Contactado</SelectItem>
+                            <SelectItem value="envio_info">Envío info</SelectItem>
+                            <SelectItem value="visita_agendada">Visita agendada</SelectItem>
+                            <SelectItem value="negociacion">Negociación</SelectItem>
+                            <SelectItem value="descartado">Descartado</SelectItem>
+                            <SelectItem value="cerrado">Cerrado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Prioridad</Label>
+                        <Select
+                          value={interestForm.priority}
+                          onValueChange={(value) => setInterestForm((prev) => ({ ...prev, priority: value }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="baja">Baja</SelectItem>
+                            <SelectItem value="media">Media</SelectItem>
+                            <SelectItem value="alta">Alta</SelectItem>
+                            <SelectItem value="urgente">Urgente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label className="mb-2 block">Notas del interés</Label>
+                        <Textarea
+                          value={interestForm.notes}
+                          onChange={(event) => setInterestForm((prev) => ({ ...prev, notes: event.target.value }))}
+                          placeholder="Ej: pidió financiamiento o quiere visita este fin de semana"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="space-y-2 col-span-2">
                   <Label>Notas</Label>
                   <div className="p-3 bg-muted/50 rounded-lg min-h-[80px]">
                     <span className="text-sm">{lead.notes || 'Sin notas'}</span>
                   </div>
                 </div>
+                {customFields.length > 0 && (
+                  <div className="space-y-3 col-span-2">
+                    <Label>Campos personalizados</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {customFields.map((field) => (
+                        <div key={field.id} className="rounded-lg bg-muted/50 p-3">
+                          <p className="text-xs text-muted-foreground">{field.label}</p>
+                          <p className="text-sm font-medium">
+                            {prettifyLeadCustomFieldValue(lead.custom_fields_data?.[field.key])}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -550,7 +902,7 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
               </div>
             </TabsContent>
 
-            <TabsContent value="activities" className="space-y-4 pr-4">
+            <TabsContent value="activities" className="space-y-4 pb-6 pr-2">
               <Card>
                 <CardContent className="pt-4 space-y-3">
                   <Select value={newActivity.type} onValueChange={(v) => setNewActivity({ ...newActivity, type: v })}>
@@ -611,7 +963,7 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
               </div>
             </TabsContent>
 
-            <TabsContent value="analysis" className="space-y-4 pr-4">
+            <TabsContent value="analysis" className="space-y-4 pb-6 pr-2">
               <Button onClick={handleAnalyze} disabled={analyzing} className="w-full rounded-full">
                 {analyzing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                 Analizar con IA
@@ -659,7 +1011,7 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
               )}
             </TabsContent>
 
-            <TabsContent value="script" className="space-y-4 pr-4">
+            <TabsContent value="script" className="space-y-4 pb-6 pr-2">
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleGenerateScript('apertura')} disabled={generatingScript} className="rounded-full">
                   Apertura
@@ -686,10 +1038,10 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
                 </Card>
               )}
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
 
-        <DialogFooter className="mt-4">
+        <DialogFooter className="mt-0 border-t px-6 py-4">
           <div className="flex gap-2 w-full">
             <Button variant="outline" className="flex-1 rounded-full" asChild>
               <a href={`tel:${lead.phone}`}>
@@ -715,8 +1067,10 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api }) => {
   );
 };
 
-const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
+const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) => {
   const [loading, setLoading] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [leadDataToCheck, setLeadDataToCheck] = useState(null);
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -725,6 +1079,7 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
     budget_mxn: 0,
     property_interest: '',
     notes: '',
+    custom_fields_data: {},
   });
 
   const handleSubmit = async (e) => {
@@ -734,16 +1089,7 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
       await api.post('/leads', form);
       toast.success('Lead creado exitosamente');
       onCreated();
-      onClose();
-      setForm({
-        name: '',
-        phone: '',
-        email: '',
-        source: 'web',
-        budget_mxn: 0,
-        property_interest: '',
-        notes: '',
-      });
+      handleClose();
     } catch (error) {
       toast.error('Error al crear lead');
     } finally {
@@ -751,104 +1097,261 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api }) => {
     }
   };
 
+  const handleBeforeCreate = async (leadData) => {
+    setLoading(true);
+    try {
+      // Verificar duplicados antes de crear
+      const response = await api.post('/leads/check-duplicates', leadData);
+      const duplicates = response.data;
+
+      if (duplicates.duplicates_found > 0) {
+        // Mostrar modal de duplicados
+        setLeadDataToCheck(leadData);
+        setShowDuplicateModal(true);
+      } else {
+        // No hay duplicados, crear directamente
+        await api.post('/leads', leadData);
+        toast.success('Lead creado exitosamente');
+        onCreated();
+        handleClose();
+      }
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      // Si falla la verificación, crear de todos modos
+      await api.post('/leads', leadData);
+      toast.success('Lead creado exitosamente');
+      onCreated();
+      handleClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    onClose();
+    setForm({
+      name: '',
+      phone: '',
+      email: '',
+      source: 'web',
+      budget_mxn: 0,
+      property_interest: '',
+      notes: '',
+      custom_fields_data: {},
+    });
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nuevo Lead</DialogTitle>
-          <DialogDescription>Agrega un nuevo prospecto al sistema</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nuevo Lead</DialogTitle>
+            <DialogDescription>Agrega un nuevo prospecto al sistema</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            handleBeforeCreate(form);
+          }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nombre *</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  data-testid="new-lead-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Teléfono *</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  required
+                  data-testid="new-lead-phone"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Fuente</Label>
+                <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="web">Web</SelectItem>
+                    <SelectItem value="Facebook Ads">Facebook Ads</SelectItem>
+                    <SelectItem value="Instagram">Instagram</SelectItem>
+                    <SelectItem value="Google Ads">Google Ads</SelectItem>
+                    <SelectItem value="Referido">Referido</SelectItem>
+                    <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Presupuesto (MXN)</Label>
+                <Input
+                  type="number"
+                  value={form.budget_mxn}
+                  onChange={(e) => setForm({ ...form, budget_mxn: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Interés en propiedad</Label>
+                <Input
+                  value={form.property_interest}
+                  onChange={(e) => setForm({ ...form, property_interest: e.target.value })}
+                  placeholder="Ej: Lote en Aldea Zamá"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label>Nombre *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-                data-testid="new-lead-name"
+              <Label>Notas</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Notas adicionales..."
               />
             </div>
-            <div className="space-y-2">
-              <Label>Teléfono *</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                required
-                data-testid="new-lead-phone"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Fuente</Label>
-              <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="web">Web</SelectItem>
-                  <SelectItem value="Facebook Ads">Facebook Ads</SelectItem>
-                  <SelectItem value="Instagram">Instagram</SelectItem>
-                  <SelectItem value="Google Ads">Google Ads</SelectItem>
-                  <SelectItem value="Referido">Referido</SelectItem>
-                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Presupuesto (MXN)</Label>
-              <Input
-                type="number"
-                value={form.budget_mxn}
-                onChange={(e) => setForm({ ...form, budget_mxn: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Interés en propiedad</Label>
-              <Input
-                value={form.property_interest}
-                onChange={(e) => setForm({ ...form, property_interest: e.target.value })}
-                placeholder="Ej: Lote en Aldea Zamá"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Notas</Label>
-            <Textarea
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Notas adicionales..."
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} className="rounded-full">
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading} className="rounded-full" data-testid="new-lead-submit">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Crear Lead
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            {customFields.length > 0 && (
+              <div className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-4">
+                <div>
+                  <h4 className="font-medium">Campos personalizados</h4>
+                  <p className="text-sm text-muted-foreground">Completa información adicional del lead si aplica.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {customFields.map((field) => (
+                    <div key={field.id} className="space-y-2">
+                      <Label>{field.label}</Label>
+                      {field.field_type === 'textarea' ? (
+                        <Textarea
+                          value={form.custom_fields_data?.[field.key] || ''}
+                          onChange={(e) => setForm((prev) => ({
+                            ...prev,
+                            custom_fields_data: {
+                              ...prev.custom_fields_data,
+                              [field.key]: e.target.value,
+                            },
+                          }))}
+                        />
+                      ) : field.field_type === 'select' ? (
+                        <Select
+                          value={form.custom_fields_data?.[field.key] || 'none'}
+                          onValueChange={(value) => setForm((prev) => ({
+                            ...prev,
+                            custom_fields_data: {
+                              ...prev.custom_fields_data,
+                              [field.key]: value === 'none' ? '' : value,
+                            },
+                          }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar opción" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sin valor</SelectItem>
+                            {(field.options || []).map((option) => (
+                              <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : field.field_type === 'boolean' ? (
+                        <div className="flex items-center justify-between rounded-lg border border-border/70 px-3 py-2">
+                          <span className="text-sm text-muted-foreground">Activar valor</span>
+                          <Switch
+                            checked={Boolean(form.custom_fields_data?.[field.key])}
+                            onCheckedChange={(checked) => setForm((prev) => ({
+                              ...prev,
+                              custom_fields_data: {
+                                ...prev.custom_fields_data,
+                                [field.key]: checked,
+                              },
+                            }))}
+                          />
+                        </div>
+                      ) : (
+                        <Input
+                          type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text'}
+                          value={form.custom_fields_data?.[field.key] || ''}
+                          onChange={(e) => setForm((prev) => ({
+                            ...prev,
+                            custom_fields_data: {
+                              ...prev.custom_fields_data,
+                              [field.key]: normalizeLeadCustomFieldValue(field, e.target.value),
+                            },
+                          }))}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose} className="rounded-full">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading} className="rounded-full" data-testid="new-lead-submit">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Crear Lead
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Detection Modal */}
+      <DuplicateDetectionModal
+        isOpen={showDuplicateModal}
+        onClose={() => {
+          setShowDuplicateModal(false);
+          setLeadDataToCheck(null);
+        }}
+        leadData={leadDataToCheck}
+        onConfirm={async (finalLeadData) => {
+          setLoading(true);
+          try {
+            await api.post('/leads', finalLeadData);
+            toast.success('Lead creado exitosamente');
+            onCreated();
+            handleClose();
+          } catch (error) {
+            toast.error('Error al crear lead');
+          } finally {
+            setLoading(false);
+            setShowDuplicateModal(false);
+            setLeadDataToCheck(null);
+          }
+        }}
+        onMergeSuggestion={async (duplicate) => {
+          // TODO: Implement merge logic
+          toast.info('Fusión de leads no implementada aún');
+        }}
+      />
+    </>
   );
 };
 
 export const LeadsPage = () => {
   const { api } = useAuth();
   const [leads, setLeads] = useState([]);
+  const [customFields, setCustomFields] = useState([]);
+  const [customFieldManagerOpen, setCustomFieldManagerOpen] = useState(false);
+  const [editingCustomField, setEditingCustomField] = useState(null);
+  const [customFieldForm, setCustomFieldForm] = useState(EMPTY_CUSTOM_FIELD);
+  const [savingCustomField, setSavingCustomField] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedLead, setSelectedLead] = useState(null);
@@ -862,6 +1365,7 @@ export const LeadsPage = () => {
   const [statusFilters, setStatusFilters] = useState([]);
   const [priorityFilters, setPriorityFilters] = useState([]);
   const [sourceFilters, setSourceFilters] = useState([]);
+  const [customFieldFilters, setCustomFieldFilters] = useState({});
   
   // Sort state for table view
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
@@ -877,16 +1381,26 @@ export const LeadsPage = () => {
 
   useEffect(() => {
     loadLeads();
+    loadCustomFields();
   }, []);
 
   const loadLeads = async () => {
     try {
       const res = await api.get('/leads');
-      setLeads(res.data);
+      setLeads(Array.isArray(res.data) ? res.data : (res.data?.leads || []));
     } catch (error) {
       console.error('Error loading leads:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCustomFields = async () => {
+    try {
+      const res = await api.get('/custom-fields?entity_type=leads');
+      setCustomFields(Array.isArray(res.data) ? res.data.filter((field) => field.is_active) : []);
+    } catch (error) {
+      console.error('Error loading lead custom fields:', error);
     }
   };
   
@@ -904,6 +1418,7 @@ export const LeadsPage = () => {
     setStatusFilters([]);
     setPriorityFilters([]);
     setSourceFilters([]);
+    setCustomFieldFilters({});
     setSearch('');
   };
   
@@ -912,6 +1427,11 @@ export const LeadsPage = () => {
     const sources = [...new Set(leads.map(l => l.source).filter(Boolean))];
     return sources;
   }, [leads]);
+
+  const filterableCustomFields = useMemo(
+    () => customFields.filter((field) => field.show_in_filters),
+    [customFields]
+  );
   
   // Handle sort for table
   const handleSort = (key) => {
@@ -948,9 +1468,17 @@ export const LeadsPage = () => {
     if (sourceFilters.length > 0) {
       result = result.filter(lead => sourceFilters.includes(lead.source));
     }
+
+    if (filterableCustomFields.length > 0) {
+      result = result.filter((lead) => (
+        filterableCustomFields.every((field) => (
+          matchesLeadCustomFieldFilter(field, lead.custom_fields_data?.[field.key], customFieldFilters[field.key])
+        ))
+      ));
+    }
     
     return result;
-  }, [leads, search, statusFilters, priorityFilters, sourceFilters]);
+  }, [customFieldFilters, filterableCustomFields, leads, search, sourceFilters, statusFilters, priorityFilters]);
   
   // Sorted leads for table view
   const sortedLeads = useMemo(() => {
@@ -977,7 +1505,7 @@ export const LeadsPage = () => {
   }, [filteredLeads, sortConfig]);
   
   // Check if any filters are active
-  const hasActiveFilters = statusFilters.length > 0 || priorityFilters.length > 0 || sourceFilters.length > 0 || search;
+  const hasActiveFilters = statusFilters.length > 0 || priorityFilters.length > 0 || sourceFilters.length > 0 || Object.values(customFieldFilters).some(Boolean) || search;
 
   const groupedLeads = {
     nuevo: filteredLeads.filter((l) => l.status === 'nuevo'),
@@ -1086,6 +1614,101 @@ export const LeadsPage = () => {
   };
 
   const activeLead = activeId ? findLeadById(activeId) : null;
+  const visibleLeadTableFields = useMemo(
+    () => customFields.filter((field) => field.show_in_table).slice(0, 3),
+    [customFields]
+  );
+
+  const openCustomFieldManager = () => {
+    setEditingCustomField(null);
+    setCustomFieldForm(EMPTY_CUSTOM_FIELD);
+    setCustomFieldManagerOpen(true);
+  };
+
+  const resetCustomFieldEditor = () => {
+    setEditingCustomField(null);
+    setCustomFieldForm(EMPTY_CUSTOM_FIELD);
+  };
+
+  const editCustomField = (field) => {
+    setEditingCustomField(field);
+    setCustomFieldForm({
+      label: field.label,
+      key: field.key,
+      entity_type: 'leads',
+      field_type: field.field_type,
+      options: field.options || [],
+      required: field.required ?? false,
+      is_active: field.is_active ?? true,
+      show_in_table: field.show_in_table ?? false,
+      show_in_card: field.show_in_card ?? false,
+      show_in_filters: field.show_in_filters ?? false,
+      sort_order: field.sort_order ?? 0,
+    });
+    setCustomFieldManagerOpen(true);
+  };
+
+  const saveCustomField = async () => {
+    if (!customFieldForm.label.trim()) {
+      toast.error('El label es requerido');
+      return;
+    }
+
+    const payload = {
+      ...customFieldForm,
+      key: customFieldForm.key.trim() || customFieldForm.label,
+      entity_type: 'leads',
+    };
+
+    setSavingCustomField(true);
+    try {
+      if (editingCustomField) {
+        await api.put(`/custom-fields/${editingCustomField.id}`, payload);
+        toast.success('Campo de lead actualizado');
+      } else {
+        await api.post('/custom-fields', payload);
+        toast.success('Campo de lead creado');
+      }
+      await loadCustomFields();
+      resetCustomFieldEditor();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo guardar el campo');
+    } finally {
+      setSavingCustomField(false);
+    }
+  };
+
+  const deleteCustomField = async (fieldId) => {
+    if (!window.confirm('¿Eliminar este campo personalizado de leads?')) return;
+    try {
+      await api.delete(`/custom-fields/${fieldId}`);
+      toast.success('Campo eliminado');
+      await loadCustomFields();
+      if (editingCustomField?.id === fieldId) {
+        resetCustomFieldEditor();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo eliminar el campo');
+    }
+  };
+
+  const moveCustomField = async (field, direction) => {
+    const currentIndex = customFields.findIndex((item) => item.id === field.id);
+    const swapIndex = currentIndex + direction;
+    if (currentIndex < 0 || swapIndex < 0 || swapIndex >= customFields.length) return;
+
+    const swapField = customFields[swapIndex];
+    try {
+      await Promise.all([
+        api.put(`/custom-fields/${field.id}`, { sort_order: swapField.sort_order ?? swapIndex }),
+        api.put(`/custom-fields/${swapField.id}`, { sort_order: field.sort_order ?? currentIndex }),
+      ]);
+      await loadCustomFields();
+      toast.success('Orden actualizado');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo reordenar el campo');
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 h-full flex flex-col" data-testid="leads-page">
@@ -1096,6 +1719,7 @@ export const LeadsPage = () => {
           <p className="text-sm sm:text-base text-muted-foreground">
             {filteredLeads.length} de {leads.length} prospectos
             {viewMode === 'kanban' && ' • Arrastra para cambiar estado'}
+            {viewMode === 'table' && visibleLeadTableFields.length > 0 && ` • ${visibleLeadTableFields.length} campos personalizados visibles`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1122,6 +1746,10 @@ export const LeadsPage = () => {
               <span className="hidden sm:inline">Tabla</span>
             </Button>
           </div>
+          <Button variant="outline" onClick={openCustomFieldManager} className="rounded-full">
+            <Settings2 className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Campos</span>
+          </Button>
           <Button onClick={() => setShowNewModal(true)} className="rounded-full" data-testid="new-lead-btn">
             <Plus className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Nuevo Lead</span>
@@ -1200,6 +1828,80 @@ export const LeadsPage = () => {
               })}
             </div>
           )}
+
+          {filterableCustomFields.length > 0 && (
+            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium text-muted-foreground">Campos personalizados:</span>
+                <Badge variant="outline">{filterableCustomFields.length}</Badge>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {filterableCustomFields.map((field) => {
+                  const filterValue = customFieldFilters[field.key] ?? '';
+
+                  if (field.field_type === 'select') {
+                    return (
+                      <div key={field.id}>
+                        <Label className="mb-2 block text-xs">{field.label}</Label>
+                        <Select
+                          value={filterValue || 'all'}
+                          onValueChange={(value) => setCustomFieldFilters((prev) => ({
+                            ...prev,
+                            [field.key]: value === 'all' ? '' : value,
+                          }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            {(field.options || []).map((option) => (
+                              <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  }
+
+                  if (field.field_type === 'boolean') {
+                    return (
+                      <div key={field.id}>
+                        <Label className="mb-2 block text-xs">{field.label}</Label>
+                        <Select
+                          value={filterValue || 'all'}
+                          onValueChange={(value) => setCustomFieldFilters((prev) => ({
+                            ...prev,
+                            [field.key]: value,
+                          }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="true">Sí</SelectItem>
+                            <SelectItem value="false">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={field.id}>
+                      <Label className="mb-2 block text-xs">{field.label}</Label>
+                      <Input
+                        type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text'}
+                        value={filterValue}
+                        placeholder="Filtrar..."
+                        onChange={(event) => setCustomFieldFilters((prev) => ({
+                          ...prev,
+                          [field.key]: event.target.value,
+                        }))}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Active Filters Display */}
@@ -1226,6 +1928,15 @@ export const LeadsPage = () => {
                 label={sourceConfig[s]?.label || s} 
                 onRemove={() => toggleFilter(sourceFilters, setSourceFilters, s)} 
               />
+            ))}
+            {filterableCustomFields.map((field) => (
+              customFieldFilters[field.key] ? (
+                <ActiveFilterTag
+                  key={`custom-${field.key}`}
+                  label={`${field.label}: ${customFieldFilters[field.key] === 'true' ? 'Sí' : customFieldFilters[field.key] === 'false' ? 'No' : customFieldFilters[field.key]}`}
+                  onRemove={() => setCustomFieldFilters((prev) => ({ ...prev, [field.key]: '' }))}
+                />
+              ) : null
             ))}
           </div>
         )}
@@ -1277,6 +1988,7 @@ export const LeadsPage = () => {
             onStatusChange={handleLeadUpdate}
             sortConfig={sortConfig}
             onSort={handleSort}
+            customFields={customFields}
           />
         </div>
       )}
@@ -1288,6 +2000,7 @@ export const LeadsPage = () => {
         onClose={() => setSelectedLead(null)}
         onUpdate={handleLeadUpdate}
         api={api}
+        customFields={customFields}
       />
 
       {/* New Lead Modal */}
@@ -1296,7 +2009,146 @@ export const LeadsPage = () => {
         onClose={() => setShowNewModal(false)}
         onCreated={loadLeads}
         api={api}
+        customFields={customFields}
       />
+
+      <Dialog open={customFieldManagerOpen} onOpenChange={setCustomFieldManagerOpen}>
+        <DialogContent className="flex max-h-[90vh] max-w-5xl min-h-0 flex-col overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 pb-4 pt-6">
+            <DialogTitle>Campos personalizados de Leads</DialogTitle>
+            <DialogDescription>Administra los datos extra del pipeline sin salir del módulo.</DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto px-6 py-4">
+          <div className="grid min-w-[920px] gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Campos definidos</CardTitle>
+                <CardDescription>{customFields.length} campos activos para leads.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {customFields.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Todavía no hay campos personalizados de leads.</p>
+                ) : (
+                  customFields.map((field) => (
+                    <div key={field.id} className="flex items-start justify-between rounded-xl border border-border/70 p-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{field.label}</p>
+                          <Badge variant="outline">{field.field_type}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">key: {field.key}</p>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          {field.show_in_card && <span>Visible en ficha</span>}
+                          {field.show_in_table && <span>Visible en tabla</span>}
+                          {field.show_in_filters && <span>Marcado para filtros</span>}
+                          {field.required && <span>Requerido</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => moveCustomField(field, -1)}>
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => moveCustomField(field, 1)}>
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => editCustomField(field)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteCustomField(field.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">{editingCustomField ? 'Editar campo' : 'Nuevo campo'}</CardTitle>
+                <CardDescription>Define el tipo y dónde se ve dentro del pipeline.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label>Label</Label>
+                    <Input value={customFieldForm.label} onChange={(event) => setCustomFieldForm((prev) => ({ ...prev, label: event.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Key</Label>
+                    <Input value={customFieldForm.key} onChange={(event) => setCustomFieldForm((prev) => ({ ...prev, key: event.target.value }))} placeholder="se autogenera si lo dejas vacío" />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label>Tipo</Label>
+                    <Select value={customFieldForm.field_type} onValueChange={(value) => setCustomFieldForm((prev) => ({ ...prev, field_type: value }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Texto</SelectItem>
+                        <SelectItem value="textarea">Texto largo</SelectItem>
+                        <SelectItem value="number">Número</SelectItem>
+                        <SelectItem value="select">Select</SelectItem>
+                        <SelectItem value="multi_select">Multi select</SelectItem>
+                        <SelectItem value="boolean">Booleano</SelectItem>
+                        <SelectItem value="date">Fecha</SelectItem>
+                        <SelectItem value="url">URL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Orden</Label>
+                    <Input type="number" value={customFieldForm.sort_order} onChange={(event) => setCustomFieldForm((prev) => ({ ...prev, sort_order: Number(event.target.value || 0) }))} />
+                  </div>
+                </div>
+
+                {(customFieldForm.field_type === 'select' || customFieldForm.field_type === 'multi_select') && (
+                  <div>
+                    <Label>Opciones (coma)</Label>
+                    <Input
+                      value={customFieldForm.options.join(', ')}
+                      onChange={(event) => setCustomFieldForm((prev) => ({
+                        ...prev,
+                        options: event.target.value.split(',').map((item) => item.trim()).filter(Boolean),
+                      }))}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3 rounded-xl border border-border/70 p-4">
+                  {[
+                    ['required', 'Campo requerido'],
+                    ['is_active', 'Campo activo'],
+                    ['show_in_table', 'Mostrar en tabla'],
+                    ['show_in_card', 'Mostrar en ficha'],
+                    ['show_in_filters', 'Mostrar en filtros'],
+                  ].map(([key, label]) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <Label>{label}</Label>
+                      <Switch
+                        checked={Boolean(customFieldForm[key])}
+                        onCheckedChange={(checked) => setCustomFieldForm((prev) => ({ ...prev, [key]: checked }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <Button variant="outline" onClick={resetCustomFieldEditor}>Limpiar</Button>
+                  <Button onClick={saveCustomField} disabled={savingCustomField}>
+                    {savingCustomField && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {editingCustomField ? 'Actualizar' : 'Crear campo'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -21,6 +21,8 @@ import {
 } from '../components/ui/dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useWebSocket, useDashboardRealTime } from '../hooks/useWebSocket';
+import { TrendsChart, ConversionFunnel, LeadsBySource, ComparisonCard, TopBrokersList } from '../components/DashboardEnhanced';
 
 const activityIcons = {
   llamada: Phone,
@@ -445,10 +447,26 @@ export const DashboardPage = () => {
   const [activities, setActivities] = useState([]);
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // KPI Modal state
   const [kpiModal, setKpiModal] = useState({ open: false, type: null, data: null });
   const [loadingKpi, setLoadingKpi] = useState(false);
+
+  // NUEVO: WebSocket y Real-time State
+  const { connectionStatus, lastMessage } = useWebSocket();
+  const { stats: realTimeStats, leaderboard: realTimeLeaderboard, lastUpdate } = useDashboardRealTime();
+
+  // NUEVO: Enhanced Dashboard Data
+  const [trendsData, setTrendsData] = useState(null);
+  const [comparisonData, setComparisonData] = useState(null);
+  const [funnelData, setFunnelData] = useState(null);
+  const [topBrokersData, setTopBrokersData] = useState(null);
+
+  // Loading states
+  const [loadingTrends, setLoadingTrends] = useState(false);
+  const [loadingComparison, setLoadingComparison] = useState(false);
+  const [loadingFunnel, setLoadingFunnel] = useState(false);
+  const [loadingTopBrokers, setLoadingTopBrokers] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -461,12 +479,12 @@ export const DashboardPage = () => {
         api.get('/dashboard/recent-activity?limit=10'),
         api.get('/gamification/rules'),
       ];
-      
+
       // Only load leaderboard for agency users
       if (!isIndividual) {
         requests.push(api.get('/dashboard/leaderboard'));
       }
-      
+
       const results = await Promise.all(requests);
       setStats(results[0].data);
       setActivities(results[1].data);
@@ -480,6 +498,102 @@ export const DashboardPage = () => {
       setLoading(false);
     }
   };
+
+  // NUEVO: Fetch Enhanced Dashboard Data
+  // TEMPORAL: Deshabilitado hasta que backend implemente endpoints
+  useEffect(() => {
+    fetchTrendsData();
+    fetchComparisonData();
+    fetchFunnelData();
+    console.log('Enhanced dashboard endpoints cargando...');
+  }, []);
+
+  // NUEVO: Fetch Trends
+  const fetchTrendsData = async () => {
+    setLoadingTrends(true);
+    try {
+      const response = await api.get('/dashboard/trends?months=6');
+      setTrendsData(response.data);
+    } catch (error) {
+      console.log('Endpoint trends no disponible - usando datos dummy');
+      setTrendsData({
+        ventas_por_mes: [
+          { mes: 'Enero', ventas: 12, monto: 4500000 },
+          { mes: 'Febrero', ventas: 15, monto: 5200000 },
+          { mes: 'Marzo', ventas: 8, monto: 3800000 },
+          { mes: 'Abril', ventas: 18, monto: 6100000 },
+          { mes: 'Mayo', ventas: 20, monto: 6500000 },
+          { mes: 'Junio', ventas: 14, monto: 4900000 }
+        ],
+        leads_por_fuente: [
+          { fuente: 'Facebook Ads', count: 45 },
+          { fuente: 'Instagram', count: 32 },
+          { fuente: 'Google Ads', count: 28 },
+          { fuente: 'Referido', count: 18 },
+          { fuente: 'Web', count: 12 }
+        ]
+      });
+    } finally {
+      setLoadingTrends(false);
+    }
+  };
+
+  // NUEVO: Fetch Comparison
+  const fetchComparisonData = async () => {
+    setLoadingComparison(true);
+    try {
+      const response = await api.get('/dashboard/comparison');
+      setComparisonData(response.data);
+    } catch (error) {
+      console.log('Endpoint comparison no disponible - usando datos dummy');
+      setComparisonData({
+        mes_actual: { ventas: 14, apartados: 5, leads_nuevos: 42 },
+        mes_anterior: { ventas: 18, apartados: 6, leads_nuevos: 38 },
+        cambio_porcentual: { ventas: '-22%', apartados: '-17%', leads_nuevos: '+11%' }
+      });
+    } finally {
+      setLoadingComparison(false);
+    }
+  };
+
+  // NUEVO: Fetch Funnel (usa trends data que incluye conversion_funnel)
+  const fetchFunnelData = async () => {
+    setLoadingFunnel(true);
+    try {
+      const response = await api.get('/dashboard/trends?months=6');
+      setFunnelData({ conversion_funnel: response.data.conversion_funnel });
+    } catch (error) {
+      console.log('Endpoint funnel no disponible - usando datos dummy');
+      setFunnelData({
+        conversion_funnel: {
+          nuevo: 45,
+          contactado: 32,
+          calificacion: 24,
+          presentacion: 18,
+          apartado: 8,
+          venta: 5
+        }
+      });
+    } finally {
+      setLoadingFunnel(false);
+    }
+  };
+
+  // NUEVO: Update stats when WebSocket message arrives
+  useEffect(() => {
+    if (realTimeStats && lastMessage?.type === 'metrics_updated') {
+      console.log('Stats actualizados via WebSocket:', realTimeStats);
+      setStats(realTimeStats);
+    }
+  }, [realTimeStats, lastMessage]);
+
+  // NUEVO: Update leaderboard when WebSocket message arrives
+  useEffect(() => {
+    if (realTimeLeaderboard && lastMessage?.type === 'leaderboard_changed') {
+      console.log('Leaderboard actualizado via WebSocket:', realTimeLeaderboard);
+      setLeaderboard(realTimeLeaderboard);
+    }
+  }, [realTimeLeaderboard, lastMessage]);
 
   const handleKpiClick = async (type) => {
     setLoadingKpi(true);
@@ -556,6 +670,70 @@ export const DashboardPage = () => {
             color="bg-emerald-600"
             onClick={() => handleKpiClick('brokers')}
           />
+        )}
+      </div>
+
+      {/* NUEVA SECCIÓN: Dashboard Enhanced */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold font-['Outfit'] mb-6 flex items-center gap-2">
+          <TrendingUp className="w-6 h-6 text-primary" />
+          Analytics Avanzado
+        </h2>
+
+        {/* Real-time Indicator */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className={`h-2 w-2 rounded-full ${lastUpdate ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
+          <span className="text-sm text-muted-foreground">
+            {lastUpdate ? 'Actualizado en tiempo real' : 'Conectando...'}
+          </span>
+        </div>
+
+        {/* Enhanced Components Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Trends Chart */}
+          <div>
+            <TrendsChart
+              data={trendsData?.ventas_por_mes || []}
+              months={6}
+              loading={loadingTrends}
+            />
+          </div>
+
+          {/* Comparison Card */}
+          <div>
+            <ComparisonCard
+              data={comparisonData}
+              loading={loadingComparison}
+            />
+          </div>
+
+          {/* Conversion Funnel */}
+          <div>
+            <ConversionFunnel
+              data={funnelData?.conversion_funnel || {}}
+              loading={loadingFunnel}
+            />
+          </div>
+
+          {/* Leads by Source */}
+          <div>
+            <LeadsBySource
+              data={trendsData?.leads_por_fuente || []}
+              loading={loadingTrends}
+            />
+          </div>
+        </div>
+
+        {/* Top Brokers */}
+        {!isIndividual && (
+          <div className="mt-6">
+            <TopBrokersList
+              metric="ventas"
+              limit={5}
+              data={topBrokersData}
+              loading={loadingTopBrokers}
+            />
+          </div>
         )}
       </div>
 

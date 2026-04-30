@@ -324,7 +324,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads, emailTemplat
     campaign_type: 'call',
     message_template: '',
     email_subject: '',
-    email_template_id: '',
+    email_template_id: 'custom',
     lead_ids: [],
     use_filter: false,
     filter_status: [],
@@ -364,7 +364,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads, emailTemplat
         campaign_type: 'call',
         message_template: '',
         email_subject: '',
-        email_template_id: '',
+        email_template_id: 'custom',
         lead_ids: [],
         use_filter: false,
         filter_status: [],
@@ -478,7 +478,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads, emailTemplat
                     <SelectValue placeholder="Selecciona una plantilla o crea una personalizada" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Personalizada</SelectItem>
+                    <SelectItem value="custom">Personalizada</SelectItem>
                     {emailTemplates.map(template => (
                       <SelectItem key={template.id} value={template.id}>
                         <div className="flex flex-col">
@@ -497,7 +497,7 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads, emailTemplat
               </div>
 
               {/* Custom Email Content (when no template selected) */}
-              {!form.email_template_id && (
+              {form.email_template_id === 'custom' && (
                 <>
                   <div className="space-y-2">
                     <Label>Asunto del Email</Label>
@@ -527,14 +527,14 @@ const NewCampaignModal = ({ isOpen, onClose, onCreated, api, leads, emailTemplat
               )}
 
               {/* Template Preview (when template selected) */}
-              {form.email_template_id && (
+              {form.email_template_id && form.email_template_id !== 'custom' && (
                 <div className="p-3 rounded-lg bg-muted/50 border">
                   <div className="flex items-center justify-between mb-2">
                     <Label className="text-sm">Plantilla Seleccionada</Label>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setForm({ ...form, email_template_id: '', email_subject: '', message_template: '' })}
+                      onClick={() => setForm({ ...form, email_template_id: 'custom', email_subject: '', message_template: '' })}
                     >
                       Cambiar
                     </Button>
@@ -684,7 +684,7 @@ export const CampaignsPage = () => {
       setSmsRecords(smsRes.data);
       setEmailRecords(emailsRes.data);
       setEmailTemplates(templatesRes.data || []);
-      setLeads(leadsRes.data);
+      setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : (leadsRes.data?.leads || []));
       setAnalytics(analyticsRes.data);
       setIntegrationStatus({
         vapi: settingsRes.data.vapi_enabled,

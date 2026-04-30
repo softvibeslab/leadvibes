@@ -111,7 +111,7 @@ export const EmailTemplatePreviewDialog = ({ isOpen, onClose, template, token })
 
     return (
       <div
-        className="flex justify-center bg-muted/30 rounded-lg p-4"
+        className="flex min-w-max justify-center rounded-lg bg-muted/30 p-4"
         style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}
       >
         <div
@@ -140,8 +140,8 @@ export const EmailTemplatePreviewDialog = ({ isOpen, onClose, template, token })
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-w-5xl ${isFullscreen ? 'h-screen w-screen max-w-none rounded-none' : ''}`}>
-        <DialogHeader className="flex flex-row items-center justify-between">
+      <DialogContent className={`flex min-h-0 flex-col overflow-hidden p-0 ${isFullscreen ? 'h-screen w-screen max-w-none rounded-none' : 'max-h-[90vh] max-w-5xl'}`}>
+        <DialogHeader className="flex flex-row items-center justify-between border-b px-6 pb-4 pt-6">
           <div className="flex-1">
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5 text-primary" />
@@ -167,7 +167,7 @@ export const EmailTemplatePreviewDialog = ({ isOpen, onClose, template, token })
 
         {/* Variables Info */}
         {variables.length > 0 && (
-          <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
+          <div className="mx-6 mt-4 flex flex-wrap gap-2 rounded-lg bg-muted/50 p-3">
             <Label className="text-xs text-muted-foreground">Variables usadas:</Label>
             {variables.map((variable, idx) => (
               <Badge key={idx} variant="secondary" className="text-xs">
@@ -178,7 +178,7 @@ export const EmailTemplatePreviewDialog = ({ isOpen, onClose, template, token })
         )}
 
         {/* Tabs for Desktop/Mobile preview */}
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 px-6 pt-4">
           <Button
             variant={activeTab === 'desktop' ? 'default' : 'outline'}
             size="sm"
@@ -196,12 +196,12 @@ export const EmailTemplatePreviewDialog = ({ isOpen, onClose, template, token })
         </div>
 
         {/* Preview */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1 px-6 py-4">
           {activeTab === 'desktop' ? renderPreviewFrame(1) : renderPreviewFrame(0.6)}
         </ScrollArea>
 
         {/* Send Test Email */}
-        <div className="flex items-center gap-2 p-4 border-t">
+        <div className="flex items-center gap-2 border-t px-6 py-4">
           <div className="flex-1">
             <Label className="text-xs text-muted-foreground">Email de prueba</Label>
             <Input
