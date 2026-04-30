@@ -24,6 +24,8 @@ export const LoginPage = () => {
     password: '',
     account_type: 'individual' 
   });
+  const nextPath = new URLSearchParams(window.location.search).get('next');
+  const safeNextPath = nextPath && nextPath.startsWith('/') ? nextPath : null;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -33,6 +35,8 @@ export const LoginPage = () => {
       toast.success(`¡Bienvenido, ${user.name}!`);
       if (!user.onboarding_completed) {
         navigate('/onboarding');
+      } else if (safeNextPath) {
+        navigate(safeNextPath);
       } else {
         navigate('/dashboard');
       }
@@ -55,7 +59,11 @@ export const LoginPage = () => {
         registerForm.account_type
       );
       toast.success('¡Cuenta creada! Configura tus metas');
-      navigate('/onboarding');
+      if (safeNextPath) {
+        navigate(safeNextPath);
+      } else {
+        navigate('/onboarding');
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al registrarse');
     } finally {
@@ -141,6 +149,7 @@ export const LoginPage = () => {
                       <Label htmlFor="login-email">Email</Label>
                       <Input
                         id="login-email"
+                        name="email"
                         type="email"
                         placeholder="tu@email.com"
                         value={loginForm.email}
@@ -154,6 +163,7 @@ export const LoginPage = () => {
                       <div className="relative">
                         <Input
                           id="login-password"
+                          name="password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="••••••••"
                           value={loginForm.password}
@@ -218,6 +228,7 @@ export const LoginPage = () => {
                       <Label htmlFor="register-name">Nombre completo</Label>
                       <Input
                         id="register-name"
+                        name="name"
                         type="text"
                         placeholder="Juan Pérez"
                         value={registerForm.name}
@@ -230,6 +241,7 @@ export const LoginPage = () => {
                       <Label htmlFor="register-email">Email</Label>
                       <Input
                         id="register-email"
+                        name="email"
                         type="email"
                         placeholder="tu@email.com"
                         value={registerForm.email}
@@ -243,6 +255,7 @@ export const LoginPage = () => {
                       <div className="relative">
                         <Input
                           id="register-password"
+                          name="password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Mínimo 6 caracteres"
                           value={registerForm.password}

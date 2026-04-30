@@ -3,8 +3,50 @@ import axios from 'axios';
 
 // Use relative path in production (nginx proxy) or fallback to env var
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
+const TOKEN_STORAGE_KEYS = ['leadvibes_token', 'token'];
+const USER_STORAGE_KEYS = ['leadvibes_user', 'user'];
 
 const AuthContext = createContext(null);
+
+const readFirstStorageValue = (keys) => {
+  for (const key of keys) {
+    const value = localStorage.getItem(key);
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+};
+
+const readStoredUser = () => {
+  const raw = readFirstStorageValue(USER_STORAGE_KEYS);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn('Failed to parse stored user:', error);
+    return null;
+  }
+};
+
+const persistAuthSession = (accessToken, userData) => {
+  TOKEN_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, accessToken));
+  USER_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, JSON.stringify(userData)));
+};
+
+const clearAuthSession = () => {
+  TOKEN_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  USER_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+};
+
+const mergeSessionUser = (userData, sessionData = {}) => ({
+  ...(userData || {}),
+  active_workspace: sessionData.active_workspace || userData?.active_workspace || null,
+  available_workspaces: sessionData.available_workspaces || userData?.available_workspaces || [],
+});
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -15,8 +57,8 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('leadvibes_token'));
+  const [user, setUser] = useState(() => readStoredUser());
+  const [token, setToken] = useState(() => readFirstStorageValue(TOKEN_STORAGE_KEYS));
   const [loading, setLoading] = useState(true);
 
   const api = axios.create({
@@ -28,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
   // Add token to requests
   api.interceptors.request.use((config) => {
-    const storedToken = localStorage.getItem('leadvibes_token');
+    const storedToken = readFirstStorageValue(TOKEN_STORAGE_KEYS);
     if (storedToken) {
       config.headers.Authorization = `Bearer ${storedToken}`;
     }
@@ -53,7 +95,8 @@ export const AuthProvider = ({ children }) => {
     }
     try {
       const response = await api.get('/auth/me');
-      setUser(response.data);
+      const payload = response.data?.user ? response.data : { user: response.data };
+      setUser(mergeSessionUser(payload.user, payload));
     } catch (error) {
       console.error('Failed to fetch user:', error);
       logout();
@@ -68,24 +111,36 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    const { access_token, user: userData } = response.data;
-    localStorage.setItem('leadvibes_token', access_token);
+    const { access_token, user: userData, active_workspace, available_workspaces } = response.data;
+    const sessionUser = mergeSessionUser(userData, { active_workspace, available_workspaces });
+    persistAuthSession(access_token, sessionUser);
     setToken(access_token);
-    setUser(userData);
-    return userData;
+    setUser(sessionUser);
+    return sessionUser;
   };
 
   const register = async (name, email, password, role = 'broker', account_type = 'individual') => {
     const response = await api.post('/auth/register', { name, email, password, role, account_type });
-    const { access_token, user: userData } = response.data;
-    localStorage.setItem('leadvibes_token', access_token);
+    const { access_token, user: userData, active_workspace, available_workspaces } = response.data;
+    const sessionUser = mergeSessionUser(userData, { active_workspace, available_workspaces });
+    persistAuthSession(access_token, sessionUser);
     setToken(access_token);
-    setUser(userData);
-    return userData;
+    setUser(sessionUser);
+    return sessionUser;
+  };
+
+  const switchWorkspace = async (tenantId) => {
+    const response = await api.post('/auth/switch-workspace', { tenant_id: tenantId });
+    const { access_token, user: userData, active_workspace, available_workspaces } = response.data;
+    const sessionUser = mergeSessionUser(userData, { active_workspace, available_workspaces });
+    persistAuthSession(access_token, sessionUser);
+    setToken(access_token);
+    setUser(sessionUser);
+    return sessionUser;
   };
 
   const logout = () => {
-    localStorage.removeItem('leadvibes_token');
+    clearAuthSession();
     setToken(null);
     setUser(null);
   };
@@ -106,6 +161,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateUser,
+    switchWorkspace,
     api,
     isAuthenticated: !!token && !!user,
     isIndividual,

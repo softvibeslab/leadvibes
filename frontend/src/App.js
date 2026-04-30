@@ -27,6 +27,7 @@ import { BrokerLandingPage } from './pages/BrokerLandingPage';
 import { DemoRequestPage } from './pages/DemoRequestPage';
 import { LeadSearchDashboard } from './pages/LeadSearchDashboard';
 import { PricingCalculatorPage } from './pages/PricingCalculatorPage';
+import { BrokerLinkPage } from './pages/BrokerLinkPage';
 import './App.css';
 
 // Protected Route component
@@ -56,6 +57,7 @@ const ProtectedRoute = ({ children }) => {
 // Public Route component (redirect if already logged in)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading, user } = useAuth();
+  const nextPath = new URLSearchParams(window.location.search).get('next');
 
   if (loading) {
     return (
@@ -68,6 +70,9 @@ const PublicRoute = ({ children }) => {
   if (isAuthenticated) {
     if (user && !user.onboarding_completed) {
       return <Navigate to="/onboarding" replace />;
+    }
+    if (nextPath && nextPath.startsWith('/')) {
+      return <Navigate to={nextPath} replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }
@@ -92,6 +97,7 @@ function AppRoutes() {
       <Route path="/pricing-calculator" element={<PricingCalculatorPage />} />
 
       {/* Public routes */}
+      <Route path="/link-broker" element={<BrokerLinkPage />} />
       <Route
         path="/login"
         element={

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -25,12 +25,13 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 // Navigation items for individual users
 const individualNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
-  { to: '/import', icon: Upload, label: 'Importar Leads' },
+  { to: '/import', icon: Upload, label: 'Importador' },
   { to: '/encuentra-leads', icon: Search, label: 'Encuentra Leads' },
   { to: '/products', icon: Package, label: 'Productos' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
@@ -47,7 +48,7 @@ const individualNavItems = [
 const agencyNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Pipeline' },
-  { to: '/import', icon: Upload, label: 'Importar Leads' },
+  { to: '/import', icon: Upload, label: 'Importador' },
   { to: '/encuentra-leads', icon: Search, label: 'Encuentra Leads' },
   { to: '/products', icon: Package, label: 'Productos' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
@@ -63,13 +64,28 @@ const agencyNavItems = [
 ];
 
 export const Sidebar = ({ onClose }) => {
-  const { user, logout, isIndividual } = useAuth();
+  const { user, logout, isIndividual, switchWorkspace } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const workspaces = (user?.available_workspaces || []).filter((workspace) => workspace?.status === 'active');
+  const activeWorkspace = user?.active_workspace;
+
+  const handleWorkspaceChange = async (tenantId) => {
+    if (!tenantId || tenantId === activeWorkspace?.tenant_id) return;
+    setSwitchingWorkspace(true);
+    try {
+      await switchWorkspace(tenantId);
+      navigate('/dashboard');
+    } finally {
+      setSwitchingWorkspace(false);
+    }
   };
 
   // Choose nav items based on account type
@@ -131,6 +147,33 @@ export const Sidebar = ({ onClose }) => {
       
       {/* Footer */}
       <div className="p-4 border-t border-border">
+        {workspaces.length > 1 && (
+          <div className="mb-3 rounded-xl border border-border/70 bg-muted/30 p-3">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Workspace Activo
+            </p>
+            <Select
+              value={activeWorkspace?.tenant_id}
+              onValueChange={handleWorkspaceChange}
+              disabled={switchingWorkspace}
+            >
+              <SelectTrigger className="h-auto min-h-11 rounded-xl border-border/70 bg-background/80 px-3 py-2 text-left">
+                <SelectValue placeholder="Selecciona un workspace" />
+              </SelectTrigger>
+              <SelectContent>
+                {workspaces.map((workspace) => (
+                  <SelectItem key={workspace.tenant_id} value={workspace.tenant_id}>
+                    {workspace.name} · {workspace.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {activeWorkspace?.tenant_type === 'agency' ? 'Inmobiliaria' : 'Personal'} · Rol {activeWorkspace?.role || 'broker'}
+            </p>
+          </div>
+        )}
+
         {/* User info */}
         <div className="flex items-center gap-3 px-3 py-2 mb-3 rounded-xl bg-muted/50">
           <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -162,6 +205,8 @@ export const Sidebar = ({ onClose }) => {
             size="icon"
             onClick={handleLogout}
             className="flex-1 h-10 text-destructive hover:text-destructive hover:bg-destructive/10"
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
             data-testid="logout-btn"
           >
             <LogOut className="w-4 h-4" />
