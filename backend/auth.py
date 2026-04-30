@@ -85,9 +85,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
     return {
         "user_id": user_id,
-        "tenant_id": payload.get("tenant_id", ""),
+        "tenant_id": payload.get("active_tenant_id") or payload.get("tenant_id", ""),
+        "active_tenant_id": payload.get("active_tenant_id") or payload.get("tenant_id", ""),
+        "active_membership_id": payload.get("active_membership_id"),
         "email": payload.get("email", ""),
-        "role": payload.get("role", "broker"),
+        "role": payload.get("active_role") or payload.get("role", "broker"),
+        "active_role": payload.get("active_role") or payload.get("role", "broker"),
+        "account_type": payload.get("account_type", "individual"),
         "name": payload.get("name", "")
     }
 
@@ -104,9 +108,13 @@ async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = 
             if user_id:
                 return {
                     "user_id": user_id,
-                    "tenant_id": payload.get("tenant_id", ""),
+                    "tenant_id": payload.get("active_tenant_id") or payload.get("tenant_id", ""),
+                    "active_tenant_id": payload.get("active_tenant_id") or payload.get("tenant_id", ""),
+                    "active_membership_id": payload.get("active_membership_id"),
                     "email": payload.get("email", ""),
-                    "role": payload.get("role", "broker"),
+                    "role": payload.get("active_role") or payload.get("role", "broker"),
+                    "active_role": payload.get("active_role") or payload.get("role", "broker"),
+                    "account_type": payload.get("account_type", "individual"),
                     "name": payload.get("name", "")
                 }
     except Exception:
@@ -164,7 +172,11 @@ async def get_refresh_token_user(db, token_jti: str) -> dict:
     return {
         "user_id": user["id"],
         "tenant_id": user.get("tenant_id", ""),
+        "active_tenant_id": user.get("tenant_id", ""),
+        "active_membership_id": None,
         "email": user.get("email", ""),
         "role": user.get("role", "broker"),
+        "active_role": user.get("role", "broker"),
+        "account_type": user.get("account_type", "individual"),
         "name": user.get("name", "")
     }

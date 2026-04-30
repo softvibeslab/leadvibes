@@ -100,6 +100,60 @@ async def create_indexes():
         await db.users.create_index([("tenant_id", 1), ("role", 1)])
         print("  ✅ (tenant_id, role) - Filter optimization")
 
+        await db.users.create_index("personal_tenant_id")
+        print("  ✅ (personal_tenant_id) - Workspace lookup")
+
+        # TENANTS COLLECTION
+        print("\n🏢 Índices para Tenants:")
+
+        try:
+            await db.tenants.create_index("id", unique=True)
+            print("  ✅ (id) - Unique")
+        except Exception as e:
+            print(f"  ⚠️  (id) - Ya existe o error: {e}")
+
+        try:
+            await db.tenants.create_index("slug", unique=True)
+            print("  ✅ (slug) - Unique")
+        except Exception as e:
+            print(f"  ⚠️  (slug) - Ya existe o error: {e}")
+
+        await db.tenants.create_index([("owner_user_id", 1), ("tenant_type", 1)])
+        print("  ✅ (owner_user_id, tenant_type) - Query optimization")
+
+        # TENANT MEMBERSHIPS COLLECTION
+        print("\n🤝 Índices para Tenant Memberships:")
+
+        try:
+            await db.tenant_memberships.create_index([("tenant_id", 1), ("user_id", 1)], unique=True)
+            print("  ✅ (tenant_id, user_id) - Unique membership")
+        except Exception as e:
+            print(f"  ⚠️  (tenant_id, user_id) - Ya existe o error: {e}")
+
+        await db.tenant_memberships.create_index([("user_id", 1), ("status", 1)])
+        print("  ✅ (user_id, status) - User memberships")
+
+        await db.tenant_memberships.create_index([("tenant_id", 1), ("role", 1), ("status", 1)])
+        print("  ✅ (tenant_id, role, status) - Tenant roster")
+
+        await db.tenant_memberships.create_index([("tenant_id", 1), ("is_default", 1)])
+        print("  ✅ (tenant_id, is_default) - Default workspace scan")
+
+        # BROKER PAIRING SESSIONS COLLECTION
+        print("\n📱 Índices para Broker Pairing Sessions:")
+
+        try:
+            await db.broker_pairing_sessions.create_index("token", unique=True)
+            print("  ✅ (token) - Unique")
+        except Exception as e:
+            print(f"  ⚠️  (token) - Ya existe o error: {e}")
+
+        await db.broker_pairing_sessions.create_index("expires_at", expireAfterSeconds=0)
+        print("  ✅ (expires_at TTL) - Pairing expiration cleanup")
+
+        await db.broker_pairing_sessions.create_index([("tenant_id", 1), ("status", 1)])
+        print("  ✅ (tenant_id, status) - Pairing query optimization")
+
         # REFRESH TOKENS COLLECTION
         print("\n🔑 Índices para Refresh Tokens:")
 
@@ -132,7 +186,15 @@ async def create_indexes():
         print(f"\n📊 Resumen de colecciones:")
 
         # List indexes for main collections
-        main_collections = ["leads", "users", "refresh_tokens", "auth_attempts"]
+        main_collections = [
+            "leads",
+            "users",
+            "tenants",
+            "tenant_memberships",
+            "broker_pairing_sessions",
+            "refresh_tokens",
+            "auth_attempts",
+        ]
 
         for collection_name in main_collections:
             try:

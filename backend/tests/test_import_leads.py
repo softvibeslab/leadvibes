@@ -321,7 +321,8 @@ class TestImportExecute:
         )
         
         if leads_response.status_code == 200:
-            leads = leads_response.json()
+            leads_payload = leads_response.json()
+            leads = leads_payload["leads"] if isinstance(leads_payload, dict) else leads_payload
             # Check if our imported lead exists
             imported_names = [l["name"] for l in leads]
             print(f"Leads found with TEST_Import prefix: {len(leads)}")

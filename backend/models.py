@@ -57,12 +57,29 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+
+class BrokerCreate(BaseModel):
+    name: str
+    email: EmailStr
+    password: Optional[str] = None
+    phone: Optional[str] = None
+    role: str = "broker"
+    is_active: bool = True
+
+
+class BrokerUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
 class User(UserBase):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     created_at: datetime = Field(default_factory=now_utc)
     onboarding_completed: bool = False
     tenant_id: str = ""
+    personal_tenant_id: Optional[str] = None
     account_type: str = "individual"  # individual, agency
     ai_profile: Optional['AIProfile'] = None  # Perfil personalizado para el asistente IA (forward reference)
 
@@ -75,8 +92,124 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     is_active: bool
     onboarding_completed: bool
+    personal_tenant_id: Optional[str] = None
     account_type: str = "individual"
     ai_profile: Optional['AIProfile'] = None  # Forward reference
+
+
+class AuthWorkspaceSummary(BaseModel):
+    tenant_id: str
+    membership_id: Optional[str] = None
+    name: str
+    slug: Optional[str] = None
+    role: str
+    tenant_type: str = "individual"
+    status: str = "active"
+    is_default: bool = False
+    linked_via: Optional[str] = None
+
+
+class TenantType(str, Enum):
+    INDIVIDUAL = "individual"
+    AGENCY = "agency"
+
+
+class MembershipRole(str, Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    MANAGER = "manager"
+    BROKER = "broker"
+
+
+class MembershipStatus(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    REVOKED = "revoked"
+
+
+class MembershipLinkSource(str, Enum):
+    SELF_SIGNUP = "self_signup"
+    QR = "qr"
+    INVITE_LINK = "invite_link"
+    MANUAL = "manual"
+    LEGACY_MIGRATION = "legacy_migration"
+
+
+class PairingSessionStatus(str, Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+
+class TenantBase(BaseModel):
+    name: str
+    slug: str
+    tenant_type: TenantType = TenantType.INDIVIDUAL
+    is_active: bool = True
+    branding: Dict[str, Any] = {}
+    settings: Dict[str, Any] = {}
+
+
+class TenantCreate(TenantBase):
+    owner_user_id: str
+
+
+class Tenant(TenantBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    owner_user_id: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class TenantMembershipCreate(BaseModel):
+    tenant_id: str
+    user_id: str
+    role: MembershipRole = MembershipRole.BROKER
+    status: MembershipStatus = MembershipStatus.PENDING
+    linked_via: MembershipLinkSource = MembershipLinkSource.MANUAL
+    is_default: bool = False
+
+
+class TenantMembershipUpdate(BaseModel):
+    role: Optional[MembershipRole] = None
+    status: Optional[MembershipStatus] = None
+    linked_via: Optional[MembershipLinkSource] = None
+    is_default: Optional[bool] = None
+    accepted_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
+
+
+class TenantMembership(TenantMembershipCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    joined_at: datetime = Field(default_factory=now_utc)
+    accepted_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
+    created_by_user_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class BrokerPairingSessionCreate(BaseModel):
+    tenant_id: str
+    invited_role: MembershipRole = MembershipRole.BROKER
+    expires_in_minutes: int = 10
+
+
+class BrokerPairingSession(BrokerPairingSessionCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    status: PairingSessionStatus = PairingSessionStatus.PENDING
+    token: str
+    expires_at: datetime
+    created_by_user_id: str
+    confirmed_by_user_id: Optional[str] = None
+    confirmed_membership_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 # AI Profile Models
 class AIProfileCreate(BaseModel):
@@ -131,6 +264,11 @@ class LeadCreate(BaseModel):
     source: str = "web"
     budget_mxn: float = 0.0
     property_interest: Optional[str] = None
+    raw_interest_text: Optional[str] = None
+    interest_source: Optional[str] = None
+    interested_product_ids: List[str] = []
+    interested_products_snapshot: List[Dict[str, Any]] = []
+    custom_fields_data: Dict[str, Any] = {}
     notes: Optional[str] = None
     assigned_broker_id: Optional[str] = None
 
@@ -143,6 +281,11 @@ class LeadUpdate(BaseModel):
     source: Optional[str] = None
     budget_mxn: Optional[float] = None
     property_interest: Optional[str] = None
+    raw_interest_text: Optional[str] = None
+    interest_source: Optional[str] = None
+    interested_product_ids: Optional[List[str]] = None
+    interested_products_snapshot: Optional[List[Dict[str, Any]]] = None
+    custom_fields_data: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
     assigned_broker_id: Optional[str] = None
     ai_analysis: Optional[Dict[str, Any]] = None
@@ -160,6 +303,11 @@ class Lead(BaseModel):
     source: str = "web"
     budget_mxn: float = 0.0
     property_interest: Optional[str] = None
+    raw_interest_text: Optional[str] = None
+    interest_source: Optional[str] = None
+    interested_product_ids: List[str] = []
+    interested_products_snapshot: List[Dict[str, Any]] = []
+    custom_fields_data: Dict[str, Any] = {}
     location_preference: Optional[str] = None
     notes: Optional[str] = None
     company: Optional[str] = None
@@ -277,10 +425,22 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: Optional[int] = None  # Seconds until access token expires
     user: UserResponse
+    active_workspace: Optional[AuthWorkspaceSummary] = None
+    available_workspaces: List[AuthWorkspaceSummary] = []
+
+
+class AuthMeResponse(BaseModel):
+    user: UserResponse
+    active_workspace: Optional[AuthWorkspaceSummary] = None
+    available_workspaces: List[AuthWorkspaceSummary] = []
 
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class SwitchWorkspaceRequest(BaseModel):
+    tenant_id: str
 
 # Calendar Event Models
 class CalendarEventCreate(BaseModel):
@@ -582,6 +742,7 @@ class ImportJob(BaseModel):
     tenant_id: str
     filename: str
     file_type: str  # csv, xlsx
+    import_kind: str = "leads"
     total_rows: int = 0
     imported_count: int = 0
     skipped_count: int = 0
@@ -603,6 +764,15 @@ class ImportMappingRequest(BaseModel):
     mapping: List[ColumnMapping]
     skip_duplicates: bool = True
     duplicate_field: str = "email"  # Field to check for duplicates
+
+
+class CombinedImportMappingRequest(BaseModel):
+    """Request for combined leads + products import"""
+    job_id: str
+    leads_mapping: List[ColumnMapping]
+    products_mapping: List[ColumnMapping]
+    skip_duplicates: bool = True
+    duplicate_field: str = "email"
 
 
 # ==================== CAMPAIGN ANALYTICS ====================
@@ -743,30 +913,109 @@ class ProductServiceType(str, Enum):
     SERVICE = "service"
 
 
+class MediaAsset(BaseModel):
+    """Asset de media para productos"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    url: str
+    filename: Optional[str] = None
+    alt: Optional[str] = None
+    is_cover: bool = False
+    order: int = 0
+    source: str = "upload"
+
+
+class CustomFieldType(str, Enum):
+    TEXT = "text"
+    TEXTAREA = "textarea"
+    NUMBER = "number"
+    SELECT = "select"
+    MULTI_SELECT = "multi_select"
+    BOOLEAN = "boolean"
+    DATE = "date"
+    URL = "url"
+
+
+class CustomFieldEntityType(str, Enum):
+    LEADS = "leads"
+    PRODUCTS = "products"
+
+
+class CustomFieldDefinitionCreate(BaseModel):
+    """Crear definición de campo personalizado"""
+    label: str
+    key: str
+    entity_type: CustomFieldEntityType
+    field_type: CustomFieldType
+    options: List[str] = []
+    required: bool = False
+    is_active: bool = True
+    show_in_table: bool = False
+    show_in_card: bool = False
+    show_in_filters: bool = False
+    sort_order: int = 0
+
+
+class CustomFieldDefinitionUpdate(BaseModel):
+    """Actualizar definición de campo personalizado"""
+    label: Optional[str] = None
+    key: Optional[str] = None
+    field_type: Optional[CustomFieldType] = None
+    options: Optional[List[str]] = None
+    required: Optional[bool] = None
+    is_active: Optional[bool] = None
+    show_in_table: Optional[bool] = None
+    show_in_card: Optional[bool] = None
+    show_in_filters: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class CustomFieldDefinition(CustomFieldDefinitionCreate):
+    """Definición completa de campo personalizado"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
 class ProductServiceCreate(BaseModel):
     """Crear producto/servicio"""
+    sku: str
     title: str
     description: str
     product_type: ProductServiceType
     niche: str  # "Residencial", "Comercial", "VIP", etc.
     price_mxn: float = 0.0
     features: List[str] = []
+    aliases: List[str] = []
+    keywords: List[str] = []
+    external_id: Optional[str] = None
     is_active: bool = True
     assigned_campaigns: List[str] = []  # IDs de campañas
     assigned_brokers: List[str] = []  # IDs de brokers
+    images: List[MediaAsset] = []
+    custom_fields_data: Dict[str, Any] = {}
 
 
 class ProductServiceUpdate(BaseModel):
     """Actualizar producto/servicio"""
+    sku: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     product_type: Optional[ProductServiceType] = None
     niche: Optional[str] = None
     price_mxn: Optional[float] = None
     features: Optional[List[str]] = None
+    aliases: Optional[List[str]] = None
+    keywords: Optional[List[str]] = None
+    external_id: Optional[str] = None
     is_active: Optional[bool] = None
     assigned_campaigns: Optional[List[str]] = None
     assigned_brokers: Optional[List[str]] = None
+    images: Optional[List[MediaAsset]] = None
+    custom_fields_data: Optional[Dict[str, Any]] = None
 
 
 class ProductService(ProductServiceCreate):
@@ -774,6 +1023,58 @@ class ProductService(ProductServiceCreate):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class LeadProductInterestType(str, Enum):
+    PRINCIPAL = "principal"
+    SECUNDARIO = "secundario"
+    UPSELL = "upsell"
+    CROSS_SELL = "cross_sell"
+
+
+class LeadProductInterestStatus(str, Enum):
+    NUEVO_INTERES = "nuevo_interes"
+    CONTACTADO = "contactado"
+    ENVIO_INFO = "envio_info"
+    VISITA_AGENDADA = "visita_agendada"
+    NEGOCIACION = "negociacion"
+    DESCARTADO = "descartado"
+    CERRADO = "cerrado"
+
+
+class LeadProductInterestCreate(BaseModel):
+    lead_id: str
+    product_id: str
+    interest_type: LeadProductInterestType = LeadProductInterestType.PRINCIPAL
+    interest_status: LeadProductInterestStatus = LeadProductInterestStatus.NUEVO_INTERES
+    priority: LeadPriority = LeadPriority.MEDIA
+    source: str = "manual"
+    notes: Optional[str] = None
+
+
+class LeadProductInterestUpdate(BaseModel):
+    interest_type: Optional[LeadProductInterestType] = None
+    interest_status: Optional[LeadProductInterestStatus] = None
+    priority: Optional[LeadPriority] = None
+    source: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class LeadProductInterest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    product_tenant_id: str
+    lead_id: str
+    product_id: str
+    interest_type: LeadProductInterestType = LeadProductInterestType.PRINCIPAL
+    interest_status: LeadProductInterestStatus = LeadProductInterestStatus.NUEVO_INTERES
+    priority: LeadPriority = LeadPriority.MEDIA
+    source: str = "manual"
+    notes: Optional[str] = None
     created_by: str
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,9 +14,11 @@ import io
 import asyncio
 import math
 import jwt
+import base64
 
 from models import (
-    User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest,
+    User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, AuthMeResponse, SwitchWorkspaceRequest,
+    BrokerCreate, BrokerUpdate,
     Goal, GoalCreate,
     AIProfile, AIProfileCreate, AIProfileUpdate,
     Lead, LeadCreate, LeadUpdate, LeadStatus, LeadPriority,
@@ -33,11 +35,14 @@ from models import (
     ConversationAnalysis,
     EmailRecord, EmailRecordCreate, EmailStatus,
     EmailTemplate, EmailTemplateCreate,
-    ImportJob, ImportStatus, ImportMappingRequest, ColumnMapping,
+    ImportJob, ImportStatus, ImportMappingRequest, CombinedImportMappingRequest, ColumnMapping,
     CampaignMetrics, AnalyticsDashboard,
     AutomationWorkflow, AutomationWorkflowCreate, AutomationExecution,
     RoundRobinConfig, CalendarAssignment,
-    ProductService, ProductServiceCreate, ProductServiceUpdate,
+    ProductService, ProductServiceCreate, ProductServiceUpdate, MediaAsset,
+    CustomFieldDefinition, CustomFieldDefinitionCreate, CustomFieldDefinitionUpdate,
+    LeadProductInterest, LeadProductInterestCreate, LeadProductInterestUpdate,
+    BrokerPairingSessionCreate,
     ApifyJobRecord, ScrapedLead
 )
 from auth import (
@@ -59,6 +64,15 @@ from seed_data import (
     SEED_BROKERS, SEED_LEADS, SEED_GAMIFICATION_RULES, SEED_SCRIPTS,
     generate_seed_activities, generate_seed_points
 )
+
+# Semana 2: WebSocket, Dashboard Enhanced, Duplicate Detection, Import Optimization
+from websocket_manager import manager, emit_lead_created, emit_lead_updated, emit_metrics_updated, emit_calendar_event_created
+from dashboard_enhancements import (
+    get_dashboard_trends, get_broker_performance, get_dashboard_comparison,
+    get_activity_feed_extended, get_top_performing_brokers
+)
+from duplicate_detection import find_potential_duplicates, get_duplicate_suggestions
+from import_optimization import execute_import_optimized, execute_import_with_advanced_duplicates
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -95,6 +109,299 @@ def serialize_doc(doc: dict) -> dict:
 async def get_or_create_tenant(user_id: str) -> str:
     """Get or create tenant for user"""
     return f"tenant-{user_id[:8]}"
+
+
+def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -> str:
+    base_name = user.get("name") or user.get("email") or "Workspace"
+    if personal:
+        return f"{base_name} Personal"
+    if tenant_type == "agency":
+        return f"{base_name} Inmobiliaria"
+    return f"{base_name} Workspace"
+
+
+async def ensure_workspace_infra_for_user(user: dict) -> dict:
+    """
+    Ensure the user has explicit tenants + memberships without breaking legacy tenant_id flows.
+    Returns the normalized user document with personal_tenant_id populated.
+    """
+    user_id = user["id"]
+    account_type = user.get("account_type", "individual")
+    current_tenant_id = user.get("tenant_id") or f"tenant-{user_id[:8]}"
+    personal_tenant_id = user.get("personal_tenant_id") or (
+        current_tenant_id if account_type == "individual" else f"personal-{user_id[:8]}"
+    )
+    role = user.get("role", "broker")
+    now = datetime.now(timezone.utc).isoformat()
+
+    if user.get("personal_tenant_id") != personal_tenant_id:
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"personal_tenant_id": personal_tenant_id, "tenant_id": current_tenant_id}}
+        )
+        user["personal_tenant_id"] = personal_tenant_id
+        user["tenant_id"] = current_tenant_id
+
+    current_tenant_type = "agency" if account_type == "agency" else "individual"
+
+    async def ensure_tenant_doc(tenant_id: str, *, name: str, tenant_type: str, owner_user_id: str):
+        existing_tenant = await db.tenants.find_one({"id": tenant_id}, {"_id": 0, "id": 1})
+        tenant_payload = {
+            "name": name,
+            "slug": tenant_id,
+            "tenant_type": tenant_type,
+            "owner_user_id": owner_user_id,
+            "is_active": True,
+            "updated_at": now,
+        }
+        if existing_tenant:
+            await db.tenants.update_one({"id": tenant_id}, {"$set": tenant_payload})
+        else:
+            await db.tenants.insert_one({
+                "id": tenant_id,
+                **tenant_payload,
+                "branding": {},
+                "settings": {},
+                "created_at": now,
+            })
+
+    async def ensure_membership_doc(tenant_id: str, *, membership_role: str, is_default: bool):
+        existing_membership = await db.tenant_memberships.find_one(
+            {"tenant_id": tenant_id, "user_id": user_id},
+            {"_id": 0, "id": 1}
+        )
+        membership_payload = {
+            "tenant_id": tenant_id,
+            "user_id": user_id,
+            "role": membership_role,
+            "status": "active",
+            "linked_via": "legacy_migration" if existing_membership else "self_signup",
+            "is_default": is_default,
+            "accepted_at": now,
+            "created_by_user_id": user_id,
+            "updated_at": now,
+        }
+        if existing_membership:
+            await db.tenant_memberships.update_one(
+                {"tenant_id": tenant_id, "user_id": user_id},
+                {"$set": membership_payload}
+            )
+        else:
+            await db.tenant_memberships.insert_one({
+                "id": f"tm-{tenant_id}-{user_id}",
+                **membership_payload,
+                "joined_at": now,
+                "created_at": now,
+                "revoked_at": None,
+            })
+
+    await ensure_tenant_doc(
+        current_tenant_id,
+        name=build_workspace_name(user, current_tenant_type),
+        tenant_type=current_tenant_type,
+        owner_user_id=user_id,
+    )
+
+    if personal_tenant_id != current_tenant_id:
+        await ensure_tenant_doc(
+            personal_tenant_id,
+            name=build_workspace_name(user, "individual", personal=True),
+            tenant_type="individual",
+            owner_user_id=user_id,
+        )
+
+    if personal_tenant_id == current_tenant_id:
+        await ensure_membership_doc(current_tenant_id, membership_role="owner" if role == "broker" else role, is_default=True)
+    else:
+        await ensure_membership_doc(personal_tenant_id, membership_role="owner", is_default=account_type != "agency")
+        await ensure_membership_doc(
+            current_tenant_id,
+            membership_role="owner" if account_type == "agency" and role == "broker" else role,
+            is_default=account_type == "agency",
+        )
+
+    return user
+
+
+async def get_user_workspaces(user: dict) -> list[dict]:
+    user = await ensure_workspace_infra_for_user(user)
+    memberships = await db.tenant_memberships.find(
+        {"user_id": user["id"], "status": {"$in": ["active", "pending", "suspended"]}},
+        {"_id": 0}
+    ).to_list(100)
+    if not memberships:
+        return []
+
+    tenant_ids = [membership["tenant_id"] for membership in memberships]
+    tenants = await db.tenants.find({"id": {"$in": tenant_ids}}, {"_id": 0}).to_list(100)
+    tenants_map = {tenant["id"]: tenant for tenant in tenants}
+
+    workspaces = []
+    for membership in memberships:
+        tenant = tenants_map.get(membership["tenant_id"], {})
+        workspaces.append({
+            "tenant_id": membership["tenant_id"],
+            "membership_id": membership.get("id"),
+            "name": tenant.get("name", membership["tenant_id"]),
+            "slug": tenant.get("slug"),
+            "role": membership.get("role", user.get("role", "broker")),
+            "tenant_type": tenant.get("tenant_type", "individual"),
+            "status": membership.get("status", "active"),
+            "is_default": membership.get("is_default", False),
+            "linked_via": membership.get("linked_via"),
+        })
+
+    workspaces.sort(key=lambda item: (not item.get("is_default", False), item.get("name", "")))
+    return workspaces
+
+
+def select_active_workspace(workspaces: list[dict], requested_tenant_id: str | None = None) -> dict | None:
+    if not workspaces:
+        return None
+    if requested_tenant_id:
+        for workspace in workspaces:
+            if workspace["tenant_id"] == requested_tenant_id:
+                return workspace
+    for workspace in workspaces:
+        if workspace.get("is_default"):
+            return workspace
+    for workspace in workspaces:
+        if workspace.get("status") == "active":
+            return workspace
+    return workspaces[0]
+
+
+def build_user_response_payload(user: dict, ai_profile: dict | None = None) -> dict:
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "name": user["name"],
+        "role": user["role"],
+        "avatar_url": user.get("avatar_url"),
+        "phone": user.get("phone"),
+        "is_active": user["is_active"],
+        "onboarding_completed": user.get("onboarding_completed", False),
+        "personal_tenant_id": user.get("personal_tenant_id"),
+        "account_type": user.get("account_type", "individual"),
+        "ai_profile": serialize_doc(ai_profile) if ai_profile else None,
+    }
+
+
+def build_access_token_payload(user: dict, active_workspace: dict | None) -> dict:
+    active_tenant_id = active_workspace["tenant_id"] if active_workspace else user.get("tenant_id", "")
+    active_role = active_workspace["role"] if active_workspace else user.get("role", "broker")
+    return {
+        "sub": user["id"],
+        "tenant_id": user.get("tenant_id", ""),
+        "active_tenant_id": active_tenant_id,
+        "active_membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "role": user.get("role", "broker"),
+        "active_role": active_role,
+        "account_type": user.get("account_type", "individual"),
+        "email": user["email"],
+        "name": user["name"],
+    }
+
+
+def generate_pairing_token() -> str:
+    return base64.urlsafe_b64encode(os.urandom(24)).decode().rstrip("=")
+
+
+def ensure_broker_management_allowed(current_user: dict) -> None:
+    if current_user.get("account_type") != "agency":
+        raise HTTPException(status_code=403, detail="Solo las inmobiliarias pueden administrar brokers")
+    if current_user.get("active_role") not in {"owner", "admin", "manager"}:
+        raise HTTPException(status_code=403, detail="No tienes permisos para administrar brokers de este workspace")
+
+
+async def get_active_broker_memberships(tenant_id: str) -> list[dict]:
+    memberships = await db.tenant_memberships.find(
+        {
+            "tenant_id": tenant_id,
+            "status": {"$in": ["active", "pending", "suspended"]},
+            "role": {"$in": ["broker", "manager", "admin", "owner"]},
+        },
+        {"_id": 0}
+    ).to_list(200)
+    return memberships
+
+
+async def build_broker_roster(tenant_id: str) -> list[dict]:
+    memberships = await get_active_broker_memberships(tenant_id)
+    if not memberships:
+        return []
+
+    user_ids = [membership["user_id"] for membership in memberships]
+    users = await db.users.find(
+        {"id": {"$in": user_ids}},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(200)
+    users_map = {user["id"]: user for user in users}
+    membership_map = {membership["user_id"]: membership for membership in memberships}
+
+    leads_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "assigned_broker_id": {"$in": user_ids}}},
+        {"$group": {"_id": "$assigned_broker_id", "count": {"$sum": 1}}},
+    ]
+    leads_counts = await db.leads.aggregate(leads_pipeline).to_list(None)
+    leads_map = {item["_id"]: item["count"] for item in leads_counts}
+
+    points_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "broker_id": {"$in": user_ids}}},
+        {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}},
+    ]
+    points_results = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+    points_map = {item["_id"]: item["total"] for item in points_results}
+
+    result = []
+    for user_id in user_ids:
+        broker = users_map.get(user_id)
+        if not broker:
+            continue
+        membership = membership_map.get(user_id, {})
+        broker_data = serialize_doc(broker)
+        broker_data["membership_id"] = membership.get("id")
+        broker_data["membership_status"] = membership.get("status", "active")
+        broker_data["workspace_role"] = membership.get("role", broker.get("role", "broker"))
+        broker_data["linked_via"] = membership.get("linked_via")
+        broker_data["joined_at"] = membership.get("joined_at")
+        broker_data["leads_asignados"] = leads_map.get(user_id, 0)
+        broker_data["total_points"] = points_map.get(user_id, 0)
+        result.append(broker_data)
+
+    result.sort(key=lambda item: item.get("total_points", 0), reverse=True)
+    return result
+
+
+async def normalize_pairing_session(session: dict) -> dict:
+    if not session:
+        return session
+
+    now = datetime.now(timezone.utc)
+    if session.get("status") == "pending":
+        expires_at = session.get("expires_at")
+        if expires_at and datetime.fromisoformat(expires_at) < now:
+            await db.broker_pairing_sessions.update_one(
+                {"id": session["id"]},
+                {"$set": {"status": "expired", "updated_at": now.isoformat()}}
+            )
+            session["status"] = "expired"
+            session["updated_at"] = now.isoformat()
+
+    tenant = await db.tenants.find_one({"id": session["tenant_id"]}, {"_id": 0, "name": 1})
+    confirmed_user = None
+    if session.get("confirmed_by_user_id"):
+        confirmed_user = await db.users.find_one(
+            {"id": session["confirmed_by_user_id"]},
+            {"_id": 0, "id": 1, "name": 1, "email": 1}
+        )
+
+    return {
+        **serialize_doc(session),
+        "tenant_name": tenant.get("name", "Inmobiliaria") if tenant else "Inmobiliaria",
+        "pairing_path": f"/link-broker?token={session['token']}",
+        "confirmed_user": serialize_doc(confirmed_user) if confirmed_user else None,
+    }
 
 def personalize_email_content(template: dict, lead: dict, broker_data: dict = None) -> dict:
     """
@@ -166,6 +473,7 @@ async def register(user_data: UserCreate):
     # Create user
     user_id = str(uuid.uuid4())
     tenant_id = f"tenant-{user_id[:8]}"
+    personal_tenant_id = tenant_id if user_data.account_type == "individual" else f"personal-{user_id[:8]}"
     
     user_doc = {
         "id": user_id,
@@ -178,11 +486,15 @@ async def register(user_data: UserCreate):
         "is_active": True,
         "onboarding_completed": False,
         "tenant_id": tenant_id,
+        "personal_tenant_id": personal_tenant_id,
         "account_type": user_data.account_type,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     await db.users.insert_one(user_doc)
+    user_doc = await ensure_workspace_infra_for_user(user_doc)
+    workspaces = await get_user_workspaces(user_doc)
+    active_workspace = select_active_workspace(workspaces, tenant_id)
     
     # Seed default gamification rules for new tenant
     for rule in SEED_GAMIFICATION_RULES:
@@ -210,26 +522,13 @@ async def register(user_data: UserCreate):
         )
     
     # Create token
-    token = create_access_token({
-        "sub": user_id,
-        "tenant_id": tenant_id,
-        "email": user_data.email,
-        "role": user_data.role,
-        "name": user_data.name
-    })
+    token = create_access_token(build_access_token_payload(user_doc, active_workspace))
     
     return TokenResponse(
         access_token=token,
-        user=UserResponse(
-            id=user_id,
-            email=user_data.email,
-            name=user_data.name,
-            role=user_data.role,
-            phone=user_data.phone,
-            is_active=True,
-            onboarding_completed=False,
-            account_type=user_data.account_type
-        )
+        user=UserResponse(**build_user_response_payload(user_doc)),
+        active_workspace=active_workspace,
+        available_workspaces=workspaces,
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
@@ -241,20 +540,22 @@ async def login(credentials: UserLogin):
     
     if not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, user.get("tenant_id"))
     
     # Create access token (15 min)
-    access_token = create_access_token({
-        "sub": user["id"],
-        "tenant_id": user["tenant_id"],
-        "email": user["email"],
-        "role": user["role"],
-        "name": user["name"]
-    })
+    access_token = create_access_token(build_access_token_payload(user, active_workspace))
     
     # Create refresh token (7 days)
     token_jti, refresh_token = create_refresh_token({
         "sub": user["id"],
-        "tenant_id": user["tenant_id"]
+        "tenant_id": user["tenant_id"],
+        "active_tenant_id": active_workspace["tenant_id"] if active_workspace else user["tenant_id"],
+        "active_membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "active_role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+        "account_type": user.get("account_type", "individual"),
     })
     
     # Store refresh token in database
@@ -263,7 +564,7 @@ async def login(credentials: UserLogin):
         {"$set": {
             "jti": token_jti,
             "user_id": user["id"],
-            "tenant_id": user["tenant_id"],
+            "tenant_id": active_workspace["tenant_id"] if active_workspace else user["tenant_id"],
             "created_at": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
             "revoked": False,
@@ -277,20 +578,12 @@ async def login(credentials: UserLogin):
         refresh_token=refresh_token,
         token_type="bearer",
         expires_in=JWT_EXPIRATION_MINUTES * 60,  # Seconds
-        user=UserResponse(
-            id=user["id"],
-            email=user["email"],
-            name=user["name"],
-            role=user["role"],
-            avatar_url=user.get("avatar_url"),
-            phone=user.get("phone"),
-            is_active=user["is_active"],
-            onboarding_completed=user.get("onboarding_completed", False),
-            account_type=user.get("account_type", "individual")
-        )
+        user=UserResponse(**build_user_response_payload(user)),
+        active_workspace=active_workspace,
+        available_workspaces=workspaces,
     )
 
-@api_router.get("/auth/me", response_model=UserResponse)
+@api_router.get("/auth/me", response_model=AuthMeResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current user info"""
     user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
@@ -303,20 +596,57 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         {"_id": 0}
     )
 
-    response_data = {
-        "id": user["id"],
-        "email": user["email"],
-        "name": user["name"],
-        "role": user["role"],
-        "avatar_url": user.get("avatar_url"),
-        "phone": user.get("phone"),
-        "is_active": user["is_active"],
-        "onboarding_completed": user.get("onboarding_completed", False),
-        "account_type": user.get("account_type", "individual"),
-        "ai_profile": serialize_doc(ai_profile) if ai_profile else None
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, current_user.get("active_tenant_id") or current_user.get("tenant_id"))
+
+    return {
+        "user": build_user_response_payload(user, ai_profile),
+        "active_workspace": active_workspace,
+        "available_workspaces": workspaces,
     }
 
-    return response_data
+
+@api_router.get("/auth/workspaces", response_model=List[dict])
+async def get_workspaces(current_user: dict = Depends(get_current_user)):
+    """Get all available workspaces for current user"""
+    user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    workspaces = await get_user_workspaces(user)
+    return workspaces
+
+
+@api_router.post("/auth/switch-workspace", response_model=TokenResponse)
+async def switch_workspace(
+    request: SwitchWorkspaceRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Switch active workspace and return a fresh token bound to that tenant"""
+    user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, request.tenant_id)
+
+    if not active_workspace:
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+
+    if active_workspace.get("status") != "active":
+        raise HTTPException(status_code=403, detail="El workspace no está activo")
+
+    access_token = create_access_token(build_access_token_payload(user, active_workspace))
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=JWT_EXPIRATION_MINUTES * 60,
+        user=UserResponse(**build_user_response_payload(user)),
+        active_workspace=active_workspace,
+        available_workspaces=workspaces,
+    )
 
 
 # ==================== REFRESH TOKEN ENDPOINTS ====================
@@ -344,6 +674,8 @@ async def refresh_token(request: RefreshTokenRequest):
                 detail="Token inválido"
             )
         
+        requested_tenant_id = payload.get("active_tenant_id") or payload.get("tenant_id")
+
         # Validate refresh token in database and get user
         user_info = await get_refresh_token_user(db, token_jti)
         
@@ -353,19 +685,23 @@ async def refresh_token(request: RefreshTokenRequest):
             {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}}
         )
         
+        # Get full user info
+        user = await db.users.find_one({"id": user_info["user_id"]}, {"_id": 0})
+        user = await ensure_workspace_infra_for_user(user)
+        workspaces = await get_user_workspaces(user)
+        active_workspace = select_active_workspace(workspaces, requested_tenant_id)
+
         # Create new access token
-        new_access_token = create_access_token({
-            "sub": user_info["user_id"],
-            "tenant_id": user_info["tenant_id"],
-            "email": user_info["email"],
-            "role": user_info["role"],
-            "name": user_info["name"]
-        })
+        new_access_token = create_access_token(build_access_token_payload(user, active_workspace))
         
         # Create new refresh token (rotation)
         new_jti, new_refresh_token = create_refresh_token({
             "sub": user_info["user_id"],
-            "tenant_id": user_info["tenant_id"]
+            "tenant_id": user_info["tenant_id"],
+            "active_tenant_id": active_workspace["tenant_id"] if active_workspace else user_info["tenant_id"],
+            "active_membership_id": active_workspace.get("membership_id") if active_workspace else None,
+            "active_role": active_workspace["role"] if active_workspace else user_info["role"],
+            "account_type": user.get("account_type", "individual"),
         })
         
         # Store new refresh token
@@ -374,7 +710,7 @@ async def refresh_token(request: RefreshTokenRequest):
             {"$set": {
                 "jti": new_jti,
                 "user_id": user_info["user_id"],
-                "tenant_id": user_info["tenant_id"],
+                "tenant_id": active_workspace["tenant_id"] if active_workspace else user_info["tenant_id"],
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
                 "revoked": False,
@@ -382,26 +718,15 @@ async def refresh_token(request: RefreshTokenRequest):
             }},
             upsert=True
         )
-        
-        # Get full user info
-        user = await db.users.find_one({"id": user_info["user_id"]}, {"_id": 0})
-        
+
         return TokenResponse(
             access_token=new_access_token,
             refresh_token=new_refresh_token,
             token_type="bearer",
             expires_in=JWT_EXPIRATION_MINUTES * 60,
-            user=UserResponse(
-                id=user["id"],
-                email=user["email"],
-                name=user["name"],
-                role=user["role"],
-                avatar_url=user.get("avatar_url"),
-                phone=user.get("phone"),
-                is_active=user["is_active"],
-                onboarding_completed=user.get("onboarding_completed", False),
-                account_type=user.get("account_type", "individual")
-            )
+            user=UserResponse(**build_user_response_payload(user)),
+            active_workspace=active_workspace,
+            available_workspaces=workspaces,
         )
         
     except JWTError:
@@ -637,7 +962,7 @@ async def update_ai_profile(profile_data: AIProfileUpdate, current_user: dict = 
 @api_router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     """Get dashboard statistics"""
-    tenant_id = current_user["tenant_id"]
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     # Get goals
     goal = await db.goals.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
@@ -681,7 +1006,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
 @api_router.get("/dashboard/kpi-detail/{kpi_type}")
 async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current_user)):
     """Get detailed breakdown for a specific KPI"""
-    tenant_id = current_user["tenant_id"]
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     if kpi_type == "puntos":
         # Get points breakdown by activity type
@@ -810,7 +1135,7 @@ async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current
 @api_router.get("/dashboard/leaderboard", response_model=List[BrokerStats])
 async def get_leaderboard(current_user: dict = Depends(get_current_user)):
     """Get monthly leaderboard"""
-    tenant_id = current_user["tenant_id"]
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     # Get all brokers
     brokers = await db.users.find(
@@ -889,7 +1214,7 @@ async def get_leaderboard(current_user: dict = Depends(get_current_user)):
 @api_router.get("/dashboard/recent-activity", response_model=List[dict])
 async def get_recent_activity(limit: int = 10, current_user: dict = Depends(get_current_user)):
     """Get recent activities"""
-    tenant_id = current_user["tenant_id"]
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     activities = await db.activities.find(
         {"tenant_id": tenant_id},
@@ -917,6 +1242,137 @@ async def get_recent_activity(limit: int = 10, current_user: dict = Depends(get_
         activity["lead_name"] = leads_map.get(activity.get("lead_id"), "Desconocido")
     
     return [serialize_doc(a) for a in activities]
+
+# ==================== WEBSOCKET ENDPOINTS ====================
+
+@api_router.websocket("/ws/dashboard")
+async def websocket_dashboard(
+    websocket: WebSocket,
+    token: str = Query(...),
+    tenant_id: Optional[str] = None
+):
+    """
+    WebSocket endpoint para actualizaciones en tiempo real del dashboard.
+    Autenticación vía JWT token en query parameter.
+    """
+    try:
+        # Verificar token
+        payload = jwt.decode(token, os.environ['JWT_SECRET'], algorithms=["HS256"])
+        user_id = payload.get("sub")
+        tenant_id = tenant_id or payload.get("tenant_id", f"tenant-{user_id[:8]}")
+
+        if not user_id:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+
+        # Conectar WebSocket
+        await manager.connect(websocket, tenant_id, user_id)
+
+        # Mantener conexión y escuchar mensajes
+        try:
+            while True:
+                # Recibir mensajes del cliente (ping, etc.)
+                data = await websocket.receive_text()
+
+                # Eco para mantener vivo
+                if data == "ping":
+                    await websocket.send_json({"type": "pong"})
+
+        except WebSocketDisconnect:
+            logger.info("WebSocket disconnected by client")
+        except Exception as e:
+            logger.error(f"WebSocket receive error: {e}")
+        finally:
+            manager.disconnect(websocket)
+
+    except jwt.InvalidTokenError as e:
+        await websocket.close(code=4001, reason=f"Invalid token: {str(e)}")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        await websocket.close(code=4000, reason="Internal error")
+
+
+@api_router.get("/ws/stats")
+async def get_websocket_stats(current_user: dict = Depends(get_current_user)):
+    """Get WebSocket connection statistics"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    return {
+        "tenant_connections": manager.get_connections_count(tenant_id),
+        "total_connections": manager.get_total_connections(),
+        "active_tenants": len(manager.get_all_tenants())
+    }
+
+# ==================== DASHBOARD ENHANCED ROUTES ====================
+
+@api_router.get("/dashboard/trends")
+async def get_dashboard_trends_endpoint(
+    months: int = 6,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get trends data for charts (ventas por mes, leads por fuente, conversion funnel)"""
+    tenant_id = current_user["tenant_id"]
+
+    trends = await get_dashboard_trends(db, tenant_id, months)
+
+    return trends
+
+
+@api_router.get("/dashboard/broker-performance/{broker_id}")
+async def get_broker_performance_endpoint(
+    broker_id: str,
+    days: int = 30,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get detailed performance metrics for a specific broker"""
+    tenant_id = current_user["tenant_id"]
+
+    performance = await get_broker_performance(db, tenant_id, broker_id, days)
+
+    return performance
+
+
+@api_router.get("/dashboard/comparison")
+async def get_dashboard_comparison_endpoint(
+    current_user: dict = Depends(get_current_user)
+):
+    """Compare current month vs previous month metrics"""
+    tenant_id = current_user["tenant_id"]
+
+    comparison = await get_dashboard_comparison(db, tenant_id)
+
+    return comparison
+
+
+@api_router.get("/dashboard/activity-feed")
+async def get_activity_feed_endpoint(
+    limit: int = 20,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get extended activity feed with pagination"""
+    tenant_id = current_user["tenant_id"]
+
+    feed = await get_activity_feed_extended(db, tenant_id, limit, offset)
+
+    return feed
+
+
+@api_router.get("/dashboard/top-brokers")
+async def get_top_brokers_endpoint(
+    metric: str = "ventas",
+    limit: int = 5,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get top performing brokers by metric
+    metric: ventas, apartados, leads_contactados, puntos
+    """
+    tenant_id = current_user["tenant_id"]
+
+    top_brokers = await get_top_performing_brokers(db, tenant_id, metric, limit)
+
+    return {"metric": metric, "top_brokers": top_brokers}
 
 # ==================== LEADS ROUTES ====================
 
@@ -1018,6 +1474,8 @@ async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_cu
         if "priority" not in sanitized_data:
             sanitized_data["priority"] = "media"
         
+        sanitized_data.setdefault("custom_fields_data", lead_data.custom_fields_data or {})
+
         lead_doc = {
             "id": lead_id,
             "tenant_id": current_user["tenant_id"],
@@ -1087,6 +1545,9 @@ async def update_lead(lead_id: str, lead_data: LeadUpdate, current_user: dict = 
             }
         else:
             update_dict = update_data
+
+        if "custom_fields_data" in update_data:
+            update_dict["custom_fields_data"] = update_data["custom_fields_data"] or {}
         
         # Check uniqueness if email or phone is being updated
         if 'email' in update_dict or 'phone' in update_dict:
@@ -1149,6 +1610,70 @@ async def bulk_delete_endpoint(
     Soft delete de múltiples leads (bulk operation)
     """
     return await bulk_delete_leads(db, lead_ids, current_user)
+
+# ==================== DUPLICATE DETECTION ROUTES ====================
+
+@api_router.post("/leads/check-duplicates")
+async def check_lead_duplicates(
+    lead_data: LeadCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Check for potential duplicates before creating lead.
+    Uses fuzzy matching and phone/email normalization.
+    """
+    tenant_id = current_user["tenant_id"]
+
+    duplicates = await find_potential_duplicates(
+        db,
+        tenant_id,
+        lead_data.model_dump(),
+        threshold=85,
+        max_results=10
+    )
+
+    return {
+        "duplicates_found": len(duplicates),
+        "duplicates": [
+            {
+                "lead_id": d["lead"]["id"],
+                "name": d["lead"].get("name"),
+                "email": d["lead"].get("email"),
+                "phone": d["lead"].get("phone"),
+                "reason": d.get("reason"),
+                "reason_display": d.get("reason_display"),
+                "confidence": d["confidence"],
+                "name_similarity": d.get("name_similarity"),
+                "phone_similar": d.get("phone_similar", False),
+                "email_similar": d.get("email_similar", False)
+            }
+            for d in duplicates
+        ]
+    }
+
+
+@api_router.post("/leads/merge-suggestions")
+async def get_merge_suggestions(
+    lead_id_1: str,
+    lead_id_2: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get suggestions for merging two duplicate leads"""
+    tenant_id = current_user["tenant_id"]
+
+    lead_1 = await db.leads.find_one({"id": lead_id_1, "tenant_id": tenant_id})
+    lead_2 = await db.leads.find_one({"id": lead_id_2, "tenant_id": tenant_id})
+
+    if not lead_1 or not lead_2:
+        raise HTTPException(status_code=404, detail="Uno o ambos leads no encontrados")
+
+    suggestions = get_duplicate_suggestions(lead_1, lead_2)
+
+    return {
+        "lead_1": serialize_doc(lead_1),
+        "lead_2": serialize_doc(lead_2),
+        "suggestions": suggestions
+    }
 
 @api_router.post("/leads/{lead_id}/analyze", response_model=dict)
 async def analyze_lead_ai(lead_id: str, current_user: dict = Depends(get_current_user)):
@@ -1262,57 +1787,449 @@ async def get_activities(
 
 # ==================== BROKERS ROUTES ====================
 
+@api_router.post("/brokers/pairing-sessions", response_model=dict)
+async def create_broker_pairing_session(
+    pairing_data: BrokerPairingSessionCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Create a QR pairing session for linking a broker to the active agency workspace"""
+    ensure_broker_management_allowed(current_user)
+
+    if pairing_data.tenant_id != current_user["tenant_id"]:
+        raise HTTPException(status_code=403, detail="No puedes generar pairing para otro workspace")
+
+    tenant = await db.tenants.find_one({"id": current_user["tenant_id"]}, {"_id": 0})
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+
+    token = generate_pairing_token()
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=max(1, min(pairing_data.expires_in_minutes, 30)))
+    session_id = str(uuid.uuid4())
+
+    session_doc = {
+        "id": session_id,
+        "tenant_id": current_user["tenant_id"],
+        "invited_role": pairing_data.invited_role,
+        "expires_in_minutes": pairing_data.expires_in_minutes,
+        "status": "pending",
+        "token": token,
+        "expires_at": expires_at.isoformat(),
+        "created_by_user_id": current_user["user_id"],
+        "confirmed_by_user_id": None,
+        "confirmed_membership_id": None,
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
+    await db.broker_pairing_sessions.insert_one(session_doc)
+
+    return {
+        "id": session_id,
+        "status": "pending",
+        "token": token,
+        "tenant_id": current_user["tenant_id"],
+        "tenant_name": tenant.get("name", "Inmobiliaria"),
+        "invited_role": pairing_data.invited_role,
+        "expires_at": expires_at.isoformat(),
+        "pairing_path": f"/link-broker?token={token}",
+    }
+
+
+@api_router.get("/brokers/pairing-sessions", response_model=List[dict])
+async def list_broker_pairing_sessions(
+    limit: int = 12,
+    current_user: dict = Depends(get_current_user),
+):
+    """List recent QR pairing sessions for the active agency workspace"""
+    ensure_broker_management_allowed(current_user)
+
+    sessions = await db.broker_pairing_sessions.find(
+        {"tenant_id": current_user["tenant_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(max(1, min(limit, 50))).to_list(max(1, min(limit, 50)))
+
+    normalized_sessions = []
+    for session in sessions:
+        normalized_sessions.append(await normalize_pairing_session(session))
+    return normalized_sessions
+
+
+@api_router.get("/brokers/pairing-sessions/{session_id}", response_model=dict)
+async def get_broker_pairing_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get pairing session status for agency-side polling"""
+    ensure_broker_management_allowed(current_user)
+
+    session = await db.broker_pairing_sessions.find_one(
+        {"id": session_id, "tenant_id": current_user["tenant_id"]},
+        {"_id": 0}
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Sesión de vinculación no encontrada")
+    return await normalize_pairing_session(session)
+
+
+@api_router.post("/brokers/pairing-sessions/{session_id}/cancel", response_model=dict)
+async def cancel_broker_pairing_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Cancel a pending pairing session"""
+    ensure_broker_management_allowed(current_user)
+    session = await db.broker_pairing_sessions.find_one(
+        {"id": session_id, "tenant_id": current_user["tenant_id"]},
+        {"_id": 0}
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Sesión de vinculación no encontrada")
+    if session.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="La sesión ya no está pendiente")
+
+    await db.broker_pairing_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"status": "cancelled", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "Sesión cancelada"}
+
+
+@api_router.get("/brokers/pairing/by-token/{token}", response_model=dict)
+async def get_broker_pairing_by_token(token: str):
+    """Public endpoint to validate QR token before login/confirm"""
+    session = await db.broker_pairing_sessions.find_one({"token": token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Código QR inválido o no encontrado")
+
+    if session.get("status") != "pending":
+        return {
+            "status": session.get("status"),
+            "token": token,
+            "tenant_id": session.get("tenant_id"),
+            "invited_role": session.get("invited_role"),
+            "expires_at": session.get("expires_at"),
+        }
+
+    expires_at = session.get("expires_at")
+    if expires_at and datetime.fromisoformat(expires_at) < datetime.now(timezone.utc):
+        await db.broker_pairing_sessions.update_one(
+            {"id": session["id"]},
+            {"$set": {"status": "expired", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        session["status"] = "expired"
+
+    tenant = await db.tenants.find_one({"id": session["tenant_id"]}, {"_id": 0, "name": 1, "tenant_type": 1})
+    return {
+        "id": session["id"],
+        "status": session.get("status"),
+        "token": token,
+        "tenant_id": session.get("tenant_id"),
+        "tenant_name": tenant.get("name", "Inmobiliaria") if tenant else "Inmobiliaria",
+        "tenant_type": tenant.get("tenant_type", "agency") if tenant else "agency",
+        "invited_role": session.get("invited_role"),
+        "expires_at": session.get("expires_at"),
+    }
+
+
+@api_router.post("/brokers/pairing/confirm", response_model=dict)
+async def confirm_broker_pairing(
+    payload: Dict[str, str],
+    current_user: dict = Depends(get_current_user),
+):
+    """Confirm broker pairing after scanning QR and being authenticated"""
+    token = payload.get("token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Token de pairing requerido")
+
+    user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user = await ensure_workspace_infra_for_user(user)
+
+    session = await db.broker_pairing_sessions.find_one({"token": token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Código QR inválido o no encontrado")
+    if session.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="La sesión de vinculación ya no está disponible")
+    if session.get("expires_at") and datetime.fromisoformat(session["expires_at"]) < datetime.now(timezone.utc):
+        await db.broker_pairing_sessions.update_one(
+            {"id": session["id"]},
+            {"$set": {"status": "expired", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        raise HTTPException(status_code=400, detail="El código QR ha expirado")
+
+    tenant = await db.tenants.find_one({"id": session["tenant_id"]}, {"_id": 0})
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Workspace no encontrado")
+
+    existing_membership = await db.tenant_memberships.find_one(
+        {"tenant_id": session["tenant_id"], "user_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    now = datetime.now(timezone.utc).isoformat()
+
+    membership_payload = {
+        "tenant_id": session["tenant_id"],
+        "user_id": current_user["user_id"],
+        "role": session.get("invited_role", "broker"),
+        "status": "active",
+        "linked_via": "qr",
+        "is_default": False,
+        "accepted_at": now,
+        "created_by_user_id": session.get("created_by_user_id"),
+        "updated_at": now,
+    }
+
+    if existing_membership and existing_membership.get("status") == "active":
+        membership_id = existing_membership["id"]
+    elif existing_membership:
+        await db.tenant_memberships.update_one(
+            {"tenant_id": session["tenant_id"], "user_id": current_user["user_id"]},
+            {"$set": membership_payload}
+        )
+        membership_id = existing_membership["id"]
+    else:
+        membership_id = f"tm-{session['tenant_id']}-{current_user['user_id']}"
+        await db.tenant_memberships.insert_one({
+            "id": membership_id,
+            **membership_payload,
+            "joined_at": now,
+            "created_at": now,
+            "revoked_at": None,
+        })
+
+    await db.broker_pairing_sessions.update_one(
+        {"id": session["id"]},
+        {"$set": {
+            "status": "confirmed",
+            "confirmed_by_user_id": current_user["user_id"],
+            "confirmed_membership_id": membership_id,
+            "updated_at": now,
+        }}
+    )
+
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, session["tenant_id"])
+    return {
+        "message": "Broker vinculado exitosamente",
+        "tenant_id": session["tenant_id"],
+        "tenant_name": tenant.get("name", "Inmobiliaria"),
+        "membership_id": membership_id,
+        "active_workspace": active_workspace,
+    }
+
 @api_router.get("/brokers", response_model=List[dict])
 async def get_brokers(current_user: dict = Depends(get_current_user)):
-    """Get all brokers - optimized with batch queries"""
-    brokers = await db.users.find(
-        {"tenant_id": current_user["tenant_id"], "role": {"$in": ["broker", "manager"]}},
-        {"_id": 0, "password_hash": 0}
-    ).to_list(100)
-    
-    if not brokers:
-        return []
-    
-    broker_ids = [b["id"] for b in brokers]
-    
-    # Batch fetch leads count per broker
-    leads_pipeline = [
-        {"$match": {"assigned_broker_id": {"$in": broker_ids}}},
-        {"$group": {"_id": "$assigned_broker_id", "count": {"$sum": 1}}}
-    ]
-    leads_counts = await db.leads.aggregate(leads_pipeline).to_list(None)
-    leads_map = {item["_id"]: item["count"] for item in leads_counts}
-    
-    # Batch fetch points per broker
-    points_pipeline = [
-        {"$match": {"broker_id": {"$in": broker_ids}}},
-        {"$group": {"_id": "$broker_id", "total": {"$sum": "$points"}}}
-    ]
-    points_results = await db.point_ledger.aggregate(points_pipeline).to_list(None)
-    points_map = {item["_id"]: item["total"] for item in points_results}
-    
-    result = []
-    for broker in brokers:
-        broker_data = serialize_doc(broker)
-        broker_data["leads_asignados"] = leads_map.get(broker["id"], 0)
-        broker_data["total_points"] = points_map.get(broker["id"], 0)
-        result.append(broker_data)
-    
-    return result
+    """Get all brokers for active workspace using memberships as source of truth"""
+    return await build_broker_roster(current_user["tenant_id"])
+
+
+@api_router.post("/brokers", response_model=dict)
+async def create_broker(
+    broker_data: BrokerCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Create or link a broker to the active agency workspace"""
+    ensure_broker_management_allowed(current_user)
+
+    existing_user = await db.users.find_one({"email": broker_data.email}, {"_id": 0})
+    now = datetime.now(timezone.utc).isoformat()
+
+    if existing_user:
+        user_doc = existing_user
+    else:
+        user_id = str(uuid.uuid4())
+        personal_tenant_id = f"personal-{user_id[:8]}"
+        generated_password = broker_data.password or f"Broker{user_id[:8]}!"
+        user_doc = {
+            "id": user_id,
+            "email": broker_data.email,
+            "name": broker_data.name,
+            "role": broker_data.role,
+            "phone": broker_data.phone,
+            "password_hash": get_password_hash(generated_password),
+            "avatar_url": None,
+            "is_active": broker_data.is_active,
+            "onboarding_completed": False,
+            "tenant_id": personal_tenant_id,
+            "personal_tenant_id": personal_tenant_id,
+            "account_type": "individual",
+            "created_at": now,
+        }
+        await db.users.insert_one(user_doc)
+
+    user_doc = await ensure_workspace_infra_for_user(user_doc)
+
+    existing_membership = await db.tenant_memberships.find_one(
+        {"tenant_id": current_user["tenant_id"], "user_id": user_doc["id"]},
+        {"_id": 0},
+    )
+    if existing_membership and existing_membership.get("status") == "active":
+        raise HTTPException(status_code=400, detail="Este broker ya está vinculado a la inmobiliaria")
+
+    membership_payload = {
+        "tenant_id": current_user["tenant_id"],
+        "user_id": user_doc["id"],
+        "role": broker_data.role,
+        "status": "active",
+        "linked_via": "manual",
+        "is_default": existing_membership.get("is_default", False) if existing_membership else False,
+        "accepted_at": now,
+        "created_by_user_id": current_user["user_id"],
+        "updated_at": now,
+    }
+
+    if existing_membership:
+        await db.tenant_memberships.update_one(
+            {"tenant_id": current_user["tenant_id"], "user_id": user_doc["id"]},
+            {"$set": membership_payload}
+        )
+        membership_id = existing_membership["id"]
+    else:
+        membership_id = f"tm-{current_user['tenant_id']}-{user_doc['id']}"
+        await db.tenant_memberships.insert_one({
+            "id": membership_id,
+            **membership_payload,
+            "joined_at": now,
+            "created_at": now,
+            "revoked_at": None,
+        })
+
+    await db.users.update_one(
+        {"id": user_doc["id"]},
+        {"$set": {
+            "name": broker_data.name,
+            "phone": broker_data.phone,
+            "role": broker_data.role,
+            "is_active": broker_data.is_active,
+        }}
+    )
+
+    broker = await db.users.find_one({"id": user_doc["id"]}, {"_id": 0, "password_hash": 0})
+    response = serialize_doc(broker)
+    response["membership_id"] = membership_id
+    response["workspace_role"] = broker_data.role
+    return {"message": "Broker creado y vinculado exitosamente", "broker": response}
+
+
+@api_router.put("/brokers/{broker_id}", response_model=dict)
+async def update_broker(
+    broker_id: str,
+    broker_data: BrokerUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update broker profile and membership role in active workspace"""
+    ensure_broker_management_allowed(current_user)
+
+    membership = await db.tenant_memberships.find_one(
+        {"tenant_id": current_user["tenant_id"], "user_id": broker_id, "status": {"$in": ["active", "suspended"]}},
+        {"_id": 0}
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Broker no encontrado en este workspace")
+
+    user = await db.users.find_one({"id": broker_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario broker no encontrado")
+
+    user_updates = {k: v for k, v in broker_data.model_dump(exclude_none=True).items() if k in {"name", "phone", "is_active", "role"}}
+    if user_updates:
+        await db.users.update_one({"id": broker_id}, {"$set": user_updates})
+
+    membership_updates = {}
+    if broker_data.role is not None:
+        membership_updates["role"] = broker_data.role
+    if broker_data.is_active is not None and broker_data.is_active is False:
+        membership_updates["status"] = "suspended"
+    elif broker_data.is_active is not None and broker_data.is_active is True and membership.get("status") == "suspended":
+        membership_updates["status"] = "active"
+    if membership_updates:
+        membership_updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.tenant_memberships.update_one(
+            {"tenant_id": current_user["tenant_id"], "user_id": broker_id},
+            {"$set": membership_updates}
+        )
+
+    updated_broker = await db.users.find_one({"id": broker_id}, {"_id": 0, "password_hash": 0})
+    return {"message": "Broker actualizado exitosamente", "broker": serialize_doc(updated_broker)}
+
+
+@api_router.post("/brokers/{broker_id}/deactivate", response_model=dict)
+async def deactivate_broker(
+    broker_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    ensure_broker_management_allowed(current_user)
+    membership = await db.tenant_memberships.find_one({"tenant_id": current_user["tenant_id"], "user_id": broker_id}, {"_id": 0})
+    if not membership:
+        raise HTTPException(status_code=404, detail="Broker no encontrado en este workspace")
+    await db.tenant_memberships.update_one(
+        {"tenant_id": current_user["tenant_id"], "user_id": broker_id},
+        {"$set": {"status": "suspended", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    await db.users.update_one({"id": broker_id}, {"$set": {"is_active": False}})
+    return {"message": "Broker desactivado"}
+
+
+@api_router.post("/brokers/{broker_id}/activate", response_model=dict)
+async def activate_broker(
+    broker_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    ensure_broker_management_allowed(current_user)
+    membership = await db.tenant_memberships.find_one({"tenant_id": current_user["tenant_id"], "user_id": broker_id}, {"_id": 0})
+    if not membership:
+        raise HTTPException(status_code=404, detail="Broker no encontrado en este workspace")
+    await db.tenant_memberships.update_one(
+        {"tenant_id": current_user["tenant_id"], "user_id": broker_id},
+        {"$set": {"status": "active", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    await db.users.update_one({"id": broker_id}, {"$set": {"is_active": True}})
+    return {"message": "Broker activado"}
+
+
+@api_router.post("/brokers/{broker_id}/unlink", response_model=dict)
+async def unlink_broker(
+    broker_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Revoke membership between broker and active agency workspace"""
+    ensure_broker_management_allowed(current_user)
+
+    membership = await db.tenant_memberships.find_one(
+        {"tenant_id": current_user["tenant_id"], "user_id": broker_id},
+        {"_id": 0}
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Broker no encontrado en este workspace")
+
+    await db.tenant_memberships.update_one(
+        {"tenant_id": current_user["tenant_id"], "user_id": broker_id},
+        {"$set": {
+            "status": "revoked",
+            "revoked_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+    return {"message": "Broker desvinculado de la inmobiliaria"}
 
 @api_router.get("/brokers/{broker_id}", response_model=dict)
 async def get_broker(broker_id: str, current_user: dict = Depends(get_current_user)):
-    """Get broker details - optimized with single aggregation"""
-    broker = await db.users.find_one(
-        {"id": broker_id, "tenant_id": current_user["tenant_id"]},
-        {"_id": 0, "password_hash": 0}
+    """Get broker details within active workspace"""
+    membership = await db.tenant_memberships.find_one(
+        {"tenant_id": current_user["tenant_id"], "user_id": broker_id, "status": {"$in": ["active", "suspended"]}},
+        {"_id": 0}
     )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Broker no encontrado")
+    broker = await db.users.find_one({"id": broker_id}, {"_id": 0, "password_hash": 0})
     if not broker:
         raise HTTPException(status_code=404, detail="Broker no encontrado")
     
     # Get all lead stats in single aggregation with $facet
     leads_pipeline = [
-        {"$match": {"assigned_broker_id": broker_id}},
+        {"$match": {"tenant_id": current_user["tenant_id"], "assigned_broker_id": broker_id}},
         {"$facet": {
             "total": [{"$count": "count"}],
             "ventas": [{"$match": {"status": "venta"}}, {"$count": "count"}],
@@ -1324,7 +2241,7 @@ async def get_broker(broker_id: str, current_user: dict = Depends(get_current_us
     
     # Get all activity stats in single aggregation with $facet
     activities_pipeline = [
-        {"$match": {"broker_id": broker_id}},
+        {"$match": {"tenant_id": current_user["tenant_id"], "broker_id": broker_id}},
         {"$facet": {
             "llamadas": [{"$match": {"activity_type": "llamada"}}, {"$count": "count"}],
             "zooms": [{"$match": {"activity_type": "zoom"}}, {"$count": "count"}],
@@ -1336,13 +2253,18 @@ async def get_broker(broker_id: str, current_user: dict = Depends(get_current_us
     
     # Get points
     points_pipeline = [
-        {"$match": {"broker_id": broker_id}},
+        {"$match": {"tenant_id": current_user["tenant_id"], "broker_id": broker_id}},
         {"$group": {"_id": None, "total": {"$sum": "$points"}}}
     ]
     points_result = await db.point_ledger.aggregate(points_pipeline).to_list(1)
     total_points = points_result[0]["total"] if points_result else 0
     
     result = serialize_doc(broker)
+    result["membership_id"] = membership.get("id")
+    result["membership_status"] = membership.get("status")
+    result["workspace_role"] = membership.get("role", broker.get("role"))
+    result["linked_via"] = membership.get("linked_via")
+    result["joined_at"] = membership.get("joined_at")
     result["stats"] = {
         "ventas": leads_data["ventas"][0]["count"] if leads_data["ventas"] else 0,
         "apartados": leads_data["apartados"][0]["count"] if leads_data["apartados"] else 0,
@@ -1590,15 +2512,22 @@ async def get_script(script_id: str, current_user: dict = Depends(get_current_us
 async def seed_demo_data(current_user: dict = Depends(get_current_user)):
     """Seed demo data for the tenant"""
     tenant_id = current_user["tenant_id"]
-    
+
     # Seed brokers (as users)
     for broker in SEED_BROKERS:
         broker_doc = {**broker, "tenant_id": tenant_id, "created_at": datetime.now(timezone.utc).isoformat()}
-        await db.users.update_one(
-            {"id": broker["id"], "tenant_id": tenant_id},
-            {"$set": broker_doc},
-            upsert=True
-        )
+
+        # Check if user with this email already exists
+        existing_user = await db.users.find_one({"email": broker["email"]})
+        if existing_user:
+            # Update existing user with new tenant_id
+            await db.users.update_one(
+                {"email": broker["email"]},
+                {"$set": broker_doc}
+            )
+        else:
+            # Insert new user
+            await db.users.insert_one(broker_doc)
     
     # Seed leads
     for lead in SEED_LEADS:
@@ -1636,22 +2565,123 @@ async def seed_demo_data(current_user: dict = Depends(get_current_user)):
 
 # ==================== PRODUCTS/SERVICES ====================
 
-@api_router.get("/products")
-async def get_products(
+def normalize_product_images(images: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    normalized_images = []
+    for index, image in enumerate(images or []):
+        if hasattr(image, "model_dump"):
+            image = image.model_dump()
+
+        if not image or not image.get("url"):
+            continue
+
+        normalized_images.append({
+            "id": image.get("id") or str(uuid.uuid4()),
+            "url": image.get("url"),
+            "filename": image.get("filename"),
+            "alt": image.get("alt"),
+            "is_cover": bool(image.get("is_cover", False)),
+            "order": image.get("order", index),
+            "source": image.get("source", "upload"),
+        })
+
+    if normalized_images and not any(image.get("is_cover") for image in normalized_images):
+        normalized_images[0]["is_cover"] = True
+
+    return sorted(normalized_images, key=lambda image: (image.get("order", 0), image.get("filename") or ""))
+
+
+def build_media_assets_from_urls(image_urls: Optional[List[str]], title: str) -> List[Dict[str, Any]]:
+    assets = []
+    for index, image_url in enumerate(image_urls or []):
+        image_url = str(image_url or "").strip()
+        if not image_url:
+            continue
+        assets.append(MediaAsset(
+            url=image_url,
+            filename=f"imported-image-{index + 1}",
+            alt=title,
+            is_cover=index == 0,
+            order=index,
+            source="import_url",
+        ).model_dump())
+    return assets
+
+
+def build_product_query(
+    tenant_id: str,
     is_active: Optional[bool] = None,
     product_type: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    niche: Optional[str] = None,
+    search: Optional[str] = None,
+    has_images: Optional[bool] = None,
 ):
-    """Obtiene todos los productos/servicios del tenant"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
-    query = {"tenant_id": tenant_id}
+    query: Dict[str, Any] = {"tenant_id": tenant_id}
 
     if is_active is not None:
         query["is_active"] = is_active
     if product_type:
         query["product_type"] = product_type
+    if niche:
+        query["niche"] = niche
+    if has_images is True:
+        query["images.0"] = {"$exists": True}
+    elif has_images is False:
+        query["images.0"] = {"$exists": False}
+    if search:
+        escaped = str(search).strip()
+        query["$or"] = [
+            {"sku": {"$regex": escaped, "$options": "i"}},
+            {"title": {"$regex": escaped, "$options": "i"}},
+            {"description": {"$regex": escaped, "$options": "i"}},
+            {"aliases": {"$elemMatch": {"$regex": escaped, "$options": "i"}}},
+            {"keywords": {"$elemMatch": {"$regex": escaped, "$options": "i"}}},
+        ]
 
-    products = await db.products.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return query
+
+
+def sanitize_custom_field_key(raw_key: str) -> str:
+    normalized = "".join(char.lower() if char.isalnum() else "_" for char in str(raw_key or "").strip())
+    while "__" in normalized:
+        normalized = normalized.replace("__", "_")
+    return normalized.strip("_")
+
+
+async def validate_custom_field_uniqueness(tenant_id: str, entity_type: str, key: str, exclude_id: Optional[str] = None):
+    existing = await db.custom_fields.find_one({
+        "tenant_id": tenant_id,
+        "entity_type": entity_type,
+        "key": key,
+        **({"id": {"$ne": exclude_id}} if exclude_id else {}),
+    }, {"_id": 0, "id": 1})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe un campo personalizado con esa llave")
+
+@api_router.get("/products")
+async def get_products(
+    is_active: Optional[bool] = None,
+    product_type: Optional[str] = None,
+    niche: Optional[str] = None,
+    search: Optional[str] = None,
+    has_images: Optional[bool] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene todos los productos/servicios del tenant"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    query = build_product_query(
+        tenant_id=tenant_id,
+        is_active=is_active,
+        product_type=product_type,
+        niche=niche,
+        search=search,
+        has_images=has_images,
+    )
+    sort_field = sort_by if sort_by in {"created_at", "updated_at", "title", "sku", "price_mxn", "niche"} else "created_at"
+    sort_direction = -1 if sort_order == "desc" else 1
+
+    products = await db.products.find(query, {"_id": 0}).sort(sort_field, sort_direction).to_list(200)
     return [serialize_doc(p) for p in products]
 
 
@@ -1668,6 +2698,7 @@ async def create_product(
         "tenant_id": tenant_id,
         "created_by": current_user["user_id"],
         **product_data.model_dump(),
+        "images": normalize_product_images(product_data.images),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
@@ -1694,6 +2725,197 @@ async def get_product(
     return serialize_doc(product)
 
 
+@api_router.get("/leads/{lead_id}/interests")
+async def get_lead_product_interests_for_lead(
+    lead_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene vínculos de productos/servicios para un lead"""
+    lead = await db.leads.find_one({"id": lead_id, "tenant_id": current_user["tenant_id"]}, {"_id": 0, "id": 1})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    interests = await db.lead_product_interests.find({
+        "lead_id": lead_id,
+        "tenant_id": current_user["tenant_id"],
+    }, {"_id": 0}).sort([("interest_type", 1), ("updated_at", -1)]).to_list(200)
+
+    product_ids_by_tenant: Dict[str, List[str]] = {}
+    for interest in interests:
+        product_ids_by_tenant.setdefault(interest["product_tenant_id"], []).append(interest["product_id"])
+
+    product_lookup: Dict[str, Dict[str, Any]] = {}
+    for product_tenant_id, product_ids in product_ids_by_tenant.items():
+        products = await db.products.find({
+            "tenant_id": product_tenant_id,
+            "id": {"$in": product_ids},
+        }, {"_id": 0}).to_list(None)
+        for product in products:
+            product_lookup[product["id"]] = product
+
+    return [
+        {
+            **serialize_doc(interest),
+            "product": serialize_doc(product_lookup.get(interest["product_id"])) if interest["product_id"] in product_lookup else None,
+        }
+        for interest in interests
+    ]
+
+
+@api_router.get("/products/{product_id}/interests")
+async def get_lead_product_interests_for_product(
+    product_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Obtiene leads vinculados a un producto/servicio"""
+    product_tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product = await db.products.find_one({"id": product_id, "tenant_id": product_tenant_id}, {"_id": 0, "id": 1})
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    interests = await db.lead_product_interests.find({
+        "product_id": product_id,
+        "product_tenant_id": product_tenant_id,
+        "tenant_id": current_user["tenant_id"],
+    }, {"_id": 0}).sort([("interest_type", 1), ("updated_at", -1)]).to_list(200)
+
+    lead_ids = [interest["lead_id"] for interest in interests]
+    leads = await db.leads.find({
+        "tenant_id": current_user["tenant_id"],
+        "id": {"$in": lead_ids},
+    }, {"_id": 0}).to_list(None)
+    lead_lookup = {lead["id"]: lead for lead in leads}
+
+    return [
+        {
+            **serialize_doc(interest),
+            "lead": serialize_doc(lead_lookup.get(interest["lead_id"])) if interest["lead_id"] in lead_lookup else None,
+        }
+        for interest in interests
+    ]
+
+
+@api_router.post("/lead-product-interests")
+async def create_lead_product_interest(
+    interest_data: LeadProductInterestCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Crea o actualiza un vínculo entre lead y producto"""
+    lead_tenant_id = current_user["tenant_id"]
+    product_tenant_id = await get_or_create_tenant(current_user["user_id"])
+
+    lead = await db.leads.find_one({"id": interest_data.lead_id, "tenant_id": lead_tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    product = await db.products.find_one({"id": interest_data.product_id, "tenant_id": product_tenant_id}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    existing = await db.lead_product_interests.find_one({
+        "lead_id": interest_data.lead_id,
+        "product_id": interest_data.product_id,
+        "tenant_id": lead_tenant_id,
+        "product_tenant_id": product_tenant_id,
+    }, {"_id": 0})
+
+    if existing:
+        update_payload = {
+            **interest_data.model_dump(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.lead_product_interests.update_one(
+            {"id": existing["id"]},
+            {"$set": update_payload}
+        )
+        interest_id = existing["id"]
+        message = "Vínculo actualizado"
+    else:
+        interest = LeadProductInterest(
+            tenant_id=lead_tenant_id,
+            product_tenant_id=product_tenant_id,
+            created_by=current_user["user_id"],
+            **interest_data.model_dump(),
+        )
+        await db.lead_product_interests.insert_one(interest.model_dump())
+        interest_id = interest.id
+        message = "Vínculo creado"
+
+    if str(interest_data.interest_type) == "principal":
+        await db.lead_product_interests.update_many(
+            {
+                "lead_id": interest_data.lead_id,
+                "tenant_id": lead_tenant_id,
+                "id": {"$ne": interest_id},
+                "interest_type": "principal",
+            },
+            {"$set": {
+                "interest_type": "secundario",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }}
+        )
+
+    await sync_lead_interest_summary(interest_data.lead_id, lead_tenant_id)
+    return {"message": message, "id": interest_id}
+
+
+@api_router.put("/lead-product-interests/{interest_id}")
+async def update_lead_product_interest(
+    interest_id: str,
+    interest_data: LeadProductInterestUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Actualiza un vínculo entre lead y producto"""
+    existing = await db.lead_product_interests.find_one({
+        "id": interest_id,
+        "tenant_id": current_user["tenant_id"],
+    }, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Vínculo no encontrado")
+
+    update_payload = {k: v for k, v in interest_data.model_dump().items() if v is not None}
+    if not update_payload:
+        raise HTTPException(status_code=400, detail="No se proporcionaron campos para actualizar")
+
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.lead_product_interests.update_one({"id": interest_id}, {"$set": update_payload})
+
+    if str(update_payload.get("interest_type")) == "principal":
+        await db.lead_product_interests.update_many(
+            {
+                "lead_id": existing["lead_id"],
+                "tenant_id": current_user["tenant_id"],
+                "id": {"$ne": interest_id},
+                "interest_type": "principal",
+            },
+            {"$set": {
+                "interest_type": "secundario",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }}
+        )
+
+    await sync_lead_interest_summary(existing["lead_id"], current_user["tenant_id"])
+    return {"message": "Vínculo actualizado"}
+
+
+@api_router.delete("/lead-product-interests/{interest_id}")
+async def delete_lead_product_interest(
+    interest_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Elimina un vínculo entre lead y producto"""
+    existing = await db.lead_product_interests.find_one({
+        "id": interest_id,
+        "tenant_id": current_user["tenant_id"],
+    }, {"_id": 0, "lead_id": 1})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Vínculo no encontrado")
+
+    await db.lead_product_interests.delete_one({"id": interest_id})
+    await sync_lead_interest_summary(existing["lead_id"], current_user["tenant_id"])
+    return {"message": "Vínculo eliminado"}
+
+
 @api_router.put("/products/{product_id}")
 async def update_product(
     product_id: str,
@@ -1703,6 +2925,8 @@ async def update_product(
     """Actualiza un producto/servicio"""
     tenant_id = await get_or_create_tenant(current_user["user_id"])
     update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+    if "images" in update_dict:
+        update_dict["images"] = normalize_product_images(update_dict["images"])
     update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     result = await db.products.update_one(
@@ -1732,6 +2956,214 @@ async def delete_product(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     return {"message": "Producto eliminado"}
+
+
+@api_router.post("/products/{product_id}/images")
+async def upload_product_images(
+    product_id: str,
+    files: List[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Sube una o más imágenes para un producto"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product = await db.products.find_one({"id": product_id, "tenant_id": tenant_id}, {"_id": 0})
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    existing_images = normalize_product_images(product.get("images", []))
+    next_order = len(existing_images)
+
+    for file in files:
+        if not file.content_type or not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Solo se permiten archivos de imagen")
+
+        content = await file.read()
+        encoded = base64.b64encode(content).decode("utf-8")
+        image_url = f"data:{file.content_type};base64,{encoded}"
+        existing_images.append(MediaAsset(
+            url=image_url,
+            filename=file.filename,
+            alt=product.get("title"),
+            is_cover=len(existing_images) == 0,
+            order=next_order,
+            source="upload",
+        ).model_dump())
+        next_order += 1
+
+    normalized_images = normalize_product_images(existing_images)
+    await db.products.update_one(
+        {"id": product_id, "tenant_id": tenant_id},
+        {"$set": {"images": normalized_images, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    return {"message": "Imágenes cargadas", "images": normalized_images}
+
+
+@api_router.delete("/products/{product_id}/images/{image_id}")
+async def delete_product_image(
+    product_id: str,
+    image_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Elimina una imagen de producto"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product = await db.products.find_one({"id": product_id, "tenant_id": tenant_id}, {"_id": 0, "images": 1})
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    images = [image for image in product.get("images", []) if image.get("id") != image_id]
+    normalized_images = normalize_product_images(images)
+    await db.products.update_one(
+        {"id": product_id, "tenant_id": tenant_id},
+        {"$set": {"images": normalized_images, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    return {"message": "Imagen eliminada", "images": normalized_images}
+
+
+@api_router.put("/products/{product_id}/images/{image_id}/cover")
+async def set_product_cover_image(
+    product_id: str,
+    image_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Marca una imagen como portada"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product = await db.products.find_one({"id": product_id, "tenant_id": tenant_id}, {"_id": 0, "images": 1})
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    found = False
+    images = []
+    for image in product.get("images", []):
+        updated_image = {**image, "is_cover": image.get("id") == image_id}
+        if updated_image["is_cover"]:
+            found = True
+        images.append(updated_image)
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+
+    normalized_images = normalize_product_images(images)
+    await db.products.update_one(
+        {"id": product_id, "tenant_id": tenant_id},
+        {"$set": {"images": normalized_images, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    return {"message": "Portada actualizada", "images": normalized_images}
+
+
+@api_router.put("/products/{product_id}/images/reorder")
+async def reorder_product_images(
+    product_id: str,
+    image_ids: List[str],
+    current_user: dict = Depends(get_current_user)
+):
+    """Reordena imágenes de producto"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product = await db.products.find_one({"id": product_id, "tenant_id": tenant_id}, {"_id": 0, "images": 1})
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    image_lookup = {image["id"]: image for image in product.get("images", [])}
+    reordered_images = []
+    for index, image_id in enumerate(image_ids):
+        image = image_lookup.get(image_id)
+        if image:
+            reordered_images.append({**image, "order": index})
+
+    for image in product.get("images", []):
+        if image["id"] not in image_ids:
+            reordered_images.append({**image, "order": len(reordered_images)})
+
+    normalized_images = normalize_product_images(reordered_images)
+    await db.products.update_one(
+        {"id": product_id, "tenant_id": tenant_id},
+        {"$set": {"images": normalized_images, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    return {"message": "Orden actualizado", "images": normalized_images}
+
+
+@api_router.get("/custom-fields")
+async def get_custom_fields(
+    entity_type: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Lista campos personalizados por entidad"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    fields = await db.custom_fields.find({
+        "tenant_id": tenant_id,
+        "entity_type": entity_type,
+    }, {"_id": 0}).sort("sort_order", 1).to_list(200)
+    return [serialize_doc(field) for field in fields]
+
+
+@api_router.post("/custom-fields")
+async def create_custom_field(
+    field_data: CustomFieldDefinitionCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Crea un campo personalizado"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    sanitized_key = sanitize_custom_field_key(field_data.key or field_data.label)
+    if not sanitized_key:
+        raise HTTPException(status_code=400, detail="La llave del campo es inválida")
+
+    await validate_custom_field_uniqueness(tenant_id, field_data.entity_type.value, sanitized_key)
+
+    custom_field_payload = field_data.model_dump()
+    custom_field_payload["key"] = sanitized_key
+    custom_field = CustomFieldDefinition(
+        tenant_id=tenant_id,
+        created_by=current_user["user_id"],
+        **custom_field_payload,
+    )
+    await db.custom_fields.insert_one(custom_field.model_dump())
+
+    return {"message": "Campo personalizado creado", "field": serialize_doc(custom_field.model_dump())}
+
+
+@api_router.put("/custom-fields/{field_id}")
+async def update_custom_field(
+    field_id: str,
+    field_data: CustomFieldDefinitionUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Actualiza un campo personalizado"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    existing_field = await db.custom_fields.find_one({"id": field_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not existing_field:
+        raise HTTPException(status_code=404, detail="Campo personalizado no encontrado")
+
+    update_dict = {k: v for k, v in field_data.model_dump().items() if v is not None}
+    if "key" in update_dict or "label" in update_dict:
+        next_key = sanitize_custom_field_key(update_dict.get("key") or update_dict.get("label") or existing_field["key"])
+        await validate_custom_field_uniqueness(tenant_id, existing_field["entity_type"], next_key, exclude_id=field_id)
+        update_dict["key"] = next_key
+
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+    await db.custom_fields.update_one(
+        {"id": field_id, "tenant_id": tenant_id},
+        {"$set": update_dict}
+    )
+
+    updated_field = await db.custom_fields.find_one({"id": field_id, "tenant_id": tenant_id}, {"_id": 0})
+    return {"message": "Campo personalizado actualizado", "field": serialize_doc(updated_field)}
+
+
+@api_router.delete("/custom-fields/{field_id}")
+async def delete_custom_field(
+    field_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Elimina un campo personalizado"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    result = await db.custom_fields.delete_one({"id": field_id, "tenant_id": tenant_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Campo personalizado no encontrado")
+    return {"message": "Campo personalizado eliminado"}
 
 
 @api_router.get("/products/templates/niche")
@@ -4217,10 +5649,436 @@ LEAD_FIELDS = {
     "position": {"label": "Puesto", "required": False, "type": "string"},
 }
 
+PRODUCT_IMPORT_FIELDS = {
+    "sku": {"label": "SKU", "required": True, "type": "string"},
+    "title": {"label": "Título", "required": True, "type": "string"},
+    "description": {"label": "Descripción", "required": False, "type": "text"},
+    "product_type": {"label": "Tipo de Producto", "required": True, "type": "select", "options": ["real_estate", "software", "digital", "service"]},
+    "niche": {"label": "Nicho", "required": False, "type": "string"},
+    "price_mxn": {"label": "Precio (MXN)", "required": False, "type": "number"},
+    "image_urls": {"label": "Image URLs", "required": False, "type": "list"},
+    "aliases": {"label": "Alias", "required": False, "type": "list"},
+    "keywords": {"label": "Keywords", "required": False, "type": "list"},
+    "external_id": {"label": "ID Externo", "required": False, "type": "string"},
+    "is_active": {"label": "Activo", "required": False, "type": "boolean"},
+}
+
+COMBINED_LEAD_FIELDS = {
+    **LEAD_FIELDS,
+    "raw_interest_text": {"label": "Interés Texto", "required": False, "type": "string"},
+    "product_sku": {"label": "Producto SKU", "required": False, "type": "string"},
+    "product_title": {"label": "Producto Título", "required": False, "type": "string"},
+}
+
+LEAD_FIELD_ALIASES = {
+    "name": ["nombre", "name", "full name", "nombre completo", "cliente", "contacto"],
+    "email": ["email", "correo", "e-mail", "mail", "correo electronico"],
+    "phone": ["phone", "telefono", "teléfono", "celular", "mobile", "tel", "whatsapp"],
+    "source": ["source", "fuente", "origen", "canal", "medio"],
+    "status": ["status", "estado", "etapa", "stage"],
+    "priority": ["priority", "prioridad", "urgencia"],
+    "budget_mxn": ["budget", "presupuesto", "precio", "price", "monto"],
+    "property_interest": ["property", "propiedad", "interes", "interest", "proyecto"],
+    "location_preference": ["location", "ubicacion", "ubicación", "zona", "city", "ciudad"],
+    "notes": ["notes", "notas", "comentarios", "comments", "observaciones"],
+    "company": ["company", "empresa", "compañia", "organization"],
+    "position": ["position", "puesto", "cargo", "title", "job title"],
+}
+
+PRODUCT_FIELD_ALIASES = {
+    "sku": ["sku", "codigo", "código", "product code", "product sku"],
+    "title": ["titulo", "título", "title", "producto", "product name", "nombre producto"],
+    "description": ["descripcion", "descripción", "description", "detalle"],
+    "product_type": ["tipoproducto", "tipo producto", "tipo", "product type"],
+    "niche": ["nicho", "segmento", "category"],
+    "price_mxn": ["preciomxn", "precio", "price", "monto", "costo"],
+    "image_urls": ["imageurls", "image urls", "imagenes", "imágenes", "imagenes urls", "image urls |"],
+    "aliases": ["alias", "aliases", "sinonimos", "sinónimos"],
+    "keywords": ["keywords", "palabras clave", "tags"],
+    "external_id": ["external id", "external_id", "id externo"],
+    "is_active": ["activo", "active", "estatus activo"],
+}
+
+COMBINED_LEAD_FIELD_ALIASES = {
+    **LEAD_FIELD_ALIASES,
+    "raw_interest_text": ["interestexto", "interes texto", "interés texto", "interes", "interest text"],
+    "product_sku": ["productosku", "producto sku", "sku producto", "product sku"],
+    "product_title": ["productotitulo", "producto titulo", "producto título", "titulo producto", "nombre producto"],
+}
+
+CUSTOM_FIELD_PREFIX = "cf__"
+
+
+def normalize_header_name(value: str) -> str:
+    return str(value or "").strip().lower().replace("_", " ")
+
+
+def build_custom_field_target(field_key: str) -> str:
+    return f"{CUSTOM_FIELD_PREFIX}{field_key}"
+
+
+def is_custom_field_target(target_field: str) -> bool:
+    return str(target_field or "").startswith(CUSTOM_FIELD_PREFIX)
+
+
+def extract_custom_field_key(target_field: str) -> str:
+    return str(target_field or "")[len(CUSTOM_FIELD_PREFIX):]
+
+
+async def get_custom_field_import_config(tenant_id: str, entity_type: str) -> Dict[str, Dict[str, Any]]:
+    custom_fields = await db.custom_fields.find({
+        "tenant_id": tenant_id,
+        "entity_type": entity_type,
+        "is_active": True,
+    }, {"_id": 0}).sort("sort_order", 1).to_list(200)
+
+    config = {}
+    for field in custom_fields:
+        target_field = build_custom_field_target(field["key"])
+        config[target_field] = {
+            "label": f"Personalizado: {field['label']}",
+            "required": field.get("required", False),
+            "type": field.get("field_type", "text"),
+            "options": field.get("options", []),
+            "custom_field_key": field["key"],
+            "custom_field_label": field["label"],
+        }
+    return config
+
+
+def extract_custom_fields_payload(transformed: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    base_data: Dict[str, Any] = {}
+    custom_fields_data: Dict[str, Any] = {}
+
+    for key, value in transformed.items():
+        if is_custom_field_target(key):
+            custom_key = extract_custom_field_key(key)
+            if value not in ("", None, [], {}):
+                custom_fields_data[custom_key] = value
+        else:
+            base_data[key] = value
+
+    return base_data, custom_fields_data
+
+
+def build_mapping_suggestions(headers: List[str], field_aliases: Dict[str, List[str]]) -> Dict[str, str]:
+    header_lower_map = {normalize_header_name(h): h for h in headers}
+    suggestions: Dict[str, str] = {}
+
+    for field, aliases in field_aliases.items():
+        for alias in aliases:
+            if normalize_header_name(alias) in header_lower_map:
+                suggestions[field] = header_lower_map[normalize_header_name(alias)]
+                break
+
+    return suggestions
+
+
+def parse_boolean(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "si", "sí", "yes", "activo"}
+
+
+def parse_list_value(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [item.strip() for item in str(value).split("|") if item.strip()]
+
+
+def parse_tabular_content(content: bytes, filename: str) -> Dict[str, Any]:
+    filename_lower = filename.lower()
+    file_type = "csv" if filename_lower.endswith(".csv") else "xlsx"
+
+    if file_type == "csv":
+        for encoding in ["utf-8", "latin-1", "cp1252"]:
+            try:
+                text = content.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            raise HTTPException(status_code=400, detail="No se pudo decodificar el archivo CSV")
+
+        reader = csv.DictReader(io.StringIO(text))
+        headers = reader.fieldnames or []
+        rows = list(reader)
+        sample_data = rows[:5] if rows else []
+        return {
+            "file_type": file_type,
+            "headers": headers,
+            "rows": rows,
+            "sample_data": sample_data,
+        }
+
+    import openpyxl
+
+    workbook = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    active = workbook.active
+    headers: List[str] = []
+    rows: List[Dict[str, Any]] = []
+
+    for index, row in enumerate(active.iter_rows(values_only=True)):
+        if index == 0:
+            headers = [str(cell) if cell else f"Column_{j + 1}" for j, cell in enumerate(row)]
+            continue
+        if any(cell not in (None, "") for cell in row):
+            row_dict = {headers[j]: row[j] for j in range(min(len(headers), len(row)))}
+            rows.append(row_dict)
+
+    workbook.close()
+
+    return {
+        "file_type": file_type,
+        "headers": headers,
+        "rows": rows,
+        "sample_data": rows[:5] if rows else [],
+    }
+
+
+def parse_combined_workbook(content: bytes) -> Dict[str, Any]:
+    import openpyxl
+
+    workbook = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    sheet_lookup = {normalize_header_name(name): sheet for name, sheet in ((sheet.title, sheet) for sheet in workbook.worksheets)}
+
+    products_sheet = sheet_lookup.get("productos") or sheet_lookup.get("products")
+    leads_sheet = sheet_lookup.get("leads") or sheet_lookup.get("prospectos")
+
+    if not products_sheet or not leads_sheet:
+        workbook.close()
+        raise HTTPException(status_code=400, detail="El archivo combinado debe incluir hojas llamadas Productos y Leads")
+
+    def extract_rows(sheet):
+        headers: List[str] = []
+        rows: List[Dict[str, Any]] = []
+
+        for index, row in enumerate(sheet.iter_rows(values_only=True)):
+            if index == 0:
+                headers = [str(cell) if cell else f"Column_{j + 1}" for j, cell in enumerate(row)]
+                continue
+            if any(cell not in (None, "") for cell in row):
+                rows.append({headers[j]: row[j] for j in range(min(len(headers), len(row)))})
+
+        return headers, rows
+
+    product_headers, product_rows = extract_rows(products_sheet)
+    lead_headers, lead_rows = extract_rows(leads_sheet)
+    workbook.close()
+
+    return {
+        "file_type": "xlsx",
+        "products_headers": product_headers,
+        "products_rows": product_rows,
+        "products_sample_data": product_rows[:5] if product_rows else [],
+        "leads_headers": lead_headers,
+        "leads_rows": lead_rows,
+        "leads_sample_data": lead_rows[:5] if lead_rows else [],
+    }
+
+
+def transform_row(row: Dict[str, Any], mapping: Dict[str, str], fields_config: Dict[str, Dict[str, Any]]) -> tuple[Dict[str, Any], List[str]]:
+    transformed: Dict[str, Any] = {}
+    row_errors: List[str] = []
+
+    for source_col, target_field in mapping.items():
+        raw_value = row.get(source_col, "")
+        value = raw_value if raw_value is not None else ""
+        if isinstance(value, str):
+            value = value.strip()
+
+        field_config = fields_config.get(target_field, {})
+        field_type = field_config.get("type")
+
+        if field_config.get("required") and (value is None or value == ""):
+            row_errors.append(f"{field_config.get('label', target_field)} es requerido")
+
+        if value not in ("", None):
+            if field_type == "number":
+                try:
+                    value = float(str(value).replace(",", "").replace("$", ""))
+                except Exception:
+                    row_errors.append(f"{field_config.get('label', target_field)} debe ser un número")
+            elif field_type == "email" and "@" not in str(value):
+                row_errors.append(f"Email inválido: {value}")
+            elif field_type == "boolean":
+                value = parse_boolean(value)
+            elif field_type == "list":
+                value = parse_list_value(value)
+            elif field_type == "select":
+                value = str(value).strip().lower()
+                options = field_config.get("options", [])
+                if options and value not in options:
+                    row_errors.append(f"{field_config.get('label', target_field)} debe ser uno de: {', '.join(options)}")
+
+        if field_type == "list" and value in ("", None):
+            value = []
+        if field_type == "boolean" and value in ("", None):
+            value = False
+
+        transformed[target_field] = value
+
+    return transformed, row_errors
+
+
+def build_product_snapshot(product: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": product.get("id"),
+        "sku": product.get("sku"),
+        "title": product.get("title"),
+        "product_type": product.get("product_type"),
+        "niche": product.get("niche"),
+    }
+
+
+def build_lead_snapshot(lead: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": lead.get("id"),
+        "name": lead.get("name"),
+        "email": lead.get("email"),
+        "phone": lead.get("phone"),
+        "status": lead.get("status"),
+        "priority": lead.get("priority"),
+        "source": lead.get("source"),
+    }
+
+
+async def sync_lead_interest_summary(lead_id: str, lead_tenant_id: str):
+    lead = await db.leads.find_one({"id": lead_id, "tenant_id": lead_tenant_id}, {"_id": 0})
+    if not lead:
+        return
+
+    interests = await db.lead_product_interests.find({
+        "lead_id": lead_id,
+        "tenant_id": lead_tenant_id,
+    }, {"_id": 0}).sort([("interest_type", 1), ("updated_at", -1)]).to_list(200)
+
+    active_interests = [
+        interest for interest in interests
+        if interest.get("interest_status") != "descartado"
+    ]
+
+    product_tenant_ids = {
+        interest.get("product_tenant_id")
+        for interest in active_interests
+        if interest.get("product_tenant_id")
+    }
+    product_map: Dict[str, Dict[str, Any]] = {}
+    for product_tenant_id in product_tenant_ids:
+        products = await db.products.find({
+            "tenant_id": product_tenant_id,
+            "id": {"$in": [interest["product_id"] for interest in active_interests if interest.get("product_tenant_id") == product_tenant_id]},
+        }, {"_id": 0}).to_list(None)
+        for product in products:
+            product_map[product["id"]] = product
+
+    snapshots: List[Dict[str, Any]] = []
+    for interest in active_interests:
+        product = product_map.get(interest["product_id"])
+        if product:
+            snapshots.append(build_product_snapshot(product))
+
+    # Deduplicate while preserving order
+    seen_product_ids = set()
+    unique_snapshots = []
+    for snapshot in snapshots:
+        product_id = snapshot.get("id")
+        if product_id and product_id not in seen_product_ids:
+            seen_product_ids.add(product_id)
+            unique_snapshots.append(snapshot)
+
+    primary_snapshot = next(
+        (
+            build_product_snapshot(product_map[interest["product_id"]])
+            for interest in active_interests
+            if interest.get("interest_type") == "principal" and interest["product_id"] in product_map
+        ),
+        unique_snapshots[0] if unique_snapshots else None
+    )
+
+    update_payload = {
+        "interested_product_ids": [snapshot["id"] for snapshot in unique_snapshots if snapshot.get("id")],
+        "interested_products_snapshot": unique_snapshots,
+        "property_interest": primary_snapshot["title"] if primary_snapshot else None,
+        "interest_source": "linked_products" if primary_snapshot else None,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    await db.leads.update_one(
+        {"id": lead_id, "tenant_id": lead_tenant_id},
+        {"$set": update_payload}
+    )
+
+
+async def build_product_match_index(tenant_id: str, products_to_insert: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    existing_products = await db.products.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(None)
+    index = {"sku": {}, "title": {}, "alias": {}}
+
+    def add_product(product_doc: Dict[str, Any]):
+        sku = str(product_doc.get("sku", "")).strip().lower()
+        title = str(product_doc.get("title", "")).strip().lower()
+        if sku:
+            index["sku"][sku] = product_doc
+        if title:
+            index["title"][title] = product_doc
+        for alias in product_doc.get("aliases", []) or []:
+            alias_value = str(alias).strip().lower()
+            if alias_value:
+                index["alias"][alias_value] = product_doc
+
+    for product in existing_products:
+        add_product(product)
+
+    for product in products_to_insert or []:
+        add_product(product)
+
+    return index
+
+
+def link_product_for_lead(lead_data: Dict[str, Any], product_index: Dict[str, Dict[str, Dict[str, Any]]]) -> tuple[Optional[Dict[str, Any]], Optional[str], Optional[str]]:
+    sku_ref = str(lead_data.get("product_sku", "")).strip().lower()
+    title_ref = str(lead_data.get("product_title", "")).strip().lower()
+    interest_text = str(lead_data.get("raw_interest_text", "") or lead_data.get("property_interest", "")).strip().lower()
+
+    if sku_ref and sku_ref in product_index["sku"]:
+        return product_index["sku"][sku_ref], "exact_sku", None
+    if title_ref and title_ref in product_index["title"]:
+        return product_index["title"][title_ref], "exact_title", None
+    if title_ref and title_ref in product_index["alias"]:
+        return product_index["alias"][title_ref], "alias_title", None
+    if interest_text and interest_text in product_index["title"]:
+        return product_index["title"][interest_text], "interest_title", None
+    if interest_text and interest_text in product_index["alias"]:
+        return product_index["alias"][interest_text], "interest_alias", None
+
+    if sku_ref or title_ref or interest_text:
+        return None, "unmatched", "No se encontró un producto relacionado automáticamente"
+
+    return None, None, None
+
 @api_router.get("/import/fields")
 async def get_import_fields():
     """Get available fields for import mapping"""
     return LEAD_FIELDS
+
+
+@api_router.get("/import/products/fields")
+async def get_product_import_fields():
+    """Get available fields for product import mapping"""
+    return PRODUCT_IMPORT_FIELDS
+
+
+@api_router.get("/import/combined/fields")
+async def get_combined_import_fields():
+    """Get available fields for combined import mapping"""
+    return {
+        "leads": COMBINED_LEAD_FIELDS,
+        "products": PRODUCT_IMPORT_FIELDS,
+    }
 
 @api_router.post("/import/upload")
 async def upload_import_file(
@@ -4228,7 +6086,7 @@ async def upload_import_file(
     current_user: dict = Depends(get_current_user)
 ):
     """Upload file and get column headers for mapping"""
-    tenant_id = current_user["tenant_id"]
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     # Validate file type
     filename = file.filename.lower()
@@ -4317,6 +6175,11 @@ async def upload_import_file(
                     mapping_suggestions[field] = header_lower_map[alias]
                     break
         
+        lead_available_fields = {
+            **LEAD_FIELDS,
+            **(await get_custom_field_import_config(tenant_id, "leads")),
+        }
+
         return {
             "job_id": job.id,
             "filename": file.filename,
@@ -4324,11 +6187,126 @@ async def upload_import_file(
             "headers": headers,
             "sample_data": sample_data,
             "mapping_suggestions": mapping_suggestions,
-            "available_fields": LEAD_FIELDS
+            "available_fields": lead_available_fields
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
+
+
+@api_router.post("/import/products/upload")
+async def upload_product_import_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload product import file and return headers for mapping"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    filename = file.filename.lower()
+
+    if not (filename.endswith(".csv") or filename.endswith(".xlsx") or filename.endswith(".xls")):
+        raise HTTPException(status_code=400, detail="Formato no soportado. Use CSV o Excel (.xlsx)")
+
+    try:
+        parsed = parse_tabular_content(await file.read(), file.filename)
+        job = ImportJob(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            filename=file.filename,
+            file_type=parsed["file_type"],
+            total_rows=len(parsed["rows"]),
+            import_kind="products",
+        )
+
+        await db.import_jobs.insert_one(job.model_dump())
+        await db.import_data.insert_one({
+            "job_id": job.id,
+            "rows": parsed["rows"],
+            "import_kind": "products",
+            "created_at": datetime.now(timezone.utc),
+        })
+
+        product_available_fields = {
+            **PRODUCT_IMPORT_FIELDS,
+            **(await get_custom_field_import_config(tenant_id, "products")),
+        }
+
+        return {
+            "job_id": job.id,
+            "filename": file.filename,
+            "total_rows": len(parsed["rows"]),
+            "headers": parsed["headers"],
+            "sample_data": parsed["sample_data"],
+            "mapping_suggestions": build_mapping_suggestions(parsed["headers"], PRODUCT_FIELD_ALIASES),
+            "available_fields": product_available_fields,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
+
+
+@api_router.post("/import/combined/upload")
+async def upload_combined_import_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload combined workbook and extract Leads + Products sheets"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    filename = file.filename.lower()
+
+    if not (filename.endswith(".xlsx") or filename.endswith(".xls")):
+        raise HTTPException(status_code=400, detail="La importación combinada requiere un archivo Excel (.xlsx)")
+
+    try:
+        parsed = parse_combined_workbook(await file.read())
+        total_rows = len(parsed["products_rows"]) + len(parsed["leads_rows"])
+
+        job = ImportJob(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            filename=file.filename,
+            file_type=parsed["file_type"],
+            total_rows=total_rows,
+            import_kind="combined",
+        )
+
+        await db.import_jobs.insert_one(job.model_dump())
+        await db.import_data.insert_one({
+            "job_id": job.id,
+            "products_rows": parsed["products_rows"],
+            "leads_rows": parsed["leads_rows"],
+            "import_kind": "combined",
+            "created_at": datetime.now(timezone.utc),
+        })
+
+        combined_product_fields = {
+            **PRODUCT_IMPORT_FIELDS,
+            **(await get_custom_field_import_config(tenant_id, "products")),
+        }
+        combined_lead_fields = {
+            **COMBINED_LEAD_FIELDS,
+            **(await get_custom_field_import_config(tenant_id, "leads")),
+        }
+
+        return {
+            "job_id": job.id,
+            "filename": file.filename,
+            "total_rows": total_rows,
+            "products_total_rows": len(parsed["products_rows"]),
+            "leads_total_rows": len(parsed["leads_rows"]),
+            "products_headers": parsed["products_headers"],
+            "products_sample_data": parsed["products_sample_data"],
+            "products_mapping_suggestions": build_mapping_suggestions(parsed["products_headers"], PRODUCT_FIELD_ALIASES),
+            "products_available_fields": combined_product_fields,
+            "leads_headers": parsed["leads_headers"],
+            "leads_sample_data": parsed["leads_sample_data"],
+            "leads_mapping_suggestions": build_mapping_suggestions(parsed["leads_headers"], COMBINED_LEAD_FIELD_ALIASES),
+            "leads_available_fields": combined_lead_fields,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo combinado: {str(e)}")
 
 @api_router.post("/import/preview")
 async def preview_import(
@@ -4337,6 +6315,7 @@ async def preview_import(
 ):
     """Preview import with current mapping"""
     # Get job and data
+    lead_tenant_id = current_user["tenant_id"]
     job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
     if not job:
         raise HTTPException(status_code=404, detail="Job de importación no encontrado")
@@ -4347,6 +6326,10 @@ async def preview_import(
     
     rows = import_data.get("rows", [])
     mapping = {m.source_column: m.target_field for m in request.mapping}
+    lead_fields_config = {
+        **LEAD_FIELDS,
+        **(await get_custom_field_import_config(job["tenant_id"], "leads")),
+    }
     
     # Transform sample data with mapping
     preview_rows = []
@@ -4362,7 +6345,7 @@ async def preview_import(
                 value = str(value).strip()
             
             # Validate required fields
-            field_config = LEAD_FIELDS.get(target_field, {})
+            field_config = lead_fields_config.get(target_field, {})
             if field_config.get("required") and not value:
                 row_errors.append(f"{field_config.get('label', target_field)} es requerido")
             
@@ -4393,7 +6376,7 @@ async def preview_import(
     if request.skip_duplicates and request.duplicate_field:
         duplicate_values = [r["data"].get(request.duplicate_field) for r in preview_rows if r["data"].get(request.duplicate_field)]
         existing = await db.leads.find(
-            {request.duplicate_field: {"$in": duplicate_values}, "tenant_id": job["tenant_id"]},
+            {request.duplicate_field: {"$in": duplicate_values}, "tenant_id": lead_tenant_id},
             {"_id": 0, request.duplicate_field: 1}
         ).to_list(None)
         existing_values = set(doc.get(request.duplicate_field) for doc in existing)
@@ -4415,7 +6398,8 @@ async def execute_import(
     current_user: dict = Depends(get_current_user)
 ):
     """Execute the import with mapping"""
-    tenant_id = current_user["tenant_id"]
+    lead_tenant_id = current_user["tenant_id"]
+    custom_fields_tenant_id = await get_or_create_tenant(current_user["user_id"])
     
     # Get job and data
     job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
@@ -4428,6 +6412,10 @@ async def execute_import(
     
     rows = import_data.get("rows", [])
     mapping = {m.source_column: m.target_field for m in request.mapping}
+    lead_fields_config = {
+        **LEAD_FIELDS,
+        **(await get_custom_field_import_config(custom_fields_tenant_id, "leads")),
+    }
     
     # Update job status
     await db.import_jobs.update_one(
@@ -4445,7 +6433,7 @@ async def execute_import(
         all_values = [str(row.get(next((s for s, t in mapping.items() if t == request.duplicate_field), ""), "")).strip() for row in rows]
         all_values = [v for v in all_values if v]
         existing = await db.leads.find(
-            {request.duplicate_field: {"$in": all_values}, "tenant_id": tenant_id},
+            {request.duplicate_field: {"$in": all_values}, "tenant_id": lead_tenant_id},
             {"_id": 0, request.duplicate_field: 1}
         ).to_list(None)
         existing_values = set(str(doc.get(request.duplicate_field, "")).strip() for doc in existing)
@@ -4462,7 +6450,7 @@ async def execute_import(
                 if value is not None:
                     value = str(value).strip()
                 
-                field_config = LEAD_FIELDS.get(target_field, {})
+                field_config = lead_fields_config.get(target_field, {})
                 
                 # Type conversion
                 if value and field_config.get("type") == "number":
@@ -4497,6 +6485,8 @@ async def execute_import(
                     continue
                 existing_values.add(check_value)
             
+            transformed, custom_fields_data = extract_custom_fields_payload(transformed)
+
             # Create lead
             lead = Lead(
                 name=transformed.get("name", ""),
@@ -4507,9 +6497,10 @@ async def execute_import(
                 priority=transformed.get("priority", "media"),
                 budget_mxn=transformed.get("budget_mxn", 0),
                 property_interest=transformed.get("property_interest"),
+                custom_fields_data=custom_fields_data,
                 location_preference=transformed.get("location_preference"),
                 notes=transformed.get("notes"),
-                tenant_id=tenant_id,
+                tenant_id=lead_tenant_id,
                 created_by=current_user["user_id"],
                 intent_score=50
             )
@@ -4548,10 +6539,544 @@ async def execute_import(
     return {
         "status": final_status,
         "imported": imported,
+        "imported_count": imported,
         "skipped": skipped,
+        "skipped_count": skipped,
         "errors": len(errors_list),
+        "error_count": len(errors_list),
+        "errors_list": errors_list[:10],
+        "error_details_count": len(errors_list),
         "error_details": errors_list[:10],
+        "result_errors": errors_list[:10],
         "message": f"Importación completada: {imported} leads importados, {skipped} duplicados omitidos, {len(errors_list)} errores"
+    }
+
+
+@api_router.post("/import/products/preview")
+async def preview_product_import(
+    request: ImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Preview product import with mapping"""
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+
+    rows = import_data.get("rows", [])
+    mapping = {m.source_column: m.target_field for m in request.mapping}
+    product_fields_config = {
+        **PRODUCT_IMPORT_FIELDS,
+        **(await get_custom_field_import_config(job["tenant_id"], "products")),
+    }
+    preview_rows = []
+    errors = []
+
+    existing_products = await db.products.find({"tenant_id": job["tenant_id"]}, {"_id": 0, "sku": 1, "title": 1}).to_list(None)
+    existing_skus = {str(p.get("sku", "")).strip().lower() for p in existing_products if p.get("sku")}
+    existing_titles = {str(p.get("title", "")).strip().lower() for p in existing_products if p.get("title")}
+
+    for i, row in enumerate(rows[:10]):
+        transformed, row_errors = transform_row(row, mapping, product_fields_config)
+        sku_value = str(transformed.get("sku", "")).strip().lower()
+        title_value = str(transformed.get("title", "")).strip().lower()
+
+        duplicate = bool((sku_value and sku_value in existing_skus) or (not sku_value and title_value and title_value in existing_titles))
+        if duplicate:
+            row_errors.append("Ya existe un producto con el mismo SKU o título")
+
+        preview_rows.append({
+            "row_number": i + 1,
+            "data": transformed,
+            "errors": row_errors,
+            "valid": len(row_errors) == 0,
+        })
+
+        if row_errors:
+            errors.append({"row": i + 1, "errors": row_errors})
+
+    duplicate_values = [
+        row["data"].get("sku") or row["data"].get("title")
+        for row in preview_rows
+        if any("Ya existe un producto" in err for err in row["errors"])
+    ]
+
+    return {
+        "preview_rows": preview_rows,
+        "total_rows": len(rows),
+        "valid_rows": sum(1 for r in preview_rows if r["valid"]),
+        "error_rows": len(errors),
+        "duplicates_found": len(duplicate_values),
+        "duplicate_values": duplicate_values[:5],
+        "errors": errors[:10],
+    }
+
+
+@api_router.post("/import/products/execute")
+async def execute_product_import(
+    request: ImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Execute product import"""
+    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+
+    rows = import_data.get("rows", [])
+    mapping = {m.source_column: m.target_field for m in request.mapping}
+    product_fields_config = {
+        **PRODUCT_IMPORT_FIELDS,
+        **(await get_custom_field_import_config(tenant_id, "products")),
+    }
+
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {"status": ImportStatus.PROCESSING.value, "column_mapping": mapping}}
+    )
+
+    imported = 0
+    skipped = 0
+    errors_list = []
+
+    existing_products = await db.products.find({"tenant_id": tenant_id}, {"_id": 0, "sku": 1, "title": 1}).to_list(None)
+    existing_skus = {str(p.get("sku", "")).strip().lower() for p in existing_products if p.get("sku")}
+    existing_titles = {str(p.get("title", "")).strip().lower() for p in existing_products if p.get("title")}
+    products_to_insert = []
+
+    for i, row in enumerate(rows):
+        transformed, row_errors = transform_row(row, mapping, product_fields_config)
+        if transformed.get("product_type") in ("", None):
+            transformed["product_type"] = "service"
+
+        sku_value = str(transformed.get("sku", "")).strip().lower()
+        title_value = str(transformed.get("title", "")).strip().lower()
+
+        if (sku_value and sku_value in existing_skus) or (not sku_value and title_value and title_value in existing_titles):
+            skipped += 1
+            continue
+
+        if row_errors:
+            errors_list.append({"row": i + 1, "errors": row_errors})
+            continue
+
+        transformed, custom_fields_data = extract_custom_fields_payload(transformed)
+
+        product_doc = ProductService(
+            sku=str(transformed.get("sku", "")).strip(),
+            title=str(transformed.get("title", "")).strip(),
+            description=str(transformed.get("description", "") or "").strip(),
+            product_type=transformed.get("product_type") or "service",
+            niche=str(transformed.get("niche", "") or "").strip(),
+            price_mxn=transformed.get("price_mxn") or 0.0,
+            features=[],
+            images=build_media_assets_from_urls(
+                transformed.get("image_urls") or [],
+                str(transformed.get("title", "")).strip(),
+            ),
+            aliases=transformed.get("aliases") or [],
+            keywords=transformed.get("keywords") or [],
+            external_id=str(transformed.get("external_id", "")).strip() or None,
+            is_active=transformed.get("is_active", True),
+            custom_fields_data=custom_fields_data,
+            tenant_id=tenant_id,
+            created_by=current_user["user_id"],
+        ).model_dump()
+
+        products_to_insert.append(product_doc)
+        imported += 1
+        if sku_value:
+            existing_skus.add(sku_value)
+        if title_value:
+            existing_titles.add(title_value)
+
+    if products_to_insert:
+        await db.products.insert_many(products_to_insert)
+
+    final_status = ImportStatus.COMPLETED.value
+    if errors_list and imported == 0:
+        final_status = ImportStatus.FAILED.value
+    elif errors_list:
+        final_status = ImportStatus.PARTIAL.value
+
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {
+            "status": final_status,
+            "imported_count": imported,
+            "skipped_count": skipped,
+            "error_count": len(errors_list),
+            "errors": errors_list[:50],
+            "completed_at": datetime.now(timezone.utc),
+        }}
+    )
+    await db.import_data.delete_one({"job_id": request.job_id})
+
+    return {
+        "status": final_status,
+        "imported": imported,
+        "imported_count": imported,
+        "skipped": skipped,
+        "skipped_count": skipped,
+        "errors": len(errors_list),
+        "error_count": len(errors_list),
+        "errors_list": errors_list[:10],
+        "error_details": errors_list[:10],
+        "message": f"Importación de productos completada: {imported} importados, {skipped} omitidos, {len(errors_list)} errores",
+    }
+
+
+@api_router.post("/import/combined/preview")
+async def preview_combined_import(
+    request: CombinedImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Preview combined Leads + Products import"""
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+
+    product_mapping = {m.source_column: m.target_field for m in request.products_mapping}
+    lead_mapping = {m.source_column: m.target_field for m in request.leads_mapping}
+    product_rows = import_data.get("products_rows", [])
+    lead_rows = import_data.get("leads_rows", [])
+    product_fields_config = {
+        **PRODUCT_IMPORT_FIELDS,
+        **(await get_custom_field_import_config(job["tenant_id"], "products")),
+    }
+    lead_fields_config = {
+        **COMBINED_LEAD_FIELDS,
+        **(await get_custom_field_import_config(job["tenant_id"], "leads")),
+    }
+
+    product_preview_rows = []
+    product_errors = []
+    future_products = []
+    seen_preview_skus = set()
+    seen_preview_titles = set()
+
+    existing_products = await db.products.find({"tenant_id": job["tenant_id"]}, {"_id": 0}).to_list(None)
+    existing_index = await build_product_match_index(job["tenant_id"])
+
+    for i, row in enumerate(product_rows[:10]):
+        transformed, row_errors = transform_row(row, product_mapping, product_fields_config)
+        sku_value = str(transformed.get("sku", "")).strip().lower()
+        title_value = str(transformed.get("title", "")).strip().lower()
+
+        if sku_value and (sku_value in existing_index["sku"] or sku_value in seen_preview_skus):
+            row_errors.append("SKU duplicado en catálogo o dentro del archivo")
+        elif not sku_value and title_value and (title_value in existing_index["title"] or title_value in seen_preview_titles):
+            row_errors.append("Título duplicado en catálogo o dentro del archivo")
+
+        product_preview_rows.append({
+            "row_number": i + 1,
+            "data": transformed,
+            "errors": row_errors,
+            "valid": len(row_errors) == 0,
+        })
+
+        if row_errors:
+            product_errors.append({"row": i + 1, "errors": row_errors})
+        else:
+            preview_product_doc = {
+                "id": f"preview-product-{i + 1}",
+                "sku": str(transformed.get("sku", "")).strip(),
+                "title": str(transformed.get("title", "")).strip(),
+                "product_type": transformed.get("product_type"),
+                "niche": str(transformed.get("niche", "") or "").strip(),
+                "aliases": transformed.get("aliases") or [],
+            }
+            future_products.append(preview_product_doc)
+            if sku_value:
+                seen_preview_skus.add(sku_value)
+            if title_value:
+                seen_preview_titles.add(title_value)
+
+    product_index = await build_product_match_index(job["tenant_id"], future_products)
+    lead_preview_rows = []
+    lead_errors = []
+    link_matches = 0
+    link_warnings = 0
+
+    for i, row in enumerate(lead_rows[:10]):
+        transformed, row_errors = transform_row(row, lead_mapping, lead_fields_config)
+        if not transformed.get("name"):
+            row_errors.append("Nombre es requerido")
+        if not transformed.get("phone"):
+            row_errors.append("Teléfono es requerido")
+
+        linked_product, link_status, link_warning = link_product_for_lead(transformed, product_index)
+        warnings = [link_warning] if link_warning else []
+
+        if linked_product:
+            link_matches += 1
+        elif link_warning:
+            link_warnings += 1
+
+        lead_preview_rows.append({
+            "row_number": i + 1,
+            "data": transformed,
+            "errors": row_errors,
+            "warnings": warnings,
+            "valid": len(row_errors) == 0,
+            "linked_product": build_product_snapshot(linked_product) if linked_product else None,
+            "link_status": link_status,
+        })
+
+        if row_errors:
+            lead_errors.append({"row": i + 1, "errors": row_errors})
+
+    return {
+        "total_rows": len(product_rows) + len(lead_rows),
+        "products_total_rows": len(product_rows),
+        "products_valid_rows": sum(1 for r in product_preview_rows if r["valid"]),
+        "products_error_rows": len(product_errors),
+        "products_preview_rows": product_preview_rows,
+        "leads_total_rows": len(lead_rows),
+        "leads_valid_rows": sum(1 for r in lead_preview_rows if r["valid"]),
+        "leads_error_rows": len(lead_errors),
+        "leads_preview_rows": lead_preview_rows,
+        "link_matches": link_matches,
+        "link_warnings": link_warnings,
+        "errors": {
+            "products": product_errors[:10],
+            "leads": lead_errors[:10],
+        },
+    }
+
+
+@api_router.post("/import/combined/execute")
+async def execute_combined_import(
+    request: CombinedImportMappingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Execute combined Leads + Products import"""
+    product_tenant_id = await get_or_create_tenant(current_user["user_id"])
+    lead_tenant_id = current_user["tenant_id"]
+    job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+
+    product_mapping = {m.source_column: m.target_field for m in request.products_mapping}
+    lead_mapping = {m.source_column: m.target_field for m in request.leads_mapping}
+    product_rows = import_data.get("products_rows", [])
+    lead_rows = import_data.get("leads_rows", [])
+    product_fields_config = {
+        **PRODUCT_IMPORT_FIELDS,
+        **(await get_custom_field_import_config(product_tenant_id, "products")),
+    }
+    lead_fields_config = {
+        **COMBINED_LEAD_FIELDS,
+        **(await get_custom_field_import_config(product_tenant_id, "leads")),
+    }
+
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {"status": ImportStatus.PROCESSING.value, "column_mapping": {"products": product_mapping, "leads": lead_mapping}}}
+    )
+
+    product_imported = 0
+    product_skipped = 0
+    lead_imported = 0
+    lead_skipped = 0
+    links_created = 0
+    warnings_count = 0
+    errors_list = {"products": [], "leads": []}
+    interests_to_insert = []
+
+    existing_products = await db.products.find({"tenant_id": product_tenant_id}, {"_id": 0}).to_list(None)
+    existing_skus = {str(p.get("sku", "")).strip().lower() for p in existing_products if p.get("sku")}
+    existing_titles = {str(p.get("title", "")).strip().lower() for p in existing_products if p.get("title")}
+    products_to_insert = []
+
+    for i, row in enumerate(product_rows):
+        transformed, row_errors = transform_row(row, product_mapping, product_fields_config)
+        if transformed.get("product_type") in ("", None):
+            transformed["product_type"] = "service"
+
+        sku_value = str(transformed.get("sku", "")).strip().lower()
+        title_value = str(transformed.get("title", "")).strip().lower()
+
+        if (sku_value and sku_value in existing_skus) or (not sku_value and title_value and title_value in existing_titles):
+            product_skipped += 1
+            continue
+
+        if row_errors:
+            errors_list["products"].append({"row": i + 1, "errors": row_errors})
+            continue
+
+        transformed, product_custom_fields_data = extract_custom_fields_payload(transformed)
+
+        product_doc = ProductService(
+            sku=str(transformed.get("sku", "")).strip(),
+            title=str(transformed.get("title", "")).strip(),
+            description=str(transformed.get("description", "") or "").strip(),
+            product_type=transformed.get("product_type") or "service",
+            niche=str(transformed.get("niche", "") or "").strip(),
+            price_mxn=transformed.get("price_mxn") or 0.0,
+            features=[],
+            images=build_media_assets_from_urls(
+                transformed.get("image_urls") or [],
+                str(transformed.get("title", "")).strip(),
+            ),
+            aliases=transformed.get("aliases") or [],
+            keywords=transformed.get("keywords") or [],
+            external_id=str(transformed.get("external_id", "")).strip() or None,
+            is_active=transformed.get("is_active", True),
+            custom_fields_data=product_custom_fields_data,
+            tenant_id=product_tenant_id,
+            created_by=current_user["user_id"],
+        ).model_dump()
+
+        products_to_insert.append(product_doc)
+        product_imported += 1
+        if sku_value:
+            existing_skus.add(sku_value)
+        if title_value:
+            existing_titles.add(title_value)
+
+    if products_to_insert:
+        await db.products.insert_many(products_to_insert)
+
+    product_index = await build_product_match_index(product_tenant_id, products_to_insert)
+
+    existing_values = set()
+    if request.skip_duplicates and request.duplicate_field:
+        all_values = []
+        for row in lead_rows:
+            source_col = next((s for s, t in lead_mapping.items() if t == request.duplicate_field), "")
+            value = str(row.get(source_col, "")).strip()
+            if value:
+                all_values.append(value)
+        existing = await db.leads.find(
+            {request.duplicate_field: {"$in": all_values}, "tenant_id": lead_tenant_id},
+            {"_id": 0, request.duplicate_field: 1}
+        ).to_list(None)
+        existing_values = {str(doc.get(request.duplicate_field, "")).strip() for doc in existing}
+
+    leads_to_insert = []
+    for i, row in enumerate(lead_rows):
+        transformed, row_errors = transform_row(row, lead_mapping, lead_fields_config)
+        if not transformed.get("name"):
+            row_errors.append("Nombre es requerido")
+        if not transformed.get("phone"):
+            row_errors.append("Teléfono es requerido")
+
+        if request.skip_duplicates and request.duplicate_field:
+            check_value = str(transformed.get(request.duplicate_field, "")).strip()
+            if check_value and check_value in existing_values:
+                lead_skipped += 1
+                continue
+            if check_value:
+                existing_values.add(check_value)
+
+        if row_errors:
+            errors_list["leads"].append({"row": i + 1, "errors": row_errors})
+            continue
+
+        transformed, lead_custom_fields_data = extract_custom_fields_payload(transformed)
+        linked_product, link_status, link_warning = link_product_for_lead(transformed, product_index)
+        if linked_product:
+            links_created += 1
+        elif link_warning:
+            warnings_count += 1
+
+        product_snapshot = build_product_snapshot(linked_product) if linked_product else None
+        lead_doc = Lead(
+            name=str(transformed.get("name", "")).strip(),
+            email=str(transformed.get("email", "")).strip() or None,
+            phone=str(transformed.get("phone", "")).strip(),
+            source=str(transformed.get("source", "")).strip() or "importado",
+            status=transformed.get("status") or "nuevo",
+            priority=transformed.get("priority") or "media",
+            budget_mxn=transformed.get("budget_mxn") or 0,
+            property_interest=(product_snapshot["title"] if product_snapshot else str(transformed.get("raw_interest_text", "") or transformed.get("property_interest", "")).strip() or None),
+            raw_interest_text=str(transformed.get("raw_interest_text", "") or transformed.get("property_interest", "")).strip() or None,
+            interest_source=link_status or "import_unmatched",
+            interested_product_ids=[product_snapshot["id"]] if product_snapshot else [],
+            interested_products_snapshot=[product_snapshot] if product_snapshot else [],
+            custom_fields_data=lead_custom_fields_data,
+            location_preference=str(transformed.get("location_preference", "")).strip() or None,
+            notes=str(transformed.get("notes", "")).strip() or None,
+            company=str(transformed.get("company", "")).strip() or None,
+            position=str(transformed.get("position", "")).strip() or None,
+            tenant_id=lead_tenant_id,
+            created_by=current_user["user_id"],
+            intent_score=50,
+        ).model_dump()
+
+        leads_to_insert.append(lead_doc)
+        if product_snapshot:
+            interests_to_insert.append(LeadProductInterest(
+                tenant_id=lead_tenant_id,
+                product_tenant_id=product_tenant_id,
+                lead_id=lead_doc["id"],
+                product_id=product_snapshot["id"],
+                interest_type="principal",
+                interest_status="nuevo_interes",
+                priority=transformed.get("priority") or "media",
+                source="import_combined",
+                notes=str(transformed.get("notes", "")).strip() or None,
+                created_by=current_user["user_id"],
+            ).model_dump())
+        lead_imported += 1
+
+    if leads_to_insert:
+        await db.leads.insert_many(leads_to_insert)
+    if interests_to_insert:
+        await db.lead_product_interests.insert_many(interests_to_insert)
+
+    total_errors = len(errors_list["products"]) + len(errors_list["leads"])
+    total_imported = product_imported + lead_imported
+    final_status = ImportStatus.COMPLETED.value
+    if total_errors and total_imported == 0:
+        final_status = ImportStatus.FAILED.value
+    elif total_errors:
+        final_status = ImportStatus.PARTIAL.value
+
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {
+            "status": final_status,
+            "imported_count": total_imported,
+            "skipped_count": product_skipped + lead_skipped,
+            "error_count": total_errors,
+            "errors": (errors_list["products"] + errors_list["leads"])[:50],
+            "completed_at": datetime.now(timezone.utc),
+        }}
+    )
+    await db.import_data.delete_one({"job_id": request.job_id})
+
+    return {
+        "status": final_status,
+        "imported_count": total_imported,
+        "skipped_count": product_skipped + lead_skipped,
+        "error_count": total_errors,
+        "products_imported_count": product_imported,
+        "products_skipped_count": product_skipped,
+        "products_error_count": len(errors_list["products"]),
+        "leads_imported_count": lead_imported,
+        "leads_skipped_count": lead_skipped,
+        "leads_error_count": len(errors_list["leads"]),
+        "links_created": links_created,
+        "link_warnings": warnings_count,
+        "errors": errors_list,
+        "message": f"Importación combinada completada: {product_imported} productos, {lead_imported} leads, {links_created} vinculaciones",
     }
 
 @api_router.get("/import/jobs")
@@ -4606,6 +7131,61 @@ async def get_import_template():
 
 
 # ==================== AUTOMATIONS / WORKFLOWS ====================
+
+@api_router.post("/import/execute-optimized")
+async def execute_import_optimized_endpoint(
+    request: ImportMappingRequest,
+    use_fuzzy_matching: bool = False,
+    duplicate_threshold: int = 85,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Execute optimized import with bulk operations.
+    Meta: < 2 min for 100 leads.
+
+    Opciones:
+    - skip_duplicates: Omitir duplicados (del request)
+    - use_fuzzy_matching: Usar fuzzy matching para duplicados (default: false)
+    - duplicate_threshold: Umbral de similitud 0-100 (default: 85)
+    """
+    tenant_id = current_user["tenant_id"]
+    user_id = current_user["user_id"]
+
+    # Get job and data
+    job = await db.import_jobs.find_one(
+        {"id": request.job_id, "user_id": user_id},
+        {"_id": 0}
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+
+    import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
+    if not import_data:
+        raise HTTPException(status_code=404, detail="Datos de importación no encontrados")
+
+    rows = import_data.get("rows", [])
+    mapping = {m.source_column: m.target_field for m in request.mapping}
+
+    # Actualizar job a processing
+    await db.import_jobs.update_one(
+        {"id": request.job_id},
+        {"$set": {"status": ImportStatus.PROCESSING.value, "column_mapping": mapping}}
+    )
+
+    # Ejecutar importación optimizada
+    if use_fuzzy_matching:
+        # Usar fuzzy matching para duplicados
+        result = await execute_import_with_advanced_duplicates(
+            db, request.job_id, rows, mapping, tenant_id, user_id, duplicate_threshold
+        )
+    else:
+        # Importación estándar optimizada
+        result = await execute_import_optimized(
+            db, request.job_id, rows, mapping, tenant_id, user_id, request.skip_duplicates
+        )
+
+    return result
+
 
 @api_router.get("/automations/workflows")
 async def get_workflows(
