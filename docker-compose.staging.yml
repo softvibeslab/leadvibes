@@ -30,15 +30,15 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: rovi-staging-backend
     restart: always
+    container_name: rovi-staging-backend
     environment:
       # Database - Staging
       MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD_STAGING:-staging_admin_change_me}@mongodb-staging:27017/${DB_NAME_STAGING:-rovi_crm_staging}?authSource=admin
       DB_NAME: ${DB_NAME_STAGING:-rovi_crm_staging}
 
       # JWT - Staging specific
-      JWT_SECRET: ${JWT_SECRET_STAGING:-staging_jwt_secret_must_be_at_least_32_chars_different_from_prod}
+      JWT_SECRET: ${JWT_SECRET_STAGING:-staging_jwt_secret_different_from_prod_12345}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
 
@@ -53,14 +53,13 @@ services:
       ENVIRONMENT: ${ENVIRONMENT_STAGING:-staging}
       DEBUG: ${DEBUG_STAGING:-true}
 
-      # SendGrid - Same API Key (shared service)
+      # SendGrid
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       SENDGRID_SENDER_EMAIL: ${SENDGRID_SENDER_EMAIL:-noreply@rovirealestate.com}
-      SENDGRID_SENDER_NAME: ${SENDGRID_SENDER_NAME:-Rovi Real Estate Staging}
+      SENDGRID_SENDER_NAME: ${SENDGRID_SENDER_NAME:-"Rovi Real Estate"}
 
       # Webhook Configuration
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-staging_webhook_secret_change_me_in_production}
-      WEBHOOK_PORT: 2906
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-staging_webhook_secret}
     ports:
       - "${BACKEND_STAGING_HOST_PORT:-1607}:8000"
     networks:
@@ -80,75 +79,36 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      container_name: rovi-staging-frontend
     restart: always
+    container_name: rovi-staging-frontend
     environment:
       REACT_APP_BACKEND_URL: http://localhost:1607
       REACT_APP_ENVIRONMENT: staging
       REACT_APP_WEBHOOK_URL: http://localhost:2906
     ports:
       - "${FRONTEND_STAGING_HOST_PORT:-2403}:80"
+    volumes:
+      - ./frontend/nginx.staging.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - rovi-staging-network
     depends_on:
       backend-staging:
         condition: service_healthy
 
-  # Webhook Server (Nuevo servicio para integración externa)
+  # Webhook Server (usar backend existente)
   webhook-server:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: rovi-webhook-server
+    image: leadvibes-backend:latest
     restart: always
-    command: ["python", "-c", "
-import uvicorn
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-import logging
-import os
-
-app = FastAPI(title='Rovi Webhook Server', version='1.0.0')
-
-@app.post('/webhooks/lead')
-async def receive_lead_webhook(request: Request):
-    '''Recibe webhooks de fuentes externas (Facebook, WhatsApp, etc.)'''
-    try:
-        lead_data = await request.json()
-        logging.info(f'🎯 Webhook recibido: {lead_data.get(\"webhook_lead_data\", {}).get(\"event_type\", \"unknown\")}')
-
-        # Procesar y reenviar al backend staging
-        import httpx
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                'http://backend-staging:8000/api/webhooks/external-lead',
-                json=lead_data,
-                headers={'Content-Type': 'application/json'}
-            )
-            return JSONResponse(content=response.json(), status_code=response.status_code)
-    except Exception as e:
-        logging.error(f'❌ Error en webhook: {str(e)}')
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get('/webhooks/health')
-async def health_check():
-    return {'status': 'healthy', 'service': 'webhook-server', 'port': 2906}
-
-if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=2906, log_level='info')
-"]
     container_name: rovi-webhook-server
-    restart: always
     environment:
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-staging_webhook_secret_change_me_in_production}
-      BACKEND_URL: http://backend-staging:8000
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD_STAGING:-staging_admin_change_me}@mongodb-staging:27017/${DB_NAME_STAGING:-rovi_crm_staging}?authSource=admin
+      DB_NAME: ${DB_NAME_STAGING:-rovi_crm_staging}
+      JWT_SECRET: ${JWT_SECRET_STAGING:-staging_jwt_secret_different_from_prod_12345}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-staging_webhook_secret}
     ports:
-      - "${WEBHOOK_HOST_PORT:-2906}:2906"
+      - "${WEBHOOK_HOST_PORT:-2906}:8000"
     networks:
       - rovi-staging-network
-    depends_on:
-      backend-staging:
-        condition: service_healthy
 
 volumes:
   mongodb_staging_data:
