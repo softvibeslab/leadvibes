@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COPIM x ROVI - Estatus de Modulos y Plan de Sorpresa</title>
+    <style>
+      :root {
+        --bg: #f4f8fc;
+        --ink: #0f172a;
+        --muted: #5b6b82;
+        --line: #d7e2ef;
+        --card: rgba(255, 255, 255, 0.92);
+        --navy: #11213c;
+        --blue: #0d5ea8;
+        --cyan: #3bbcf6;
+        --gold: #f2b93c;
+        --green: #1a8f5b;
+        --amber: #a96a08;
+        --rose: #a83b4b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Outfit", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(59, 188, 246, 0.18), transparent 28%),
+          radial-gradient(circle at top right, rgba(242, 185, 60, 0.16), transparent 22%),
+          linear-gradient(180deg, #edf5fb 0%, #f7fbff 24%, #ffffff 100%);
+      }
+
+      .wrap {
+        width: min(1240px, calc(100vw - 40px));
+        margin: 0 auto;
+        padding: 30px 0 60px;
+      }
+
+      .hero,
+      .card,
+      .module,
+      .summary-box,
+      .route-box {
+        border: 1px solid var(--line);
+        background: var(--card);
+        backdrop-filter: blur(10px);
+        border-radius: 28px;
+        box-shadow: 0 24px 80px rgba(17, 33, 60, 0.08);
+      }
+
+      .hero {
+        padding: 34px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -10% -40% 52%;
+        height: 320px;
+        background: radial-gradient(circle, rgba(13, 94, 168, 0.18), transparent 62%);
+        pointer-events: none;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        font-size: 12px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--blue);
+        font-weight: 700;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(34px, 4vw, 54px);
+        line-height: 1.02;
+        max-width: 920px;
+      }
+
+      .hero-sub {
+        margin-top: 18px;
+        max-width: 930px;
+        font-size: 18px;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .metrics {
+        margin-top: 26px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .card {
+        padding: 22px;
+      }
+
+      .metric-label {
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .metric-value {
+        margin-top: 14px;
+        font-size: 38px;
+        font-weight: 700;
+      }
+
+      .metric-note {
+        margin-top: 10px;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 14px;
+      }
+
+      .section {
+        margin-top: 22px;
+      }
+
+      .section-title {
+        margin-bottom: 14px;
+        font-size: 28px;
+      }
+
+      .section-sub {
+        color: var(--muted);
+        line-height: 1.7;
+        margin-bottom: 20px;
+        max-width: 980px;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1.2fr 0.8fr;
+        align-items: start;
+      }
+
+      .summary-box {
+        padding: 24px;
+      }
+
+      .summary-box h3 {
+        font-size: 20px;
+        margin-bottom: 14px;
+      }
+
+      .summary-box ul,
+      .module ul,
+      .route-box ul {
+        padding-left: 18px;
+        margin: 0;
+      }
+
+      .summary-box li,
+      .module li,
+      .route-box li {
+        margin: 10px 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .status-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .module {
+        padding: 22px;
+      }
+
+      .module-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      .module h3 {
+        font-size: 22px;
+      }
+
+      .badge {
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .badge.good {
+        background: rgba(26, 143, 91, 0.12);
+        color: var(--green);
+      }
+
+      .badge.mid {
+        background: rgba(242, 185, 60, 0.16);
+        color: var(--amber);
+      }
+
+      .badge.low {
+        background: rgba(168, 59, 75, 0.12);
+        color: var(--rose);
+      }
+
+      .score {
+        margin: 14px 0 6px;
+        font-size: 15px;
+        color: var(--navy);
+        font-weight: 600;
+      }
+
+      .progress {
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: #dce8f5;
+        margin-bottom: 16px;
+      }
+
+      .progress > span {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--blue), var(--cyan));
+      }
+
+      .module p {
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .module-columns {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 18px;
+      }
+
+      .mini {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(247, 250, 255, 0.88);
+        padding: 16px;
+      }
+
+      .mini h4 {
+        margin-bottom: 8px;
+        font-size: 15px;
+      }
+
+      .route-layout {
+        grid-template-columns: 0.85fr 1.15fr;
+      }
+
+      .route-box {
+        padding: 24px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 14px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      td {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .phase-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .phase {
+        padding: 22px;
+        border-radius: 26px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,248,252,0.98) 100%);
+        border: 1px solid var(--line);
+      }
+
+      .phase .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        background: var(--navy);
+        color: #fff;
+        font-weight: 700;
+        margin-bottom: 14px;
+      }
+
+      .phase h3 {
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+
+      .phase p,
+      .phase li {
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .callout {
+        margin-top: 22px;
+        padding: 26px;
+        border-radius: 30px;
+        color: white;
+        background: linear-gradient(135deg, #0f172a 0%, #0d5ea8 62%, #38bdf8 100%);
+        box-shadow: 0 30px 90px rgba(13, 94, 168, 0.26);
+      }
+
+      .callout h2 {
+        margin-bottom: 12px;
+      }
+
+      .callout p,
+      .callout li {
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.75;
+      }
+
+      .footer-note {
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      @media (max-width: 1080px) {
+        .metrics,
+        .status-grid,
+        .phase-grid,
+        .summary-grid,
+        .route-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .module-columns {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <p class="eyebrow">Reporte Interno · Reunion del 5 de enero de 2026</p>
+        <h1>COPIM x ROVI: estatus real de modulos, brechas de producto y plan para sorprender a Mario</h1>
+        <p class="hero-sub">
+          Este reporte cruza tres cosas: la reunion con Mario del <strong>5 de enero de 2026</strong>, el estado actual del
+          desarrollo en ROVI y las mejoras que convierten el demo funcional en una plataforma que se sienta como
+          sistema operativo para asociaciones, no como un CRM adaptado.
+        </p>
+
+        <div class="grid metrics">
+          <article class="card">
+            <p class="metric-label">Hallazgo central</p>
+            <p class="metric-value">Adopcion</p>
+            <p class="metric-note">
+              Lo mas importante no es la complejidad del stack, sino que presidencia, administracion y socio puedan
+              operar sin friccion.
+            </p>
+          </article>
+          <article class="card">
+            <p class="metric-label">Producto que se esta comprando</p>
+            <p class="metric-value">Association OS</p>
+            <p class="metric-note">
+              El producto base no es IA ni CRM avanzado. Es un sistema administrativo nacional para asociaciones y socios.
+            </p>
+          </article>
+          <article class="card">
+            <p class="metric-label">Mayor oportunidad</p>
+            <p class="metric-value">IA invisible</p>
+            <p class="metric-note">
+              La IA debe aparecer como copiloto operativo, no como feature vistoso que complique la curva de aprendizaje.
+            </p>
+          </article>
+          <article class="card">
+            <p class="metric-label">Mayor brecha actual</p>
+            <p class="metric-value">Deep Linking</p>
+            <p class="metric-note">
+              El resumen se ve fuerte, pero varios links aun mandan al modulo general y no al item exacto que se quiere operar.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">1. Lo Que Mario Realmente Quiere</h2>
+        <p class="section-sub">
+          La reunion deja un mensaje muy claro: el producto debe sentirse como una herramienta de gestion de asociaciones
+          con valor real para presidente, administracion y socio. La IA tiene mucho potencial, pero no puede ser la puerta
+          de entrada ni la razon por la que el sistema se vea pesado.
+        </p>
+
+        <div class="grid summary-grid">
+          <article class="summary-box">
+            <h3>Lo que Mario priorizo en la reunion</h3>
+            <ul>
+              <li><span class="strong">Facilidad de adopcion del socio:</span> alta, pago, consulta de adeudo, eventos y perfil deben sentirse obvios y ligeros.</li>
+              <li><span class="strong">Sistema base administrativo:</span> asociaciones, socios, membresias, renovaciones, eventos, credencializacion y control nacional.</li>
+              <li><span class="strong">Vista del usuario final:</span> no basta un dashboard directivo; hace falta ver claramente que veria el socio y como alimenta datos.</li>
+              <li><span class="strong">Escalera de valor:</span> base simple para todos, luego productos Pro, Broker Pro, Association Pro e IA como upsell.</li>
+              <li><span class="strong">Comunidad con monetizacion futura:</span> cuando exista masa critica, la comunidad puede atraer patrocinios, publicidad y alianzas.</li>
+              <li><span class="strong">Pricing plano para asociaciones:</span> la base no deberia sentirse castigada por usuario; la variabilidad se tolera mas para IA.</li>
+              <li><span class="strong">Tiempo de entrega corto en fase 1:</span> la primera capa necesita bajar rapido a las asociaciones y resolver operacion.</li>
+            </ul>
+          </article>
+
+          <article class="summary-box">
+            <h3>Implicacion de producto</h3>
+            <ul>
+              <li>La experiencia debe vender <span class="strong">claridad operativa</span> antes que sofisticacion.</li>
+              <li>La IA debe entrar como <span class="strong">copiloto de aprobacion, cobranza, resumen y difusion</span>.</li>
+              <li>Los modulos deben tener <span class="strong">acciones rapidas y flujos cerrados</span>, no solo datos bonitos.</li>
+              <li>Comunidad e Inteligencia ya deben verse, pero sin robar foco a la base administrativa.</li>
+              <li>El CRM comercial de ROVI debe sentirse como <span class="strong">expansion natural</span> del socio, no como otra plataforma separada.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">2. Estatus Actual Por Modulo</h2>
+        <p class="section-sub">
+          El estado se califica contra una pregunta simple: <strong>si hoy se lo enseñamos a Mario, esto se siente como
+          plataforma lista para operar o aun como modulo demo con buena pinta?</strong>
+        </p>
+
+        <div class="grid status-grid">
+          <article class="module">
+            <div class="module-head">
+              <h3>Resumen</h3>
+              <span class="badge good">Fuerte</span>
+            </div>
+            <p class="score">Score actual: 8/10</p>
+            <div class="progress"><span style="width: 80%"></span></div>
+            <p>
+              Visualmente es uno de los puntos mas fuertes del sistema. Ya transmite control nacional, cola operativa
+              y lectura ejecutiva de la red.
+            </p>
+            <div class="module-columns">
+              <div class="mini">
+                <h4>Ya resuelve</h4>
+                <ul>
+                  <li>KPIs institucionales claros.</li>
+                  <li>Entrada a asociaciones, membresias, facturacion y eventos.</li>
+                  <li>Watchlists de pendientes, renovaciones y facturas.</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>Le falta para sorprender</h4>
+                <ul>
+                  <li>Deep links al item exacto.</li>
+                  <li>Quick actions contextuales desde cada card.</li>
+                  <li>Briefing IA diario por rol.</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-head">
+              <h3>Asociaciones</h3>
+              <span class="badge mid">Solido, pero frio</span>
+            </div>
+            <p class="score">Score actual: 6.5/10</p>
+            <div class="progress"><span style="width: 65%"></span></div>
+            <p>
+              Tiene CRUD, detalle operativo y analisis IA, pero la card aun se siente administrativa. Le falta energia,
+              jerarquia visual y herramientas de accion rapida que vuelvan obvio el valor del modulo.
+            </p>
+            <div class="module-columns">
+              <div class="mini">
+                <h4>Ya resuelve</h4>
+                <ul>
+                  <li>Alta y edicion de capitulos.</li>
+                  <li>Detalle con socios, membresias, eventos y analisis IA.</li>
+                  <li>Lectura financiera y meta institucional.</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>Le falta para sorprender</h4>
+                <ul>
+                  <li>Hero visual por capitulo.</li>
+                  <li>Card gamificada con health score, streaks y quick actions.</li>
+                  <li>Panel de expansion, riesgos y campañas por asociacion.</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-head">
+              <h3>Socios</h3>
+              <span class="badge mid">Prometedor</span>
+            </div>
+            <p class="score">Score actual: 6.5/10</p>
+            <div class="progress"><span style="width: 65%"></span></div>
+            <p>
+              El padrón base ya existe, pero aun no se siente como portal de miembro. Le falta una experiencia tipo
+              GHL member portal y una vista de pipeline para aprobacion y activacion.
+            </p>
+            <div class="module-columns">
+              <div class="mini">
+                <h4>Ya resuelve</h4>
+                <ul>
+                  <li>CRUD, aprobacion, credencial y directorio visible.</li>
+                  <li>Perfil con completitud y membresias asociadas.</li>
+                  <li>Analisis IA por socio.</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>Le falta para sorprender</h4>
+                <ul>
+                  <li>Portal del socio con deuda, eventos y beneficios.</li>
+                  <li>Vista lista + kanban por estatus.</li>
+                  <li>Timeline, notas, tareas y nudges de activacion.</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-head">
+              <h3>Membresias</h3>
+              <span class="badge good">Cerca de valor real</span>
+            </div>
+            <p class="score">Score actual: 7/10</p>
+            <div class="progress"><span style="width: 70%"></span></div>
+            <p>
+              Tiene buena base operativa y ya conversa con facturacion, pero todavia no se ve como cockpit de cobranza
+              y renovacion de asociacion.
+            </p>
+            <div class="module-columns">
+              <div class="mini">
+                <h4>Ya resuelve</h4>
+                <ul>
+                  <li>CRUD, renovacion, recordatorios y pago manual.</li>
+                  <li>Resumen administrativo y analisis IA.</li>
+                  <li>Vinculo con facturacion.</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>Le falta para sorprender</h4>
+                <ul>
+                  <li>Queue por aging y prioridad de cobranza.</li>
+                  <li>Bulk actions y playbooks de seguimiento.</li>
+                  <li>Dunning inteligente y vista unificada de riesgo.</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-head">
+              <h3>Eventos</h3>
+              <span class="badge mid">Operativo</span>
+            </div>
+            <p class="score">Score actual: 6.5/10</p>
+            <div class="progress"><span style="width: 65%"></span></div>
+            <p>
+              Ya permite publicar, registrar, hacer check-in y leer ocupacion. Lo que falta es convertirlo en centro
+              de activacion y difusion, no solo en catalogo de eventos.
+            </p>
+            <div class="module-columns">
+              <div class="mini">
+                <h4>Ya resuelve</h4>
+                <ul>
+                  <li>CRUD, estados, registros y check-in.</li>
+                  <li>KPIs de ocupacion y asistencia.</li>
+                  <li>Analisis IA del evento.</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>Le falta para sorprender</h4>
+                <ul>
+                  <li>Agenda/calendario real y vista por capacidad.</li>
+                  <li>Campañas pre y post evento integradas a ROVI.</li>
+                  <li>Participacion historica y score de engagement.</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-head">
+              <h3>Comunidad</h3>
+              <span class="badge low">Demo conceptual</span>
+            </div>
+            <p class="score">Score actual: 3.5/10</p>
+            <div class="progress"><span style="width: 35%"></span></div>
+            <p>
+              La narrativa esta bien pensada, pero hoy sigue siendo una vista embebida de demo, sin colecciones,
+              permisos, publicaciones reales ni integracion operativa.
+            </p>
+            <div class="module-columns">
+              <div class="mini">
+                <h4>Ya resuelve</h4>
+                <ul>
+                  <li>Cuenta la historia correcta de networking y comites.</li>
+                  <li>Ayuda a vender retencion y valor de membresia.</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>Le falta para sorprender</h4>
+                <ul>
+                  <li>Feed real, grupos, moderacion y permisos.</li>
+                  <li>Referidos, recursos, comites y beneficios activos.</li>
+                  <li>Patrocinios, slots de visibilidad y monetizacion futura.</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <div class="module-head">
+              <h3>Inteligencia</h3>
+              <span class="badge low">Promesa fuerte</span>
+            </div>
+            <p class="score">Score actual: 4.5/10</p>
+            <div class="progress"><span style="width: 45%"></span></div>
+            <p>
+              Hay buen material de analisis IA distribuido por modulo, pero el modulo de inteligencia como tal aun
+              no se siente como command center o agente institucional.
+            </p>
+            <div class="module-columns">
+              <div class="mini">
+                <h4>Ya resuelve</h4>
+                <ul>
+                  <li>Analisis IA en asociaciones, socios, membresias, eventos y facturas.</li>
+                  <li>Demo visual de insights ejecutivos.</li>
+                </ul>
+              </div>
+              <div class="mini">
+                <h4>Le falta para sorprender</h4>
+                <ul>
+                  <li>Agente de consejo nacional con briefing diario.</li>
+                  <li>Playbooks automáticos de cobranza, aprobacion y difusion.</li>
+                  <li>Conectar insights con campañas y tareas reales.</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">3. Validacion De Links y Navegacion</h2>
+        <p class="section-sub">
+          El resumen actual se ve fuerte, pero en experiencia de operacion todavia no cierra del todo el loop. La mayor
+          oportunidad inmediata es que cada card del dashboard y cada quick action lleven a un <strong>modulo + item
+          seleccionado + tab abierta</strong>, no solo al listado general.
+        </p>
+
+        <div class="grid route-layout">
+          <article class="route-box">
+            <h3>Estado actual</h3>
+            <ul>
+              <li><span class="strong">Sidebar COPIM:</span> correcto; navega a los modulos principales.</li>
+              <li><span class="strong">Cards del resumen:</span> asociaciones, membresias, facturacion y eventos abren el modulo, pero no el item concreto.</li>
+              <li><span class="strong">Pendientes de socios:</span> el boton Revisar manda a <code>/copim/members</code>, no abre ese socio.</li>
+              <li><span class="strong">Asociaciones destacadas:</span> hoy no son cards clicables al detalle.</li>
+              <li><span class="strong">Renovaciones criticas / facturas por cobrar / eventos proximos:</span> se ven, pero no deep-linkean a la gestion puntual.</li>
+            </ul>
+          </article>
+
+          <article class="route-box">
+            <h3>Lo que debe pasar</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Origen</th>
+                  <th>Ruta recomendada</th>
+                  <th>Comportamiento esperado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Asociacion destacada</td>
+                  <td><code>/copim/associations?focus=&lt;associationId&gt;</code></td>
+                  <td>Abrir el popup de esa asociacion y el tab correcto.</td>
+                </tr>
+                <tr>
+                  <td>Socio pendiente</td>
+                  <td><code>/copim/members?focus=&lt;memberId&gt;&tab=profile</code></td>
+                  <td>Entrar directo a la ficha del socio pendiente.</td>
+                </tr>
+                <tr>
+                  <td>Renovacion critica</td>
+                  <td><code>/copim/memberships?focus=&lt;membershipId&gt;&queue=renewals</code></td>
+                  <td>Abrir la membresia y resaltar la accion de cobro.</td>
+                </tr>
+                <tr>
+                  <td>Factura abierta</td>
+                  <td><code>/copim/invoices?focus=&lt;invoiceId&gt;&tab=analysis</code></td>
+                  <td>Abrir la factura exacta con prioridad de seguimiento.</td>
+                </tr>
+                <tr>
+                  <td>Evento proximo</td>
+                  <td><code>/copim/events?focus=&lt;eventId&gt;&tab=overview</code></td>
+                  <td>Abrir el evento con quick actions de difusion y asistencia.</td>
+                </tr>
+              </tbody>
+            </table>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">4. Lo Que Falta Para Que Mario Se Sorprenda</h2>
+        <p class="section-sub">
+          La sorpresa no va a venir de meter mas features aisladas. Va a venir de que cada modulo se sienta operativo,
+          elegante, rapido y con IA muy bien aprovechada en momentos donde realmente ahorra trabajo.
+        </p>
+
+        <div class="grid status-grid">
+          <article class="summary-box">
+            <h3>Resumen</h3>
+            <ul>
+              <li>Briefing IA por rol: consejo, presidencia, administracion y socio.</li>
+              <li>Panel "lo que urge hoy" con CTA directos a item seleccionado.</li>
+              <li>Semaforos nacionales por renovacion, aprobacion, asistencia y activacion de CRM.</li>
+              <li>Bloque "campañas listas para disparar" conectado a ROVI Campaigns.</li>
+            </ul>
+          </article>
+          <article class="summary-box">
+            <h3>Asociaciones</h3>
+            <ul>
+              <li>Hero visual por asociacion con imagen/par visual y identidad.</li>
+              <li>Health score, progreso contra meta, streak operativa y quick actions.</li>
+              <li>Mapa de expansion y comparativo nacional entre capitulos.</li>
+              <li>Botones: revisar pendientes, lanzar recordatorio, convocar evento, abrir campaña.</li>
+            </ul>
+          </article>
+          <article class="summary-box">
+            <h3>Socios</h3>
+            <ul>
+              <li>Portal estilo member center con perfil, deuda, beneficios, credencial y eventos.</li>
+              <li>Vista lista + kanban por pipeline: nuevo, en revision, por aprobar, activo, suspendido.</li>
+              <li>Timeline de actividad, documentos, notas y tareas de onboarding.</li>
+              <li>Upsell claro a CRM base / Broker Pro cuando el socio ya se activo.</li>
+            </ul>
+          </article>
+          <article class="summary-box">
+            <h3>Membresias</h3>
+            <ul>
+              <li>Queue de cobranza por aging: hoy, esta semana, vencidas, reactivables.</li>
+              <li>Recordatorios en lote y playbooks de cobranza por estatus.</li>
+              <li>Vista unificada de renovacion + factura + recordatorio + ultima interaccion.</li>
+              <li>Forecast de renovacion y riesgo de churn por socio o asociacion.</li>
+            </ul>
+          </article>
+          <article class="summary-box">
+            <h3>Eventos</h3>
+            <ul>
+              <li>Agenda visual con calendario, capacidad, cupo y difusión.</li>
+              <li>Motor de campañas pre-evento y post-evento conectado a ROVI Campaigns.</li>
+              <li>Segmentacion por asociacion, tipo de socio, interes o historial de asistencia.</li>
+              <li>Seguimiento de participacion: asistio, no asistio, alto engagement, potencial upsell.</li>
+            </ul>
+          </article>
+          <article class="summary-box">
+            <h3>Comunidad</h3>
+            <ul>
+              <li>Feed real con comites, publicaciones, recursos y oportunidades.</li>
+              <li>Grupos por region, especialidad, certificacion o comite.</li>
+              <li>Moderacion y recomendacion IA de contenido relevante.</li>
+              <li>Monetizacion futura: slots de patrocinadores, bancos, desarrolladores y aliados.</li>
+            </ul>
+          </article>
+          <article class="summary-box">
+            <h3>Inteligencia</h3>
+            <ul>
+              <li>Consejo Copilot con resumen diario y tablero de decisiones.</li>
+              <li>Cobranza Copilot con lista de seguimiento y mensajes sugeridos.</li>
+              <li>Approval Copilot para revisar solicitudes y detectar friccion.</li>
+              <li>Event Copilot para difusion, forecast de asistencia y seguimiento post evento.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">5. Como Aprovechar El Agente De IA Sin Romper La Adopcion</h2>
+        <p class="section-sub">
+          El mayor error seria vender IA como pantalla o chat por si mismo. El mejor uso para COPIM es IA asistiva:
+          resumir, priorizar, sugerir, disparar y explicar. La IA debe ayudar a operar mejor, no pedirle al usuario
+          aprender una nueva forma de trabajar.
+        </p>
+
+        <div class="grid summary-grid">
+          <article class="summary-box">
+            <h3>Agentes IA que sí tienen sentido</h3>
+            <ul>
+              <li><span class="strong">Council Copilot:</span> "que se esta venciendo, que asociacion se esta quedando atras, que evento conviene impulsar hoy".</li>
+              <li><span class="strong">Approval Copilot:</span> revisar solicitudes, detectar faltantes y sugerir aprobar / pedir documento / escalar.</li>
+              <li><span class="strong">Billing Copilot:</span> ranking diario de cobranza, tono sugerido de recordatorio y siguiente accion recomendada.</li>
+              <li><span class="strong">Engagement Copilot:</span> quien asistio, quien no regreso, a quien conviene invitar a comunidad o Broker Pro.</li>
+              <li><span class="strong">Campaign Copilot:</span> crear borradores de campañas para eventos, renovaciones, beneficios y reactivacion.</li>
+            </ul>
+          </article>
+
+          <article class="summary-box">
+            <h3>Regla de oro</h3>
+            <ul>
+              <li>La IA no debe sustituir la UI operativa; debe aparecer como <span class="strong">capa de aceleracion</span>.</li>
+              <li>Donde mas valor genera es en <span class="strong">resumenes, quick actions, mensajes, prioridad y decision support</span>.</li>
+              <li>No conviene abrir con "chat de IA". Conviene abrir con <span class="strong">botones que resuelven trabajo</span>.</li>
+              <li>El módulo de inteligencia debe terminar conectado a tareas y campañas, no quedarse en tarjetas bonitas.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">6. Plan De Ejecucion</h2>
+        <p class="section-sub">
+          El camino recomendable no es meterlo todo al mismo tiempo. Conviene atacar primero lo que mas mejora la
+          percepcion de operacion real y luego convertir la IA y la comunidad en diferenciadores visibles.
+        </p>
+
+        <div class="grid phase-grid">
+          <article class="phase">
+            <div class="num">1</div>
+            <h3>Fase 0</h3>
+            <p><strong>2 a 4 dias</strong></p>
+            <ul>
+              <li>Hardening de links y deep linking por item.</li>
+              <li>Resumen con quick actions contextuales.</li>
+              <li>Rutas con <code>focus</code>, <code>tab</code> y <code>queue</code>.</li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <div class="num">2</div>
+            <h3>Fase 1</h3>
+            <p><strong>1 a 2 semanas</strong></p>
+            <ul>
+              <li>Rediseño de cards de asociaciones y socios.</li>
+              <li>Hero visual, gamificacion y quick actions.</li>
+              <li>Kanban de socios y portal de miembro base.</li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <div class="num">3</div>
+            <h3>Fase 2</h3>
+            <p><strong>1 a 2 semanas</strong></p>
+            <ul>
+              <li>Cockpit de membresias + facturacion + cobranza.</li>
+              <li>Colas por aging y recordatorios masivos.</li>
+              <li>Billing Copilot y risk scoring.</li>
+            </ul>
+          </article>
+
+          <article class="phase">
+            <div class="num">4</div>
+            <h3>Fase 3</h3>
+            <p><strong>1 a 2 semanas</strong></p>
+            <ul>
+              <li>Eventos con agenda visual y campañas ROVI.</li>
+              <li>Comunidad real con grupos y feed.</li>
+              <li>Modulo de Inteligencia como command center.</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="callout">
+          <h2>La mejor narrativa para sorprender</h2>
+          <p>
+            La historia no debe ser "metimos mucha IA". La historia debe ser:
+            <strong>tomamos la operacion diaria de COPIM, la hicimos simple, medible y accionable, y luego le pusimos una
+            capa de inteligencia que ahorra tiempo y abre nuevas fuentes de valor</strong>.
+          </p>
+          <ul>
+            <li>Resumen que manda al caso exacto que requiere accion.</li>
+            <li>Asociaciones con salud, riesgo, crecimiento y campañas.</li>
+            <li>Socios con portal real y pipeline de activacion.</li>
+            <li>Membresias y facturas operadas como un solo frente de cobranza.</li>
+            <li>Eventos que viven conectados a difusion, asistencia y follow-up.</li>
+            <li>Comunidad que fortalece permanencia y luego monetizacion.</li>
+            <li>Inteligencia que no estorba: ayuda a decidir, a escribir y a ejecutar.</li>
+          </ul>
+        </div>
+
+        <p class="footer-note">
+          Base de este reporte: reunion con Mario del 5 de enero de 2026 en <code>docs/reunion1.txt</code> y estado actual
+          de los modulos COPIM dentro de ROVI a la fecha.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

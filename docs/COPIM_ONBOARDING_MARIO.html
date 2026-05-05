@@ -1,0 +1,1704 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COPIM x ROVI - Onboarding Comercial para Mario</title>
+    <style>
+      :root {
+        --bg: #f4f8fc;
+        --panel: rgba(255, 255, 255, 0.92);
+        --ink: #10213d;
+        --muted: #5b6b82;
+        --line: rgba(16, 33, 61, 0.1);
+        --blue: #0d5ea8;
+        --blue-deep: #0b3f72;
+        --cyan: #44b7ea;
+        --gold: #d4a139;
+        --green: #18835b;
+        --amber: #a06b12;
+        --rose: #a04457;
+        --shadow: 0 24px 70px rgba(16, 33, 61, 0.08);
+        --radius-xl: 30px;
+        --radius-lg: 22px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(68, 183, 234, 0.16), transparent 28%),
+          radial-gradient(circle at top right, rgba(212, 161, 57, 0.14), transparent 22%),
+          linear-gradient(180deg, #eef4fb 0%, #f7fbff 26%, #ffffff 100%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(1280px, calc(100vw - 36px));
+        margin: 0 auto;
+        padding: 28px 0 60px;
+      }
+
+      .hero,
+      .card,
+      .script-box,
+      .timeline,
+      .table-wrap,
+      .tip-box,
+      .footer-box {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(12px);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 34px;
+        background:
+          linear-gradient(135deg, rgba(255,255,255,0.95), rgba(247,250,255,0.9)),
+          var(--panel);
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        top: -12%;
+        right: -10%;
+        width: 440px;
+        height: 440px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(13, 94, 168, 0.16), rgba(68, 183, 234, 0.08), transparent 68%);
+        pointer-events: none;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(13, 94, 168, 0.14);
+        background: rgba(13, 94, 168, 0.08);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 980px;
+        font-size: clamp(38px, 5vw, 66px);
+        line-height: 0.97;
+        letter-spacing: -0.05em;
+      }
+
+      .hero-sub {
+        margin-top: 18px;
+        max-width: 940px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.78;
+      }
+
+      .tag-row,
+      .toc,
+      .pill-row,
+      .footer-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .tag,
+      .toc a,
+      .pill {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.86);
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .tag-row {
+        margin-top: 20px;
+      }
+
+      .tag {
+        color: var(--blue-deep);
+        font-weight: 700;
+      }
+
+      .toc {
+        margin-top: 22px;
+      }
+
+      .toc a:hover {
+        border-color: rgba(13, 94, 168, 0.18);
+        background: rgba(255,255,255,0.98);
+      }
+
+      .hero-grid,
+      .grid-2,
+      .grid-3,
+      .flow-grid,
+      .script-grid,
+      .tips-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1.28fr 0.72fr;
+        margin-top: 28px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .metric {
+        min-height: 152px;
+        padding: 20px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(244,249,255,0.96));
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        margin-top: 12px;
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+      }
+
+      .metric-note {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.62;
+      }
+
+      .summary-box {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(13, 94, 168, 0.14);
+        background:
+          linear-gradient(160deg, rgba(13, 94, 168, 0.95), rgba(11, 63, 114, 0.96));
+        color: #ffffff;
+      }
+
+      .summary-box h3 {
+        font-size: 24px;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+      }
+
+      .summary-box p,
+      .summary-box li {
+        margin-top: 14px;
+        color: rgba(255,255,255,0.82);
+        line-height: 1.76;
+      }
+
+      .summary-box ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      section {
+        margin-top: 22px;
+      }
+
+      .section-head {
+        margin-bottom: 18px;
+      }
+
+      .overline {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .section-head h2 {
+        margin-top: 10px;
+        font-size: 34px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .section-head p {
+        margin-top: 12px;
+        max-width: 940px;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.76;
+      }
+
+      .card,
+      .script-box,
+      .tip-box {
+        padding: 24px;
+      }
+
+      .card p,
+      .card li,
+      .script-box p,
+      .script-box li,
+      .table-wrap td,
+      .table-wrap th,
+      .tip-box p,
+      .tip-box li {
+        color: var(--muted);
+        line-height: 1.72;
+      }
+
+      .card ul,
+      .script-box ul,
+      .tip-box ul {
+        margin: 16px 0 0;
+        padding-left: 18px;
+      }
+
+      .card ul li + li,
+      .script-box ul li + li,
+      .tip-box ul li + li {
+        margin-top: 8px;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .pill {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .pill.live {
+        background: rgba(24, 131, 91, 0.1);
+        color: var(--green);
+      }
+
+      .pill.next {
+        background: rgba(212, 161, 57, 0.12);
+        color: var(--amber);
+      }
+
+      .pill.premium {
+        background: rgba(160, 68, 87, 0.1);
+        color: var(--rose);
+      }
+
+      .mini-title {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .flow-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .flow-card {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,249,255,0.94));
+        box-shadow: 0 18px 50px rgba(16, 33, 61, 0.05);
+      }
+
+      .flow-card h3 {
+        margin-top: 10px;
+        font-size: 25px;
+        line-height: 1.06;
+        letter-spacing: -0.03em;
+      }
+
+      .flow-card p {
+        margin-top: 14px;
+        color: var(--muted);
+        line-height: 1.72;
+      }
+
+      .table-wrap {
+        padding: 18px;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 860px;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 16px;
+        text-align: left;
+        vertical-align: top;
+        border-bottom: 1px solid rgba(16, 33, 61, 0.08);
+      }
+
+      th {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .quote-box {
+        padding: 28px;
+        border-radius: var(--radius-lg);
+        background:
+          linear-gradient(145deg, rgba(16, 33, 61, 0.98), rgba(13, 94, 168, 0.95));
+        color: #ffffff;
+        box-shadow: 0 24px 64px rgba(16, 33, 61, 0.22);
+      }
+
+      .quote-box h3 {
+        font-size: 30px;
+        line-height: 1.03;
+        letter-spacing: -0.04em;
+      }
+
+      .quote-box p {
+        margin-top: 16px;
+        color: rgba(255,255,255,0.84);
+        line-height: 1.82;
+        font-size: 17px;
+      }
+
+      .script-grid {
+        grid-template-columns: 0.82fr 1.18fr;
+      }
+
+      .script-box h3 {
+        font-size: 26px;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+      }
+
+      .script-box .label {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .pitch-block {
+        padding: 18px 0 0;
+        margin-top: 18px;
+        border-top: 1px solid rgba(16, 33, 61, 0.08);
+      }
+
+      .pitch-block h4 {
+        font-size: 18px;
+        color: var(--ink);
+      }
+
+      .pitch-copy {
+        margin-top: 10px;
+        color: var(--ink);
+        font-size: 17px;
+        line-height: 1.82;
+      }
+
+      .tips-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .tip-box h3 {
+        font-size: 24px;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+      }
+
+      .closing {
+        padding: 30px;
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(145deg, rgba(16, 33, 61, 0.98), rgba(13, 94, 168, 0.95));
+        color: #ffffff;
+        box-shadow: 0 26px 70px rgba(16, 33, 61, 0.22);
+      }
+
+      .closing h2 {
+        font-size: 36px;
+        line-height: 1.02;
+        letter-spacing: -0.05em;
+      }
+
+      .closing p {
+        margin-top: 14px;
+        max-width: 940px;
+        color: rgba(255,255,255,0.84);
+        font-size: 17px;
+        line-height: 1.8;
+      }
+
+      .footer-box {
+        margin-top: 22px;
+        padding: 22px 24px;
+      }
+
+      .footer-box p {
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .footer-links {
+        margin-top: 14px;
+      }
+
+      .footer-links a {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: rgba(255,255,255,0.86);
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      .demo-room,
+      .launcher-panel,
+      .step-list-card,
+      .current-step-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow);
+      }
+
+      .demo-room {
+        padding: 24px;
+      }
+
+      .launcher-grid,
+      .demo-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .launcher-grid {
+        grid-template-columns: 0.9fr 1.1fr;
+      }
+
+      .demo-grid {
+        grid-template-columns: 0.78fr 1.22fr;
+        margin-top: 18px;
+      }
+
+      .launcher-panel,
+      .step-list-card,
+      .current-step-card {
+        padding: 22px;
+      }
+
+      .field-label {
+        display: block;
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .env-buttons,
+      .action-row,
+      .step-actions,
+      .quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .env-buttons {
+        margin-top: 14px;
+      }
+
+      .url-input {
+        width: 100%;
+        margin-top: 12px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(16, 33, 61, 0.12);
+        background: rgba(255,255,255,0.94);
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .url-input:focus {
+        outline: 2px solid rgba(13, 94, 168, 0.16);
+        border-color: rgba(13, 94, 168, 0.26);
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 999px;
+        border: 1px solid rgba(16, 33, 61, 0.1);
+        background: rgba(255,255,255,0.92);
+        color: var(--ink);
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(13, 94, 168, 0.18);
+      }
+
+      .btn.primary {
+        background: linear-gradient(135deg, rgba(13, 94, 168, 0.98), rgba(11, 63, 114, 0.96));
+        color: #ffffff;
+        border-color: rgba(13, 94, 168, 0.36);
+      }
+
+      .btn.secondary {
+        background: rgba(13, 94, 168, 0.08);
+        color: var(--blue-deep);
+        border-color: rgba(13, 94, 168, 0.16);
+      }
+
+      .btn.ghost {
+        background: rgba(255,255,255,0.86);
+      }
+
+      .btn.active {
+        background: rgba(13, 94, 168, 0.12);
+        border-color: rgba(13, 94, 168, 0.2);
+        color: var(--blue-deep);
+      }
+
+      .route-preview {
+        margin-top: 14px;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(244,249,255,0.92));
+      }
+
+      .route-preview code {
+        display: block;
+        margin-top: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+        word-break: break-all;
+        color: var(--blue-deep);
+      }
+
+      .helper {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.66;
+      }
+
+      .step-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .step-item {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 54px 1fr;
+        gap: 14px;
+        align-items: start;
+        padding: 16px;
+        border-radius: 20px;
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: rgba(255,255,255,0.92);
+        cursor: pointer;
+        text-align: left;
+        transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+      }
+
+      .step-item:hover {
+        transform: translateY(-1px);
+        border-color: rgba(13, 94, 168, 0.16);
+      }
+
+      .step-item.active {
+        border-color: rgba(13, 94, 168, 0.22);
+        background: linear-gradient(180deg, rgba(240,248,255,0.98), rgba(248,251,255,0.94));
+      }
+
+      .step-number {
+        width: 54px;
+        height: 54px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 18px;
+        background: rgba(13, 94, 168, 0.1);
+        color: var(--blue);
+        font-weight: 800;
+        font-size: 18px;
+      }
+
+      .step-item.active .step-number {
+        background: linear-gradient(135deg, rgba(13, 94, 168, 0.96), rgba(11, 63, 114, 0.95));
+        color: #ffffff;
+      }
+
+      .step-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--ink);
+        line-height: 1.2;
+      }
+
+      .step-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .status-chip {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .status-chip.public {
+        background: rgba(24, 131, 91, 0.1);
+        color: var(--green);
+      }
+
+      .status-chip.login {
+        background: rgba(212, 161, 57, 0.12);
+        color: var(--amber);
+      }
+
+      .current-step-card h3 {
+        margin-top: 12px;
+        font-size: 28px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .lead {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.76;
+      }
+
+      .speech-box {
+        margin-top: 18px;
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px solid rgba(13, 94, 168, 0.12);
+        background: linear-gradient(180deg, rgba(244,249,255,0.96), rgba(255,255,255,0.92));
+      }
+
+      .speech-box strong {
+        display: block;
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .speech-box p {
+        margin-top: 10px;
+        color: var(--ink);
+        line-height: 1.8;
+        font-size: 16px;
+      }
+
+      .speaker-notes {
+        margin-top: 18px;
+      }
+
+      .speaker-notes h4 {
+        color: var(--ink);
+        font-size: 18px;
+      }
+
+      .speaker-notes ul {
+        margin: 12px 0 0;
+        padding-left: 18px;
+      }
+
+      .copy-feedback {
+        margin-top: 10px;
+        color: var(--green);
+        font-size: 14px;
+        font-weight: 700;
+        min-height: 20px;
+      }
+
+      body.presenter-mode .nonessential {
+        display: none !important;
+      }
+
+      @media (max-width: 1100px) {
+        .hero-grid,
+        .script-grid,
+        .grid-3,
+        .flow-grid,
+        .tips-grid,
+        .launcher-grid,
+        .demo-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          width: min(100vw - 24px, 1280px);
+          padding: 16px 0 42px;
+        }
+
+        .hero,
+        .card,
+        .script-box,
+        .table-wrap,
+        .tip-box,
+        .closing,
+        .footer-box {
+          border-radius: 24px;
+        }
+
+        .hero {
+          padding: 24px;
+        }
+
+        .metric-grid,
+        .grid-2,
+        .env-buttons,
+        .action-row,
+        .step-actions,
+        .quick-links {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 40px;
+        }
+
+        .section-head h2,
+        .closing h2 {
+          font-size: 29px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="eyebrow">Onboarding comercial · COPIM x ROVI · Mario</div>
+        <h1>Esto no es una presentacion. Es la forma de enseñarle a Mario que ROVI ya se siente como el sistema que COPIM necesita accionar.</h1>
+        <p class="hero-sub">
+          La mejor conversacion con Mario no debe girar alrededor de "software", "IA" o "módulos". Debe sentirse como un onboarding a una solucion ya entendible:
+          que la asociacion opere mejor hoy, que el socio vea valor real en su membresia y que COPIM tenga una ruta concreta para escalar a nuevas asociaciones.
+        </p>
+
+        <div class="tag-row">
+          <span class="tag">Demo guiada</span>
+          <span class="tag">Elevator pitch</span>
+          <span class="tag">Script de ventas</span>
+          <span class="tag">Qué mostrar y qué decir</span>
+          <span class="tag">Ruta a acción</span>
+        </div>
+
+        <div class="hero-grid">
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="metric-label">Lo que Mario compra</div>
+              <div class="metric-value">Operacion + valor de membresia</div>
+              <div class="metric-note">No compra un CRM generico. Compra una forma de ordenar asociaciones, socios, cobros, eventos y expansion.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Lo que Mario quiere ver</div>
+              <div class="metric-value">Algo ya accionable</div>
+              <div class="metric-note">Debe sentir que esto ya se puede bajar a asociaciones y no que sigue siendo una idea bonita.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Lo que si conviene enseñar</div>
+              <div class="metric-value">Flujo real</div>
+              <div class="metric-note">Asociacion, socio, membresia, factura, evento y check-in. Operacion cerrada y entendible.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Lo que no debe dominar</div>
+              <div class="metric-value">IA primero</div>
+              <div class="metric-note">La inteligencia suma despues. Lo que vende hoy es simplicidad institucional y valor visible para el socio.</div>
+            </div>
+          </div>
+
+          <aside class="summary-box">
+            <h3>La promesa correcta</h3>
+            <p>
+              “Mario, esto ya no es un mockup de CRM adaptado. Es una forma concreta de operar asociaciones, activar socios y volver visible el valor de pertenecer a COPIM”.
+            </p>
+            <ul>
+              <li>Primero se muestra lo que ya se puede operar.</li>
+              <li>Luego se muestra como el socio vive su membresia.</li>
+              <li>Al final se explica como eso escala hacia comunidad, premium e inteligencia.</li>
+            </ul>
+          </aside>
+        </div>
+
+        <nav class="toc" aria-label="Contenido">
+          <a href="#materializado">Que ya esta materializado</a>
+          <a href="#recorrido">Recorrido de onboarding</a>
+          <a href="#pitch">Elevator pitch</a>
+          <a href="#script">Script de ventas</a>
+          <a href="#presentacion">Como presentarlo</a>
+          <a href="#cierre">Cierre y accion</a>
+        </nav>
+      </header>
+
+      <section id="demo-guiada">
+        <div class="section-head">
+          <div class="overline">Sala de demo</div>
+          <h2>La reunión puede correrse desde aquí como una presentación interactiva que te va llevando a la demo guiada.</h2>
+          <p>
+            Configura primero el ambiente donde está corriendo ROVI, luego avanza por los pasos. Cada paso te dice qué abrir,
+            qué decir y qué debe sentir Mario en ese momento. Si quieres, puedes abrir la demo en esta misma pestaña o en una nueva.
+          </p>
+        </div>
+
+        <div class="demo-room">
+          <div class="launcher-grid">
+            <div class="launcher-panel">
+              <div class="field-label">1. Selecciona el ambiente del demo</div>
+              <div class="env-buttons">
+                <button class="btn ghost preset-btn" data-base-url="http://localhost:13000" type="button">Local Docker 13000</button>
+                <button class="btn ghost preset-btn" data-base-url="http://localhost:3000" type="button">React Dev 3000</button>
+                <button class="btn ghost preset-btn" data-base-url="http://preview.srv1318804.hstgr.cloud" type="button">Preview</button>
+              </div>
+              <input id="demo-base-url" class="url-input" type="text" value="http://localhost:13000" spellcheck="false" />
+              <p class="helper">
+                Si tu demo corre en otra URL, cámbiala aquí. Esta base se usa para todos los botones del recorrido.
+              </p>
+
+              <div class="route-preview">
+                <div class="field-label">Ruta actual del paso</div>
+                <code id="route-preview-text">http://localhost:13000/copim-demo</code>
+                <p class="helper" id="route-preview-helper">
+                  La primera vista recomendada es la demo pública para abrir la conversación antes de entrar a rutas autenticadas.
+                </p>
+              </div>
+
+              <div class="action-row" style="margin-top: 16px;">
+                <button id="open-current-here" class="btn primary" type="button">Abrir paso actual aquí</button>
+                <button id="open-current-new" class="btn secondary" type="button">Abrir en nueva pestaña</button>
+              </div>
+
+              <div class="action-row" style="margin-top: 10px;">
+                <button id="toggle-presenter" class="btn ghost" type="button">Modo presentador</button>
+                <button id="go-fullscreen" class="btn ghost" type="button">Pantalla completa</button>
+              </div>
+            </div>
+
+            <div class="launcher-panel">
+              <div class="field-label">2. Ruta rápida para la reunión</div>
+              <div class="quick-links">
+                <button class="btn secondary quick-open" data-route="/copim-demo" type="button">Abrir demo pública</button>
+                <button class="btn ghost quick-open" data-route="/copim/dashboard" type="button">Abrir dashboard COPIM</button>
+                <button class="btn ghost quick-open" data-route="/copim/associations" type="button">Abrir asociaciones</button>
+                <button class="btn ghost quick-open" data-route="/copim/members" type="button">Abrir socios</button>
+                <button class="btn ghost quick-open" data-route="/copim/memberships" type="button">Abrir membresías</button>
+                <button class="btn ghost quick-open" data-route="/copim/invoices" type="button">Abrir facturación</button>
+                <button class="btn ghost quick-open" data-route="/copim/events" type="button">Abrir eventos</button>
+                <button class="btn ghost quick-open" data-route="/copim/member" type="button">Abrir portal del socio</button>
+              </div>
+              <p class="helper" style="margin-top: 14px;">
+                Usa la demo pública para abrir el discurso. Usa las rutas autenticadas cuando quieras aterrizar la operación real o la experiencia del asociado.
+              </p>
+            </div>
+          </div>
+
+          <div class="demo-grid">
+            <div class="step-list-card">
+              <div class="field-label">3. Pasos guiados</div>
+              <div id="step-list" class="step-list"></div>
+            </div>
+
+            <div class="current-step-card">
+              <span id="current-step-access" class="status-chip public">Público</span>
+              <h3 id="current-step-title">Abrir vista nacional</h3>
+              <p id="current-step-lead" class="lead">
+                Empieza con una vista que no genere fricción, abra el contexto y haga sentir que ya existe una plataforma con sentido institucional.
+              </p>
+
+              <div class="speech-box">
+                <strong>Qué decir</strong>
+                <p id="current-step-speech">
+                  Mario, antes de entrar al detalle, quiero enseñarte la capa que convierte esto en una plataforma para COPIM y no en otro CRM.
+                </p>
+              </div>
+
+              <div class="speaker-notes">
+                <h4>Qué debe sentir Mario</h4>
+                <ul id="current-step-outcomes"></ul>
+              </div>
+
+              <div class="speaker-notes">
+                <h4>Qué mostrar visualmente</h4>
+                <ul id="current-step-show"></ul>
+              </div>
+
+              <div class="step-actions" style="margin-top: 18px;">
+                <button id="prev-step" class="btn ghost" type="button">Paso anterior</button>
+                <button id="next-step" class="btn ghost" type="button">Paso siguiente</button>
+                <button id="copy-step-speech" class="btn secondary" type="button">Copiar speech</button>
+              </div>
+              <div id="copy-feedback" class="copy-feedback"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="materializado">
+        <div class="section-head">
+          <div class="overline">Base real</div>
+          <h2>Lo primero es hacer que Mario sienta que ya hay una base concreta dentro de ROVI.</h2>
+          <p>
+            Antes de hablar de vision, conviene anclar la conversacion en lo que hoy ya existe y se puede recorrer. Eso reduce friccion y cambia el tono de “idea” a “plataforma lista para bajar a operación”.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <div class="pill live">Ya visible hoy</div>
+            <h3 style="margin-top: 12px;">Capa operativa COPIM</h3>
+            <ul>
+              <li>Dashboard institucional.</li>
+              <li>Asociaciones.</li>
+              <li>Socios.</li>
+              <li>Membresias.</li>
+              <li>Facturacion.</li>
+              <li>Eventos.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="pill live">Ya visible hoy</div>
+            <h3 style="margin-top: 12px;">Narrativa de demo vendible</h3>
+            <ul>
+              <li>Datos demo y bootstrap.</li>
+              <li>Rutas COPIM dedicadas.</li>
+              <li>Roles institucionales.</li>
+              <li>Recorridos por entidad.</li>
+              <li>Presentacion y demo navegable.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="pill next">Siguiente cierre</div>
+            <h3 style="margin-top: 12px;">Lo que conviene amarrar</h3>
+            <ul>
+              <li>Portal del asociado mas redondo.</li>
+              <li>Experiencia de membresia mas viva.</li>
+              <li>Beneficios, comunidad y contenido como segunda capa.</li>
+              <li>Ruta de piloto con asociaciones reales.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="recorrido">
+        <div class="section-head">
+          <div class="overline">Recorrido de onboarding</div>
+          <h2>La mejor “presentacion” es una demo guiada de 6 a 8 minutos, no un deck largo.</h2>
+          <p>
+            El objetivo no es enseñar todo. Es llevar a Mario por un recorrido donde reconozca que lo importante para COPIM ya esta resuelto en forma de flujo: operacion, socio, membresia, cobro y evento.
+          </p>
+        </div>
+
+        <div class="flow-grid">
+          <article class="flow-card">
+            <div class="mini-title">Paso 1</div>
+            <h3>Arrancar en control nacional</h3>
+            <p>
+              Abre el dashboard COPIM y muestra que desde el primer vistazo ya se entienden asociaciones activas, socios pendientes, renovaciones, facturas y eventos proximos.
+            </p>
+          </article>
+          <article class="flow-card">
+            <div class="mini-title">Paso 2</div>
+            <h3>Bajar a una asociacion real</h3>
+            <p>
+              Entra al modulo de asociaciones y muestra que cada capitulo puede operarse como una unidad viva: salud, miembros, renovaciones y agenda.
+            </p>
+          </article>
+          <article class="flow-card">
+            <div class="mini-title">Paso 3</div>
+            <h3>Mostrar el flujo del socio</h3>
+            <p>
+              Entra a socios y explica que aqui vive la parte que más importa para adopcion: alta, aprobacion, expediente, directorio y estatus.
+            </p>
+          </article>
+          <article class="flow-card">
+            <div class="mini-title">Paso 4</div>
+            <h3>Ensenar membresia y cobranza</h3>
+            <p>
+              Abre membresias y facturacion. El mensaje aqui es fuerte: “esto ya ordena la parte que hoy suele vivir entre Excel, mensajes y seguimiento manual”.
+            </p>
+          </article>
+          <article class="flow-card">
+            <div class="mini-title">Paso 5</div>
+            <h3>Cerrar con eventos y check-in</h3>
+            <p>
+              En eventos enseña registro, asistencia, check-in y seguimiento. Esto hace tangible que la membresia no solo se cobra, sino que se activa.
+            </p>
+          </article>
+          <article class="flow-card">
+            <div class="mini-title">Paso 6</div>
+            <h3>Explicar la capa del asociado</h3>
+            <p>
+              Cierra mostrando la logica del portal del asociado: perfil, pagos, credencial, agenda y valor continuo. Aqui es donde la membresia se vuelve un producto vivo.
+            </p>
+          </article>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 18px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Momento</th>
+                <th>Que abrir</th>
+                <th>Que decir</th>
+                <th>Que debe sentir Mario</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Inicio</td>
+                <td><code>/copim/dashboard</code></td>
+                <td>“Aquí ya tienes el resumen de lo que COPIM necesita controlar hoy, no solo un dashboard bonito”.</td>
+                <td>Que la capa nacional ya tiene sentido operativo.</td>
+              </tr>
+              <tr>
+                <td>Asociacion</td>
+                <td><code>/copim/associations</code></td>
+                <td>“Cada asociacion puede bajarse a una operacion concreta: socios, membresias, agenda y salud de su base”.</td>
+                <td>Que esto si puede bajar a capitulos reales.</td>
+              </tr>
+              <tr>
+                <td>Socios</td>
+                <td><code>/copim/members</code></td>
+                <td>“Este es el punto donde dejamos de depender de Excel para altas, validaciones y directorio”.</td>
+                <td>Que la data del socio si puede entrar y mantenerse viva.</td>
+              </tr>
+              <tr>
+                <td>Membresias</td>
+                <td><code>/copim/memberships</code></td>
+                <td>“Aquí la membresia deja de ser un control manual y se vuelve una operacion trazable”.</td>
+                <td>Que la renovacion y el seguimiento si se pueden ordenar.</td>
+              </tr>
+              <tr>
+                <td>Facturacion</td>
+                <td><code>/copim/invoices</code></td>
+                <td>“La cobranza y la visibilidad financiera ya no quedan regadas en conversaciones”.</td>
+                <td>Que el flujo financiero ya se ve accionable.</td>
+              </tr>
+              <tr>
+                <td>Eventos</td>
+                <td><code>/copim/events</code></td>
+                <td>“Aquí se activa el valor de la membresia: registro, asistencia, check-in y seguimiento”.</td>
+                <td>Que pertenecer a COPIM si puede sentirse vivo.</td>
+              </tr>
+              <tr>
+                <td>Cierre</td>
+                <td>Portal del asociado / nueva capa</td>
+                <td>“La siguiente capa es que el socio viva esto por si mismo: perfil, pagos, credencial, eventos y beneficios”.</td>
+                <td>Que hay una ruta clara de piloto y expansión, no solo una demo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="pitch">
+        <div class="section-head">
+          <div class="overline">Elevator pitch</div>
+          <h2>El pitch debe sonar a infraestructura operativa y valor de membresia, no a software o CRM.</h2>
+          <p>
+            Aquí tienes dos versiones: una corta para abrir la conversación y otra más robusta para cuando Mario ya esté viendo la demo.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <div class="quote-box">
+            <h3>Pitch de 30 segundos</h3>
+            <p>
+              Mario, esto no es un CRM más. Es la capa operativa que le permite a COPIM ordenar asociaciones, socios, membresias,
+              cobros y eventos desde una sola plataforma. Lo importante no es solo controlar mejor la operación, sino volver la membresia
+              mucho más tangible para cada socio con perfil, credencial, pagos, agenda y beneficios visibles.
+            </p>
+          </div>
+          <div class="quote-box">
+            <h3>Pitch de 90 segundos</h3>
+            <p>
+              Lo que estamos construyendo para COPIM no debe verse como software aislado, sino como el sistema que le da orden y escalabilidad
+              a toda su red. Hoy la primera capa ya resuelve lo que más duele: asociaciones, socios, membresias, renovaciones, facturacion y eventos.
+              Eso le da a COPIM control nacional y a cada asociación una operación mucho más simple. Encima de eso, el socio deja de pagar solo una cuota y
+              empieza a vivir una membresia útil: perfil profesional, credencial, pagos, agenda y acceso a una red. Después, cuando la base ya esté viva,
+              se abre la escalera de valor con comunidad, premium e inteligencia. Así la entrada es simple, la adopción es orgánica y el crecimiento comercial sí se sostiene.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="script">
+        <div class="section-head">
+          <div class="overline">Script de ventas</div>
+          <h2>La conversación correcta tiene un orden. Si se invierte, se debilita.</h2>
+          <p>
+            Este script está pensado para una conversación de 8 a 12 minutos con demo corta, no para una presentación estática.
+          </p>
+        </div>
+
+        <div class="script-grid">
+          <article class="script-box">
+            <div class="label">Apertura</div>
+            <h3>Como abrir la conversación</h3>
+            <p style="margin-top: 14px;">
+              “Mario, más que enseñarte software, lo que quiero enseñarte es cómo ya se puede ver y operar lo que COPIM necesita para bajar esto a asociaciones de forma real”.
+            </p>
+
+            <div class="pitch-block">
+              <h4>Dolor que conviene nombrar</h4>
+              <ul>
+                <li>La operación hoy se dispersa entre Excel, WhatsApp y seguimiento manual.</li>
+                <li>La membresia no siempre se siente como una experiencia viva para el socio.</li>
+                <li>Sin una base operativa común, crecer a más asociaciones se vuelve pesado.</li>
+              </ul>
+            </div>
+
+            <div class="pitch-block">
+              <h4>Promesa que conviene instalar</h4>
+              <p class="pitch-copy">
+                “Esto ordena la operación de COPIM, le da más valor a la membresia y crea una base que luego sí se puede expandir a nuevas asociaciones y nuevas capas premium”.
+              </p>
+            </div>
+          </article>
+
+          <article class="script-box">
+            <div class="label">Recorrido y cierre</div>
+            <h3>Que decir durante la demo</h3>
+            <ul>
+              <li><strong>Dashboard:</strong> “Aquí ya no solo ves datos; ves la cola real de lo que hay que operar”.</li>
+              <li><strong>Asociaciones:</strong> “Aquí se baja la capa nacional a capítulos accionables”.</li>
+              <li><strong>Socios:</strong> “Aquí vive la adopción real: alta, aprobación, expediente, visibilidad y permanencia”.</li>
+              <li><strong>Membresias:</strong> “La membresia deja de ser un concepto y se vuelve un flujo administrable”.</li>
+              <li><strong>Facturacion:</strong> “La cobranza se vuelve visible y trazable”.</li>
+              <li><strong>Eventos:</strong> “Aquí el socio vive el valor de pertenecer, no solo lo paga”.</li>
+            </ul>
+
+            <div class="pitch-block">
+              <h4>Cierre comercial sugerido</h4>
+              <p class="pitch-copy">
+                “La mejor siguiente acción no es seguir discutiendo ideas. Es escoger 3 a 5 asociaciones piloto, sembrar el flujo real de socios, membresias y eventos, y usar eso como base para la expansión”.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="presentacion">
+        <div class="section-head">
+          <div class="overline">Como presentar la solución</div>
+          <h2>La forma de enseñarlo cambia totalmente la percepción de valor.</h2>
+          <p>
+            Estas son las recomendaciones prácticas para que la conversación se sienta madura, útil y lista para decisión.
+          </p>
+        </div>
+
+        <div class="tips-grid">
+          <article class="tip-box">
+            <div class="mini-title">1. No vender CRM</div>
+            <h3>Habla de sistema operativo para asociaciones</h3>
+            <ul>
+              <li>No abras con IA ni con “tenemos muchos módulos”.</li>
+              <li>Abre con operación, membresía, socio y expansión.</li>
+              <li>El lenguaje debe sonar institucional, no inmobiliario genérico.</li>
+            </ul>
+          </article>
+
+          <article class="tip-box">
+            <div class="mini-title">2. Mostrar flujo, no catálogo</div>
+            <h3>Enseña una historia completa</h3>
+            <ul>
+              <li>Asociación → Socio → Membresía → Factura → Evento.</li>
+              <li>Evita brincar entre vistas sin narrativa.</li>
+              <li>Mario debe sentir que todo se conecta.</li>
+            </ul>
+          </article>
+
+          <article class="tip-box">
+            <div class="mini-title">3. Cerrar con adopción</div>
+            <h3>Explica por qué el socio sí lo usaría</h3>
+            <ul>
+              <li>Perfil profesional.</li>
+              <li>Credencial digital.</li>
+              <li>Pagos y facturas en autoservicio.</li>
+              <li>Agenda, eventos y beneficios visibles.</li>
+            </ul>
+          </article>
+
+          <article class="tip-box">
+            <div class="mini-title">4. IA en segundo plano</div>
+            <h3>Véndela como capa premium, no como condición</h3>
+            <ul>
+              <li>Primero operación y captura de data.</li>
+              <li>Después copiloto, resúmenes y alertas.</li>
+              <li>Eso baja resistencia y mejora pricing.</li>
+            </ul>
+          </article>
+
+          <article class="tip-box">
+            <div class="mini-title">5. Mostrar ya + siguiente paso</div>
+            <h3>Combina base real con cierre inmediato</h3>
+            <ul>
+              <li>Enseña lo que ya está vivo hoy.</li>
+              <li>Explica qué se cierra en el piloto.</li>
+              <li>No vendas humo; vende una ruta concreta.</li>
+            </ul>
+          </article>
+
+          <article class="tip-box">
+            <div class="mini-title">6. Terminar en acción</div>
+            <h3>Siempre cerrar con piloto y alcance</h3>
+            <ul>
+              <li>Definir asociaciones piloto.</li>
+              <li>Definir flujo mínimo operativo.</li>
+              <li>Definir ventana de implementación y adopción.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="cierre">
+        <div class="closing">
+          <div class="overline" style="color: rgba(255,255,255,0.72);">Cierre y siguiente acción</div>
+          <h2>La mejor salida de la reunión no es “te mando una presentación”. Es “escogemos el piloto y lo bajamos a operación real”.</h2>
+          <p>
+            Si Mario sale entendiendo que hoy ya existe una base real para operar asociaciones, socios, membresias, cobros y eventos,
+            y que la siguiente capa es volver esa experiencia visible para el asociado, entonces la conversación ya no es de idea ni de mockup:
+            es de implementación, adopción y expansión.
+          </p>
+          <p>
+            La llamada a la acción recomendada es simple: escoger 3 a 5 asociaciones, definir el flujo mínimo del piloto y calendarizar la activación.
+          </p>
+        </div>
+      </section>
+
+      <footer class="footer-box">
+        <p>
+          Base de este onboarding: plan de negocio COPIM x ROVI, blueprint de features para usuario final y el estado actual del desarrollo COPIM dentro del repo.
+        </p>
+        <div class="footer-links">
+          <a href="./COPIM_PLAN_NEGOCIO_MARIO.html">Ver plan de negocio</a>
+          <a href="./COPIM_FEATURES_USUARIO_FINAL.html">Ver features usuario final</a>
+          <a href="./copim_diagnostico_proyecto.html">Ver diagnostico del proyecto</a>
+        </div>
+      </footer>
+    </main>
+    <script>
+      (() => {
+        const demoSteps = [
+          {
+            id: 1,
+            title: 'Abrir vista nacional',
+            subtitle: 'Empieza con una capa sin fricción para instalar la idea de sistema operativo COPIM.',
+            route: '/copim-demo',
+            access: 'public',
+            helper: 'La primera vista recomendada es la demo pública para abrir la conversación antes de entrar a rutas autenticadas.',
+            speech: 'Mario, antes de entrar al detalle, quiero enseñarte la capa que convierte esto en una plataforma para COPIM y no en otro CRM. Aquí ya se ve que no estamos hablando de un software aislado, sino de una estructura para operar la red.',
+            show: [
+              'Hero o dashboard demo con capa institucional.',
+              'Señales de asociaciones, membresía, eventos y valor al socio.',
+            ],
+            outcomes: [
+              'Que esto ya se siente más institucional que un CRM genérico.',
+              'Que existe una capa COPIM con sentido propio.',
+            ],
+          },
+          {
+            id: 2,
+            title: 'Entrar al dashboard COPIM',
+            subtitle: 'Lleva la conversación del concepto a la operación nacional.',
+            route: '/copim/dashboard',
+            access: 'login',
+            helper: 'Esta vista ya requiere autenticación COPIM y es ideal para mostrar que la operación nacional existe de verdad.',
+            speech: 'Aquí es donde la conversación cambia de narrativa a operación. Ya no solo ves una idea; ves asociaciones activas, socios pendientes, renovaciones, facturas y eventos en una sola vista accionable.',
+            show: [
+              'Asociaciones activas.',
+              'Socios por aprobar.',
+              'Renovaciones por atender.',
+              'Facturas abiertas y eventos próximos.',
+            ],
+            outcomes: [
+              'Que COPIM sí puede tener control nacional real.',
+              'Que el dashboard sirve para operar, no solo para decorar.',
+            ],
+          },
+          {
+            id: 3,
+            title: 'Bajar a asociaciones',
+            subtitle: 'Demuestra que el control nacional sí aterriza en capítulos operables.',
+            route: '/copim/associations',
+            access: 'login',
+            helper: 'La conversación aquí es: “esto sí se puede bajar a las asociaciones”.',
+            speech: 'Esta vista es clave porque aterriza la capa nacional en capítulos reales. Aquí cada asociación deja de ser un nombre en un Excel y se vuelve una unidad operable con socios, membresías, agenda y salud propia.',
+            show: [
+              'Listado de asociaciones.',
+              'Señales de salud, renovación y miembros.',
+              'Accesos profundos a padrón, membresías y agenda.',
+            ],
+            outcomes: [
+              'Que el producto sí baja a capítulos reales.',
+              'Que COPIM puede escalar esto a más estados con una misma base.',
+            ],
+          },
+          {
+            id: 4,
+            title: 'Mostrar socios y aprobaciones',
+            subtitle: 'Aquí vive la adopción real y la captura de data.',
+            route: '/copim/members',
+            access: 'login',
+            helper: 'Este es el punto donde más conviene hablar de facilidad para el usuario final.',
+            speech: 'Este módulo es probablemente el más importante para adopción, porque aquí es donde se administra el padrón vivo: alta, aprobación, estatus, expediente y visibilidad. Si esto es simple, la plataforma sí se alimenta.',
+            show: [
+              'Pipeline o tabla de socios.',
+              'Cola de aprobaciones.',
+              'Ficha del socio y estatus.',
+            ],
+            outcomes: [
+              'Que el socio ya no depende de procesos manuales dispersos.',
+              'Que la información sí puede mantenerse viva y ordenada.',
+            ],
+          },
+          {
+            id: 5,
+            title: 'Enseñar membresías y renovaciones',
+            subtitle: 'Convierte la membresía en una operación trazable.',
+            route: '/copim/memberships',
+            access: 'login',
+            helper: 'Aquí conviene hablar de retención, seguimiento y control financiero operativo.',
+            speech: 'Aquí la membresía deja de ser un concepto administrativo y se vuelve un flujo concreto: plan, vencimiento, adeudo, seguimiento y renovación. Esto es lo que permite que la permanencia deje de depender de memoria o persecución manual.',
+            show: [
+              'Planes de membresía.',
+              'Vencimientos próximos.',
+              'Balances y recordatorios.',
+            ],
+            outcomes: [
+              'Que la retención ya puede medirse y operarse.',
+              'Que la membresía se vuelve mucho más gobernable.',
+            ],
+          },
+          {
+            id: 6,
+            title: 'Mostrar facturación y cobranza',
+            subtitle: 'La parte financiera se vuelve visible y accionable.',
+            route: '/copim/invoices',
+            access: 'login',
+            helper: 'Este paso da mucha seriedad porque conecta membresía con ingreso real.',
+            speech: 'Esta parte vuelve muy tangible el sistema, porque la cobranza ya no queda regada entre mensajes o hojas. Aquí se ve qué está abierto, qué está vencido y qué ya fue pagado. Eso le da a la asociación una operación mucho más sólida.',
+            show: [
+              'Facturas o comprobantes.',
+              'Estatus de pago.',
+              'Saldos pendientes.',
+            ],
+            outcomes: [
+              'Que hay control documental y financiero.',
+              'Que el flujo de cobro ya está listo para accionar.',
+            ],
+          },
+          {
+            id: 7,
+            title: 'Cerrar con eventos y check-in',
+            subtitle: 'La membresía no solo se cobra: se activa.',
+            route: '/copim/events',
+            access: 'login',
+            helper: 'Este es el mejor puente para hablar de engagement y permanencia.',
+            speech: 'Aquí se hace visible el valor vivo de pertenecer a COPIM. No solo registras eventos: registras participación, asistencia, check-in y seguimiento. Es una parte clave porque convierte la membresía en experiencia.',
+            show: [
+              'Agenda de eventos.',
+              'Registro y lista de asistentes.',
+              'Check-in y seguimiento.',
+            ],
+            outcomes: [
+              'Que pertenecer sí se puede sentir activo y recurrente.',
+              'Que eventos y comunidad sí generan valor medible.',
+            ],
+          },
+          {
+            id: 8,
+            title: 'Presentar el portal del asociado',
+            subtitle: 'Aquí es donde la membresía se vuelve un producto vivo para el socio final.',
+            route: '/copim/member',
+            access: 'login',
+            helper: 'Este paso remata con la experiencia que hará que el socio sí quiera usar la plataforma.',
+            speech: 'La siguiente gran capa es que el socio viva todo esto por sí mismo: perfil, pagos, credencial, agenda y valor visible. En ese momento la membresía deja de ser solo una cuota y se convierte en una experiencia activa dentro de COPIM.',
+            show: [
+              'Home del asociado.',
+              'Mi membresía, pagos y credencial.',
+              'Agenda y directorio básico.',
+            ],
+            outcomes: [
+              'Que el producto no termina en administración interna.',
+              'Que el asociado sí puede sentir valor continuo dentro de ROVI.',
+            ],
+          },
+        ];
+
+        const baseUrlInput = document.getElementById('demo-base-url');
+        const presetButtons = Array.from(document.querySelectorAll('.preset-btn'));
+        const routePreviewText = document.getElementById('route-preview-text');
+        const routePreviewHelper = document.getElementById('route-preview-helper');
+        const stepListEl = document.getElementById('step-list');
+        const currentStepAccess = document.getElementById('current-step-access');
+        const currentStepTitle = document.getElementById('current-step-title');
+        const currentStepLead = document.getElementById('current-step-lead');
+        const currentStepSpeech = document.getElementById('current-step-speech');
+        const currentStepShow = document.getElementById('current-step-show');
+        const currentStepOutcomes = document.getElementById('current-step-outcomes');
+        const copyFeedback = document.getElementById('copy-feedback');
+        const openCurrentHere = document.getElementById('open-current-here');
+        const openCurrentNew = document.getElementById('open-current-new');
+        const nextStepBtn = document.getElementById('next-step');
+        const prevStepBtn = document.getElementById('prev-step');
+        const copyStepSpeechBtn = document.getElementById('copy-step-speech');
+        const quickOpenButtons = Array.from(document.querySelectorAll('.quick-open'));
+        const togglePresenterBtn = document.getElementById('toggle-presenter');
+        const fullscreenBtn = document.getElementById('go-fullscreen');
+
+        let currentStepIndex = 0;
+
+        const searchParams = new URLSearchParams(window.location.search);
+        const storedBaseUrl = window.localStorage.getItem('copimDemoBaseUrl');
+        const queryBaseUrl = searchParams.get('demoBase');
+        const defaultBaseUrl = queryBaseUrl || storedBaseUrl || 'http://localhost:13000';
+
+        const normalizeBaseUrl = (value) => {
+          const trimmed = (value || '').trim();
+          if (!trimmed) return '';
+          return trimmed.replace(/\/+$/, '');
+        };
+
+        const buildRouteUrl = (path) => {
+          const base = normalizeBaseUrl(baseUrlInput.value);
+          return `${base}${path}`;
+        };
+
+        const updatePresetState = () => {
+          const normalized = normalizeBaseUrl(baseUrlInput.value);
+          presetButtons.forEach((button) => {
+            const isActive = normalizeBaseUrl(button.dataset.baseUrl) === normalized;
+            button.classList.toggle('active', isActive);
+          });
+        };
+
+        const renderList = () => {
+          stepListEl.innerHTML = '';
+          demoSteps.forEach((step, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `step-item${index === currentStepIndex ? ' active' : ''}`;
+            button.innerHTML = `
+              <span class="step-number">${String(step.id).padStart(2, '0')}</span>
+              <span>
+                <span class="step-title">${step.title}</span>
+                <span class="step-sub">${step.subtitle}</span>
+              </span>
+            `;
+            button.addEventListener('click', () => {
+              currentStepIndex = index;
+              renderCurrentStep();
+            });
+            stepListEl.appendChild(button);
+          });
+        };
+
+        const renderCurrentStep = () => {
+          const step = demoSteps[currentStepIndex];
+          renderList();
+          const routeUrl = buildRouteUrl(step.route);
+          currentStepAccess.textContent = step.access === 'public' ? 'Público' : 'Requiere login';
+          currentStepAccess.className = `status-chip ${step.access === 'public' ? 'public' : 'login'}`;
+          currentStepTitle.textContent = step.title;
+          currentStepLead.textContent = step.subtitle;
+          currentStepSpeech.textContent = step.speech;
+          routePreviewText.textContent = routeUrl;
+          routePreviewHelper.textContent = step.helper;
+
+          currentStepShow.innerHTML = '';
+          step.show.forEach((item) => {
+            const li = document.createElement('li');
+            li.textContent = item;
+            currentStepShow.appendChild(li);
+          });
+
+          currentStepOutcomes.innerHTML = '';
+          step.outcomes.forEach((item) => {
+            const li = document.createElement('li');
+            li.textContent = item;
+            currentStepOutcomes.appendChild(li);
+          });
+        };
+
+        const persistBaseUrl = () => {
+          const normalized = normalizeBaseUrl(baseUrlInput.value);
+          if (normalized) {
+            window.localStorage.setItem('copimDemoBaseUrl', normalized);
+          }
+          updatePresetState();
+          renderCurrentStep();
+        };
+
+        const openStep = (newTab = false) => {
+          const step = demoSteps[currentStepIndex];
+          const url = buildRouteUrl(step.route);
+          if (newTab) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return;
+          }
+          window.location.href = url;
+        };
+
+        const copySpeech = async () => {
+          const step = demoSteps[currentStepIndex];
+          try {
+            await navigator.clipboard.writeText(step.speech);
+            copyFeedback.textContent = 'Speech copiado.';
+            window.setTimeout(() => {
+              copyFeedback.textContent = '';
+            }, 1800);
+          } catch (error) {
+            copyFeedback.textContent = 'No se pudo copiar automáticamente.';
+          }
+        };
+
+        baseUrlInput.value = defaultBaseUrl;
+        updatePresetState();
+
+        presetButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            baseUrlInput.value = button.dataset.baseUrl;
+            persistBaseUrl();
+          });
+        });
+
+        baseUrlInput.addEventListener('change', persistBaseUrl);
+        baseUrlInput.addEventListener('blur', persistBaseUrl);
+
+        openCurrentHere.addEventListener('click', () => openStep(false));
+        openCurrentNew.addEventListener('click', () => openStep(true));
+        nextStepBtn.addEventListener('click', () => {
+          currentStepIndex = (currentStepIndex + 1) % demoSteps.length;
+          renderCurrentStep();
+        });
+        prevStepBtn.addEventListener('click', () => {
+          currentStepIndex = (currentStepIndex - 1 + demoSteps.length) % demoSteps.length;
+          renderCurrentStep();
+        });
+        copyStepSpeechBtn.addEventListener('click', copySpeech);
+
+        quickOpenButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            const url = buildRouteUrl(button.dataset.route);
+            window.open(url, '_blank', 'noopener,noreferrer');
+          });
+        });
+
+        togglePresenterBtn.addEventListener('click', () => {
+          document.body.classList.toggle('presenter-mode');
+          togglePresenterBtn.textContent = document.body.classList.contains('presenter-mode')
+            ? 'Salir de modo presentador'
+            : 'Modo presentador';
+        });
+
+        fullscreenBtn.addEventListener('click', async () => {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen?.();
+            return;
+          }
+          await document.exitFullscreen?.();
+        });
+
+        window.addEventListener('keydown', (event) => {
+          if (event.key === 'ArrowRight') {
+            currentStepIndex = (currentStepIndex + 1) % demoSteps.length;
+            renderCurrentStep();
+          }
+          if (event.key === 'ArrowLeft') {
+            currentStepIndex = (currentStepIndex - 1 + demoSteps.length) % demoSteps.length;
+            renderCurrentStep();
+          }
+        });
+
+        renderCurrentStep();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COPIM x ROVI - Features para Usuario Final</title>
+    <style>
+      :root {
+        --bg: #f4f8fc;
+        --panel: rgba(255, 255, 255, 0.92);
+        --panel-strong: #ffffff;
+        --ink: #10213d;
+        --muted: #5b6b82;
+        --line: rgba(16, 33, 61, 0.1);
+        --blue: #0d5ea8;
+        --blue-deep: #0b3f72;
+        --cyan: #43b6e8;
+        --gold: #d2a139;
+        --green: #16845a;
+        --amber: #9d6913;
+        --rose: #a04457;
+        --shadow: 0 22px 70px rgba(16, 33, 61, 0.08);
+        --radius-xl: 30px;
+        --radius-lg: 22px;
+        --radius-md: 16px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(67, 182, 232, 0.16), transparent 26%),
+          radial-gradient(circle at top right, rgba(210, 161, 57, 0.14), transparent 20%),
+          linear-gradient(180deg, #eef4fb 0%, #f7fbff 24%, #ffffff 100%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(1280px, calc(100vw - 36px));
+        margin: 0 auto;
+        padding: 28px 0 60px;
+      }
+
+      .hero,
+      .card,
+      .journey-card,
+      .module-card,
+      .matrix,
+      .phase-card,
+      .warning-card,
+      .footer-box {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(12px);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 34px;
+        background:
+          linear-gradient(135deg, rgba(255,255,255,0.94), rgba(247,250,255,0.9)),
+          var(--panel);
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        top: -10%;
+        right: -10%;
+        width: 420px;
+        height: 420px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(13, 94, 168, 0.16), rgba(67, 182, 232, 0.08), transparent 68%);
+        pointer-events: none;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(13, 94, 168, 0.14);
+        background: rgba(13, 94, 168, 0.08);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 940px;
+        font-size: clamp(38px, 5vw, 68px);
+        line-height: 0.97;
+        letter-spacing: -0.05em;
+      }
+
+      .hero-sub {
+        margin-top: 18px;
+        max-width: 920px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.75;
+      }
+
+      .tag-row,
+      .toc,
+      .kpis,
+      .footer-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .tag,
+      .toc a,
+      .kpi-pill {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.86);
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .tag-row {
+        margin-top: 20px;
+      }
+
+      .tag {
+        color: var(--blue-deep);
+        font-weight: 700;
+      }
+
+      .toc {
+        margin-top: 22px;
+      }
+
+      .toc a:hover {
+        border-color: rgba(13, 94, 168, 0.18);
+        background: rgba(255,255,255,0.98);
+      }
+
+      .hero-grid,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .journeys,
+      .module-grid,
+      .phase-grid,
+      .warning-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1.28fr 0.72fr;
+        margin-top: 28px;
+        align-items: start;
+      }
+
+      .summary-panel {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(13, 94, 168, 0.14);
+        background:
+          linear-gradient(160deg, rgba(13, 94, 168, 0.95), rgba(11, 63, 114, 0.96));
+        color: #ffffff;
+      }
+
+      .summary-panel h3 {
+        font-size: 24px;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+      }
+
+      .summary-panel p,
+      .summary-panel li {
+        margin-top: 14px;
+        color: rgba(255,255,255,0.82);
+        line-height: 1.75;
+      }
+
+      .summary-panel ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .metric {
+        min-height: 152px;
+        padding: 20px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(244, 249, 255, 0.96));
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        margin-top: 12px;
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+      }
+
+      .metric-note {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.62;
+      }
+
+      section {
+        margin-top: 22px;
+      }
+
+      .section-head {
+        margin-bottom: 18px;
+      }
+
+      .overline {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .section-head h2 {
+        margin-top: 10px;
+        font-size: 34px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .section-head p {
+        margin-top: 12px;
+        max-width: 920px;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.76;
+      }
+
+      .card,
+      .journey-card,
+      .module-card,
+      .phase-card,
+      .warning-card {
+        padding: 24px;
+      }
+
+      .card p,
+      .card li,
+      .journey-card p,
+      .journey-card li,
+      .module-card li,
+      .matrix td,
+      .matrix th,
+      .phase-card p,
+      .phase-card li,
+      .warning-card li {
+        color: var(--muted);
+        line-height: 1.72;
+      }
+
+      .card ul,
+      .journey-card ul,
+      .module-card ul,
+      .phase-card ul,
+      .warning-card ul {
+        margin: 16px 0 0;
+        padding-left: 18px;
+      }
+
+      .card ul li + li,
+      .journey-card ul li + li,
+      .module-card ul li + li,
+      .phase-card ul li + li,
+      .warning-card ul li + li {
+        margin-top: 8px;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .journeys {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .journey-card {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .journey-card.association {
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244, 249, 255, 0.94));
+      }
+
+      .journey-card.member {
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247, 252, 249, 0.94));
+      }
+
+      .journey-card h3 {
+        font-size: 28px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .pill,
+      .priority {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .pill {
+        margin-bottom: 12px;
+        border: 1px solid rgba(13, 94, 168, 0.12);
+        background: rgba(13, 94, 168, 0.08);
+        color: var(--blue);
+      }
+
+      .priority.mvp {
+        background: rgba(22, 132, 90, 0.1);
+        color: var(--green);
+      }
+
+      .priority.phase2 {
+        background: rgba(210, 161, 57, 0.12);
+        color: var(--amber);
+      }
+
+      .priority.premium {
+        background: rgba(160, 68, 87, 0.1);
+        color: var(--rose);
+      }
+
+      .mini-title {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .module-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .module-card h3 {
+        margin-top: 10px;
+        font-size: 25px;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+      }
+
+      .module-card .objective {
+        margin-top: 14px;
+        color: var(--ink);
+        font-weight: 600;
+        line-height: 1.65;
+      }
+
+      .module-card .priority {
+        margin-top: 18px;
+      }
+
+      .matrix {
+        padding: 18px;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 740px;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 16px;
+        text-align: left;
+        vertical-align: top;
+        border-bottom: 1px solid rgba(16, 33, 61, 0.08);
+      }
+
+      th {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .phase-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .phase-card .phase-id {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .phase-card h3 {
+        margin-top: 12px;
+        font-size: 26px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .phase-card .time {
+        margin-top: 10px;
+        color: var(--blue-deep);
+        font-weight: 700;
+      }
+
+      .warning-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .warning-card h3 {
+        font-size: 26px;
+        line-height: 1.06;
+        letter-spacing: -0.03em;
+      }
+
+      .warning-card.negative {
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,247,248,0.94));
+      }
+
+      .warning-card.positive {
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,250,255,0.94));
+      }
+
+      .kpis {
+        margin-top: 18px;
+      }
+
+      .kpi-pill {
+        color: var(--blue-deep);
+        font-weight: 700;
+      }
+
+      .closing {
+        padding: 30px;
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(145deg, rgba(16, 33, 61, 0.98), rgba(13, 94, 168, 0.95));
+        color: #ffffff;
+        box-shadow: 0 26px 70px rgba(16, 33, 61, 0.22);
+      }
+
+      .closing h2 {
+        font-size: 36px;
+        line-height: 1.02;
+        letter-spacing: -0.05em;
+      }
+
+      .closing p {
+        margin-top: 14px;
+        max-width: 920px;
+        color: rgba(255,255,255,0.84);
+        font-size: 17px;
+        line-height: 1.8;
+      }
+
+      .footer-box {
+        margin-top: 22px;
+        padding: 22px 24px;
+      }
+
+      .footer-box p {
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .footer-links {
+        margin-top: 14px;
+      }
+
+      .footer-links a {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: rgba(255,255,255,0.86);
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      @media (max-width: 1100px) {
+        .hero-grid,
+        .journeys,
+        .grid-4,
+        .module-grid,
+        .phase-grid,
+        .warning-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .grid-3 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          width: min(100vw - 24px, 1280px);
+          padding: 16px 0 42px;
+        }
+
+        .hero,
+        .card,
+        .journey-card,
+        .module-card,
+        .phase-card,
+        .warning-card,
+        .closing,
+        .footer-box {
+          border-radius: 24px;
+        }
+
+        .hero {
+          padding: 24px;
+        }
+
+        .metric-grid,
+        .grid-2,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 40px;
+        }
+
+        .section-head h2,
+        .closing h2 {
+          font-size: 29px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="eyebrow">Product Blueprint · COPIM x ROVI · Usuario final</div>
+        <h1>Dos experiencias, una sola promesa: operar mejor la asociacion y volver viva la membresia del asociado.</h1>
+        <p class="hero-sub">
+          Esta presentacion aterriza los features de producto para los dos usuarios finales que de verdad importan en COPIM:
+          la <strong>Asociacion</strong>, que compra operacion, y el <strong>Asociado</strong>, que alimenta la plataforma solo si la siente util, simple y valiosa.
+          El principio rector es claro: primero va el <strong>MVP operativo y de autoservicio</strong>; despues comunidad, engagement, premium e inteligencia.
+        </p>
+
+        <div class="tag-row">
+          <span class="tag">Workspace Asociacion</span>
+          <span class="tag">Portal del Asociado</span>
+          <span class="tag">MVP primero</span>
+          <span class="tag">Adopcion sobre sofisticacion</span>
+          <span class="tag">IA despues</span>
+        </div>
+
+        <div class="hero-grid">
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="metric-label">Usuario comprador</div>
+              <div class="metric-value">Asociacion</div>
+              <div class="metric-note">Necesita padrón, cobros, renovaciones, eventos y seguimiento administrativo sin caos operativo.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Usuario motor de data</div>
+              <div class="metric-value">Asociado</div>
+              <div class="metric-note">Debe poder solicitar ingreso, pagar, ver su membresia y registrarse a eventos sin friccion.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Secuencia correcta</div>
+              <div class="metric-value">MVP → Fase 2 → Premium</div>
+              <div class="metric-note">Primero operacion y autoservicio; luego engagement; despues inteligencia y monetizacion avanzada.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Regla rectora</div>
+              <div class="metric-value">Simple y util</div>
+              <div class="metric-note">Si la asociacion no opera mejor, no compra. Si el asociado no lo siente facil, no alimenta la plataforma.</div>
+            </div>
+          </div>
+
+          <aside class="summary-panel">
+            <h3>La promesa del producto</h3>
+            <p>
+              COPIM no necesita un CRM generico. Necesita un sistema donde la asociacion resuelva su operacion diaria
+              y el asociado vea valor tangible en su membresia cada semana.
+            </p>
+            <ul>
+              <li>La asociacion debe abrir y saber que aprobar, cobrar o activar.</li>
+              <li>El asociado debe entrar y ver rapido su estatus, su credencial y su siguiente paso.</li>
+              <li>La IA y lo premium entran despues, cuando la base ya se use y la data exista.</li>
+            </ul>
+          </aside>
+        </div>
+
+        <nav class="toc" aria-label="Contenido">
+          <a href="#principios">Principios</a>
+          <a href="#journeys">Dos experiencias</a>
+          <a href="#asociacion">Features Asociacion</a>
+          <a href="#asociado">Features Asociado</a>
+          <a href="#mvp">MVP real</a>
+          <a href="#roadmap">Fases</a>
+          <a href="#warnings">No priorizar</a>
+        </nav>
+      </header>
+
+      <section id="principios">
+        <div class="section-head">
+          <div class="overline">Principios de producto</div>
+          <h2>La reunion con Mario deja reglas muy claras para evitar construir un producto pesado y poco adoptable.</h2>
+          <p>
+            Estos principios deben gobernar cualquier decision de UX, routing, permisos o priorizacion funcional dentro del trabajo COPIM.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <article class="card">
+            <div class="mini-title">Lo que si importa</div>
+            <ul>
+              <li>La asociacion es el comprador operativo.</li>
+              <li>El asociado es el motor de la data.</li>
+              <li>La adopcion vale mas que la sofisticacion.</li>
+              <li>La membresia debe sentirse viva, no burocratica.</li>
+              <li>El valor debe ser visible semana a semana.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="mini-title">Lo que debe esperar</div>
+            <ul>
+              <li>IA profunda para todos.</li>
+              <li>Comunidad compleja tipo red social completa.</li>
+              <li>CRM pesado para el asociado base.</li>
+              <li>Automatizaciones complejas desde el dia uno.</li>
+              <li>Marketplace o monetizacion avanzada demasiado pronto.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="journeys">
+        <div class="section-head">
+          <div class="overline">Dos experiencias</div>
+          <h2>La mejor arquitectura funcional no es que todos vean lo mismo, sino separar bien operacion y autoservicio.</h2>
+          <p>
+            El producto debe dividirse en un <strong>Workspace de Asociacion</strong> y un <strong>Portal del Asociado</strong>.
+            Ambos comparten datos y reglas, pero no deben sentirse como la misma experiencia.
+          </p>
+        </div>
+
+        <div class="journeys">
+          <article class="journey-card association">
+            <div class="pill">Workspace Asociacion</div>
+            <h3>Operar miembros, cobros, renovaciones y eventos sin caos.</h3>
+            <p style="margin-top: 14px; color: var(--muted); line-height: 1.75;">
+              Esta experiencia debe estar pensada para presidencia y administracion operativa. El objetivo no es impresionar con dashboards,
+              sino resolver rapido aprobaciones, cobranza, membresias y activacion de socios.
+            </p>
+            <ul>
+              <li>Dashboard operativo</li>
+              <li>Socios y onboarding</li>
+              <li>Membresias y renovaciones</li>
+              <li>Facturacion y cobros</li>
+              <li>Eventos y check-in</li>
+              <li>Directorio y reportes basicos</li>
+            </ul>
+          </article>
+
+          <article class="journey-card member">
+            <div class="pill">Portal del Asociado</div>
+            <h3>Vivir la membresia: perfil, pagos, credencial, eventos y valor visible.</h3>
+            <p style="margin-top: 14px; color: var(--muted); line-height: 1.75;">
+              Esta experiencia debe ser muy ligera, muy clara y orientada a autoservicio. Si el asociado no entiende rapido que debe hacer,
+              no completa informacion, no paga y no vuelve.
+            </p>
+            <ul>
+              <li>Mi perfil profesional</li>
+              <li>Mi membresia</li>
+              <li>Mis pagos y facturas</li>
+              <li>Mi credencial digital</li>
+              <li>Agenda de eventos</li>
+              <li>Directorio basico y networking simple</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="asociacion">
+        <div class="section-head">
+          <div class="overline">Features Asociacion</div>
+          <h2>La asociacion necesita una consola que reduzca friccion operativa desde el primer dia.</h2>
+          <p>
+            Aqui estan los modulos y features recomendados para la experiencia operativa de asociacion, con foco en prioridad real.
+          </p>
+        </div>
+
+        <div class="module-grid">
+          <article class="module-card">
+            <div class="mini-title">Dashboard operativo</div>
+            <h3>Ver que requiere atencion en 30 segundos</h3>
+            <p class="objective">Abrir la plataforma y saber inmediatamente que aprobar, cobrar o activar.</p>
+            <ul>
+              <li>Socios activos, pendientes y suspendidos.</li>
+              <li>Renovaciones por vencer y pagos atrasados.</li>
+              <li>Eventos proximos y check-ins pendientes.</li>
+              <li>Quick actions para aprobar, cobrar y crear evento.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Gestion de socios</div>
+            <h3>Padrón vivo y operable</h3>
+            <p class="objective">Tener control sobre expedientes, estatus y visibilidad del directorio.</p>
+            <ul>
+              <li>Alta manual y solicitud de ingreso.</li>
+              <li>Cola de aprobaciones.</li>
+              <li>Expediente basico y notas internas.</li>
+              <li>Estatus: pendiente, activo y suspendido.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Onboarding y validacion</div>
+            <h3>Admitir facil, validar rapido</h3>
+            <p class="objective">Que administracion no se pierda entre correos, documentos y seguimiento manual.</p>
+            <ul>
+              <li>Formulario de solicitud y carga de documentos.</li>
+              <li>Checklist de validacion.</li>
+              <li>Aprobacion, rechazo o solicitud de informacion faltante.</li>
+              <li>Asignacion inicial de membresia y credencial.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Membresias y renovaciones</div>
+            <h3>Controlar ingresos recurrentes sin friccion</h3>
+            <p class="objective">Gestionar planes, fechas, saldo pendiente y seguimiento de morosidad.</p>
+            <ul>
+              <li>Catalogo de planes y vigencias.</li>
+              <li>Saldo pendiente y fecha de vencimiento.</li>
+              <li>Recordatorios de renovacion.</li>
+              <li>Cambio de plan o regularizacion.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Facturacion y cobros</div>
+            <h3>Conciliar, cobrar y dar seguimiento</h3>
+            <p class="objective">Que el cobro no viva en hojas sueltas ni en conversaciones dispersas.</p>
+            <ul>
+              <li>Factura o comprobante por socio.</li>
+              <li>Historial de cobros y adeudos.</li>
+              <li>Marcar pagado y ver estatus.</li>
+              <li>Resumen de ingresos por periodo.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Eventos y capacitaciones</div>
+            <h3>Activar a la comunidad y medir participacion</h3>
+            <p class="objective">Operar cursos, congresos y sesiones con trazabilidad y asistencia medible.</p>
+            <ul>
+              <li>Calendario de eventos, cupo y registro.</li>
+              <li>RSVP, lista de asistentes y QR.</li>
+              <li>Check-in en sitio.</li>
+              <li>Historial de asistencia por socio.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Directorio institucional</div>
+            <h3>Un beneficio visible y util</h3>
+            <p class="objective">Tener un directorio limpio, filtrable y controlado por visibilidad del socio.</p>
+            <ul>
+              <li>Filtro por ciudad, especialidad y estatus.</li>
+              <li>Ficha resumida del asociado.</li>
+              <li>Badges de certificacion.</li>
+              <li>Busqueda y exportacion simple.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Engagement y crecimiento</div>
+            <h3>Comunicacion, beneficios y analitica</h3>
+            <p class="objective">Extender el valor del sistema cuando la base operativa ya este viva.</p>
+            <ul>
+              <li>Comunicacion segmentada.</li>
+              <li>Comunidad moderada y contenido.</li>
+              <li>Beneficios y aliados.</li>
+              <li>Analitica operativa y engagement.</li>
+            </ul>
+            <div class="priority phase2">Fase 2</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="asociado">
+        <div class="section-head">
+          <div class="overline">Features Asociado</div>
+          <h2>El asociado necesita una experiencia tan simple que quiera volver y alimentar la plataforma.</h2>
+          <p>
+            Estos modulos deben sentirse como un portal de membresia vivo y muy claro, no como un CRM corporativo ni como un sistema administrativo reciclado.
+          </p>
+        </div>
+
+        <div class="module-grid">
+          <article class="module-card">
+            <div class="mini-title">Registro y onboarding</div>
+            <h3>Entrar sin friccion</h3>
+            <p class="objective">Que el asociado complete lo minimo necesario y entienda claramente su siguiente paso.</p>
+            <ul>
+              <li>Solicitud de ingreso amigable.</li>
+              <li>Carga de datos y documentos.</li>
+              <li>Estatus de solicitud visible.</li>
+              <li>Checklist de perfil incompleto.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Mi perfil profesional</div>
+            <h3>Un perfil util, no burocratico</h3>
+            <p class="objective">Mostrar ciudad, especialidad, empresa, certificaciones y visibilidad de forma clara.</p>
+            <ul>
+              <li>Foto y datos personales.</li>
+              <li>Especialidad, ciudad y empresa.</li>
+              <li>Certificaciones y experiencia.</li>
+              <li>Configuracion de visibilidad.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Mi membresia</div>
+            <h3>Entender rapido el estatus</h3>
+            <p class="objective">Que el socio vea plan, vencimiento, adeudo y beneficios activos sin pedir ayuda.</p>
+            <ul>
+              <li>Plan actual y fecha de vencimiento.</li>
+              <li>Monto pendiente o al corriente.</li>
+              <li>Beneficios activos.</li>
+              <li>Historial de renovaciones.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Mis pagos y facturas</div>
+            <h3>Resolver lo financiero en autoservicio</h3>
+            <p class="objective">Reducir mensajes a administracion y acelerar la cobranza desde la experiencia del socio.</p>
+            <ul>
+              <li>Saldo pendiente.</li>
+              <li>Pagos realizados.</li>
+              <li>Descarga de factura o comprobante.</li>
+              <li>Boton directo para pagar.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Credencial digital</div>
+            <h3>Visibilidad y uso real de la membresia</h3>
+            <p class="objective">Volver tangible la membresia con una credencial valida para check-in y beneficios.</p>
+            <ul>
+              <li>Credencial digital vigente.</li>
+              <li>QR de validacion.</li>
+              <li>Uso para check-in.</li>
+              <li>Uso para validar beneficios.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Eventos y registro</div>
+            <h3>Ver rapido el valor de la comunidad</h3>
+            <p class="objective">Que el asociado vea agenda, se registre y asista sin friccion.</p>
+            <ul>
+              <li>Agenda de eventos.</li>
+              <li>Registro y confirmacion.</li>
+              <li>QR para check-in.</li>
+              <li>Historial de eventos asistidos.</li>
+            </ul>
+            <div class="priority mvp">MVP</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">Networking y comunidad</div>
+            <h3>Razones para volver</h3>
+            <p class="objective">Extender la experiencia hacia relacion, contenido y permanencia cuando el MVP ya funcione.</p>
+            <ul>
+              <li>Directorio y networking simple.</li>
+              <li>Comunidad, grupos y avisos.</li>
+              <li>Beneficios y convenios.</li>
+              <li>Cursos, contenido y notificaciones.</li>
+            </ul>
+            <div class="priority phase2">Fase 2</div>
+          </article>
+
+          <article class="module-card">
+            <div class="mini-title">CRM base y growth</div>
+            <h3>Valor extra, no requisito de entrada</h3>
+            <p class="objective">Agregar seguimiento ligero y luego productos Pro, solo cuando el asociado ya vea valor en la plataforma.</p>
+            <ul>
+              <li>Contactos basicos y recordatorios.</li>
+              <li>Historial simple de actividad.</li>
+              <li>Broker Pro y automatizaciones.</li>
+              <li>IA de seguimiento y plantillas.</li>
+            </ul>
+            <div class="priority premium">Premium posterior</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="mvp">
+        <div class="section-head">
+          <div class="overline">MVP real</div>
+          <h2>Si el objetivo es adopcion de verdad, esto es lo que si debe entrar y lo que puede esperar.</h2>
+          <p>
+            Este corte evita sobrecargar la plataforma y alinea el desarrollo con lo que Mario realmente necesita bajar a asociaciones y asociados.
+          </p>
+        </div>
+
+        <div class="matrix">
+          <table>
+            <thead>
+              <tr>
+                <th>Experiencia</th>
+                <th>MVP obligatorio</th>
+                <th>Fase 2</th>
+                <th>Premium o posterior</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Asociacion</td>
+                <td>Dashboard operativo, socios, onboarding, membresias, cobros, eventos, directorio basico.</td>
+                <td>Comunicacion segmentada, comunidad moderada, beneficios, contenido, analitica de engagement.</td>
+                <td>Automatizaciones complejas, cobranza automatica, scoring, alertas IA, monetizacion avanzada.</td>
+              </tr>
+              <tr>
+                <td>Asociado</td>
+                <td>Solicitud de ingreso, perfil, membresia, pagos, facturas, credencial, agenda y registro a eventos.</td>
+                <td>Networking, comunidad, beneficios, cursos, notificaciones y CRM base ligero.</td>
+                <td>Broker Pro, IA de seguimiento, automatizaciones y experiencias growth avanzadas.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top: 18px;">
+          <article class="card">
+            <div class="mini-title">Home ideal Asociacion</div>
+            <ul>
+              <li>Socios por aprobar.</li>
+              <li>Membresias por vencer.</li>
+              <li>Pagos pendientes.</li>
+              <li>Evento proximo y asistencia reciente.</li>
+              <li>Boton cobrar, aprobar, crear evento y mandar aviso.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="mini-title">Home ideal Asociado</div>
+            <ul>
+              <li>Estatus de membresia.</li>
+              <li>Cuanto debe o si esta al corriente.</li>
+              <li>Siguiente evento.</li>
+              <li>Credencial digital.</li>
+              <li>CTA a pagar, registrarse y completar perfil.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="roadmap">
+        <div class="section-head">
+          <div class="overline">Roadmap recomendado</div>
+          <h2>La secuencia correcta protege adopcion, pricing y crecimiento.</h2>
+          <p>
+            Si hay que decidir rapido, el orden de producto no debe invertirse. Primero se resuelve la operacion y el autoservicio; despues viene el engagement, luego lo premium y finalmente la inteligencia.
+          </p>
+        </div>
+
+        <div class="phase-grid">
+          <article class="phase-card">
+            <div class="phase-id">Fase 1</div>
+            <h3>Operacion</h3>
+            <div class="time">Resolver lo core</div>
+            <ul>
+              <li>Asociacion: socios, cobros, renovaciones y eventos.</li>
+              <li>Asociado: perfil, membresia, pagos, credencial y eventos.</li>
+              <li>Objetivo: orden operativo y captura de data.</li>
+            </ul>
+          </article>
+          <article class="phase-card">
+            <div class="phase-id">Fase 2</div>
+            <h3>Autoservicio + engagement</h3>
+            <div class="time">Extender permanencia</div>
+            <ul>
+              <li>Comunidad moderada.</li>
+              <li>Beneficios y contenido.</li>
+              <li>Directorio avanzado y notificaciones.</li>
+            </ul>
+          </article>
+          <article class="phase-card">
+            <div class="phase-id">Fase 3</div>
+            <h3>Premium + inteligencia</h3>
+            <div class="time">Expandir ticket</div>
+            <ul>
+              <li>Broker Pro y Association Pro.</li>
+              <li>IA de seguimiento y scoring.</li>
+              <li>Automatizaciones y monetizacion institucional.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="warnings">
+        <div class="section-head">
+          <div class="overline">Lo que no conviene priorizar</div>
+          <h2>La mejor forma de proteger la adopcion es no sobredisenar la primera version.</h2>
+          <p>
+            Estos puntos son justo donde el producto corre mas riesgo de volverse complejo, lento de adoptar o demasiado caro para la primera fase.
+          </p>
+        </div>
+
+        <div class="warning-grid">
+          <article class="warning-card negative">
+            <div class="mini-title">Evitar en v1</div>
+            <h3>No convertirlo en una red social o un CRM complejo demasiado pronto</h3>
+            <ul>
+              <li>Red social compleja estilo full LinkedIn.</li>
+              <li>Marketplace grande de aliados desde el arranque.</li>
+              <li>IA conversacional profunda para todos.</li>
+              <li>CRM muy cargado para el asociado base.</li>
+              <li>Onboarding con demasiados campos y permisos complejos.</li>
+            </ul>
+          </article>
+
+          <article class="warning-card positive">
+            <div class="mini-title">Regla correcta</div>
+            <h3>Primero simple y util. Luego poderoso.</h3>
+            <ul>
+              <li>Resolver tareas concretas y recurrentes.</li>
+              <li>Hacer que la membresia se vea y se use.</li>
+              <li>Dar a administracion una consola accionable.</li>
+              <li>Dejar premium e IA para cuando la base ya viva.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div class="overline">Estado actual</div>
+          <h2>Ya existe una base sobre la que se puede construir el MVP sin rehacer todo.</h2>
+          <p>
+            El trabajo actual COPIM ya deja bien encaminados algunos modulos. El esfuerzo de producto debe enfocarse en cerrar la experiencia y separar mejor la del asociado.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <div class="mini-title">Ya existe o va bien</div>
+            <ul>
+              <li>Asociaciones.</li>
+              <li>Socios.</li>
+              <li>Membresias.</li>
+              <li>Facturacion.</li>
+              <li>Eventos.</li>
+              <li>Dashboard COPIM.</li>
+              <li>Roles institucionales.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="mini-title">Existe como narrativa o mockup</div>
+            <ul>
+              <li>Comunidad.</li>
+              <li>Beneficios.</li>
+              <li>Portal maduro del asociado.</li>
+              <li>Contenido y cursos.</li>
+              <li>Directorio avanzado.</li>
+              <li>Credencial tipo wallet completa.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="mini-title">Conviene dejar despues</div>
+            <ul>
+              <li>Inteligencia premium.</li>
+              <li>Automatizaciones fuertes.</li>
+              <li>Monetizacion por patrocinadores.</li>
+              <li>Growth loops de upsell avanzados.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="closing">
+          <div class="overline" style="color: rgba(255,255,255,0.72);">Recomendacion final</div>
+          <h2>Para la asociacion: “tu sistema para operar miembros, cobros, renovaciones y eventos sin caos”.</h2>
+          <p>
+            Para el asociado: “tu membresia viva: perfil, credencial, pagos, eventos, red y beneficios en un solo lugar”.
+            Si el producto se construye en ese orden, la adopcion mejora, el pricing se defiende mejor y el crecimiento premium se vuelve mucho mas natural.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="card">
+          <div class="mini-title">KPIs que este blueprint deberia mejorar</div>
+          <div class="kpis">
+            <span class="kpi-pill">Aprobaciones resueltas mas rapido</span>
+            <span class="kpi-pill">Mas renovaciones cobradas a tiempo</span>
+            <span class="kpi-pill">Mayor asistencia a eventos</span>
+            <span class="kpi-pill">Mas perfiles completos</span>
+            <span class="kpi-pill">Menos friccion de soporte administrativo</span>
+            <span class="kpi-pill">Mayor uso recurrente de la membresia</span>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer-box">
+        <p>
+          Base de este documento: blueprint funcional en <strong>COPIM_FEATURES_USUARIO_FINAL.md</strong>, reunion con Mario
+          y material de negocio ya trabajado para COPIM x ROVI.
+        </p>
+        <div class="footer-links">
+          <a href="./COPIM_FEATURES_USUARIO_FINAL.md">Ver version Markdown</a>
+          <a href="./COPIM_PLAN_NEGOCIO_MARIO.html">Ver plan de negocio</a>
+          <a href="./copim_diagnostico_proyecto.html">Ver diagnostico del proyecto</a>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

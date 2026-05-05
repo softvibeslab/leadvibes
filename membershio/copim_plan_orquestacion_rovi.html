@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan de Orquestación COPIM sobre ROVI</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --bg-2: #fbf8f2;
+      --panel: rgba(255, 252, 246, 0.95);
+      --card: rgba(255, 255, 255, 0.9);
+      --border: rgba(56, 48, 43, 0.12);
+      --text: #1f1b18;
+      --muted: #6f655d;
+      --accent: #0f766e;
+      --accent-deep: #114a47;
+      --accent-soft: rgba(15, 118, 110, 0.1);
+      --gold: #b45309;
+      --gold-soft: rgba(180, 83, 9, 0.1);
+      --blue: #1d4ed8;
+      --blue-soft: rgba(29, 78, 216, 0.1);
+      --danger: #b42318;
+      --danger-soft: rgba(180, 35, 24, 0.1);
+      --success: #15803d;
+      --success-soft: rgba(21, 128, 61, 0.1);
+      --shadow: 0 28px 60px rgba(54, 38, 24, 0.12);
+      --radius-lg: 30px;
+      --radius-md: 22px;
+      --radius-sm: 15px;
+      --font: "Avenir Next", "Segoe UI", sans-serif;
+      --font-serif: "Iowan Old Style", "Palatino Linotype", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 26rem),
+        radial-gradient(circle at top right, rgba(180, 83, 9, 0.15), transparent 24rem),
+        linear-gradient(180deg, #f8f2e7 0%, #efe4d4 100%);
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .page {
+      width: min(1480px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 24px 0 42px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 36px;
+      padding: 30px;
+      background: linear-gradient(145deg, rgba(255, 250, 244, 0.98), rgba(245, 237, 225, 0.95));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after,
+    .hero::before {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .hero::after {
+      right: -70px;
+      top: -90px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.14), transparent 70%);
+    }
+
+    .hero::before {
+      left: -90px;
+      bottom: -120px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(180, 83, 9, 0.14), transparent 70%);
+    }
+
+    .eyebrow,
+    .chip,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(31, 27, 24, 0.08);
+      background: rgba(255, 255, 255, 0.72);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-color: rgba(15, 118, 110, 0.18);
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(34px, 4.6vw, 60px);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    .subtitle {
+      max-width: 1000px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.68;
+    }
+
+    .meta {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .stat {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(31, 27, 24, 0.08);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 18px;
+      margin-top: 22px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .toc p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .toc li {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.42;
+    }
+
+    .toc a {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .toc .note {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      background: var(--gold-soft);
+      color: #7b4b12;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .lead {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .grid-2,
+    .grid-3 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: var(--card);
+      border: 1px solid rgba(31, 27, 24, 0.08);
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .card p,
+    .card li {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    .card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .callout {
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(31, 27, 24, 0.08);
+      background: linear-gradient(140deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.86));
+    }
+
+    .callout h3 {
+      margin: 0 0 6px;
+      font-size: 19px;
+      letter-spacing: -0.03em;
+    }
+
+    .callout p,
+    .callout li {
+      margin: 0;
+      color: #294a47;
+      line-height: 1.62;
+      font-size: 14px;
+    }
+
+    .callout ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .quote {
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(31, 27, 24, 0.08);
+      border-left: 5px solid var(--accent);
+    }
+
+    .quote p {
+      margin: 0;
+      font-family: var(--font-serif);
+      color: #2f2620;
+      font-size: 18px;
+      line-height: 1.65;
+    }
+
+    .quote footer {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .comparison {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(31, 27, 24, 0.08);
+    }
+
+    .comparison th,
+    .comparison td {
+      padding: 14px 16px;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(31, 27, 24, 0.08);
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    .comparison th {
+      background: rgba(15, 118, 110, 0.08);
+      color: var(--accent-deep);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .comparison td strong {
+      color: var(--text);
+    }
+
+    .comparison tr:last-child td { border-bottom: 0; }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tag.backend { color: var(--blue); background: var(--blue-soft); }
+    .tag.frontend { color: var(--accent); background: var(--accent-soft); }
+    .tag.data { color: var(--gold); background: var(--gold-soft); }
+    .tag.risk { color: var(--danger); background: var(--danger-soft); }
+    .tag.ok { color: var(--success); background: var(--success-soft); }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .stack .item {
+      padding: 16px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(31, 27, 24, 0.08);
+    }
+
+    .stack .item h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+    }
+
+    .stack .item p,
+    .stack .item li {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    .stack .item ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .source {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .summary {
+      padding: 20px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(140deg, rgba(17, 74, 71, 0.96), rgba(15, 118, 110, 0.92));
+      color: white;
+    }
+
+    .summary h3 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+    }
+
+    .summary p,
+    .summary li {
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 14px;
+      line-height: 1.62;
+    }
+
+    .summary ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    details {
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(31, 27, 24, 0.08);
+      padding: 0 18px;
+    }
+
+    details + details { margin-top: 12px; }
+
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 18px 0;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    .detail-body {
+      padding: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.62;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    @media (max-width: 1180px) {
+      .layout,
+      .grid-2,
+      .grid-3,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .toc { position: static; }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 16px, 100%);
+        padding-top: 12px;
+      }
+
+      .hero, .panel, .toc { border-radius: 22px; }
+      .hero { padding: 22px; }
+      .panel, .toc { padding: 18px; }
+      h1 { font-size: 34px; }
+      .comparison th, .comparison td { min-width: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <span class="eyebrow">Plan técnico-funcional • COPIM sobre ROVI</span>
+      <h1>Orquestación de roles, niveles y módulos para adaptar ROVI al modelo COPIM</h1>
+      <p class="subtitle">
+        Este plan aterriza cómo introducir jerarquías COPIM sobre el CRM actual de ROVI, reutilizando la base multi-workspace ya existente
+        y evitando rehacer el producto desde cero. La clave no es crear una app aparte, sino convertir a ROVI en una plataforma con
+        <strong>workspaces institucionales, perfiles por persona y módulos visibles según capacidad</strong>.
+      </p>
+      <p class="meta">
+        Basado en el código actual de ROVI y en las necesidades expresadas por Mario para COPIM.
+        Referencias principales:
+        <a href="../backend/models.py">backend/models.py</a>,
+        <a href="../backend/server.py">backend/server.py</a>,
+        <a href="../frontend/src/components/Sidebar.js">frontend/src/components/Sidebar.js</a>,
+        <a href="../frontend/src/context/AuthContext.js">frontend/src/context/AuthContext.js</a>,
+        <a href="Meeting%20Transcription%20(1).txt">Meeting Transcription (1).txt</a>.
+      </p>
+
+      <div class="stats">
+        <div class="stat">
+          <strong>2</strong>
+          <span>tipos de tenant hoy: <code>individual</code> y <code>agency</code></span>
+        </div>
+        <div class="stat">
+          <strong>4</strong>
+          <span>roles de membership hoy: <code>owner</code>, <code>admin</code>, <code>manager</code>, <code>broker</code></span>
+        </div>
+        <div class="stat">
+          <strong>14+</strong>
+          <span>módulos CRM existentes ya navegables en frontend</span>
+        </div>
+        <div class="stat">
+          <strong>0</strong>
+          <span>módulos institucionales COPIM reales hoy en backend</span>
+        </div>
+        <div class="stat">
+          <strong>6–8</strong>
+          <span>semanas recomendadas para un piloto COPIM serio reutilizando ROVI</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="toc">
+        <h2>Índice</h2>
+        <p>Documento para alinear producto, arquitectura y rollout antes de convertirlo en backlog técnico.</p>
+        <ol>
+          <li><a href="#base">Base actual de ROVI</a></li>
+          <li><a href="#objetivo">Modelo objetivo COPIM</a></li>
+          <li><a href="#roles">Roles, niveles y perfiles</a></li>
+          <li><a href="#modulos">Cómo adaptar módulos existentes</a></li>
+          <li><a href="#arquitectura">Arquitectura técnica recomendada</a></li>
+          <li><a href="#fases">Plan de implementación por fases</a></li>
+          <li><a href="#backlog">Backlog sugerido por workstream</a></li>
+          <li><a href="#riesgos">Riesgos y decisiones críticas</a></li>
+        </ol>
+        <div class="note">
+          Principio rector: no clonar ROVI en otra app. Extender la capa de workspaces, permisos y navegación para que una misma cuenta
+          pueda habitar un workspace personal, uno de inmobiliaria y uno o varios institucionales de COPIM.
+        </div>
+      </aside>
+
+      <main class="content">
+        <section id="base" class="panel">
+          <h2>1. Base actual de ROVI</h2>
+          <p class="lead">
+            ROVI ya tiene cimientos valiosos para COPIM. No parte de cero: maneja workspaces, memberships, cambio de workspace,
+            multi-tenancy y roles activos en token. El problema no es la falta de base, sino que hoy la app está pensada casi por completo
+            para el binomio <strong>broker individual / inmobiliaria</strong>.
+          </p>
+
+          <div class="summary">
+            <h3>Qué ya sirve para COPIM</h3>
+            <ul>
+              <li><strong>Multi-workspace:</strong> el usuario puede tener varios workspaces y cambiar entre ellos.</li>
+              <li><strong>Memberships por tenant:</strong> ya existe la colección <code>tenant_memberships</code> con rol y estatus.</li>
+              <li><strong>Auth contextual:</strong> el token ya trae <code>active_tenant_id</code>, <code>active_membership_id</code> y <code>active_role</code>.</li>
+              <li><strong>Navegación centralizada:</strong> el sidebar controla visibilidad de módulos desde un solo punto.</li>
+              <li><strong>Módulos reutilizables:</strong> dashboard, calendar, settings, roster de brokers, analytics, automations, import y más.</li>
+            </ul>
+          </div>
+
+          <div class="grid-2" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Lo que ya existe en backend</h3>
+              <ul>
+                <li><code>TenantType</code> hoy soporta <code>individual</code> y <code>agency</code>.</li>
+                <li><code>MembershipRole</code> hoy soporta <code>owner</code>, <code>admin</code>, <code>manager</code>, <code>broker</code>.</li>
+                <li><code>/auth/workspaces</code> y <code>/auth/switch-workspace</code> ya resuelven cambio de contexto.</li>
+                <li>El roster de brokers ya opera usando <code>tenant_memberships</code> como source of truth.</li>
+              </ul>
+              <span class="source">Referencias: backend/models.py, backend/server.py líneas cercanas a <code>ensure_workspace_infra_for_user</code>, <code>get_user_workspaces</code>, <code>build_broker_roster</code>.</span>
+            </div>
+
+            <div class="card">
+              <h3>Lo que hoy está hardcodeado y hay que romper</h3>
+              <ul>
+                <li>El frontend decide navegación casi solo con <code>isIndividual</code> vs <code>isAgency</code>.</li>
+                <li>Los permisos se evalúan con checks puntuales por rol, no por capacidades.</li>
+                <li>Los módulos institucionales de asociaciones, membresías y comunidad no existen como entidades reales.</li>
+                <li>El lenguaje visual y labels siguen siendo de brokers / inmobiliaria.</li>
+              </ul>
+              <span class="source">Referencias: frontend/src/components/Sidebar.js, frontend/src/context/AuthContext.js, backend/auth.py.</span>
+            </div>
+          </div>
+
+          <div class="quote" style="margin-top: 16px;">
+            <p>
+              La oportunidad técnica real es esta: un mismo usuario podría vivir en <strong>mi CRM personal</strong>, <strong>mi inmobiliaria</strong>,
+              <strong>mi asociación</strong> y <strong>COPIM nacional</strong> usando exactamente la misma mecánica de workspaces que ROVI ya trae.
+            </p>
+            <footer>Lectura arquitectónica derivada del código actual de workspaces y memberships.</footer>
+          </div>
+        </section>
+
+        <section id="objetivo" class="panel">
+          <h2>2. Modelo objetivo COPIM sobre ROVI</h2>
+          <p class="lead">
+            La recomendación no es meter nuevos roles “a pelo” dentro de la lógica actual, sino separar tres capas:
+            <strong>tipo de workspace</strong>, <strong>rol de autoridad</strong> y <strong>perfil o persona de experiencia</strong>.
+          </p>
+
+          <div class="table-wrap">
+            <table class="comparison">
+              <thead>
+                <tr>
+                  <th>Capa</th>
+                  <th>Qué representa</th>
+                  <th>Ejemplos</th>
+                  <th>Para qué se usa</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Workspace kind</strong></td>
+                  <td>La naturaleza del tenant activo.</td>
+                  <td><code>individual</code>, <code>agency</code>, <code>association</code>, <code>council</code></td>
+                  <td>Define sets de módulos, labels, jerarquía y reporting.</td>
+                </tr>
+                <tr>
+                  <td><strong>Authority role</strong></td>
+                  <td>El nivel de poder operativo dentro de ese workspace.</td>
+                  <td><code>owner</code>, <code>admin</code>, <code>manager</code>, <code>member</code>, <code>viewer</code></td>
+                  <td>Define qué acciones puede ejecutar el usuario.</td>
+                </tr>
+                <tr>
+                  <td><strong>Persona / profile</strong></td>
+                  <td>La experiencia, lenguaje y KPIs que debe ver ese usuario.</td>
+                  <td><code>copim_council</code>, <code>association_president</code>, <code>association_vp</code>, <code>association_admin</code>, <code>member_professional</code>, <code>broker_pro</code></td>
+                  <td>Define navegación, dashboards, copy, CTAs y módulos visibles.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout" style="margin-top: 16px;">
+            <h3>Decisión de diseño recomendada</h3>
+            <p>
+              Mantener <code>tenant_memberships.role</code> como rol de autoridad genérico y agregar un nuevo atributo tipo
+              <code>persona_type</code> o <code>workspace_profile</code>. Eso evita romper el CRM de ROVI mientras habilita experiencias
+              COPIM muy distintas sin inflar la matriz de permisos.
+            </p>
+          </div>
+
+          <div class="grid-3" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Por qué no conviene meter todo en <code>role</code></h3>
+              <p>
+                Si mezclamos “presidente”, “vp”, “socio”, “broker”, “owner”, “admin” y “council” en una sola enum, los condicionales se van
+                a multiplicar y cada módulo tendrá reglas inmanejables.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Por qué sí conviene usar <code>tenant_type</code></h3>
+              <p>
+                Porque hoy el sistema ya distingue comportamientos por tipo de cuenta. Extender eso a <code>association</code> y
+                <code>council</code> es natural y mantiene el modelo mental limpio.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Por qué sí conviene usar <code>persona_type</code></h3>
+              <p>
+                Porque COPIM no necesita solo permisos distintos; necesita experiencias distintas: métricas, vocabulario, módulos y objetivos
+                diferentes según cada actor.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="roles" class="panel">
+          <h2>3. Roles, niveles y perfiles recomendados</h2>
+          <p class="lead">
+            Esta es la matriz sugerida para introducir COPIM sin destruir la lógica actual del CRM.
+          </p>
+
+          <div class="table-wrap">
+            <table class="comparison">
+              <thead>
+                <tr>
+                  <th>Nivel</th>
+                  <th>Workspace type</th>
+                  <th>Authority role</th>
+                  <th>Persona type</th>
+                  <th>Módulos base visibles</th>
+                  <th>Acciones clave</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>COPIM Nacional</strong></td>
+                  <td><code>council</code></td>
+                  <td><code>owner</code> / <code>admin</code></td>
+                  <td><code>copim_council</code></td>
+                  <td>Dashboard nacional, asociaciones, directorio, membresías, eventos, analytics institucional, settings</td>
+                  <td>Ver salud de la red, alta de asociaciones, seguimiento de estatus, segmentación y convenios.</td>
+                </tr>
+                <tr>
+                  <td><strong>Presidencia de asociación</strong></td>
+                  <td><code>association</code></td>
+                  <td><code>owner</code> / <code>admin</code></td>
+                  <td><code>association_president</code></td>
+                  <td>Dashboard asociación, socios, membresías, eventos, pagos, directorio, documentos, comunicación</td>
+                  <td>Aprobar socios, ver renovaciones, administrar eventos, validar beneficios y monitorear operación.</td>
+                </tr>
+                <tr>
+                  <td><strong>Vicepresidencia</strong></td>
+                  <td><code>association</code></td>
+                  <td><code>manager</code></td>
+                  <td><code>association_vp</code></td>
+                  <td>Dashboard resumido, socios, eventos, directorio, algunos reportes</td>
+                  <td>Apoyo a seguimiento operativo con permisos limitados.</td>
+                </tr>
+                <tr>
+                  <td><strong>Administración operativa</strong></td>
+                  <td><code>association</code></td>
+                  <td><code>admin</code> / <code>manager</code></td>
+                  <td><code>association_admin</code></td>
+                  <td>Socios, cobros, renovaciones, eventos, check-in, documentos, configuración operativa</td>
+                  <td>Actualizar estatus, registrar pagos, emitir credenciales, gestionar asistencias.</td>
+                </tr>
+                <tr>
+                  <td><strong>Socio profesional</strong></td>
+                  <td><code>association</code></td>
+                  <td><code>member</code></td>
+                  <td><code>member_professional</code></td>
+                  <td>Perfil, credencial, directorio, agenda, beneficios, comunidad ligera, activar CRM</td>
+                  <td>Completar perfil, renovar membresía, registrarse a eventos, acceder a beneficios.</td>
+                </tr>
+                <tr>
+                  <td><strong>CRM personal / broker</strong></td>
+                  <td><code>individual</code> o <code>agency</code></td>
+                  <td>roles actuales</td>
+                  <td><code>broker</code>, <code>agency_operator</code></td>
+                  <td>Pipeline, campañas, calendar, products, analytics, automations, scripts</td>
+                  <td>Seguir usando el CRM de ROVI como hoy, pero desde una capa opcional.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="quote" style="margin-top: 16px;">
+            <p>
+              La misma persona puede tener varios perfiles activos en workspaces distintos: por ejemplo, ser socio de una asociación,
+              operador de una inmobiliaria y además tener un CRM personal. Esa flexibilidad ya es coherente con la arquitectura actual.
+            </p>
+            <footer>Esto reutiliza directamente <code>available_workspaces</code> y <code>switch-workspace</code>.</footer>
+          </div>
+        </section>
+
+        <section id="modulos" class="panel">
+          <h2>4. Cómo adaptar módulos existentes de ROVI</h2>
+          <p class="lead">
+            El enfoque recomendado es <strong>reutilizar, refactorizar y esconder</strong>, no reescribir todos los módulos ni replicar
+            pantallas por separado.
+          </p>
+
+          <div class="table-wrap">
+            <table class="comparison">
+              <thead>
+                <tr>
+                  <th>Módulo actual</th>
+                  <th>Estado hoy</th>
+                  <th>Adaptación COPIM</th>
+                  <th>Decisión recomendada</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Auth / Workspaces</strong></td>
+                  <td>Ya existe y funciona.</td>
+                  <td>Agregar tipos de tenant y contexto de persona.</td>
+                  <td>Reutilizar como columna vertebral del producto COPIM.</td>
+                </tr>
+                <tr>
+                  <td><strong>Dashboard</strong></td>
+                  <td>Orientado a broker / inmobiliaria.</td>
+                  <td>Crear variantes por persona: consejo, asociación, socio.</td>
+                  <td>Refactorizar el page para resolver widgets por capacidad y persona.</td>
+                </tr>
+                <tr>
+                  <td><strong>Brokers</strong></td>
+                  <td>Roster por agencia usando memberships.</td>
+                  <td>Reutilizar patrón para <em>Socios / Equipo de asociación</em>.</td>
+                  <td>Convertirlo en un roster genérico de personas por workspace.</td>
+                </tr>
+                <tr>
+                  <td><strong>Calendar</strong></td>
+                  <td>Eventos y citas CRM.</td>
+                  <td>Adaptarlo a eventos institucionales, registros y check-ins.</td>
+                  <td>Refactorizar naming y data model de evento para soportar agenda COPIM.</td>
+                </tr>
+                <tr>
+                  <td><strong>Settings</strong></td>
+                  <td>Integraciones técnicas.</td>
+                  <td>Agregar branding institucional, reglas de membresía, beneficios, tipos de socio, pagos.</td>
+                  <td>Ampliar settings por workspace, no crear módulo separado al inicio.</td>
+                </tr>
+                <tr>
+                  <td><strong>Analytics</strong></td>
+                  <td>ROI y métricas CRM.</td>
+                  <td>Usarlo después para salud de asociaciones, renovaciones, participación y crecimiento.</td>
+                  <td>Ocultarlo en fase 1 para socios; exponerlo solo en consejo/presidencia más adelante.</td>
+                </tr>
+                <tr>
+                  <td><strong>Import</strong></td>
+                  <td>Importa leads.</td>
+                  <td>Reutilizable para padrones de socios, membresías y migración desde Excel.</td>
+                  <td>Convertir a importador configurable por entidad y mapa de columnas.</td>
+                </tr>
+                <tr>
+                  <td><strong>Database Chat</strong></td>
+                  <td>Consulta IA sobre base de datos.</td>
+                  <td>Potencial futuro como Council Intelligence.</td>
+                  <td>Fase 3 o premium, no base.</td>
+                </tr>
+                <tr>
+                  <td><strong>Automations</strong></td>
+                  <td>n8n / workflows de CRM.</td>
+                  <td>Renovaciones, recordatorios, avisos de vencimiento, check-ins y convocatorias.</td>
+                  <td>Fase 2, cuando ya exista operación básica estable.</td>
+                </tr>
+                <tr>
+                  <td><strong>Campaigns</strong></td>
+                  <td>Outbound CRM.</td>
+                  <td>Más adelante, notificaciones y mensajes segmentados a socios.</td>
+                  <td>No moverlo al MVP base de Mario.</td>
+                </tr>
+                <tr>
+                  <td><strong>Leads / Products / Scripts</strong></td>
+                  <td>Core CRM de ventas.</td>
+                  <td>Seguir como add-on “activa tu CRM”.</td>
+                  <td>Esconder en workspaces COPIM base, mostrar en workspaces CRM personales o Pro.</td>
+                </tr>
+                <tr>
+                  <td><strong>Gamification</strong></td>
+                  <td>Puntos para brokers.</td>
+                  <td>En el futuro puede virar a certificación, participación o ranking de actividad.</td>
+                  <td>No priorizar para la primera ola.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-2" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Módulos nuevos reales que sí habrá que construir</h3>
+              <ul>
+                <li>Asociaciones</li>
+                <li>Membresías / renovaciones / pagos</li>
+                <li>Credencialización</li>
+                <li>Directorio nacional</li>
+                <li>Beneficios / convenios</li>
+                <li>Documentos / repositorio institucional</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Módulos que pueden nacer como “skins” de lo existente</h3>
+              <ul>
+                <li>Dashboard</li>
+                <li>Roster de personas</li>
+                <li>Agenda de eventos</li>
+                <li>Imports</li>
+                <li>Settings por workspace</li>
+                <li>Analytics ejecutivos de fase posterior</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="arquitectura" class="panel">
+          <h2>5. Arquitectura técnica recomendada</h2>
+          <p class="lead">
+            Este es el cambio estructural que permite que COPIM viva sobre ROVI sin volver inmanejable la autorización y el frontend.
+          </p>
+
+          <div class="tags" style="margin-bottom: 16px;">
+            <span class="tag backend">Backend</span>
+            <span class="tag frontend">Frontend</span>
+            <span class="tag data">Data model</span>
+            <span class="tag risk">Permisos</span>
+            <span class="tag ok">Reutilización alta</span>
+          </div>
+
+          <div class="stack">
+            <div class="item">
+              <h3>5.1 Extender <code>tenants</code></h3>
+              <ul>
+                <li>Agregar nuevos <code>tenant_type</code>: <code>association</code> y <code>council</code>.</li>
+                <li>Agregar <code>parent_tenant_id</code> para modelar jerarquía COPIM Nacional → Asociación.</li>
+                <li>Agregar metadata: estado, ciudad, código, estatus de afiliación, branding, plan institucional.</li>
+              </ul>
+            </div>
+            <div class="item">
+              <h3>5.2 Extender <code>tenant_memberships</code></h3>
+              <ul>
+                <li>Mantener <code>role</code> como rol de autoridad genérico.</li>
+                <li>Agregar <code>persona_type</code> y <code>title</code> para UX institucional.</li>
+                <li>Agregar campos de membresía: número, vigencia, categoría, certificaciones, status financiero, benefits eligibility.</li>
+              </ul>
+            </div>
+            <div class="item">
+              <h3>5.3 Token y sesión</h3>
+              <ul>
+                <li>Enriquecer token con <code>active_tenant_type</code>, <code>active_persona</code> y una lista de <code>capabilities</code>.</li>
+                <li>Seguir usando <code>active_workspace</code> y <code>available_workspaces</code> en frontend.</li>
+              </ul>
+            </div>
+            <div class="item">
+              <h3>5.4 De roles hardcoded a capabilities</h3>
+              <ul>
+                <li>Reemplazar checks tipo <code>if role in {"owner","admin","manager"}</code> por capacidades como <code>manage_members</code>, <code>manage_renewals</code>, <code>view_council_metrics</code>.</li>
+                <li>Crear helper backend <code>require_capability(...)</code>.</li>
+                <li>En frontend, resolver navegación por capacidades, no por <code>isIndividual/isAgency</code>.</li>
+              </ul>
+            </div>
+            <div class="item">
+              <h3>5.5 Configuración de navegación por workspace</h3>
+              <ul>
+                <li>Crear una matriz de módulos visible según <code>tenant_type</code> + <code>persona_type</code> + capacidades.</li>
+                <li>La barra lateral deja de tener dos arrays fijos y pasa a una configuración declarativa.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="callout" style="margin-top: 16px;">
+            <h3>Decisión crítica</h3>
+            <p>
+              No usar <code>account_type</code> como criterio principal para COPIM. <code>account_type</code> sirve para el alta actual de
+              usuario, pero la experiencia COPIM debe guiarse por el <strong>workspace activo</strong>, su <strong>tenant_type</strong> y la
+              <strong>persona</strong> que ese usuario tiene dentro de ese workspace.
+            </p>
+          </div>
+        </section>
+
+        <section id="fases" class="panel">
+          <h2>6. Plan de implementación por fases</h2>
+          <p class="lead">
+            El plan busca cumplir lo que Mario necesita sin bloquear el CRM actual. La recomendación es ir por ondas o sprints que entreguen
+            valor usable desde temprano.
+          </p>
+
+          <div class="table-wrap">
+            <table class="comparison">
+              <thead>
+                <tr>
+                  <th>Fase</th>
+                  <th>Objetivo</th>
+                  <th>Entregables</th>
+                  <th>Duración sugerida</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Fase 0</strong></td>
+                  <td>Preparar la base técnica sin romper producción.</td>
+                  <td>Extensión de enums, diseño de capabilities, feature flags COPIM, estrategia de migración.</td>
+                  <td>3–5 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 1</strong></td>
+                  <td>Habilitar jerarquía institucional y acceso.</td>
+                  <td>Workspaces <code>association</code> / <code>council</code>, memberships extendidos, token enriquecido, sidebar dinámico base.</td>
+                  <td>1–1.5 semanas</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 2</strong></td>
+                  <td>Construir el MVP COPIM que Mario sí necesita.</td>
+                  <td>Asociaciones, socios, membresías, credencial, directorio, eventos, dashboard institucional básico.</td>
+                  <td>2–3 semanas</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 3</strong></td>
+                  <td>Operación real y piloto.</td>
+                  <td>Importaciones, flujos de aprobación, renovaciones, pagos/estatus, check-ins, pruebas con 4 asociaciones.</td>
+                  <td>1.5–2 semanas</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 4</strong></td>
+                  <td>Conectar la escalera CRM / add-ons.</td>
+                  <td>Botón “Activa tu CRM”, paquetes Kinder / Intermedio / Pro, workspace switching refinado entre lo institucional y lo comercial.</td>
+                  <td>1–2 semanas</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-2" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Fast-track para Mario</h3>
+              <p>
+                Si urge una entrega visible en ~4 semanas, la recomendación es recortar a:
+              </p>
+              <ul>
+                <li>Fase 1 completa</li>
+                <li>Fase 2 recortada a asociaciones, socios, directorio, credencial y eventos básicos</li>
+                <li>Renovaciones/pagos como estatus manual antes de automatización completa</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Qué dejar explícitamente fuera del piloto</h3>
+              <ul>
+                <li>Campañas avanzadas</li>
+                <li>IA conversacional de alto costo</li>
+                <li>Automations complejas</li>
+                <li>Gamificación</li>
+                <li>Scraping / encuentra leads</li>
+                <li>Comunidad rica tipo red social</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="backlog" class="panel">
+          <h2>7. Backlog sugerido por workstream</h2>
+          <p class="lead">
+            Lista orientada a convertir este plan en tickets. Los puntos están ordenados según dependencia técnica, no solo por prioridad de negocio.
+          </p>
+
+          <div class="grid-3">
+            <div class="card">
+              <h3>Backend / Auth / Permissions</h3>
+              <ul>
+                <li>Extender enums de <code>TenantType</code>.</li>
+                <li>Agregar <code>persona_type</code> y metadata a memberships.</li>
+                <li>Crear helper <code>require_capability</code>.</li>
+                <li>Emitir token enriquecido por workspace activo.</li>
+                <li>Agregar endpoints CRUD para asociaciones y socios.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Data model</h3>
+              <ul>
+                <li>Modelo de asociación y jerarquía nacional.</li>
+                <li>Modelo de plan de membresía / estatus / vigencia.</li>
+                <li>Modelo de credencial / QR / autentificación.</li>
+                <li>Modelo de evento institucional y asistencia.</li>
+                <li>Modelo de convenios / beneficios / elegibilidad.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Frontend / Navigation</h3>
+              <ul>
+                <li>Refactor del sidebar a config-driven.</li>
+                <li>Resolver <code>workspace kind</code> + capacidades + persona.</li>
+                <li>Crear shell visual COPIM sin romper CRM actual.</li>
+                <li>Agregar labels y copy por contexto institucional.</li>
+                <li>Resolver “switch workspace” entre contextos institucionales y CRM.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Módulos nuevos</h3>
+              <ul>
+                <li>AsociacionesPage</li>
+                <li>SociosPage / DirectoryPage</li>
+                <li>MembershipsPage</li>
+                <li>BenefitsPage</li>
+                <li>DocumentsPage</li>
+                <li>CredentialModal / MemberCard</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Módulos refactorizados</h3>
+              <ul>
+                <li>DashboardPage con presets por persona</li>
+                <li>BrokersPage → roster genérico de personas</li>
+                <li>CalendarPage → eventos y check-ins</li>
+                <li>SettingsPage → configuración institucional</li>
+                <li>ImportLeadsPage → imports de socios/padrones</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Rollout / QA / Migración</h3>
+              <ul>
+                <li>Sembrar tenants COPIM nacional + asociaciones piloto.</li>
+                <li>Importar padrones desde Excel.</li>
+                <li>Probar matrix de permisos por persona.</li>
+                <li>Probar switching entre workspaces.</li>
+                <li>Probar que el CRM actual siga intacto en personal / agency.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="callout" style="margin-top: 16px;">
+            <h3>Atajo de implementación inteligente</h3>
+            <p>
+              El módulo actual de brokers ya demuestra el patrón correcto: usa memberships como roster, trae estatus, rol en workspace,
+              linking y activación/desactivación. La recomendación es generalizar ese patrón para socios y equipos de asociación en vez de
+              construir otro sistema paralelo de personas.
+            </p>
+          </div>
+        </section>
+
+        <section id="riesgos" class="panel">
+          <h2>8. Riesgos y decisiones críticas</h2>
+          <p class="lead">
+            Estos son los puntos que más probablemente rompan alcance, compliquen UX o generen deuda si no se deciden bien al inicio.
+          </p>
+
+          <div class="stack">
+            <div class="item">
+              <h3>Riesgo 1 • Mantener el front decidido por <code>isIndividual/isAgency</code></h3>
+              <p>
+                Si no se cambia eso, COPIM terminará forzando hacks en cada página. La navegación y los módulos deben responder al
+                workspace activo, no al tipo de cuenta original.
+              </p>
+            </div>
+            <div class="item">
+              <h3>Riesgo 2 • Sobrecargar el rol único</h3>
+              <p>
+                Si “presidente”, “vp”, “socio” y “broker” se meten todos en un solo enum de rol, la autorización se volverá frágil.
+                Hay que separar autoridad de persona.
+              </p>
+            </div>
+            <div class="item">
+              <h3>Riesgo 3 • Querer meter CRM e IA en la fase base</h3>
+              <p>
+                Eso contradice la llamada con Mario. La fase base debe ser institucional y operativa; CRM e IA son la expansión.
+              </p>
+            </div>
+            <div class="item">
+              <h3>Riesgo 4 • Modelar asociaciones fuera de <code>tenants</code></h3>
+              <p>
+                Si se crea otra entidad paralela para asociaciones, se desperdicia la base multi-tenant y se duplica la lógica de permisos.
+              </p>
+            </div>
+            <div class="item">
+              <h3>Riesgo 5 • UX demasiado compleja para socio/presidencia</h3>
+              <p>
+                La llamada fue clarísima: si la captura de información no es simple, no habrá adopción. Cada flujo debe reducir pasos y lenguaje técnico.
+              </p>
+            </div>
+          </div>
+
+          <details style="margin-top: 16px;" open>
+            <summary>Decisión recomendada final</summary>
+            <div class="detail-body">
+              Construir COPIM como una <strong>capa institucional sobre la arquitectura multi-workspace de ROVI</strong>, con nuevos tipos de tenant,
+              nuevos perfiles de persona y navegación por capacidades. La operación que Mario necesita vive en workspaces <code>association</code> y
+              <code>council</code>; el CRM tradicional queda como capa activable en workspaces personales o profesionales.
+            </div>
+          </details>
+
+          <details>
+            <summary>Si quisiera bajarse esto a tickets ya mismo</summary>
+            <div class="detail-body">
+              El orden recomendado sería:
+              1. Extender enums y modelo de memberships.
+              2. Enriquecer token y helper de capacidades.
+              3. Refactorizar Sidebar y resolver navegación por config.
+              4. Crear módulos Asociaciones / Socios / Memberships.
+              5. Adaptar Dashboard y Calendar.
+              6. Integrar credencial y directorio.
+              7. Solo después conectar el botón “Activa tu CRM”.
+            </div>
+          </details>
+
+          <p class="footer-note" style="margin-top: 18px;">
+            Este documento está pensado como puente entre estrategia y ejecución. El siguiente paso natural sería convertirlo a backlog:
+            épicas, historias, estimaciones y secuencia de PRs sobre el código actual.
+          </p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

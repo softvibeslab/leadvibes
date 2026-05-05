@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta COPIM x ROVI - Modelo Escalable</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --rovi-primary: #0D9488;
+            --rovi-primary-dark: #0A6F67;
+            --rovi-secondary: #4D7C0F;
+            --rovi-secondary-dark: #365314;
+            --rovi-accent: #D97706;
+            --rovi-accent-dark: #B45309;
+            --rovi-sand: #E7E5E4;
+            --rovi-sand-light: #F6F3EF;
+            --rovi-ink: #11263B;
+            --rovi-ink-soft: #4C5D6B;
+            --rovi-border: #D7D3CF;
+            --rovi-surface: rgba(255, 255, 255, 0.94);
+            --rovi-surface-strong: #FFFFFF;
+            --rovi-success-bg: #E6F6F3;
+            --rovi-accent-bg: #FCE9D2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--rovi-ink);
+            background:
+                radial-gradient(circle at top right, rgba(217, 119, 6, 0.18), transparent 28%),
+                radial-gradient(circle at left center, rgba(13, 148, 136, 0.14), transparent 24%),
+                linear-gradient(135deg, #0B2740 0%, #0D5E78 46%, #0D9488 74%, #4D7C0F 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background:
+                linear-gradient(135deg, rgba(11, 39, 64, 0.98), rgba(13, 94, 120, 0.92) 52%, rgba(13, 148, 136, 0.94) 100%);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 24px 72px rgba(6, 17, 29, 0.34);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .header h1 {
+            font-size: 42px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 16px;
+            letter-spacing: -0.03em;
+        }
+
+        .header .subtitle {
+            font-size: 18px;
+            color: rgba(255,255,255,0.82);
+            margin-bottom: 20px;
+        }
+
+        .header .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--rovi-accent) 0%, var(--rovi-accent-dark) 100%);
+            color: white;
+            padding: 10px 22px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 12px 30px rgba(180, 83, 9, 0.25);
+        }
+
+        .section {
+            background: var(--rovi-surface);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 12px 36px rgba(8, 23, 38, 0.14);
+            page-break-inside: avoid;
+            border: 1px solid rgba(255,255,255,0.35);
+            backdrop-filter: blur(10px);
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            color: var(--rovi-ink);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            page-break-after: avoid;
+        }
+
+        .subsection-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--rovi-primary-dark);
+            margin-top: 32px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid rgba(13, 148, 136, 0.18);
+            page-break-after: avoid;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, var(--rovi-accent-bg) 0%, var(--rovi-surface-strong) 100%);
+            border-left: 4px solid var(--rovi-accent);
+            padding: 24px;
+            border-radius: 12px;
+            margin: 24px 0;
+            page-break-inside: avoid;
+        }
+
+        .highlight-box strong {
+            color: var(--rovi-accent-dark);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin: 24px 0;
+            page-break-inside: avoid;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin: 24px 0;
+            page-break-inside: avoid;
+        }
+
+        .card {
+            background: var(--rovi-sand-light);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--rovi-border);
+            page-break-inside: avoid;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--rovi-ink);
+            margin-bottom: 12px;
+        }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--rovi-primary);
+            margin-bottom: 8px;
+        }
+
+        .card-label {
+            font-size: 14px;
+            color: var(--rovi-ink-soft);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            page-break-inside: avoid;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, #0B2740 0%, #0D5E78 60%, #0D9488 100%);
+            color: white;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--rovi-border);
+        }
+
+        .table tr:hover {
+            background: rgba(13, 148, 136, 0.05);
+        }
+
+        .price-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--rovi-primary) 0%, var(--rovi-primary-dark) 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: 700;
+            margin: 8px 0;
+            box-shadow: 0 14px 30px rgba(13, 148, 136, 0.22);
+        }
+
+        .package-card {
+            background: var(--rovi-surface-strong);
+            border: 2px solid var(--rovi-border);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            transition: all 0.3s;
+            page-break-inside: avoid;
+        }
+
+        .package-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 34px rgba(8, 23, 38, 0.14);
+        }
+
+        .package-card.featured {
+            border: 4px solid var(--rovi-primary);
+            position: relative;
+            box-shadow: 0 18px 42px rgba(13, 148, 136, 0.16);
+        }
+
+        .package-name {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .package-name.basico { color: var(--rovi-ink-soft); }
+        .package-name.estandar { color: var(--rovi-primary-dark); }
+        .package-name.premium { color: var(--rovi-secondary); }
+
+        .package-price {
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--rovi-ink);
+            margin: 16px 0;
+        }
+
+        .package-features {
+            list-style: none;
+            text-align: left;
+            margin: 24px 0;
+        }
+
+        .package-features li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(17, 38, 59, 0.08);
+        }
+
+        .package-features li:before {
+            content: "✓";
+            color: var(--rovi-primary);
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .commission-box {
+            background: linear-gradient(135deg, var(--rovi-success-bg) 0%, var(--rovi-surface-strong) 100%);
+            border: 2px solid rgba(77, 124, 15, 0.24);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+            page-break-inside: avoid;
+        }
+
+        .commission-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--rovi-secondary-dark);
+            margin-bottom: 12px;
+        }
+
+        .commission-value {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--rovi-secondary);
+        }
+
+        .profit-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--rovi-accent) 0%, var(--rovi-accent-dark) 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 8px 0;
+        }
+
+        .roi-box {
+            background: var(--rovi-surface-strong);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+            page-break-inside: avoid;
+            border: 1px solid rgba(13, 148, 136, 0.12);
+        }
+
+        .roi-value {
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--rovi-primary);
+            margin: 8px 0;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+            page-break-inside: avoid;
+        }
+
+        .comparison-item {
+            background: var(--rovi-sand-light);
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(17, 38, 59, 0.08);
+        }
+
+        .comparison-label {
+            font-size: 12px;
+            color: var(--rovi-ink-soft);
+            margin-bottom: 4px;
+        }
+
+        .comparison-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--rovi-ink);
+        }
+
+        .comparison-value.positive {
+            color: var(--rovi-primary);
+        }
+
+        .scenario-card {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, var(--rovi-surface-strong) 100%);
+            border: 2px solid rgba(13, 148, 136, 0.28);
+            border-radius: 16px;
+            padding: 32px;
+            page-break-inside: avoid;
+        }
+
+        .scenario-card h3 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--rovi-primary-dark);
+            margin-bottom: 20px;
+            page-break-after: avoid;
+        }
+
+        .module-card {
+            background: var(--rovi-sand-light);
+            border: 1px solid var(--rovi-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 12px 0;
+            page-break-inside: avoid;
+        }
+
+        .module-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--rovi-ink);
+            margin-bottom: 8px;
+        }
+
+        .module-price {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--rovi-primary);
+            margin: 8px 0;
+        }
+
+        .module-desc {
+            font-size: 14px;
+            color: var(--rovi-ink-soft);
+            margin: 8px 0;
+        }
+
+        /* PDF-specific rules */
+        @media print {
+            body {
+                background: white;
+                padding: 20px;
+            }
+
+            .section {
+                box-shadow: none;
+                margin-bottom: 20px;
+                page-break-inside: avoid;
+            }
+
+            .header {
+                box-shadow: none;
+                page-break-after: avoid;
+            }
+
+            .table, .grid-2, .grid-3, .card, .package-card, .module-card,
+            .commission-box, .roi-box, .highlight-box, .scenario-card {
+                page-break-inside: avoid;
+            }
+
+            .section-title, .scenario-card h3 {
+                page-break-after: avoid;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .grid-2, .grid-3, .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ROVI x COPIM</h1>
+            <p class="subtitle">Propuesta operativa con branding Rovi para un modelo escalable de revenue share | 5 asociaciones | 250 usuarios iniciales</p>
+            <span class="badge">Herramienta lista | Implementación rápida</span>
+        </div>
+
+        <!-- FEE DE IMPLEMENTACIÓN -->
+        <div class="section">
+            <div class="section-title">💰 FEE DE IMPLEMENTACIÓN</div>
+
+            <div class="price-tag">$50,000 MXN</div>
+            <p style="text-align: center; color: var(--rovi-ink-soft); margin-bottom: 32px;">Pago único (herramienta ya desarrollada)</p>
+
+            <div class="highlight-box">
+                <strong>✅ Qué incluye:</strong><br><br>
+                • Configuración de plataforma para 5 asociaciones<br>
+                • Migración de datos existentes<br>
+                • Integraciones: WhatsApp API, Google Calendar, Email (SendGrid)<br>
+                • Configuración de IA Institucional con voz de COPIM<br>
+                • Capacitación para líderes de las 5 asociaciones<br>
+                • Manual de usuario y documentación<br><br>
+                <strong>⏱️ Timeline:</strong> 2-3 semanas para estar operativo
+            </div>
+        </div>
+
+        <!-- COSTOS MENSUALES DE INFRAESTRUCTURA -->
+        <div class="section">
+            <div class="section-title">🖥️ COSTO MENSUAL DE INFRAESTRUCTURA</div>
+
+            <div class="highlight-box">
+                <strong>Para 250 usuarios iniciales</strong> (5 asociaciones × 50 usuarios cada una)
+            </div>
+
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-title">Servidores</div>
+                    <div class="card-value">$6,000 MXN</div>
+                    <div class="card-label">1 servidor app + 1 BD</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">APIs y Servicios</div>
+                    <div class="card-value">$4,000 MXN</div>
+                    <div class="card-label">WhatsApp, OpenAI, Email</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Soporte Técnico</div>
+                    <div class="card-value">$3,000 MXN</div>
+                    <div class="card-label">Mantenimiento y actualizaciones</div>
+                </div>
+            </div>
+
+            <div class="roi-box">
+                <div class="commission-title">💵 TOTAL MENSUAL INFRAESTRUCTURA</div>
+                <div class="roi-value">$13,000 MXN</div>
+                <div class="card-label">Para las 5 asociaciones</div>
+            </div>
+
+            <div class="highlight-box" style="margin-top: 24px;">
+                <strong>📊 Escalabilidad automática:</strong><br>
+                La infraestructura se escala automáticamente según el número de usuarios, sin intervención manual.
+            </div>
+        </div>
+
+        <!-- PAQUETE ESTÁNDAR PARA ASOCIACIONES -->
+        <div class="section">
+            <div class="section-title">📦 PAQUETE ESTÁNDAR PARA ASOCIACIONES</div>
+
+            <div class="package-card featured">
+                <div style="position: absolute; top: -12px; right: 20px; background: var(--rovi-primary); color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">PARA ASOCIACIONES</div>
+                <div class="package-name estandar">🏢 PAQUETE ESTÁNDAR</div>
+                <div class="package-price">$980 MXN<span style="font-size: 16px;">/mes/asociación</span></div>
+                <p style="color: var(--rovi-ink-soft);">Precio fijo mensual por asociación</p>
+
+                <div class="commission-box">
+                    <div class="commission-title">✅ INCLUYE PARA LA ASOCIACIÓN</div>
+                    <div style="font-size: 18px; color: var(--rovi-secondary-dark); font-weight: 600; margin-top: 12px;">
+                        Hasta 50 usuarios de esa asociación
+                    </div>
+                </div>
+
+                <ul class="package-features">
+                    <li><strong>✅ Acceso a la plataforma para 50 socios</strong></li>
+                    <li><strong>✅ Módulos básicos incluidos para todos:</strong></li>
+                    <li>📊 Dashboard personal tipo LinkedIn</li>
+                    <li>👔 Directorio de networking ilimitado</li>
+                    <li>📅 Calendario de eventos y registro online</li>
+                    <li>💬 Comunidad (ver y comentar)</li>
+                    <li>🏠 Catálogo de propiedades (8 propiedades)</li>
+                    <li>📚 Cursos y certificaciones</li>
+                    <li>🎯 Gestión de eventos propia</li>
+                    <li>⚙️ Configuración de asociación</li>
+                    <li>💳 Gestión y facturación</li>
+                    <li>📊 Analytics básico de su comunidad</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <strong>💰 Modelo de pago:</strong><br>
+                    Cada asociación paga <strong>$980 MXN/mes fijos</strong> por hasta 50 usuarios.<br>
+                    <strong>Costo por usuario:</strong> $49 ÷ 50 = <strong>$0.98 MXN por usuario/mes</strong><br><br>
+
+                    <strong>📈 Usuarios adicionales:</strong><br>
+                    • 51-100 usuarios: <strong>+$400 MXN/mes</strong> (total $1,380 MXN/mes)<br>
+                    • 101-150 usuarios: <strong>+$800 MXN/mes</strong> (total $1,780 MXN/mes)<br>
+                    • 151-200 usuarios: <strong>+$1,200 MXN/mes</strong> (total $2,180 MXN/mes)<br>
+                    • 201-250 usuarios: <strong>+$1,600 MXN/mes</strong> (total $2,580 MXN/mes)
+                </div>
+            </div>
+        </div>
+
+        <!-- PAQUETE PREMIUM: ACTIVACIÓN INDIVIDUAL DE MÓDULOS -->
+        <div class="section">
+            <div class="section-title">👑 MÓDULOS PREMIUM (ACTIVACIÓN INDIVIDUAL)</div>
+
+            <p style="font-size: 18px; color: var(--rovi-ink-soft); text-align: center; margin-bottom: 32px;">
+                Cada usuario decide activar módulos premium adicionales desde su perfil<br>
+                <strong>Pago directo del usuario a COPIM/ROVI</strong>
+            </p>
+
+            <div class="grid-3">
+                <!-- MODULO 1 -->
+                <div class="module-card">
+                    <div class="module-name">👥 Gestión de Prospectos</div>
+                    <div class="module-price">$580 MXN<span style="font-size: 16px;">/mes</span></div>
+                    <div class="module-desc">Pipeline Kanban para gestionar prospectos desde primer contacto hasta cierre</div>
+                    <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--rovi-border);">
+                    <div style="text-align: left;">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">✨ Características:</div>
+                        <div style="font-size: 13px; color: var(--rovi-ink-soft);">
+                            • Tablero Kanban interactivo<br>
+                            • Seguimiento automatizado<br>
+                            • Notificaciones de recordatorio<br>
+                            • Hasta 50 propiedades
+                        </div>
+                    </div>
+                    <div class="commission-box">
+                        <div class="commission-title">💵 Distribución</div>
+                        <div style="font-size: 14px; color: var(--rovi-secondary-dark);">
+                            <strong>COPIM:</strong> $232 MXN (40%)<br>
+                            <strong>ROVI:</strong> $348 MXN (60%)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULO 2 -->
+                <div class="module-card">
+                    <div class="module-name">📱 Campañas Masivas</div>
+                    <div class="module-price">$980 MXN<span style="font-size: 16px;">/mes</span></div>
+                    <div class="module-desc">WhatsApp, SMS y Email marketing para comunicaciones masivas</div>
+                    <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--rovi-border);">
+                    <div style="text-align: left;">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">✨ Características:</div>
+                        <div style="font-size: 13px; color: var(--rovi-ink-soft);">
+                            • Campañas WhatsApp masivas<br>
+                            • Blast de SMS<br>
+                            • Email marketing automatizado<br>
+                            • Templates personalizados
+                        </div>
+                    </div>
+                    <div class="commission-box">
+                        <div class="commission-title">💵 Distribución</div>
+                        <div style="font-size: 14px; color: var(--rovi-secondary-dark);">
+                            <strong>COPIM:</strong> $392 MXN (40%)<br>
+                            <strong>ROVI:</strong> $588 MXN (60%)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULO 3 -->
+                <div class="module-card">
+                    <div class="module-name">🤖 IA Institucional 24/7</div>
+                    <div class="module-price">$980 MXN<span style="font-size: 16px;">/mes</span></div>
+                    <div class="module-desc">Asistente IA entrenado para calificar prospectos y responder preguntas automáticamente</div>
+                    <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--rovi-border);">
+                    <div style="text-align: left;">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">✨ Características:</div>
+                        <div style="font-size: 13px; color: var(--rovi-ink-soft);">
+                            • Respuesta automática 24/7<br>
+                            • Calificación de leads<br>
+                            • Análisis de sentimiento<br>
+                            • Entrenado con voz COPIM
+                        </div>
+                    </div>
+                    <div class="commission-box">
+                        <div class="commission-title">💵 Distribución</div>
+                        <div style="font-size: 14px; color: var(--rovi-secondary-dark);">
+                            <strong>COPIM:</strong> $392 MXN (40%)<br>
+                            <strong>ROVI:</strong> $588 MXN (60%)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULO 4 -->
+                <div class="module-card">
+                    <div class="module-name">⚙️ Automatizaciones</div>
+                    <div class="module-price">$780 MXN<span style="font-size: 16px;">/mes</span></div>
+                    <div class="module-desc">Flujos personalizados sin programar para tareas repetitivas</div>
+                    <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--rovi-border);">
+                    <div style="text-align: left;">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">✨ Características:</div>
+                        <div style="font-size: 13px; color: var(--rovi-ink-soft);">
+                            • Flujos drag-and-drop<br>
+                            • Trigger automáticos<br>
+                            • Integración con múltiples apps<br>
+                            • Validaciones automáticas
+                        </div>
+                    </div>
+                    <div class="commission-box">
+                        <div class="commission-title">💵 Distribución</div>
+                        <div style="font-size: 14px; color: var(--rovi-secondary-dark);">
+                            <strong>COPIM:</strong> $312 MXN (40%)<br>
+                            <strong>ROVI:</strong> $468 MXN (60%)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULO 5 -->
+                <div class="module-card">
+                    <div class="module-name">📊 Analytics Avanzado</div>
+                    <div class="module-price">$580 MXN<span style="font-size: 16px;">/mes</span></div>
+                    <div class="module-desc">Business intelligence con análisis predictivo y métricas avanzadas</div>
+                    <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--rovi-border);">
+                    <div style="text-align: left;">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">✨ Características:</div>
+                        <div style="font-size: 13px; color: var(--rovi-ink-soft);">
+                            • Análisis predictivo<br>
+                            • Reportes avanzados<br>
+                            • Comparativas período vs período<br>
+                            • Exportar datos
+                        </div>
+                    </div>
+                    <div class="commission-box">
+                        <div class="commission-title">💵 Distribución</div>
+                        <div style="font-size: 14px; color: var(--rovi-secondary-dark);">
+                            <strong>COPIM:</strong> $232 MXN (40%)<br>
+                            <strong>ROVI:</strong> $348 MXN (60%)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight-box" style="margin-top: 32px;">
+                <strong>🎯 Flexibilidad total:</strong><br>
+                Cada usuario activa solo los módulos que necesita. Puede combinar módulos: Gestión de Prospectos ($580) + Analytics ($580) = $1,160 MXN/mes<br><br>
+                <strong>¡El usuario decide qué pagar y cuando activarlo!</strong>
+            </div>
+        </div>
+
+        <!-- ESCENARIO INICIAL: 250 USUARIOS -->
+        <div class="section">
+            <div class="section-title">📊 ESCENARIO INICIAL: 250 USUARIOS</div>
+
+            <div class="scenario-card">
+                <h3>💰 Ingresos Mensuales</h3>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th>Cantidad</th>
+                            <th>Precio</th>
+                            <th>Ingreso Mensual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Asociaciones</strong></td>
+                            <td>5</td>
+                            <td>$980 MXN/mes</td>
+                            <td><strong>$4,900 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Gestión Prospectos</strong></td>
+                            <td>25 usuarios (10%)</td>
+                            <td>$580 MXN/mes</td>
+                            <td><strong>$14,500 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Campañas</strong></td>
+                            <td>10 usuarios (4%)</td>
+                            <td>$980 MXN/mes</td>
+                            <td><strong>$9,800 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo IA</strong></td>
+                            <td>10 usuarios (4%)</td>
+                            <td>$980 MXN/mes</td>
+                            <td><strong>$9,800 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Automatizaciones</strong></td>
+                            <td>8 usuarios (3%)</td>
+                            <td>$780 MXN/mes</td>
+                            <td><strong>$6,240 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Analytics</strong></td>
+                            <td>15 usuarios (6%)</td>
+                            <td>$580 MXN/mes</td>
+                            <td><strong>$8,700 MXN</strong></td>
+                        </tr>
+                        <tr style="background: rgba(13, 148, 136, 0.08);">
+                            <td><strong>TOTAL INGRESOS</strong></td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td><strong>$53,940 MXN</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="grid-2" style="margin-top: 32px;">
+                    <div class="roi-box">
+                        <div class="commission-title">💵 Costo Infraestructura</div>
+                        <div class="roi-value">-$13,000 MXN</div>
+                        <div class="card-label">Servidores + APIs + Soporte</div>
+                    </div>
+                    <div class="roi-box">
+                        <div class="commission-title">🏆 GANANCIA NETA</div>
+                        <div class="roi-value">$40,940 MXN</div>
+                        <div class="card-label">Antes de revenue share</div>
+                    </div>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-around; text-align: center;">
+                        <div>
+                            <div style="font-size: 14px; color: var(--rovi-ink-soft); margin-bottom: 8px;">COPIM (40%)</div>
+                            <div style="font-size: 32px; font-weight: 900; color: var(--rovi-secondary);">$16,380 MXN</div>
+                            <div style="font-size: 14px; color: var(--rovi-primary);">por mes</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 14px; color: var(--rovi-ink-soft); margin-bottom: 8px;">ROVI (60%)</div>
+                            <div style="font-size: 32px; font-weight: 900; color: var(--rovi-primary-dark);">$24,560 MXN</div>
+                            <div style="font-size: 14px; color: var(--rovi-accent);">por mes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="roi-box" style="margin-top: 24px;">
+                    <div class="commission-title">📈 PROYECCIÓN ANUAL</div>
+                    <div class="roi-value">$196,560 MXN</div>
+                    <div class="card-label">Ingreso anual para COPIM ($16,380 × 12)</div>
+                </div>
+
+                <div class="roi-box">
+                    <div class="commission-title">🎯 ROI COPIM</div>
+                    <div class="roi-value">293%</div>
+                    <div class="card-label">En el primer año ($196,560 - $50,000) ÷ $50,000</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESCENARIO 500 USUARIOS -->
+        <div class="section">
+            <div class="section-title">📈 ESCENARIO CRECIMIENTO: 500 USUARIOS</div>
+
+            <div class="scenario-card">
+                <h3>💰 Ingresos Mensuales</h3>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th>Cantidad</th>
+                            <th>Precio</th>
+                            <th>Ingreso Mensual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Asociaciones</strong></td>
+                            <td>10 (5 nuevas)</td>
+                            <td>$980 MXN/mes</td>
+                            <td><strong>$9,800 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Gestión Prospectos</strong></td>
+                            <td>50 usuarios (10%)</td>
+                            <td>$580 MXN/mes</td>
+                            <td><strong>$29,000 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Campañas</strong></td>
+                            <td>20 usuarios (4%)</td>
+                            <td>$980 MXN/mes</td>
+                            <td><strong>$19,600 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo IA</strong></td>
+                            <td>20 usuarios (4%)</td>
+                            <td>$980 MXN/mes</td>
+                            <td><strong>$19,600 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Automatizaciones</strong></td>
+                            <td>15 usuarios (3%)</td>
+                            <td>$780 MXN/mes</td>
+                            <td><strong>$11,700 MXN</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Módulo Analytics</strong></td>
+                            <td>30 usuarios (6%)</td>
+                            <td>$580 MXN/mes</td>
+                            <td><strong>$17,400 MXN</strong></td>
+                        </tr>
+                        <tr style="background: rgba(13, 148, 136, 0.08);">
+                            <td><strong>TOTAL INGRESOS</strong></td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td><strong>$107,100 MXN</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="grid-2" style="margin-top: 32px;">
+                    <div class="roi-box">
+                        <div class="commission-title">💵 Costo Infraestructura</div>
+                        <div class="roi-value">-$22,000 MXN</div>
+                        <div class="card-label">Escalado para 500 usuarios</div>
+                    </div>
+                    <div class="roi-box">
+                        <div class="commission-title">🏆 GANANCIA NETA</div>
+                        <div class="roi-value">$85,100 MXN</div>
+                        <div class="card-label">Antes de revenue share</div>
+                    </div>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-around; text-align: center;">
+                        <div>
+                            <div style="font-size: 14px; color: var(--rovi-ink-soft); margin-bottom: 8px;">COPIM (40%)</div>
+                            <div style="font-size: 32px; font-weight: 900; color: var(--rovi-secondary);">$34,040 MXN</div>
+                            <div style="font-size: 14px; color: var(--rovi-primary);">por mes</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 14px; color: var(--rovi-ink-soft); margin-bottom: 8px;">ROVI (60%)</div>
+                            <div style="font-size: 32px; font-weight: 900; color: var(--rovi-primary-dark);">$51,060 MXN</div>
+                            <div style="font-size: 14px; color: var(--rovi-accent);">por mes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="roi-box" style="margin-top: 24px;">
+                    <div class="commission-title">📈 PROYECCIÓN ANUAL</div>
+                    <div class="roi-value">$408,480 MXN</div>
+                    <div class="card-label">Ingreso anual para COPIM ($34,040 × 12)</div>
+                </div>
+
+                <div class="roi-box">
+                    <div class="commission-title">🎯 ROI ACUMULADO (2 años)</div>
+                    <div class="roi-value">1,110%</div>
+                    <div class="card-label">($605,040 - $50,000) ÷ $50,000 inversión inicial</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMPARATIVA -->
+        <div class="section">
+            <div class="section-title">🎯 COMPARATIVA DE ESCENARIOS</div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Métrica</th>
+                        <th>Escenario Inicial (250 usuarios)</th>
+                        <th>Escenario Crecimiento (500 usuarios)</th>
+                        <th>Diferencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Asociaciones</strong></td>
+                        <td>5</td>
+                        <td>10</td>
+                        <td style="color: var(--rovi-primary);">+100%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ingreso Mensual Total</strong></td>
+                        <td>$53,940 MXN</td>
+                        <td>$107,100 MXN</td>
+                        <td style="color: var(--rovi-primary);">+98.5%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Costo Infraestructura</strong></td>
+                        <td>$13,000 MXN</td>
+                        <td>$22,000 MXN</td>
+                        <td>+69.2%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ganancia Neta</strong></td>
+                        <td>$40,940 MXN</td>
+                        <td>$85,100 MXN</td>
+                        <td style="color: var(--rovi-primary);">+107.8%</td>
+                    </tr>
+                    <tr style="background: rgba(13, 148, 136, 0.08);">
+                        <td><strong>Ingreso COPIM (40%)</strong></td>
+                        <td><strong>$16,380 MXN/mes</strong></td>
+                        <td><strong>$34,040 MXN/mes</strong></td>
+                        <td style="color: var(--rovi-primary);">+107.8%</td>
+                    </tr>
+                    <tr style="background: rgba(13, 148, 136, 0.08);">
+                        <td><strong>Ingreso Anual COPIM</strong></td>
+                        <td><strong>$196,560 MXN/año</strong></td>
+                        <td><strong>$408,480 MXN/año</strong></td>
+                        <td style="color: var(--rovi-primary);">+107.8%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ROI</strong></td>
+                        <td>293%</td>
+                        <td>1,110%</td>
+                        <td style="color: var(--rovi-primary);">+817 puntos</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="comparison-grid" style="margin-top: 32px;">
+                <div class="comparison-item">
+                    <div class="comparison-label">Punto de Equilibrio</div>
+                    <div class="comparison-value positive">3 meses</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="comparison-label">Recuperación Inversión</div>
+                    <div class="comparison-value positive">$50,000 MXN</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="comparison-label">Utilidad Primer Año</div>
+                    <div class="comparison-value positive">$146,560 MXN</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTRATEGIA DE CRECIMIENTO -->
+        <div class="section">
+            <div class="section-title">🚀 ESTRATEGIA PARA ESCALAR DE 250 A 500 USUARIOS</div>
+
+            <div class="highlight-box">
+                <strong>🎯 Meta:</strong> Pasar de 5 a 10 asociaciones y duplicar usuarios en 3 meses
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Mes 1: Fundación Rápida</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Onboarding exprés de 5 asociaciones iniciales</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ 100% de usuarios básicos activos</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ 10% conversión a premium (25 usuarios)</li>
+                        <li style="padding: 8px 0;">✓ Webinar semanal sobre beneficios premium</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Mes 2: Expansión Agresiva</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Incorporar 5 nuevas asociaciones (total 10)</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Programa de referidos intensivo</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Casos de éxito y testimonios exprés</li>
+                        <li style="padding: 8px 0;">✓ Meta: 350 usuarios totales</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">Mes 3: Máximo Impulso</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Campañas de marketing masivas</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Incentivos por referidos exitosos</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Meta final: 500 usuarios totales</li>
+                        <li style="padding: 8px 0;">✓ Ingresos de $20K+ MXN anuales para COPIM</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">💰 Incentivos Clave</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Un mes gratis por 3 referidos convertidos</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✓ Descuentos escalonados por volumen</li>
+                        <li style="padding: 8px 0;">✓ Reconocimiento público a top usuarios</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- VENTAJAS -->
+        <div class="section">
+            <div class="section-title">✅ VENTAJAS DEL MODELO</div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">🏆 Para COPIM</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Inversión mínima:</strong> Solo $50,000 MXN</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>ROI masivo:</strong> 293% primer año, 1,110% en dos años</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Ingresos inmediatos:</strong> Desde el primer mes</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Cero riesgo técnico:</strong> ROVI maneja todo</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Escalabilidad:</strong> Infinita sin costo adicional</li>
+                        <li style="padding: 8px 0;">✅ <strong>Valor para socios:</strong> Herramienta moderna diferenciadora</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">💼 Para Asociaciones</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Costo accesible:</strong> $19.60 MXN por usuario/mes</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Hasta 50 usuarios incluidos</strong></li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Todo incluido:</strong> Plataforma, soporte, actualizaciones</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Escalabilidad flexible:</strong> Agrega usuarios cuando lo necesites</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Independencia:</strong> Gestión autónoma de su comunidad</li>
+                        <li style="padding: 8px 0;">✅ <strong>Valor agregado:</strong> Diferenciación vs otras asociaciones</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">👤 Para Usuarios</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>BÁSICO gratis:</strong> Incluido con membresía</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Premium flexible:</strong> Activa solo lo que necesita</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Precios accesibles:</strong> Desde $580 MXN/mes</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Cancela cuando quieras:</strong> Sin contratos forzosos</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Mejora productividad:</strong> Herramientas profesionales</li>
+                        <li style="padding: 8px 0;">✅ <strong>Networking:</strong> Acceso a comunidad nacional</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">🔧 Para ROVI</div>
+                    <ul style="list-style: none;">
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Ingresos recurrentes:</strong> Desde $24,560 MXN/mes</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Modelo escalable:</strong> Crece sin reingeniería</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Margen saludable:</strong> 60% de utilidad neta</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Cliente ancla:</strong> COPIM como referente</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid var(--rovi-border);">✅ <strong>Replicable:</strong> Mismo modelo con otros sectores</li>
+                        <li style="padding: 8px 0;">✅ <strong>Producto probado:</strong> Rovi ya tiene la tecnología</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONCLUSIÓN -->
+        <div class="section">
+            <div class="section-title">🎯 CONCLUSIÓN: PROPUESTA GANAR-GANAR-GANAR</div>
+
+            <div class="highlight-box">
+                <strong>💎 El punto de equilibrio se alcanza en 3 meses.</strong> Con 5 asociaciones y 250 usuarios, COPIM recupera su inversión en el tercer mes de operación y genera utilidades desde entonces.<br><br>
+
+                <strong>📈 A los 18 meses, COPIM genera $408,480 MXN anuales</strong> - una fuente de ingresos pasivos que requiere cero esfuerzo operativo técnico y proporciona valor real a sus 12,847 socios nacionales.<br><br>
+
+                <strong>🚀 El modelo es infinitamente escalable:</strong> Cada nueva asociación que se suma genera $980 MXN/mes adicionales, y cada usuario que activa módulos premium genera ingresos recurrentes para COPIM sin costo operativo alguno.
+            </div>
+
+            <div class="roi-box" style="margin-top: 32px;">
+                <div class="commission-title">🎯 RECOMENDACIÓN FINAL</div>
+                <div style="font-size: 18px; color: var(--rovi-ink); line-height: 1.6;">
+                    <strong>APROBAR INMEDIATAMENTE</strong> - La inversión de $50,000 MXN se recupera en 3 meses. Con una estrategia focused de incorporar 5 nuevas asociaciones en los primeros 12 meses, COPIM puede generar más de $20,000 MXN anuales de ingresos pasivos mientras moderniza su operación y proporciona herramientas de clase mundial a sus socios.
+                </div>
+            </div>
+
+            <div class="comparison-grid" style="margin-top: 32px;">
+                <div class="comparison-item">
+                    <div class="comparison-label">Inversión</div>
+                    <div class="comparison-value">$50,000 MXN</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="comparison-label">Punto de Equilibrio</div>
+                    <div class="comparison-value positive">3 meses</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="comparison-label">ROI Año 1</div>
+                    <div class="comparison-value positive">293%</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="comparison-label">ROI Año 2</div>
+                    <div class="comparison-value positive">1,110%</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="comparison-label">Ingreso Anual</div>
+                    <div class="comparison-value positive">$408,480 MXN</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="comparison-label">Riesgo</div>
+                    <div class="comparison-value positive">Muy Bajo</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; color: rgba(255,255,255,0.88); margin-top: 40px;">
+            <p style="font-size: 14px;">© 2024 COPIM x ROVI | Propuesta Confidencial</p>
+            <p style="font-size: 12px; margin-top: 8px; color: rgba(255,255,255,0.72);">Modelo SaaS escalable con revenue share (COPIM 40% / ROVI 60%) | Branding visual alineado a Rovi</p>
+        </div>
+    </div>
+</body>
+</html>

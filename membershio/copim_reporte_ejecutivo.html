@@ -1,0 +1,1550 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Informe Interno COPIM x ROVI</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --bg-soft: #fbf8f2;
+      --panel: rgba(255, 252, 246, 0.95);
+      --card: rgba(255, 255, 255, 0.9);
+      --border: rgba(56, 48, 43, 0.12);
+      --text: #1e1b18;
+      --muted: #6c6259;
+      --accent: #0f766e;
+      --accent-deep: #114a47;
+      --accent-soft: rgba(15, 118, 110, 0.1);
+      --warn: #b45309;
+      --warn-soft: rgba(180, 83, 9, 0.11);
+      --danger: #b42318;
+      --danger-soft: rgba(180, 35, 24, 0.1);
+      --info: #1d4ed8;
+      --info-soft: rgba(29, 78, 216, 0.1);
+      --success: #15803d;
+      --success-soft: rgba(21, 128, 61, 0.1);
+      --shadow: 0 28px 60px rgba(54, 38, 24, 0.12);
+      --radius-lg: 30px;
+      --radius-md: 22px;
+      --radius-sm: 15px;
+      --font-sans: "Avenir Next", "Segoe UI", sans-serif;
+      --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.15), transparent 26rem),
+        radial-gradient(circle at top right, rgba(180, 83, 9, 0.16), transparent 24rem),
+        linear-gradient(180deg, #f8f2e7 0%, #efe4d4 100%);
+      color: var(--text);
+      font-family: var(--font-sans);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      width: min(1460px, calc(100vw - 30px));
+      margin: 0 auto;
+      padding: 26px 0 42px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 36px;
+      padding: 30px 30px 26px;
+      background: linear-gradient(145deg, rgba(255, 250, 244, 0.98), rgba(245, 237, 225, 0.95));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after,
+    .hero::before {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .hero::after {
+      right: -70px;
+      top: -90px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.14), transparent 70%);
+    }
+
+    .hero::before {
+      left: -90px;
+      bottom: -110px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(180, 83, 9, 0.14), transparent 70%);
+    }
+
+    .eyebrow,
+    .chip,
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 27, 24, 0.08);
+      background: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      color: var(--accent);
+      border-color: rgba(15, 118, 110, 0.18);
+      background: rgba(15, 118, 110, 0.08);
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(34px, 4.4vw, 58px);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    .subtitle {
+      max-width: 980px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.68;
+    }
+
+    .meta-line {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .hero-card {
+      position: relative;
+      z-index: 1;
+      padding: 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+      background: rgba(255, 255, 255, 0.74);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-card h2 {
+      margin: 0 0 10px;
+      font-size: 21px;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-card p,
+    .hero-card li {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .hero-card ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .stat {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      gap: 18px;
+      margin-top: 22px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .toc p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .toc li {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .toc a {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .toc .note {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      background: var(--warn-soft);
+      color: #7c4a10;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+
+    .panel .section-lead {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .grid-2,
+    .grid-3 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: var(--card);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .card p,
+    .card li {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    .card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .callout {
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+      background: linear-gradient(140deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.86));
+    }
+
+    .callout h3 {
+      margin: 0 0 6px;
+      font-size: 19px;
+      letter-spacing: -0.03em;
+    }
+
+    .callout p {
+      margin: 0;
+      color: #294a47;
+      line-height: 1.62;
+      font-size: 14px;
+    }
+
+    .quote {
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+      border-left: 5px solid var(--accent);
+    }
+
+    .quote p {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 18px;
+      line-height: 1.65;
+      color: #2e2621;
+    }
+
+    .quote footer {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      line-height: 1.5;
+    }
+
+    .comparison {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+    }
+
+    .comparison th,
+    .comparison td {
+      padding: 14px 16px;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(30, 27, 24, 0.08);
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    .comparison th {
+      background: rgba(15, 118, 110, 0.08);
+      color: var(--accent-deep);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .comparison td strong {
+      color: var(--text);
+    }
+
+    .comparison tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 27, 24, 0.08);
+      background: rgba(255, 255, 255, 0.84);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tag.must { color: var(--danger); background: var(--danger-soft); }
+    .tag.should { color: var(--warn); background: var(--warn-soft); }
+    .tag.later { color: var(--info); background: var(--info-soft); }
+    .tag.good { color: var(--success); background: var(--success-soft); }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .stack .item {
+      padding: 16px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+    }
+
+    .stack .item h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+    }
+
+    .stack .item p,
+    .stack .item li {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    .stack .item ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .source-ref {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .summary-box {
+      padding: 20px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(140deg, rgba(17, 74, 71, 0.96), rgba(15, 118, 110, 0.92));
+      color: white;
+    }
+
+    .summary-box h3 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+    }
+
+    .summary-box p,
+    .summary-box li {
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 14px;
+      line-height: 1.62;
+    }
+
+    .summary-box ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .mini-matrix {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mini-matrix .matrix-cell {
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .matrix-cell strong {
+      display: block;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+
+    .matrix-cell span {
+      display: block;
+      margin-top: 8px;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+    }
+
+    details {
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(30, 27, 24, 0.08);
+      padding: 0 18px;
+    }
+
+    details + details {
+      margin-top: 12px;
+    }
+
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 18px 0;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details .detail-body {
+      padding: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.62;
+      font-size: 14px;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    @media (max-width: 1180px) {
+      .layout,
+      .hero-grid,
+      .grid-2,
+      .grid-3,
+      .mini-matrix {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .toc {
+        position: static;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 18px, 100%);
+        padding-top: 12px;
+      }
+
+      .hero,
+      .panel,
+      .toc {
+        border-radius: 22px;
+      }
+
+      .hero {
+        padding: 22px;
+      }
+
+      .panel,
+      .toc {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison th,
+      .comparison td {
+        min-width: 220px;
+      }
+    }
+
+    @media print {
+      html, body {
+        background: white;
+      }
+
+      .page {
+        width: 100%;
+        padding: 0;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        display: none;
+      }
+
+      .hero,
+      .panel {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <span class="eyebrow">Informe Interno • COPIM x ROVI</span>
+      <h1>Resumen ejecutivo, requerimientos de producto y propuesta comercial para Mario</h1>
+      <p class="subtitle">
+        Documento interno elaborado a partir de la reunión transcrita del 5 de enero de 2026. El objetivo es alinear al equipo
+        antes de enviar una propuesta formal a Mario Palomares, evitando vender una visión de CRM/IA demasiado adelantada cuando
+        la señal principal de la llamada fue otra: <strong>asociaciones primero, adopción simple primero, CRM e IA después</strong>.
+      </p>
+      <p class="meta-line">
+        Fuente principal:
+        <a href="Meeting%20Transcription%20(1).txt">Meeting Transcription (1).txt</a>
+        • Complemento:
+        <a href="COPIM_ROVI_PLAN.md">COPIM_ROVI_PLAN.md</a>
+        • Fecha del informe: 3 de mayo de 2026
+      </p>
+
+      <div class="stats">
+        <div class="stat">
+          <strong>108</strong>
+          <span>minutos de reunión analizados</span>
+        </div>
+        <div class="stat">
+          <strong>4</strong>
+          <span>participantes principales en la conversación</span>
+        </div>
+        <div class="stat">
+          <strong>250</strong>
+          <span>usuarios considerados para la fase inicial</span>
+        </div>
+        <div class="stat">
+          <strong>500</strong>
+          <span>usuarios como siguiente escalón planteado</span>
+        </div>
+        <div class="stat">
+          <strong>$1.4k–$1.6k</strong>
+          <span>referencia mensual de mercado mencionada por Mario para una asociación mayor</span>
+        </div>
+      </div>
+
+      <div class="hero-grid">
+        <div class="hero-card">
+          <h2>Conclusión central</h2>
+          <p>
+            La propuesta debe reposicionarse. Mario no pidió “el CRM de ROVI adaptado a COPIM”; pidió un
+            <strong>sistema operativo para asociaciones</strong> que ayude a presidentes y administradores a gestionar socios,
+            membresías, eventos, credenciales y visibilidad nacional. El CRM aparece como una expansión natural y modular,
+            no como la promesa principal.
+          </p>
+        </div>
+        <div class="hero-card">
+          <h2>Qué sí quedó validado</h2>
+          <ul>
+            <li>La oportunidad existe y Mario pidió pasar a una propuesta formal más aterrizada.</li>
+            <li>La arquitectura por roles COPIM / asociación / socio sí hizo sentido.</li>
+            <li>La escalera de valor también gustó, pero invertida: base simple primero, upgrades después.</li>
+            <li>Hay urgencia por recortar semanas en la primera etapa.</li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="toc">
+        <h2>Índice</h2>
+        <p>Este informe está pensado para circular internamente antes de bajar la propuesta comercial final.</p>
+        <ol>
+          <li><a href="#resumen">Resumen Ejecutivo Interno</a></li>
+          <li><a href="#lectura">Lectura Estratégica de la Llamada</a></li>
+          <li><a href="#requerimientos">Lista de Requerimientos de Producto</a></li>
+          <li><a href="#comercial">Estructura Exacta de la Propuesta para Mario</a></li>
+          <li><a href="#pricing">Modelo Comercial y Lógica de Pricing</a></li>
+          <li><a href="#siguientes">Siguientes Pasos Internos</a></li>
+          <li><a href="#anexos">Anexos y Evidencia</a></li>
+        </ol>
+        <div class="note">
+          Nota: la transcripción tiene ruido en algunos nombres de herramientas y ciudades. Las conclusiones aquí priorizan
+          ideas repetidas y explícitas por Mario, más que literalidad palabra por palabra.
+        </div>
+      </aside>
+
+      <main class="content">
+        <section id="resumen" class="panel">
+          <h2>1. Resumen Ejecutivo Interno</h2>
+          <p class="section-lead">
+            Esta es la síntesis que se puede reenviar internamente al equipo para alinear discurso, alcance y prioridades
+            antes de cotizar o diseñar más pantallas.
+          </p>
+
+          <div class="summary-box">
+            <h3>Resumen listo para circular internamente</h3>
+            <p>
+              La llamada confirmó interés real por parte de Mario, pero también corrigió el ángulo de venta. COPIM no está
+              buscando primero un CRM avanzado con IA y automatizaciones; está buscando una plataforma nacional para
+              <strong>administrar asociaciones, socios, membresías, eventos y beneficios</strong>, con una experiencia muy simple
+              para presidentes y usuarios finales. El CRM y la IA sí tienen cabida, pero como capas opcionales, activables y
+              progresivas una vez que la base institucional ya esté adoptada.
+            </p>
+            <ul>
+              <li>La fase 1 debe enfocarse en asociaciones, socios, membresías, pagos, renovaciones, eventos, directorio y credencial digital.</li>
+              <li>La prioridad absoluta es capturar data operativa y generar adopción, no impresionar con features avanzadas.</li>
+              <li>La propuesta comercial debe entrar por valor institucional para COPIM y presidentes de asociación, no por innovación de IA.</li>
+              <li>El pricing base debe sentirse ligero y estable; la variabilidad por usuario o consumo tiene más sentido en las capas de IA/CRM Pro.</li>
+              <li>Mario pidió una propuesta más afinada, con posibilidad de acelerar la primera etapa.</li>
+            </ul>
+          </div>
+
+          <div class="grid-3" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Señal positiva</h3>
+              <p>
+                Mario cerró la reunión pidiendo pasar a la siguiente fase y recibir una propuesta formal más aterrizada, además de
+                explorar si se pueden recortar semanas en la primera etapa.
+              </p>
+              <span class="source-ref">Evidencia: transcript 01:32:07–01:32:53, líneas 183–184.</span>
+            </div>
+            <div class="card">
+              <h3>Señal de corrección</h3>
+              <p>
+                La demo le gustó a nivel directivo, pero la preocupación más repetida fue la adopción del usuario final:
+                si el socio o asesor no captura información fácil, el sistema no genera valor.
+              </p>
+              <span class="source-ref">Evidencia: transcript 28:19–28:41, líneas 74–76.</span>
+            </div>
+            <div class="card">
+              <h3>Señal de enfoque</h3>
+              <p>
+                La prioridad declarada para el arranque es administración de asociaciones, membresías, eventos, socios,
+                directorio y credencialización. La comunidad puede esperar y la IA también.
+              </p>
+              <span class="source-ref">Evidencia: transcript 01:20:02–01:26:12, líneas 163–173.</span>
+            </div>
+          </div>
+
+          <div class="callout" style="margin-top: 16px;">
+            <h3>Ajuste estratégico que el equipo debe asumir</h3>
+            <p>
+              La tesis original interna de “membresía COPIM con CRM base incluido” sigue teniendo valor como visión de largo plazo,
+              pero para la próxima propuesta conviene presentarla como una <strong>ruta de expansión</strong>, no como la puerta de entrada.
+              La puerta de entrada correcta, según la llamada, es “te damos el sistema que te ayuda a administrar tu asociación y a
+              darle más valor visible a tus socios”.
+            </p>
+          </div>
+
+          <div class="table-wrap" style="margin-top: 16px;">
+            <table class="comparison">
+              <thead>
+                <tr>
+                  <th>Tema</th>
+                  <th>Tesis previa del equipo</th>
+                  <th>Lo que Mario realmente empujó</th>
+                  <th>Implicación inmediata</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Punto de entrada</strong></td>
+                  <td>CRM + IA + comunidad + membresías.</td>
+                  <td>Sistema de administración de asociaciones.</td>
+                  <td>La portada comercial debe cambiar.</td>
+                </tr>
+                <tr>
+                  <td><strong>Promesa principal</strong></td>
+                  <td>Más inteligencia y automatización.</td>
+                  <td>Más orden, más control, menos Excel, más valor para afiliarse a COPIM.</td>
+                  <td>Hablar menos de IA y más de operación.</td>
+                </tr>
+                <tr>
+                  <td><strong>Usuario crítico</strong></td>
+                  <td>Consejo / dashboard directivo.</td>
+                  <td>Presidentes de asociación y socio que captura su data.</td>
+                  <td>Se necesita mockup claro de experiencia de usuario final.</td>
+                </tr>
+                <tr>
+                  <td><strong>Base de producto</strong></td>
+                  <td>CRM base incluido desde la membresía.</td>
+                  <td>Plataforma base institucional + botón o upgrade para activar CRM.</td>
+                  <td>Separar mejor paquete base y add-ons.</td>
+                </tr>
+                <tr>
+                  <td><strong>Pricing</strong></td>
+                  <td>Podía pensarse por usuarios/capacidad.</td>
+                  <td>Base estable por asociación o por bloque; IA sí puede ser variable.</td>
+                  <td>Evitar anclar la propuesta base a costo por usuario.</td>
+                </tr>
+                <tr>
+                  <td><strong>Prioridad funcional</strong></td>
+                  <td>Comunidad, dashboards, IA y CRM amplio.</td>
+                  <td>Membresías, eventos, pagos, directorio, credencialización y alta de socios.</td>
+                  <td>Reordenar roadmap y demo.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="lectura" class="panel">
+          <h2>2. Lectura Estratégica de la Llamada</h2>
+          <p class="section-lead">
+            Esta lectura no resume solo “lo que se dijo”, sino cómo está pensando Mario la compra y qué condiciones de éxito
+            parece estar imponiendo implícitamente.
+          </p>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3>Qué está comprando Mario en realidad</h3>
+              <ul>
+                <li>Una herramienta para <strong>dar valor nacional a COPIM</strong> frente a las asociaciones.</li>
+                <li>Una palanca de <strong>afiliación y expansión territorial</strong> hacia más estados.</li>
+                <li>Un sistema que ayude a cada presidente a <strong>administrar mejor su membresía</strong>.</li>
+                <li>Una base de usuarios suficientemente grande para luego vender upgrades, patrocinios y nuevos servicios.</li>
+              </ul>
+              <span class="source-ref">Evidencia: líneas 122, 163–174, 178–179.</span>
+            </div>
+
+            <div class="card">
+              <h3>Qué le preocupa más que cualquier feature</h3>
+              <ul>
+                <li>La facilidad de adopción del usuario final.</li>
+                <li>El costo base de las asociaciones pequeñas.</li>
+                <li>Que el sistema no se sienta demasiado complejo para perfiles poco digitalizados.</li>
+                <li>Que la primera etapa no se vuelva lenta o demasiado pesada.</li>
+              </ul>
+              <span class="source-ref">Evidencia: líneas 74–79, 153–155, 183–190.</span>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top: 16px;">
+            <div class="quote">
+              <p>
+                “Está padrísimo a nivel directivo, pero algo que a mí también me interesa mucho es la facilidad de adopción del
+                inmobiliario… si no es amigable, accesible y sencilla, nunca nos van a alimentar la información.”
+              </p>
+              <footer>Mario Palomares • 28:41 • Transcript líneas 76–77.</footer>
+            </div>
+            <div class="quote">
+              <p>
+                “La parte inicial es el tema de las asociaciones… lo primero que necesitamos es evangelizarlos dentro de su
+                asociación y dentro de COPIM.”
+              </p>
+              <footer>Mario Palomares • 01:20:02 • Transcript líneas 163–164.</footer>
+            </div>
+          </div>
+
+          <div class="grid-3" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Perfil de decisión de Mario</h3>
+              <p>
+                Decide como operador y estratega de red, no como comprador de software. Valora utilidad tangible, argumento de afiliación
+                y capacidad de escalar con poco presupuesto, más que sofisticación técnica.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Señal sobre UX</h3>
+              <p>
+                Reforzó que incluso un editor drag-and-drop puede sentirse “como ciencia de la NASA” para el usuario inmobiliario
+                promedio. Eso obliga a diseñar con mucha simplificación.
+              </p>
+              <span class="source-ref">Evidencia: líneas 153–155.</span>
+            </div>
+            <div class="card">
+              <h3>Señal sobre roadmap</h3>
+              <p>
+                La lógica correcta es digitalizar primero, automatizar después. El mismo Mario lo validó cuando aceptó que el flujo base
+                debe consolidarse antes de empujar IA o complejidad.
+              </p>
+              <span class="source-ref">Evidencia: líneas 198–201.</span>
+            </div>
+          </div>
+
+          <div class="stack" style="margin-top: 16px;">
+            <div class="item">
+              <h3>Lectura más importante para el posicionamiento</h3>
+              <p>
+                El lenguaje comercial debe girar de “plataforma inteligente” a “infraestructura nacional de administración para asociaciones”.
+                La inteligencia sigue existiendo, pero como capa premium o como habilitador interno, no como la razón principal para comprar.
+              </p>
+            </div>
+            <div class="item">
+              <h3>Lectura más importante para diseño de producto</h3>
+              <p>
+                El dashboard de presidencia importa, pero Mario explícitamente dijo que hoy “cualquier número” ya le suma valor, mientras que
+                la verdadera prioridad es capturar datos y operar membresías, eventos y directorio de forma sencilla.
+              </p>
+              <span class="source-ref">Evidencia: líneas 172–173.</span>
+            </div>
+            <div class="item">
+              <h3>Lectura más importante para monetización</h3>
+              <p>
+                Mario ya visualiza una masa crítica que luego permita upsells de CRM y patrocinios. Esto sugiere que el caso de negocio debe
+                presentar claramente una fase de adquisición / adopción y una fase de monetización / expansión.
+              </p>
+              <span class="source-ref">Evidencia: líneas 178–199.</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="requerimientos" class="panel">
+          <h2>3. Lista de Requerimientos de Producto Sacados de la Llamada</h2>
+          <p class="section-lead">
+            A continuación se listan los requerimientos inferidos de forma directa y priorizada. Se separan en MVP institucional,
+            complementos de adopción y capas premium posteriores.
+          </p>
+
+          <div class="tag-row" style="margin-bottom: 16px;">
+            <span class="tag must">Crítico para propuesta</span>
+            <span class="tag should">Importante pero no indispensable en la primera venta</span>
+            <span class="tag later">Posterior / premium / expansión</span>
+            <span class="tag good">Validado positivamente por Mario</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="comparison">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Prioridad</th>
+                  <th>Requerimiento</th>
+                  <th>Descripción funcional</th>
+                  <th>Rol principal</th>
+                  <th>Por qué importa</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>R1</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Cuenta maestra COPIM</strong></td>
+                  <td>Vista nacional para supervisar asociaciones, membresías, altas, métricas básicas y expansión territorial.</td>
+                  <td>COPIM Nacional</td>
+                  <td>Es el corazón institucional de la propuesta y el valor diferencial del consejo.</td>
+                </tr>
+                <tr>
+                  <td>R2</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Gestión multi-asociación</strong></td>
+                  <td>Capacidad de administrar varias asociaciones con su propio espacio operativo y una cuenta maestra arriba.</td>
+                  <td>COPIM / Presidentes</td>
+                  <td>Mario propuso arrancar con cuatro asociaciones en piloto y crecer después.</td>
+                </tr>
+                <tr>
+                  <td>R3</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Roles y permisos por nivel</strong></td>
+                  <td>Consejo COPIM, presidente de asociación, administración operativa y socio profesional; opcionalmente VP en roadmap.</td>
+                  <td>Todos</td>
+                  <td>La lógica de negocio depende de qué ve y qué gestiona cada nivel.</td>
+                </tr>
+                <tr>
+                  <td>R4</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Alta y validación de socios</strong></td>
+                  <td>Solicitud de afiliación, revisión, aprobación, estatus y seguimiento por asociación.</td>
+                  <td>Presidencia / Admin</td>
+                  <td>Mario habló de nuevas entradas, solicitudes y carga administrativa actual en Excel.</td>
+                </tr>
+                <tr>
+                  <td>R5</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Membresías y renovaciones</strong></td>
+                  <td>Estatus de membresía, periodicidad mensual/anual, vencimientos, adeudos, recordatorios y trazabilidad de pago.</td>
+                  <td>Presidencia / Admin / Socio</td>
+                  <td>Fue uno de los puntos más repetidos por Mario como necesidad base.</td>
+                </tr>
+                <tr>
+                  <td>R6</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Credencial o autentificación digital</strong></td>
+                  <td>Tarjeta digital o mecanismo de verificación para validar beneficios y pertenencia.</td>
+                  <td>Socio / COPIM</td>
+                  <td>Es clave para activar descuentos, beneficios y sentido de pertenencia.</td>
+                </tr>
+                <tr>
+                  <td>R7</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Eventos, registro y asistencia</strong></td>
+                  <td>Calendario, registro, asistencia prevista, check-in opcional y trazabilidad por evento.</td>
+                  <td>Asociación / Socio</td>
+                  <td>Mario lo señaló como una de las fuentes más claras de data y valor práctico.</td>
+                </tr>
+                <tr>
+                  <td>R8</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Macro directorio nacional</strong></td>
+                  <td>Directorio visible desde COPIM con asociaciones, socios, giros y segmentación básica.</td>
+                  <td>COPIM / Socio</td>
+                  <td>Sirve para visibilidad nacional, networking y beneficios.</td>
+                </tr>
+                <tr>
+                  <td>R9</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Experiencia de captura simple</strong></td>
+                  <td>Onboarding, perfil, pagos y eventos con una UX muy sencilla, sin depender de interfaces complejas.</td>
+                  <td>Socio / Asesor</td>
+                  <td>Sin esto, según Mario, no habrá información confiable en el sistema.</td>
+                </tr>
+                <tr>
+                  <td>R10</td>
+                  <td><span class="tag must">Crítico</span></td>
+                  <td><strong>Dashboards básicos accionables</strong></td>
+                  <td>Métricas simples: socios, renovaciones, pagos, eventos, crecimiento por asociación.</td>
+                  <td>COPIM / Presidencia</td>
+                  <td>Mario dijo que hoy hasta “cuatro datos o cinco” ya son valor.</td>
+                </tr>
+                <tr>
+                  <td>R11</td>
+                  <td><span class="tag should">Importante</span></td>
+                  <td><strong>Importación y migración</strong></td>
+                  <td>Soporte para importar desde Excel/CSV y, si hace sentido, integración con plataformas existentes vía API.</td>
+                  <td>Implementación</td>
+                  <td>PAIS ya usa otra plataforma y puede requerir migración o sincronización.</td>
+                </tr>
+                <tr>
+                  <td>R12</td>
+                  <td><span class="tag should">Importante</span></td>
+                  <td><strong>Comunicación básica</strong></td>
+                  <td>Recordatorios, notificaciones y mensajes segmentados sencillos sin irse a automatizaciones pesadas.</td>
+                  <td>Asociación / Socio</td>
+                  <td>Ayuda a renovar, convocar eventos y reducir fricción operativa.</td>
+                </tr>
+                <tr>
+                  <td>R13</td>
+                  <td><span class="tag should">Importante</span></td>
+                  <td><strong>Comunidad ligera</strong></td>
+                  <td>Feed o espacio institucional básico; útil pero no central para la primera venta.</td>
+                  <td>Socio / COPIM</td>
+                  <td>Mario no la descartó, pero la puso detrás de membresías y eventos.</td>
+                </tr>
+                <tr>
+                  <td>R14</td>
+                  <td><span class="tag later">Posterior</span></td>
+                  <td><strong>Activar tu CRM</strong></td>
+                  <td>Botón o flujo para que cada socio, asesor o inmobiliaria active una capa CRM adicional dentro de la misma plataforma.</td>
+                  <td>Socio / Broker</td>
+                  <td>Mario lo propuso explícitamente como ruta de upsell.</td>
+                </tr>
+                <tr>
+                  <td>R15</td>
+                  <td><span class="tag later">Posterior</span></td>
+                  <td><strong>CRM en tres niveles</strong></td>
+                  <td>Versiones tipo “kínder, primaria y secundaria” o equivalente Base, Intermedio y Pro.</td>
+                  <td>Broker / Inmobiliaria</td>
+                  <td>Reduce miedo de adopción y permite subir complejidad gradualmente.</td>
+                </tr>
+                <tr>
+                  <td>R16</td>
+                  <td><span class="tag later">Posterior</span></td>
+                  <td><strong>IA, coaching y automatización avanzada</strong></td>
+                  <td>WhatsApp, transcripción, evaluación de llamadas, campañas, agentes especializados y analytics premium.</td>
+                  <td>Broker Pro / Asociación Pro</td>
+                  <td>Mario los ve como capas valiosas, pero después de consolidar la base.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-2" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Requerimientos no funcionales implícitos</h3>
+              <ul>
+                <li>UI extremadamente simple para usuarios poco digitalizados.</li>
+                <li>Español y lógica local de asociaciones en México.</li>
+                <li>Tiempo de implementación corto para fase 1.</li>
+                <li>Adopción guiada y pedagogía incorporada.</li>
+                <li>Escalabilidad modular: base estable, add-ons activables.</li>
+                <li>Pricing institucional entendible, con IA separada cuando haga falta.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Qué no debería venderse como MVP base</h3>
+              <ul>
+                <li>IA como promesa principal.</li>
+                <li>Automatizaciones complejas de campañas.</li>
+                <li>CRM profundo para todos desde el día uno.</li>
+                <li>Edición drag-and-drop como “beneficio estrella”.</li>
+                <li>Una comunidad muy sofisticada antes de tener masa crítica.</li>
+                <li>Features inmobiliarios muy específicos como si fueran el centro del producto.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="mini-matrix" style="margin-top: 16px;">
+            <div class="matrix-cell">
+              <strong>Piloto</strong>
+              <span>4 asociaciones</span>
+            </div>
+            <div class="matrix-cell">
+              <strong>Capacidad planteada</strong>
+              <span>250 usuarios</span>
+            </div>
+            <div class="matrix-cell">
+              <strong>Expansión siguiente</strong>
+              <span>500 usuarios</span>
+            </div>
+            <div class="matrix-cell">
+              <strong>Meta estratégica</strong>
+              <span>24 estados</span>
+            </div>
+          </div>
+
+          <div class="quote" style="margin-top: 16px;">
+            <p>
+              “Yo me voy a enfocar en eventos, membresías, socios y asociaciones… porque al final lo que necesitamos es empezar a tener data.”
+            </p>
+            <footer>Mario Palomares • 01:26:12 • Transcript líneas 173–174.</footer>
+          </div>
+        </section>
+
+        <section id="comercial" class="panel">
+          <h2>4. Estructura Exacta de la Propuesta Comercial para Mario</h2>
+          <p class="section-lead">
+            La siguiente estructura está pensada para una propuesta o deck comercial. No es una lista abstracta de “temas”;
+            es el orden recomendado, con el mensaje que debe transmitir cada sección y el error a evitar.
+          </p>
+
+          <div class="callout">
+            <h3>Tono recomendado de la propuesta</h3>
+            <p>
+              No vender “te ofrecemos un CRM con módulos de membresía”. Vender: “te ayudamos a construir la infraestructura nacional
+              para administrar asociaciones, generar adopción, dar valor visible al socio y abrir una escalera de expansión comercial sobre ROVI”.
+            </p>
+          </div>
+
+          <div class="table-wrap" style="margin-top: 16px;">
+            <table class="comparison">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Sección / slide</th>
+                  <th>Objetivo</th>
+                  <th>Mensaje principal</th>
+                  <th>Qué mostrar</th>
+                  <th>Qué evitar</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td><strong>Portada</strong></td>
+                  <td>Abrir con claridad estratégica.</td>
+                  <td>COPIM necesita un sistema nacional para administrar asociaciones y darle valor visible a su red.</td>
+                  <td>Título claro, subtítulo institucional, no tecnológico.</td>
+                  <td>Abrir con IA, bots o términos demasiado técnicos.</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td><strong>Problema actual</strong></td>
+                  <td>Mostrar el dolor real.</td>
+                  <td>Hoy la operación vive dispersa entre Excel, Google Drive, procesos manuales y poca visibilidad nacional.</td>
+                  <td>Mapa de dolores: socios, membresías, eventos, renovaciones, directorio, beneficios.</td>
+                  <td>Hablar primero de funcionalidades sin anclar al problema.</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td><strong>Oportunidad para COPIM</strong></td>
+                  <td>Subir la conversación a nivel consejo.</td>
+                  <td>La plataforma no solo ordena; también se vuelve argumento de afiliación y expansión territorial.</td>
+                  <td>Diagrama COPIM → asociaciones → socios → beneficios.</td>
+                  <td>Venderlo como software aislado.</td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td><strong>Visión de solución</strong></td>
+                  <td>Presentar el sistema operativo institucional.</td>
+                  <td>Una sola plataforma con cuenta maestra COPIM y espacios propios por asociación.</td>
+                  <td>Arquitectura multinivel por roles.</td>
+                  <td>Meter demasiado detalle del CRM desde aquí.</td>
+                </tr>
+                <tr>
+                  <td>5</td>
+                  <td><strong>Fase 1 propuesta</strong></td>
+                  <td>Aterrizar el alcance del arranque.</td>
+                  <td>La primera fase resuelve asociaciones, socios, membresías, credencialización, eventos, pagos y directorio.</td>
+                  <td>Tabla de alcance con “sí entra / no entra”.</td>
+                  <td>Prometer comunidad, IA y automatizaciones pesadas en el MVP.</td>
+                </tr>
+                <tr>
+                  <td>6</td>
+                  <td><strong>Experiencia por rol</strong></td>
+                  <td>Probar que la lógica está bien pensada.</td>
+                  <td>COPIM ve la red; el presidente administra su asociación; el socio gestiona su perfil y beneficios.</td>
+                  <td>Mockup o mapa por rol: consejo, presidencia, admin, socio.</td>
+                  <td>Mostrar solo dashboards directivos.</td>
+                </tr>
+                <tr>
+                  <td>7</td>
+                  <td><strong>Valor para presidentes</strong></td>
+                  <td>Convencer al usuario operador real.</td>
+                  <td>Menos Excel, menos seguimiento manual, más control de membresías, pagos y eventos.</td>
+                  <td>Flujo simple: alta de socio → pago → credencial → renovación.</td>
+                  <td>Hablar como si todo dependiera del consejo nacional.</td>
+                </tr>
+                <tr>
+                  <td>8</td>
+                  <td><strong>Valor para el socio</strong></td>
+                  <td>Mostrar utilidad visible.</td>
+                  <td>Perfil, credencial, directorio, beneficios, eventos y acceso futuro a herramientas adicionales.</td>
+                  <td>Pantalla de socio simple, no saturada.</td>
+                  <td>Forzar CRM avanzado desde la membresía inicial.</td>
+                </tr>
+                <tr>
+                  <td>9</td>
+                  <td><strong>Piloto inicial</strong></td>
+                  <td>Bajar la complejidad y dar seguridad.</td>
+                  <td>Arranque con 4 asociaciones y cuenta maestra COPIM, con capacidad pensada para 250 usuarios.</td>
+                  <td>Mapa del piloto y fases 250 → 500.</td>
+                  <td>Hablar de despliegue nacional inmediato.</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td><strong>Modelo de adopción</strong></td>
+                  <td>Desactivar objeción de complejidad.</td>
+                  <td>Primero base institucional, luego activación progresiva de CRM en niveles.</td>
+                  <td>Escalera de adopción: plataforma → CRM Kinder → Primaria → Secundaria / Pro.</td>
+                  <td>Un solo paquete enorme con demasiadas funciones.</td>
+                </tr>
+                <tr>
+                  <td>11</td>
+                  <td><strong>Modelo comercial</strong></td>
+                  <td>Explicar cómo se monetiza sin fricción.</td>
+                  <td>Base ligera para asociaciones; add-ons opcionales para quienes sí necesitan CRM o IA.</td>
+                  <td>Tabla con paquetes y quién paga cada capa.</td>
+                  <td>Pricing oscuro o 100% por usuario en la capa base.</td>
+                </tr>
+                <tr>
+                  <td>12</td>
+                  <td><strong>Roadmap y tiempos</strong></td>
+                  <td>Cerrar con viabilidad.</td>
+                  <td>Primera etapa enfocada y acelerable; siguientes capas conforme adopción y necesidades reales.</td>
+                  <td>Cronograma simple con hitos.</td>
+                  <td>Un roadmap muy largo con demasiadas ramas desde el inicio.</td>
+                </tr>
+                <tr>
+                  <td>13</td>
+                  <td><strong>Próximos pasos</strong></td>
+                  <td>Facilitar decisión.</td>
+                  <td>Validar alcance, pricing, piloto, datos de migración y calendario de arranque.</td>
+                  <td>Lista breve de decisiones por tomar.</td>
+                  <td>Cerrar sin CTA claro.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-2" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Frase de apertura sugerida</h3>
+              <p>
+                “La oportunidad no es solo digitalizar procesos. La oportunidad es darle a COPIM una infraestructura nacional para que cada
+                asociación administre mejor su operación, cada socio reciba más valor visible y el consejo tenga una palanca real de afiliación”.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Frases que conviene no usar al inicio</h3>
+              <ul>
+                <li>“Les traemos un CRM con inteligencia artificial”.</li>
+                <li>“Podemos automatizar todo desde el día uno”.</li>
+                <li>“La comunidad será el centro del MVP”.</li>
+                <li>“El valor principal está en el dashboard de presidencia”.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="quote" style="margin-top: 16px;">
+            <p>
+              “Yo desnataría el CRM en tres bloques… el CRM nivel kínder, primaria y secundaria.”
+            </p>
+            <footer>Mario Palomares • 01:22:31 • Transcript líneas 165–166.</footer>
+          </div>
+        </section>
+
+        <section id="pricing" class="panel">
+          <h2>5. Modelo Comercial y Lógica de Pricing que Sí Hace Sentido</h2>
+          <p class="section-lead">
+            Aquí no se ponen precios definitivos, pero sí la lógica comercial que emerge de la llamada y que debería guiar la propuesta.
+          </p>
+
+          <div class="grid-2">
+            <div class="stack">
+              <div class="item">
+                <h3>Capa 1 • Plataforma Institucional Base</h3>
+                <p>
+                  Producto principal para venderle a COPIM y/o asociaciones: administración de asociaciones, socios, membresías, pagos,
+                  renovaciones, directorio, credencial y eventos.
+                </p>
+                <ul>
+                  <li>Debe sentirse ligera en costo y muy clara en alcance.</li>
+                  <li>Idealmente no anclarla a costo por usuario individual.</li>
+                  <li>Puede tener bloques o rangos, pero comercialmente debe leerse como institucional.</li>
+                </ul>
+              </div>
+              <div class="item">
+                <h3>Capa 2 • CRM Kinder</h3>
+                <p>
+                  Activación opcional simple para socios o brokers que quieran empezar a usar una herramienta comercial básica.
+                </p>
+                <ul>
+                  <li>Prueba o activación inicial de bajo riesgo.</li>
+                  <li>Contactos, tareas, seguimiento y mini pipeline.</li>
+                  <li>Sin abrumar con features avanzadas.</li>
+                </ul>
+              </div>
+              <div class="item">
+                <h3>Capa 3 • CRM Primaria / Broker Intermedio</h3>
+                <p>
+                  Mayor productividad personal o de oficina chica: más plantillas, campañas básicas, reportes simples e integraciones útiles.
+                </p>
+              </div>
+              <div class="item">
+                <h3>Capa 4 • CRM Secundaria / Broker Pro / Asociación Pro</h3>
+                <p>
+                  Ya aquí entran IA, automatizaciones, coaching, transcripción, WhatsApp, analítica avanzada y operación más compleja.
+                </p>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="item">
+                <h3>Referencias de mercado mencionadas por Mario</h3>
+                <ul>
+                  <li>Asociación más madura con sistema actual: alrededor de <strong>$1,400–$1,600 MXN/mes</strong>.</li>
+                  <li>Asociaciones chicas pueden aspirar a presupuestos sensiblemente menores.</li>
+                  <li>Un ejemplo externo de CRM / listing arrancaba gratis y luego subía a <strong>$599</strong> y <strong>$1,800–$1,900 MXN</strong>.</li>
+                </ul>
+                <span class="source-ref">Evidencia: líneas 187, 193–199.</span>
+              </div>
+              <div class="item">
+                <h3>Lógica de pricing recomendada para la propuesta</h3>
+                <ul>
+                  <li><strong>Implementación inicial:</strong> fee de setup / migración / configuración por piloto.</li>
+                  <li><strong>Mensualidad base:</strong> institucional, idealmente por asociación o bloque, no por socio individual.</li>
+                  <li><strong>Upsells CRM:</strong> sí pueden cobrarse por activación, por oficina o por paquete.</li>
+                  <li><strong>IA:</strong> separada o incluida solo en productos Pro, donde el consumo sí justifique pricing variable.</li>
+                </ul>
+              </div>
+              <div class="item">
+                <h3>Argumento económico que sí le puede resonar a Mario</h3>
+                <p>
+                  La base institucional no solo ordena la operación. También ayuda a COPIM a captar asociaciones, aumentar valor de membresía,
+                  generar masa crítica y abrir nuevas líneas de patrocinio o publicidad cuando la red ya tenga volumen.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="quote" style="margin-top: 16px;">
+            <p>
+              “Lo base, si no le pones absolutamente nada de IA, no me preocupa… y a lo mejor en el camino vamos viendo si valdría la pena agregarle esto.”
+            </p>
+            <footer>Mario Palomares • 01:42:57 • Transcript línea 197.</footer>
+          </div>
+        </section>
+
+        <section id="siguientes" class="panel">
+          <h2>6. Siguientes Pasos Internos Recomendados</h2>
+          <p class="section-lead">
+            Antes de mandar nada a Mario, conviene cerrar internamente estos puntos para que la propuesta no salga difusa, inflada o
+            fuera de foco respecto a lo que la llamada pidió.
+          </p>
+
+          <div class="grid-3">
+            <div class="card">
+              <h3>1. Reescribir la tesis comercial</h3>
+              <p>
+                Cambiar el mensaje principal a “sistema de administración de asociaciones” y mover CRM/IA a una segunda capa.
+              </p>
+            </div>
+            <div class="card">
+              <h3>2. Definir alcance real de Fase 1</h3>
+              <p>
+                Dejar un cuadro explícito de qué sí entra y qué no entra: socios, membresías, directorio, credencial, eventos, pagos,
+                renovaciones, dashboards básicos.
+              </p>
+            </div>
+            <div class="card">
+              <h3>3. Diseñar una experiencia de usuario final</h3>
+              <p>
+                Hacer uno o dos flujos muy claros del socio y del presidente de asociación. Esa fue la objeción más fuerte de Mario.
+              </p>
+            </div>
+            <div class="card">
+              <h3>4. Definir piloto y capacidad</h3>
+              <p>
+                Presentar fase 1 con 4 asociaciones y cuenta maestra COPIM, preparada para 250 usuarios, con siguiente escalón a 500.
+              </p>
+            </div>
+            <div class="card">
+              <h3>5. Armar la escalera de producto</h3>
+              <p>
+                Base institucional + CRM Kinder + CRM Primaria + Broker/Asociación Pro + Council Intelligence.
+              </p>
+            </div>
+            <div class="card">
+              <h3>6. Resolver pricing antes de enviar</h3>
+              <p>
+                Aunque no se cierre un número exacto todavía, sí conviene decidir la lógica: setup + mensualidad institucional + add-ons.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top: 16px;">
+            <div class="card">
+              <h3>Preguntas que conviene responder internamente</h3>
+              <ul>
+                <li>¿Qué entra exactamente en el MVP institucional?</li>
+                <li>¿La credencial será QR, wallet, PDF o solo perfil validado?</li>
+                <li>¿Qué tipo de pagos necesita soportar el MVP?</li>
+                <li>¿La gestión documental entra desde fase 1 o se difiere?</li>
+                <li>¿Habrá dashboard VP en MVP o se queda para roadmap?</li>
+                <li>¿Cómo se presentará el CRM opcional sin canibalizar la simplicidad?</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Preguntas que conviene validar con Mario antes de cerrar alcance</h3>
+              <ul>
+                <li>Lista final de asociaciones del piloto y conteos más precisos.</li>
+                <li>Proceso actual de membresías y pagos en cada asociación.</li>
+                <li>Herramientas actuales de PAIS y posibilidades de migración.</li>
+                <li>Campos mínimos del macro directorio nacional.</li>
+                <li>Si la credencial digital debe usarse también para beneficios externos.</li>
+                <li>Qué reportes exactos considera indispensables para presidencia nacional.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="callout" style="margin-top: 16px;">
+            <h3>Recomendación operativa</h3>
+            <p>
+              Si el equipo va a presentar un mockup adicional, que sea un mockup de <strong>flujo</strong>, no otro dashboard. Lo más útil
+              para la siguiente conversación sería enseñar: alta de socio, validación, pago, credencial, inscripción a evento y visibilidad
+              desde presidencia.
+            </p>
+          </div>
+        </section>
+
+        <section id="anexos" class="panel">
+          <h2>7. Anexos y Evidencia de la Transcripción</h2>
+          <p class="section-lead">
+            Se incluyen citas clave para respaldar internamente las decisiones del documento. No es un anexo exhaustivo, sino uno
+            orientado a justificar por qué se recomienda cambiar el enfoque de la propuesta.
+          </p>
+
+          <details open>
+            <summary>Bloque A • Adopción antes que dashboards</summary>
+            <div class="detail-body">
+              Mario pidió explícitamente ver la experiencia del usuario final y recalcó que si la captura de información no es fácil, el
+              CRM “se queda bonito pero vacío”. Esto coloca UX y simplicidad como requerimiento no negociable.<br>
+              <span class="source-ref">Referencia: transcript 28:19–30:38, líneas 74–79.</span>
+            </div>
+          </details>
+
+          <details>
+            <summary>Bloque B • Prioridad real del arranque</summary>
+            <div class="detail-body">
+              La prioridad declarada para la primera fase fue: asociaciones, membresías, credencial / autentificación, eventos, socios,
+              directorio y data básica. Mario dijo que la comunidad podría esperar y que el dashboard no es lo urgente hoy.<br>
+              <span class="source-ref">Referencia: transcript 01:20:02–01:26:12, líneas 163–173.</span>
+            </div>
+          </details>
+
+          <details>
+            <summary>Bloque C • Piloto y escala</summary>
+            <div class="detail-body">
+              Mario planteó fase inicial de 250 usuarios con expansión a 500, arrancando con cuatro asociaciones y una cuenta maestra COPIM.
+              También mencionó que PAIS puede entrar después por complejidad de migración y resistencia al cambio.<br>
+              <span class="source-ref">Referencia: transcript 53:32–55:59, líneas 117–122.</span>
+            </div>
+          </details>
+
+          <details>
+            <summary>Bloque D • Pricing base e IA separada</summary>
+            <div class="detail-body">
+              Mario sugirió que el sistema administrativo base no se cobre por número de socios/usuarios, o que al menos no se lea así
+              comercialmente. Sí abrió la puerta a cobrar la IA o funcionalidades avanzadas como capas separadas.<br>
+              <span class="source-ref">Referencia: transcript 01:33:35–01:37:33, líneas 186–190.</span>
+            </div>
+          </details>
+
+          <details>
+            <summary>Bloque E • Escalera de valor y CRM en niveles</summary>
+            <div class="detail-body">
+              Mario propuso explícitamente un CRM por niveles: kínder, primaria y secundaria. También dio el ejemplo de que puede existir
+              un botón “activa tu CRM” dentro de la plataforma, asumiendo que esa activación la paga el socio o la inmobiliaria interesada.<br>
+              <span class="source-ref">Referencia: transcript 58:21–59:44 y 01:22:31–01:24:08, líneas 128–130 y 165–170.</span>
+            </div>
+          </details>
+
+          <details>
+            <summary>Bloque F • Cierre de la reunión</summary>
+            <div class="detail-body">
+              El cierre fue positivo: Mario pidió avanzar a la siguiente fase con una propuesta más afinada y, si era posible,
+              acortar el tiempo de la primera etapa.<br>
+              <span class="source-ref">Referencia: transcript 01:32:07–01:32:53, líneas 183–184.</span>
+            </div>
+          </details>
+
+          <p class="footer-note" style="margin-top: 18px;">
+            Documento interno preparado para alineación estratégica. Recomendación: usar este informe como base para reescribir la propuesta
+            comercial y también para decidir qué mockup o demo mostrar en la próxima interacción con Mario.
+          </p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

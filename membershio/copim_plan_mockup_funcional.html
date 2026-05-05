@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan de Implementación · Mockup Funcional COPIM sobre ROVI</title>
+  <style>
+    :root {
+      --bg: #f7f3ec;
+      --bg-2: #fbfaf7;
+      --panel: rgba(255, 255, 255, 0.9);
+      --card: rgba(255, 255, 255, 0.78);
+      --line: rgba(54, 45, 35, 0.12);
+      --text: #1d1814;
+      --muted: #6d645c;
+      --teal: #0f766e;
+      --teal-soft: rgba(15, 118, 110, 0.12);
+      --amber: #b45309;
+      --amber-soft: rgba(180, 83, 9, 0.12);
+      --blue: #1d4ed8;
+      --blue-soft: rgba(29, 78, 216, 0.1);
+      --red: #b42318;
+      --red-soft: rgba(180, 35, 24, 0.1);
+      --green: #15803d;
+      --green-soft: rgba(21, 128, 61, 0.1);
+      --shadow: 0 24px 64px rgba(42, 28, 18, 0.12);
+      --radius-xl: 30px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+      --font-sans: "Avenir Next", "Segoe UI", sans-serif;
+      --font-serif: "Iowan Old Style", "Palatino Linotype", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 24rem),
+        radial-gradient(circle at top right, rgba(180, 83, 9, 0.12), transparent 22rem),
+        linear-gradient(180deg, #f8f3ea 0%, #efe4d5 100%);
+      color: var(--text);
+      font-family: var(--font-sans);
+    }
+
+    a {
+      color: var(--teal);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .page {
+      width: min(1460px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 20px 0 42px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 34px;
+      border-radius: 38px;
+      background: linear-gradient(145deg, rgba(255, 251, 246, 0.97), rgba(246, 237, 225, 0.96));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .hero::before {
+      top: -90px;
+      right: -60px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.16), transparent 68%);
+    }
+
+    .hero::after {
+      bottom: -110px;
+      left: -70px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(180, 83, 9, 0.14), transparent 70%);
+    }
+
+    .eyebrow,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(29, 24, 20, 0.08);
+    }
+
+    .eyebrow {
+      color: var(--teal);
+      background: var(--teal-soft);
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(36px, 4.8vw, 62px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+    }
+
+    .subtitle {
+      max-width: 980px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.7;
+    }
+
+    .meta {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .stat {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(29, 24, 20, 0.08);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 18px;
+      margin-top: 22px;
+      align-items: start;
+    }
+
+    .toc,
+    .panel {
+      border-radius: var(--radius-xl);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+      padding: 22px;
+    }
+
+    .toc h2,
+    .panel h2 {
+      margin: 0 0 8px;
+      letter-spacing: -0.04em;
+    }
+
+    .toc h2 { font-size: 18px; }
+
+    .toc p,
+    .lead,
+    .panel p,
+    .panel li {
+      color: var(--muted);
+      line-height: 1.62;
+      font-size: 14px;
+    }
+
+    .toc ol {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .toc a {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 24px;
+    }
+
+    .panel h2 {
+      font-size: 28px;
+    }
+
+    .lead {
+      margin: 0 0 18px;
+      font-size: 15px;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card,
+    .callout,
+    .summary,
+    .quote,
+    details {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(29, 24, 20, 0.08);
+    }
+
+    .card {
+      padding: 18px;
+      background: var(--card);
+    }
+
+    .card h3,
+    .callout h3,
+    .summary h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .card ul,
+    .callout ul,
+    .summary ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .callout {
+      padding: 18px 20px;
+      background: linear-gradient(140deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.9));
+    }
+
+    .quote {
+      padding: 18px 20px;
+      background: rgba(255, 255, 255, 0.85);
+      border-left: 5px solid var(--teal);
+    }
+
+    .quote p {
+      margin: 0;
+      font-family: var(--font-serif);
+      color: #2f2620;
+      font-size: 18px;
+      line-height: 1.65;
+    }
+
+    .quote footer {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .summary {
+      padding: 20px;
+      background: linear-gradient(140deg, rgba(17, 74, 71, 0.96), rgba(15, 118, 110, 0.92));
+      color: white;
+    }
+
+    .summary p,
+    .summary li {
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .tag {
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--text);
+    }
+
+    .tag.ok { background: var(--green-soft); color: var(--green); }
+    .tag.warn { background: var(--amber-soft); color: var(--amber); }
+    .tag.info { background: var(--blue-soft); color: var(--blue); }
+    .tag.risk { background: var(--red-soft); color: var(--red); }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-lg);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(29, 24, 20, 0.08);
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(29, 24, 20, 0.08);
+      vertical-align: top;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    th {
+      background: rgba(15, 118, 110, 0.08);
+      color: #114a47;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    details {
+      padding: 0 18px;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    details + details { margin-top: 12px; }
+
+    summary {
+      padding: 18px 0;
+      cursor: pointer;
+      list-style: none;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    .detail-body {
+      padding: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.62;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1180px) {
+      .layout,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .toc { position: static; }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 16px, 100%);
+        padding-top: 12px;
+      }
+
+      .hero,
+      .toc,
+      .panel {
+        border-radius: 22px;
+      }
+
+      .hero { padding: 22px; }
+      .toc,
+      .panel { padding: 18px; }
+      h1 { font-size: 34px; }
+      th, td { min-width: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <span class="eyebrow">Plan táctico · Mockup funcional COPIM</span>
+      <h1>Cómo implementar la propuesta COPIM en modo mockup funcional dentro de ROVI</h1>
+      <p class="subtitle">
+        Este documento traduce la visión COPIM a un plan ejecutable de corto plazo. La meta no es construir todavía el
+        producto institucional definitivo, sino un <strong>mockup funcional convincente</strong> que permita validar narrativa,
+        flujos y jerarquías con Mario usando la base actual de ROVI.
+      </p>
+      <p class="meta">
+        Referencias del producto actual:
+        <a href="../frontend/src/pages/CopimDashboardDemoPage.js">frontend/src/pages/CopimDashboardDemoPage.js</a>,
+        <a href="../frontend/src/pages/CopimPresentationPage.js">frontend/src/pages/CopimPresentationPage.js</a>,
+        <a href="../frontend/src/components/Sidebar.js">frontend/src/components/Sidebar.js</a>,
+        <a href="../frontend/src/pages/ModuleTrackerPage.js">frontend/src/pages/ModuleTrackerPage.js</a>,
+        <a href="../frontend/src/context/AuthContext.js">frontend/src/context/AuthContext.js</a>.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <strong>3</strong>
+          <span>experiencias principales a simular: COPIM, asociación y socio</span>
+        </div>
+        <div class="stat">
+          <strong>4</strong>
+          <span>flujos críticos que deben “sentirse reales” en la demo</span>
+        </div>
+        <div class="stat">
+          <strong>7-10</strong>
+          <span>días hábiles estimados si reutilizamos módulos existentes</span>
+        </div>
+        <div class="stat">
+          <strong>80%</strong>
+          <span>de la demo puede montarse con frontend, datos sembrados y acciones simuladas</span>
+        </div>
+        <div class="stat">
+          <strong>1</strong>
+          <span>criterio de éxito: que Mario vea operación institucional clara, simple y creíble</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="toc">
+        <h2>Índice</h2>
+        <p>Ruta rápida para bajar la propuesta a un demo navegable y defendible sin meternos todavía al sistema final.</p>
+        <ol>
+          <li><a href="#objetivo">1. Objetivo del mockup funcional</a></li>
+          <li><a href="#principios">2. Principios de implementación</a></li>
+          <li><a href="#alcance">3. Qué sí y qué no entra</a></li>
+          <li><a href="#roles">4. Roles y experiencias a simular</a></li>
+          <li><a href="#flujos">5. Flujos críticos del demo</a></li>
+          <li><a href="#modulos">6. Módulos a reutilizar y adaptar</a></li>
+          <li><a href="#arquitectura">7. Arquitectura técnica del mockup</a></li>
+          <li><a href="#fases">8. Fases de implementación</a></li>
+          <li><a href="#backlog">9. Backlog concreto por frente</a></li>
+          <li><a href="#demo">10. Guion sugerido para presentar a Mario</a></li>
+        </ol>
+      </aside>
+
+      <main class="content">
+        <section class="panel" id="objetivo">
+          <h2>1. Objetivo del mockup funcional</h2>
+          <p class="lead">
+            El mockup funcional debe demostrar que ROVI puede convertirse en el sistema operativo de COPIM sin exigir todavía
+            backend institucional completo, integraciones reales ni operación productiva. Lo importante es que el usuario pueda
+            navegar, cambiar de vista, accionar procesos clave y sentir que la lógica ya está resuelta.
+          </p>
+          <div class="grid-3">
+            <article class="card">
+              <h3>Qué debe probar</h3>
+              <ul>
+                <li>Que existe una jerarquía clara entre COPIM nacional, asociación y socio.</li>
+                <li>Que la operación diaria cabe dentro del producto actual de ROVI.</li>
+                <li>Que el socio sí recibe valor visible y no solo control administrativo.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Qué no tiene que probar todavía</h3>
+              <ul>
+                <li>Pasarela de pagos real.</li>
+                <li>Envíos reales por WhatsApp, SMS o correo.</li>
+                <li>Modelo final de permisos de producción.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Medida de éxito</h3>
+              <ul>
+                <li>Mario entiende el producto en menos de 5 minutos.</li>
+                <li>Ve al menos 3 flujos operativos cerrados.</li>
+                <li>Identifica claramente qué es fase base y qué es expansión CRM/IA.</li>
+              </ul>
+            </article>
+          </div>
+          <div class="summary" style="margin-top:16px;">
+            <h3>Definición práctica</h3>
+            <p>
+              Un mockup funcional no es una presentación estática. Debe permitir clicks reales, cambios de rol, cambios de asociación,
+              tablas navegables, estados visuales y acciones simuladas con feedback visible, aunque por debajo vivan sobre data sembrada.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel" id="principios">
+          <h2>2. Principios de implementación</h2>
+          <p class="lead">
+            Para movernos rápido sin perder credibilidad, conviene asumir que estamos construyendo un <strong>demo shell institucional</strong>
+            encima del frontend actual, no un sistema institucional completo.
+          </p>
+          <div class="grid-2">
+            <article class="callout">
+              <h3>Principio 1 · Front-first</h3>
+              <ul>
+                <li>La mayor parte del valor del demo vive en navegación, copy, jerarquía y flujo.</li>
+                <li>Primero resolvemos experiencia y narrativa; después amarramos backend real.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Principio 2 · Simulación honesta</h3>
+              <ul>
+                <li>Las acciones deben funcionar, aunque sean simuladas.</li>
+                <li>Si algo no es real, debe verse como demo pulido, no como pantalla rota.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Principio 3 · Reutilización máxima</h3>
+              <ul>
+                <li>No crear un producto paralelo si el patrón ya existe en ROVI.</li>
+                <li>Reusar layouts, tablas, cards, selectores, dialogs y sidebar.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Principio 4 · Base simple, CRM opcional</h3>
+              <ul>
+                <li>La demo base debe resolver asociaciones y socios.</li>
+                <li>El CRM debe verse como activación posterior, no como requisito inicial.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel" id="alcance">
+          <h2>3. Qué sí y qué no entra</h2>
+          <p class="lead">
+            Para que el equipo no se disperse, conviene definir con precisión qué entra en este mockup y qué se patea a una fase posterior.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Entra en mockup funcional</th>
+                  <th>No entra todavía</th>
+                  <th>Razón</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Selector de rol y asociación</td>
+                  <td>Motor completo de permisos backend</td>
+                  <td>Necesitamos vender la experiencia primero.</td>
+                </tr>
+                <tr>
+                  <td>Dashboard COPIM, dashboard asociación y vista socio</td>
+                  <td>Dashboards conectados a datos productivos</td>
+                  <td>Los KPIs pueden vivir con data sembrada.</td>
+                </tr>
+                <tr>
+                  <td>Directorio de socios con filtros y detalle</td>
+                  <td>Base institucional definitiva</td>
+                  <td>Un roster funcional ya demuestra la lógica.</td>
+                </tr>
+                <tr>
+                  <td>Aprobación de solicitudes y renovaciones simuladas</td>
+                  <td>Cobranza real y conciliación</td>
+                  <td>El flujo es más importante que la integración.</td>
+                </tr>
+                <tr>
+                  <td>Credencial digital, eventos y CTA de CRM</td>
+                  <td>IA, automatizaciones y campañas reales</td>
+                  <td>Mario ya dejó claro que eso va después.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tags" style="margin-top:16px;">
+            <span class="tag ok">Sí: clicks reales</span>
+            <span class="tag ok">Sí: cambios de estado</span>
+            <span class="tag ok">Sí: navegación por perfil</span>
+            <span class="tag warn">No: pasarelas</span>
+            <span class="tag warn">No: integraciones externas</span>
+            <span class="tag warn">No: seguridad final</span>
+          </div>
+        </section>
+
+        <section class="panel" id="roles">
+          <h2>4. Roles y experiencias a simular</h2>
+          <p class="lead">
+            Para el mockup funcional no necesitamos modelar todos los roles finales. Basta con 4 experiencias bien construidas y claramente distintas.
+          </p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Consejo COPIM</h3>
+              <ul>
+                <li>Ve métricas nacionales.</li>
+                <li>Compara asociaciones.</li>
+                <li>Revisa altas, renovaciones y asociaciones en riesgo.</li>
+                <li>Define foco institucional.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Presidencia de Asociación</h3>
+              <ul>
+                <li>Aprueba ingresos.</li>
+                <li>Supervisa renovaciones.</li>
+                <li>Empuja participación en eventos.</li>
+                <li>Ve el estado local de su capítulo.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Administración Operativa</h3>
+              <ul>
+                <li>Gestiona expedientes, estatus y seguimiento.</li>
+                <li>Opera recordatorios y carga de datos.</li>
+                <li>Da soporte a pagos y eventos.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Socio Profesional</h3>
+              <ul>
+                <li>Consulta su membresía y credencial.</li>
+                <li>Ve eventos, documentos y comunidad.</li>
+                <li>Recibe CTA para activar CRM personal.</li>
+              </ul>
+            </article>
+          </div>
+          <div class="quote" style="margin-top:16px;">
+            <p>
+              La demo no tiene que modelar 20 perfiles. Tiene que dejar clarísimo que una misma plataforma cambia de forma según quién entra.
+            </p>
+            <footer>Principio de diseño para la validación con Mario</footer>
+          </div>
+        </section>
+
+        <section class="panel" id="flujos">
+          <h2>5. Flujos críticos del demo</h2>
+          <p class="lead">
+            Estos son los 4 flujos que deben sentirse completos. Si estos flujos funcionan bien, la demo ya transmite producto.
+          </p>
+          <div class="grid-2">
+            <article class="callout">
+              <h3>Flujo 1 · Consejo COPIM</h3>
+              <ul>
+                <li>Entrar a vista nacional.</li>
+                <li>Ver asociaciones, crecimiento, renovación y alertas.</li>
+                <li>Abrir detalle de una asociación con socios y estatus.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Flujo 2 · Aprobación de nuevo socio</h3>
+              <ul>
+                <li>Entrar como presidencia o admin.</li>
+                <li>Ver solicitudes pendientes.</li>
+                <li>Aprobar una y mostrar confirmación, cambio de estado y movimiento en actividad reciente.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Flujo 3 · Renovación</h3>
+              <ul>
+                <li>Ver socios por vencer.</li>
+                <li>Mandar recordatorio simulado.</li>
+                <li>Actualizar estatus visual a “seguimiento enviado”.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Flujo 4 · Valor al socio</h3>
+              <ul>
+                <li>Entrar como socio.</li>
+                <li>Ver credencial, beneficios, eventos y documentos.</li>
+                <li>Mostrar CTA “Activa tu CRM” como escalera comercial.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel" id="modulos">
+          <h2>6. Módulos a reutilizar y adaptar</h2>
+          <p class="lead">
+            El mockup debe montarse sobre módulos y patrones que ya existen. El ahorro de tiempo real viene de adaptar semántica, datasets y navegación.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Módulo actual</th>
+                  <th>Uso en mockup COPIM</th>
+                  <th>Tipo de trabajo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="../frontend/src/pages/CopimDashboardDemoPage.js">CopimDashboardDemoPage</a></td>
+                  <td>Base principal del demo institucional</td>
+                  <td>Refactor, limpieza narrativa y ampliación de flujos</td>
+                </tr>
+                <tr>
+                  <td><a href="../frontend/src/components/Sidebar.js">Sidebar</a></td>
+                  <td>Navegación distinta por perfil COPIM</td>
+                  <td>Configurar navegación por modo demo</td>
+                </tr>
+                <tr>
+                  <td><a href="../frontend/src/pages/BrokersPage.js">BrokersPage</a></td>
+                  <td>Patrón para directorio / roster de socios</td>
+                  <td>Reetiquetar y reutilizar interacciones</td>
+                </tr>
+                <tr>
+                  <td><a href="../frontend/src/pages/CalendarPage.js">CalendarPage</a></td>
+                  <td>Eventos de asociación y calendario del socio</td>
+                  <td>Adaptación de copy y dataset</td>
+                </tr>
+                <tr>
+                  <td><a href="../frontend/src/pages/ImportLeadsPage.js">ImportLeadsPage</a></td>
+                  <td>Importación de padrones / socios</td>
+                  <td>Dejarlo como demo avanzado o backstage</td>
+                </tr>
+                <tr>
+                  <td><a href="../frontend/src/pages/SettingsPage.js">SettingsPage</a></td>
+                  <td>Configuración institucional básica</td>
+                  <td>Mostrar sólo panel simple, no integraciones complejas</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <details style="margin-top:16px;">
+            <summary>Lectura táctica</summary>
+            <div class="detail-body">
+              El demo COPIM ya existe parcialmente. Lo correcto no es empezar otro archivo desde cero, sino convertir
+              <code>CopimDashboardDemoPage</code> en una pieza más modular, con datasets por rol, estados accionables y una narrativa más clara.
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" id="arquitectura">
+          <h2>7. Arquitectura técnica del mockup</h2>
+          <p class="lead">
+            El enfoque recomendado es un <strong>modo demo aislado</strong> dentro del frontend, con configuración, datasets y acciones simuladas.
+          </p>
+          <div class="grid-3">
+            <article class="card">
+              <h3>Capa 1 · Configuración</h3>
+              <ul>
+                <li><code>copimDemoConfig.js</code></li>
+                <li>Matriz de perfiles, módulos y labels</li>
+                <li>Reglas para qué ve cada rol</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Capa 2 · Data sembrada</h3>
+              <ul>
+                <li><code>copimDemoData.js</code></li>
+                <li>Asociaciones, socios, renovaciones, eventos, actividad</li>
+                <li>Datos persistidos opcionalmente en <code>localStorage</code></li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Capa 3 · Acciones simuladas</h3>
+              <ul>
+                <li><code>copimDemoActions.js</code></li>
+                <li>Aprobar, rechazar, recordar, marcar asistencia, activar CRM</li>
+                <li>Toasts, logs y cambios visuales</li>
+              </ul>
+            </article>
+          </div>
+          <div class="grid-2" style="margin-top:16px;">
+            <article class="callout">
+              <h3>Patrón recomendado</h3>
+              <ul>
+                <li>Usar una bandera tipo <code>demoMode="copim"</code> o una ruta dedicada como <code>/copim-demo</code>.</li>
+                <li>Evitar amarrar de inmediato el mockup al auth real o a los roles reales del backend.</li>
+                <li>Si después sirve, se reemplaza la fuente mock por endpoints reales.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Patrón a evitar</h3>
+              <ul>
+                <li>Meter lógica demo dispersa dentro de páginas productivas sin aislamiento.</li>
+                <li>Forzar modelos definitivos de datos antes de validar la UX.</li>
+                <li>Intentar que el demo ya funcione con todas las integraciones finales.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel" id="fases">
+          <h2>8. Fases de implementación</h2>
+          <p class="lead">
+            El orden importa. Primero hacemos que la historia se entienda, luego que los flujos se sientan vivos y solo después afinamos detalle.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fase</th>
+                  <th>Objetivo</th>
+                  <th>Entregable</th>
+                  <th>Tiempo estimado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Fase 1</strong></td>
+                  <td>Reordenar el demo actual y separar config / data / acciones</td>
+                  <td>Base limpia del mockup funcional</td>
+                  <td>1-2 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 2</strong></td>
+                  <td>Construir navegación y vistas por rol</td>
+                  <td>Consejo, presidencia, admin y socio navegables</td>
+                  <td>2 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 3</strong></td>
+                  <td>Agregar flujos accionables</td>
+                  <td>Aprobación, renovación, eventos y credencial funcionales</td>
+                  <td>2-3 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 4</strong></td>
+                  <td>Pulido comercial y narrativa</td>
+                  <td>Demo presentable para Mario</td>
+                  <td>1-2 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 5</strong></td>
+                  <td>Conectar lo mínimo al producto real si conviene</td>
+                  <td>Reuso estratégico hacia MVP</td>
+                  <td>opcional</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="summary" style="margin-top:16px;">
+            <h3>Orden correcto</h3>
+            <ul>
+              <li>No empezar por backend.</li>
+              <li>No empezar por settings o integraciones.</li>
+              <li>Empezar por navegación, datasets, estados y copy.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="panel" id="backlog">
+          <h2>9. Backlog concreto por frente</h2>
+          <p class="lead">
+            Este backlog está pensado para convertir el demo actual en un mockup funcional con el menor desperdicio posible.
+          </p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Frontend structure</h3>
+              <ul>
+                <li>Extraer config de roles, módulos y asociaciones fuera de la página.</li>
+                <li>Separar componentes: header demo, selector de perfil, panel de asociaciones, listas y detalle.</li>
+                <li>Crear helpers para badges, estatus y acciones comunes.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Demo data</h3>
+              <ul>
+                <li>Normalizar asociaciones, socios, pendientes, renovaciones y eventos.</li>
+                <li>Agregar historial de actividad reciente para que cada acción tenga eco visible.</li>
+                <li>Preparar datasets específicos para cada rol.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>UX / Interaction</h3>
+              <ul>
+                <li>Permitir cambio de rol sin recargar.</li>
+                <li>Permitir cambio de asociación desde selects o cards.</li>
+                <li>Mostrar toasts y logs al aprobar, recordar o activar algo.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Business narrative</h3>
+              <ul>
+                <li>Reescribir labels para que suenen a COPIM y no a inmobiliaria genérica.</li>
+                <li>Separar siempre “base institucional” de “CRM Pro”.</li>
+                <li>Hacer visible la lógica de valor al socio.</li>
+              </ul>
+            </article>
+          </div>
+          <details style="margin-top:16px;">
+            <summary>Archivos sugeridos para esta fase</summary>
+            <div class="detail-body">
+              <p><strong>Refactor inmediato:</strong> <a href="../frontend/src/pages/CopimDashboardDemoPage.js">frontend/src/pages/CopimDashboardDemoPage.js</a></p>
+              <p><strong>Nuevos archivos probables:</strong></p>
+              <ul>
+                <li><code>frontend/src/data/copimDemoConfig.js</code></li>
+                <li><code>frontend/src/data/copimDemoData.js</code></li>
+                <li><code>frontend/src/lib/copimDemoActions.js</code></li>
+                <li><code>frontend/src/components/copim/*</code> para bloques reutilizables</li>
+              </ul>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" id="demo">
+          <h2>10. Guion sugerido para presentar a Mario</h2>
+          <p class="lead">
+            El mockup tiene que vender solución, no complejidad. La narrativa ideal debe arrancar en control institucional, bajar a operación y cerrar en valor para el socio.
+          </p>
+          <div class="grid-3">
+            <article class="card">
+              <h3>Paso 1</h3>
+              <p>Entrar como COPIM y mostrar el tablero nacional con asociaciones, renovaciones y alertas.</p>
+            </article>
+            <article class="card">
+              <h3>Paso 2</h3>
+              <p>Cambiar a una asociación específica, aprobar un socio y mandar un recordatorio de renovación.</p>
+            </article>
+            <article class="card">
+              <h3>Paso 3</h3>
+              <p>Cambiar a socio, mostrar credencial, eventos, beneficios y terminar con “Activa tu CRM”.</p>
+            </article>
+          </div>
+          <div class="quote" style="margin-top:16px;">
+            <p>
+              Si Mario siente que ya puede imaginar a una asociación operando aquí mañana, el mockup cumplió su trabajo.
+            </p>
+            <footer>Criterio de validación interna</footer>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>11. Recomendación final</h2>
+          <p class="lead">
+            La mejor forma de avanzar no es tratar de resolver COPIM completo de una vez. La jugada inteligente es construir un
+            <strong>demo institucional funcional</strong> que reutilice la base de ROVI, valide los flujos con Mario y luego sirva como puente
+            directo hacia el MVP real.
+          </p>
+          <div class="tags">
+            <span class="tag ok">Reusar lo actual</span>
+            <span class="tag ok">Separar demo de producto core</span>
+            <span class="tag ok">Simular operación completa</span>
+            <span class="tag info">Vender CRM como capa siguiente</span>
+            <span class="tag risk">No inflar alcance</span>
+          </div>
+          <p class="footer-note" style="margin-top:16px;">
+            Siguiente paso recomendado: convertir este plan en tickets técnicos concretos y arrancar por el refactor de
+            <a href="../frontend/src/pages/CopimDashboardDemoPage.js">CopimDashboardDemoPage.js</a>.
+          </p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

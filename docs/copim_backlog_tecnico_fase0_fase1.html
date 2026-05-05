@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COPIM x ROVI · Backlog Técnico Fase 0 y Fase 1</title>
+    <style>
+      :root {
+        --bg: #081120;
+        --panel: #0f1b2d;
+        --panel-soft: #14243a;
+        --border: rgba(148, 163, 184, 0.18);
+        --text: #e5eefc;
+        --muted: #a8bbd8;
+        --accent: #38bdf8;
+        --success: #34d399;
+        --warn: #fbbf24;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Outfit", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #12355f 0%, var(--bg) 46%);
+        color: var(--text);
+      }
+      main {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 32px 0 64px;
+      }
+      section, header {
+        background: rgba(15, 27, 45, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        padding: 24px;
+        backdrop-filter: blur(18px);
+        box-shadow: 0 20px 60px rgba(8, 15, 31, 0.35);
+      }
+      header { margin-bottom: 20px; }
+      section { margin-top: 20px; }
+      h1, h2, h3 { margin: 0 0 12px; }
+      h1 { font-size: 2.3rem; }
+      h2 { font-size: 1.35rem; }
+      h3 { font-size: 1rem; color: var(--accent); text-transform: uppercase; letter-spacing: .12em; }
+      p, li { color: var(--muted); line-height: 1.65; }
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+      .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+      .card {
+        border: 1px solid var(--border);
+        background: rgba(20, 36, 58, 0.78);
+        border-radius: 22px;
+        padding: 18px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 8px 14px;
+        background: rgba(56, 189, 248, 0.12);
+        color: #c8e9ff;
+        font-size: .9rem;
+        margin: 0 10px 10px 0;
+      }
+      .status {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: .8rem;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+      }
+      .done { background: rgba(52, 211, 153, 0.14); color: #b6f3dd; }
+      .now { background: rgba(56, 189, 248, 0.14); color: #c7ecff; }
+      .next { background: rgba(251, 191, 36, 0.14); color: #fde9a6; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th, td {
+        text-align: left;
+        vertical-align: top;
+        padding: 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      th { color: var(--text); font-size: .95rem; }
+      code {
+        font-family: "SFMono-Regular", ui-monospace, monospace;
+        color: #d9f0ff;
+        background: rgba(8, 17, 32, 0.7);
+        border-radius: 10px;
+        padding: 2px 7px;
+      }
+      ul { padding-left: 18px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h3>COPIM x ROVI</h3>
+        <h1>Backlog técnico exacto para Fase 0 y Fase 1</h1>
+        <p>Este documento baja el plan maestro a ejecución concreta por archivo. La lógica es simple: primero cerrar percepción de producto, navegación y foco institucional; después reforzar la gestión operativa en asociaciones y socios; luego endurecer la continuidad con membresías, facturación, eventos y campañas.</p>
+        <div>
+          <span class="pill">Fase 0: curaduría institucional</span>
+          <span class="pill">Fase 1: deep links + quick actions + vistas operativas</span>
+          <span class="pill">Objetivo: demo vendible y piloto navegable</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>Estado del sprint</h2>
+        <div class="grid cols-3">
+          <div class="card">
+            <span class="status done">Ejecutado ahora</span>
+            <p>Ocultar el chat comercial en modo COPIM, adaptar el login institucional, habilitar deep links entre dashboard y módulos, soporte de <code>?focus=</code> y <code>?association=</code>, y vista pipeline para socios.</p>
+          </div>
+          <div class="card">
+            <span class="status now">Siguiente bloque</span>
+            <p>Conectar campañas de difusión desde eventos y asociaciones, reforzar comunidad e inteligencia como módulos nativos, y cerrar un portal del socio más autoservicio.</p>
+          </div>
+          <div class="card">
+            <span class="status next">Fase posterior</span>
+            <p>Pagos reales, credencial verificable con QR, automatizaciones de cobranza, segmentación avanzada y copiloto IA más proactivo.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Tickets por archivo</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Archivo</th>
+              <th>Objetivo</th>
+              <th>Acción exacta</th>
+              <th>Prioridad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>frontend/src/components/Layout.js</code></td>
+              <td>Curar experiencia COPIM</td>
+              <td>Ocultar el chat global de ventas cuando la app esté en modo institucional.</td>
+              <td>P0</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/LoginPage.js</code></td>
+              <td>Evitar ruido inmobiliario</td>
+              <td>Volver el login sensible a la ruta COPIM y al tipo de cuenta para cambiar copy, hero y framing visual.</td>
+              <td>P0</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/lib/copimRouting.js</code></td>
+              <td>Navegación compartible</td>
+              <td>Centralizar la construcción de URLs COPIM con filtros, foco y contexto compartible.</td>
+              <td>P0</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/CopimOverviewPage.js</code></td>
+              <td>Dashboard realmente accionable</td>
+              <td>Convertir watchlists y asociaciones destacadas en accesos profundos a registros específicos.</td>
+              <td>P0</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/CopimAssociationsPage.js</code></td>
+              <td>Capítulos con más impacto visual y operativo</td>
+              <td>Agregar hero por card, score de salud, quick actions y soporte de <code>?focus=associationId</code>.</td>
+              <td>P1</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/CopimMembersPage.js</code></td>
+              <td>Padrón más vendible</td>
+              <td>Agregar vista <code>lista/pipeline</code>, deep links por socio y quick actions desde la ficha.</td>
+              <td>P1</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/CopimMembershipsPage.js</code></td>
+              <td>Cobranza navegable</td>
+              <td>Soportar foco por membresía y filtros por asociación/estatus desde dashboard y asociaciones.</td>
+              <td>P1</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/CopimInvoicesPage.js</code></td>
+              <td>Facturación conectada</td>
+              <td>Soportar foco por factura, resaltado visual y preservación de filtros vía query params.</td>
+              <td>P1</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/CopimEventsPage.js</code></td>
+              <td>Agenda institucional conectada</td>
+              <td>Soportar foco por evento, filtros por asociación y <code>future=true</code> desde accesos rápidos.</td>
+              <td>P1</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Backlog por módulo</h2>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Resumen</h3>
+            <ul>
+              <li>Validar que toda tarjeta mande al módulo correcto y, cuando aplique, al registro correcto.</li>
+              <li>Agregar CTAs orientados a operación: aprobar, cobrar, emitir, publicar, registrar.</li>
+              <li>Subir semáforos IA ligeros a cards: prioridad, urgencia y último análisis.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Asociaciones</h3>
+            <ul>
+              <li>Hero por capítulo con identidad más institucional y menos administrativa.</li>
+              <li>Semáforo de salud: padrón, renovación, cobranza, directorio y credenciales.</li>
+              <li>Quick actions a padrón, membresías, facturas, agenda y campañas.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Socios</h3>
+            <ul>
+              <li>Vista pipeline para aprobar, activar, suspender y recuperar.</li>
+              <li>Ficha con más sensación de portal: perfil, credencial, saldo, membresías y visibilidad.</li>
+              <li>Conectar renovación y facturación desde la ficha sin volver al listado.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Membresías</h3>
+            <ul>
+              <li>Concentrado operativo de cobranza, recordatorios, pagos y renovación.</li>
+              <li>Foco directo desde dashboard y desde asociación para evitar búsquedas manuales.</li>
+              <li>Después: automatizaciones y campañas de cobranza disparadas desde IA.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Facturación</h3>
+            <ul>
+              <li>Seguir endureciendo el expediente administrativo y la trazabilidad.</li>
+              <li>Después: pasarela de pago, conciliación y facturación real.</li>
+              <li>Conectar con campañas cuando una factura entre en riesgo de vencimiento.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Eventos</h3>
+            <ul>
+              <li>Agenda más conectada con difusión, ocupación y asistencia.</li>
+              <li>Agregar disparadores hacia campañas antes y después del evento.</li>
+              <li>Después: invitaciones, listas de espera, QR y recorrido del asistente.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Definition of done para la demo vendible</h2>
+        <ul>
+          <li>El dashboard abre cualquier caso crítico y aterriza en el módulo correcto con el item seleccionado.</li>
+          <li>Asociaciones y socios ya no se sienten tabla administrativa, sino cabina de operación institucional.</li>
+          <li>Membresías, facturación y eventos pueden recorrerse sin perder el contexto del capítulo.</li>
+          <li>La experiencia visual COPIM ya no compite con el discurso comercial del CRM inmobiliario clásico.</li>
+          <li>La IA aparece como copiloto de operación y no como adorno aislado.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

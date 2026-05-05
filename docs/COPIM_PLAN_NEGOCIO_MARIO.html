@@ -1,0 +1,1382 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COPIM x ROVI - Plan de Negocio para Mario</title>
+    <style>
+      :root {
+        --bg: #f6f8fc;
+        --panel: rgba(255, 255, 255, 0.9);
+        --panel-strong: #ffffff;
+        --ink: #10213d;
+        --muted: #5d6b82;
+        --line: rgba(16, 33, 61, 0.1);
+        --blue: #0d5ea8;
+        --blue-deep: #0b3f72;
+        --cyan: #47b5e9;
+        --gold: #d4a136;
+        --green: #17835a;
+        --rose: #a04558;
+        --shadow: 0 24px 70px rgba(16, 33, 61, 0.08);
+        --radius-xl: 32px;
+        --radius-lg: 24px;
+        --radius-md: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(71, 181, 233, 0.16), transparent 28%),
+          radial-gradient(circle at top right, rgba(212, 161, 54, 0.14), transparent 24%),
+          linear-gradient(180deg, #eef4fb 0%, #f9fbfe 20%, #ffffff 100%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(1280px, calc(100vw - 36px));
+        margin: 0 auto;
+        padding: 28px 0 64px;
+      }
+
+      .hero,
+      .card,
+      .quote-box,
+      .table-wrap,
+      .phase,
+      .details-card,
+      .footer-box {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(12px);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 34px;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(248, 251, 255, 0.86)),
+          var(--panel);
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        right: -12%;
+        top: -16%;
+        width: 440px;
+        height: 440px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(13, 94, 168, 0.16), rgba(71, 181, 233, 0.08), transparent 68%);
+        pointer-events: none;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(13, 94, 168, 0.14);
+        background: rgba(13, 94, 168, 0.08);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 920px;
+        font-size: clamp(38px, 5vw, 66px);
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+      }
+
+      .hero-sub {
+        margin-top: 18px;
+        max-width: 900px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.72;
+      }
+
+      .hero-grid,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .pricing-grid,
+      .phase-grid,
+      .proof-grid,
+      .flow-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1.35fr 0.8fr;
+        margin-top: 28px;
+        align-items: start;
+      }
+
+      .quick-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .metric {
+        min-height: 150px;
+        padding: 20px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(244, 249, 255, 0.95));
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        margin-top: 12px;
+        font-size: 38px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+      }
+
+      .metric-note {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .hero-note {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(13, 94, 168, 0.14);
+        background:
+          linear-gradient(160deg, rgba(13, 94, 168, 0.94), rgba(11, 63, 114, 0.94));
+        color: #ffffff;
+      }
+
+      .hero-note h3 {
+        font-size: 24px;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+      }
+
+      .hero-note p {
+        margin-top: 14px;
+        color: rgba(255, 255, 255, 0.82);
+        line-height: 1.75;
+      }
+
+      .tag-row,
+      .toc,
+      .kpi-list,
+      .footer-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .tag,
+      .toc a,
+      .kpi-pill {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.84);
+        color: var(--ink);
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .tag-row {
+        margin-top: 20px;
+      }
+
+      .tag {
+        font-weight: 700;
+        color: var(--blue-deep);
+      }
+
+      .toc {
+        margin-top: 22px;
+      }
+
+      .toc a {
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+      }
+
+      .toc a:hover {
+        transform: translateY(-1px);
+        border-color: rgba(13, 94, 168, 0.18);
+        background: rgba(255, 255, 255, 0.98);
+      }
+
+      section {
+        margin-top: 22px;
+      }
+
+      .section-head {
+        margin-bottom: 18px;
+      }
+
+      .section-head .overline {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .section-head h2 {
+        margin-top: 10px;
+        font-size: 34px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .section-head p {
+        margin-top: 12px;
+        max-width: 920px;
+        color: var(--muted);
+        line-height: 1.72;
+        font-size: 17px;
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .card h3 {
+        font-size: 24px;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+      }
+
+      .card p,
+      .card li,
+      .table-wrap td,
+      .table-wrap th,
+      .phase p,
+      details p,
+      details li {
+        color: var(--muted);
+        line-height: 1.72;
+      }
+
+      .quote-compare {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .quote-box {
+        padding: 24px;
+      }
+
+      .quote-title {
+        display: inline-block;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .quote-title.bad {
+        background: rgba(160, 69, 88, 0.1);
+        color: var(--rose);
+      }
+
+      .quote-title.good {
+        background: rgba(23, 131, 90, 0.1);
+        color: var(--green);
+      }
+
+      .quote-text {
+        margin-top: 18px;
+        font-size: 26px;
+        line-height: 1.22;
+        letter-spacing: -0.04em;
+      }
+
+      .quote-foot {
+        margin-top: 16px;
+        font-size: 15px;
+      }
+
+      ul.clean {
+        padding-left: 18px;
+        margin: 16px 0 0;
+      }
+
+      ul.clean li + li {
+        margin-top: 8px;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .accent {
+        color: var(--blue-deep);
+        font-weight: 700;
+      }
+
+      .mini-title {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .card .block {
+        margin-top: 18px;
+      }
+
+      .proof-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .proof-item {
+        padding: 18px 0 0;
+        border-top: 1px solid rgba(16, 33, 61, 0.08);
+      }
+
+      .proof-item strong {
+        display: block;
+        font-size: 17px;
+        color: var(--ink);
+      }
+
+      .flow-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .flow-step {
+        position: relative;
+        padding: 22px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 251, 255, 0.96));
+      }
+
+      .flow-step::after {
+        content: ">";
+        position: absolute;
+        right: -14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(13, 94, 168, 0.35);
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      .flow-step:last-child::after {
+        display: none;
+      }
+
+      .flow-step h3 {
+        font-size: 20px;
+      }
+
+      .flow-step p {
+        margin-top: 12px;
+      }
+
+      .pricing-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .pricing-card {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 24px;
+        border-radius: 28px;
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 255, 0.94));
+        box-shadow: 0 18px 50px rgba(16, 33, 61, 0.06);
+      }
+
+      .pricing-card.recommended {
+        border-color: rgba(13, 94, 168, 0.2);
+        background:
+          linear-gradient(180deg, rgba(13, 94, 168, 0.98), rgba(11, 63, 114, 0.95));
+        color: #ffffff;
+      }
+
+      .pricing-card .badge {
+        width: fit-content;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: rgba(255, 255, 255, 0.74);
+        color: var(--blue-deep);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .pricing-card.recommended .badge {
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+      }
+
+      .pricing-card h3 {
+        font-size: 24px;
+        line-height: 1.08;
+      }
+
+      .price {
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+      }
+
+      .pricing-card p,
+      .pricing-card li {
+        line-height: 1.7;
+      }
+
+      .pricing-card.recommended p,
+      .pricing-card.recommended li {
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .table-wrap {
+        padding: 18px;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+      }
+
+      th,
+      td {
+        padding: 16px;
+        text-align: left;
+        border-bottom: 1px solid rgba(16, 33, 61, 0.08);
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .playbook-grid {
+        display: grid;
+        grid-template-columns: 0.88fr 1.12fr;
+        gap: 18px;
+      }
+
+      .step-list {
+        counter-reset: playbook;
+        display: grid;
+        gap: 14px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 58px 1fr;
+        gap: 16px;
+        align-items: start;
+        padding: 18px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 251, 255, 0.96));
+      }
+
+      .step-number {
+        display: inline-flex;
+        width: 58px;
+        height: 58px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 18px;
+        background: rgba(13, 94, 168, 0.1);
+        color: var(--blue);
+        font-weight: 800;
+        font-size: 18px;
+      }
+
+      .step h3 {
+        font-size: 21px;
+      }
+
+      .step p {
+        margin-top: 10px;
+      }
+
+      .pitch-box {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 100%;
+        padding: 26px;
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(145deg, rgba(13, 94, 168, 0.95), rgba(11, 63, 114, 0.98));
+        color: #ffffff;
+        box-shadow: 0 24px 64px rgba(13, 94, 168, 0.22);
+      }
+
+      .pitch-box h3 {
+        font-size: 28px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .pitch-box p {
+        margin-top: 16px;
+        color: rgba(255, 255, 255, 0.86);
+        line-height: 1.82;
+      }
+
+      .pitch-sign {
+        margin-top: 18px;
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.66);
+      }
+
+      .details-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .details-card {
+        padding: 16px 18px;
+      }
+
+      details summary {
+        cursor: pointer;
+        list-style: none;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      details summary::-webkit-details-marker {
+        display: none;
+      }
+
+      details summary::after {
+        content: "+";
+        float: right;
+        color: var(--blue);
+        font-size: 22px;
+        font-weight: 800;
+      }
+
+      details[open] summary::after {
+        content: "-";
+      }
+
+      details .answer {
+        padding-top: 16px;
+      }
+
+      .phase-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .phase {
+        padding: 24px;
+      }
+
+      .phase .phase-id {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .phase h3 {
+        margin-top: 12px;
+        font-size: 24px;
+      }
+
+      .phase .time {
+        margin-top: 10px;
+        color: var(--blue-deep);
+        font-weight: 700;
+      }
+
+      .kpi-list {
+        margin-top: 18px;
+      }
+
+      .kpi-pill {
+        color: var(--blue-deep);
+        font-weight: 700;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 248, 255, 0.92));
+      }
+
+      .closing {
+        padding: 30px;
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(145deg, rgba(16, 33, 61, 0.98), rgba(13, 94, 168, 0.95));
+        color: #ffffff;
+        box-shadow: 0 26px 70px rgba(16, 33, 61, 0.22);
+      }
+
+      .closing h2 {
+        font-size: 34px;
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+      }
+
+      .closing p {
+        margin-top: 14px;
+        max-width: 930px;
+        color: rgba(255, 255, 255, 0.82);
+        line-height: 1.8;
+        font-size: 17px;
+      }
+
+      .footer-box {
+        margin-top: 22px;
+        padding: 22px 24px;
+      }
+
+      .footer-box p {
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .footer-links {
+        margin-top: 14px;
+      }
+
+      .footer-links a {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(16, 33, 61, 0.08);
+        background: rgba(255, 255, 255, 0.84);
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      @media (max-width: 1100px) {
+        .hero-grid,
+        .playbook-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .grid-4,
+        .pricing-grid,
+        .flow-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .proof-grid,
+        .phase-grid,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+
+        .flow-step::after {
+          display: none;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          width: min(100vw - 24px, 1280px);
+          padding: 16px 0 44px;
+        }
+
+        .hero,
+        .card,
+        .quote-box,
+        .phase,
+        .closing,
+        .footer-box {
+          border-radius: 24px;
+        }
+
+        .hero {
+          padding: 24px;
+        }
+
+        .quick-metrics,
+        .quote-compare,
+        .grid-2,
+        .grid-4,
+        .pricing-grid,
+        .flow-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .step {
+          grid-template-columns: 1fr;
+        }
+
+        .step-number {
+          width: 52px;
+          height: 52px;
+        }
+
+        h1 {
+          font-size: 38px;
+        }
+
+        .section-head h2,
+        .closing h2 {
+          font-size: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="eyebrow">Plan de negocio · COPIM x ROVI · Reunion del 1 de mayo de 2026</div>
+        <h1>La membresia debe vender el ecosistema y la capa premium debe expandir el ticket.</h1>
+        <p class="hero-sub">
+          Esta propuesta baja la conversacion con Mario a una historia comercial clara: ROVI no se presenta como
+          "otro CRM", sino como el sistema operativo de COPIM para asociaciones, socios, membresias, renovaciones,
+          facturacion, eventos y credencializacion. Sobre esa base, la IA, la automatizacion y el CRM Pro entran
+          como escalera de valor.
+        </p>
+
+        <div class="tag-row">
+          <span class="tag">Infraestructura nacional</span>
+          <span class="tag">Valor visible de membresia</span>
+          <span class="tag">Cuota plana base</span>
+          <span class="tag">Upsells premium</span>
+          <span class="tag">Monetizacion institucional</span>
+        </div>
+
+        <div class="hero-grid">
+          <div class="quick-metrics">
+            <div class="metric">
+              <div class="metric-label">Meta de expansion</div>
+              <div class="metric-value">24</div>
+              <div class="metric-note">Estados objetivo para que COPIM llegue con una propuesta institucional realmente diferenciadora.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Tamano comun</div>
+              <div class="metric-value">20-50</div>
+              <div class="metric-note">Socios por asociacion pequena o mediana segun la referencia que Mario dio en la reunion.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Referencia de mercado</div>
+              <div class="metric-value">$1.4k-$1.6k</div>
+              <div class="metric-note">Rango mensual del sistema comparable que Mario uso como marco para evaluar la fase base.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Masa critica</div>
+              <div class="metric-value">500+</div>
+              <div class="metric-note">Usuarios activos a partir de los cuales la comunidad se vuelve atractiva para patrocinios y alianzas.</div>
+            </div>
+          </div>
+
+          <aside class="hero-note">
+            <h3>La idea en una frase</h3>
+            <p>
+              COPIM no compra software. COPIM compra una capa nacional de control, cada asociacion compra orden operativo,
+              y cada socio recibe una membresia que por fin se siente viva porque le da herramientas reales desde el dia uno.
+            </p>
+            <p>
+              La IA no debe empujar la adopcion. Debe aparecer despues, cuando la operacion ya este capturada, la data exista y el usuario quiera subir de nivel.
+            </p>
+          </aside>
+        </div>
+
+        <nav class="toc" aria-label="Contenido">
+          <a href="#tesis">Tesis comercial</a>
+          <a href="#actores">Valor por actor</a>
+          <a href="#modelo">Modelo de negocio</a>
+          <a href="#pricing">Pricing sugerido</a>
+          <a href="#venta">Narrativa de venta</a>
+          <a href="#objeciones">Objeciones</a>
+          <a href="#lanzamiento">Lanzamiento</a>
+        </nav>
+      </header>
+
+      <section id="tesis">
+        <div class="section-head">
+          <div class="overline">Tesis comercial</div>
+          <h2>La venta correcta no es tecnologia; es valor institucional y valor de membresia.</h2>
+          <p>
+            El punto clave de la reunion fue claro: si esto se presenta como un CRM con IA, la conversacion se debilita.
+            Si se presenta como la infraestructura que profesionaliza asociaciones, ordena la operacion y le da mas valor al socio,
+            entonces COPIM puede adoptarlo, expandirlo y monetizarlo.
+          </p>
+        </div>
+
+        <div class="quote-compare">
+          <div class="quote-box">
+            <div class="quote-title bad">Lo que no conviene vender</div>
+            <div class="quote-text">"Te vendo un CRM con IA."</div>
+            <div class="quote-foot">Eso suena a herramienta opcional, dificil de adoptar y muy parecida a otras.</div>
+          </div>
+          <div class="quote-box">
+            <div class="quote-title good">Lo que si conviene vender</div>
+            <div class="quote-text">"Te damos el sistema operativo para que COPIM administre mejor a su red y haga mas valiosa la membresia."</div>
+            <div class="quote-foot">Eso conecta con expansion, operacion, datos, beneficios y nueva monetizacion.</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 18px;">
+          <article class="card">
+            <div class="mini-title">Lo que Mario priorizo</div>
+            <h3 style="margin-top: 10px;">Primero operacion. Despues comunidad. Luego inteligencia.</h3>
+            <ul class="clean">
+              <li><span class="accent">Fase 1:</span> asociaciones, socios, membresias, renovaciones, eventos y credencializacion.</li>
+              <li><span class="accent">Base plana:</span> evitar castigar por usuario en el sistema administrativo.</li>
+              <li><span class="accent">Adopcion organica:</span> dejar la IA y lo avanzado como una mejora natural.</li>
+              <li><span class="accent">Tiempo:</span> la primera capa debe bajar rapido a las asociaciones.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <div class="mini-title">Por que esta historia escala</div>
+            <h3 style="margin-top: 10px;">El CRM base se vuelve un beneficio. La capa premium se vuelve upgrade.</h3>
+            <ul class="clean">
+              <li>COPIM gana visibilidad nacional de asociaciones y socios.</li>
+              <li>La asociacion ordena padrón, cobranza, renovaciones y eventos.</li>
+              <li>El socio siente que la membresia sirve todas las semanas.</li>
+              <li>Los productos Pro crecen sin bloquear la entrada del ecosistema.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div class="overline">Activo real</div>
+          <h2>Ya existe suficiente producto para vender una historia concreta y no solo una idea.</h2>
+          <p>
+            Hoy la propuesta ya tiene soporte dentro del repo y del demo COPIM. Eso cambia la conversacion:
+            no estamos partiendo de cero ni prometiendo humo; estamos afinando una base real para que se sienta institucional,
+            simple y comercialmente poderosa.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="proof-grid">
+            <div class="proof-item">
+              <strong>Dashboard institucional COPIM</strong>
+              <p>Vista ejecutiva, asociaciones destacadas, renovaciones, eventos, facturacion y cola operativa.</p>
+            </div>
+            <div class="proof-item">
+              <strong>Modulos core ya montados</strong>
+              <p>Asociaciones, socios, membresias, facturacion, eventos y roles COPIM listos para aterrizar la historia.</p>
+            </div>
+            <div class="proof-item">
+              <strong>Demo navegable</strong>
+              <p>Existe una presentacion visual y un flujo demo que ayuda a vender con narrativa y no solo con mockups.</p>
+            </div>
+            <div class="proof-item">
+              <strong>Datos demo y bootstrap</strong>
+              <p>Se pueden sembrar datos para demostrar alta, membresia, factura, pago, evento y operacion.</p>
+            </div>
+            <div class="proof-item">
+              <strong>Roles institucionales</strong>
+              <p>Consejo, presidencia, operacion y socio ya estan contemplados en la estructura COPIM.</p>
+            </div>
+            <div class="proof-item">
+              <strong>Capa IA como premium</strong>
+              <p>Ya existe analisis IA por entidad, ideal para venderlo despues como extension de valor.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="actores">
+        <div class="section-head">
+          <div class="overline">Valor por actor</div>
+          <h2>Cada capa del ecosistema compra algo distinto, y eso es lo que hace fuerte el negocio.</h2>
+          <p>
+            La propuesta funciona porque no intenta vender lo mismo a todos. COPIM, la asociacion, el asociado,
+            la inmobiliaria y el patrocinador ven beneficios distintos pero encadenados entre si.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <div class="mini-title">COPIM nacional</div>
+            <h3 style="margin-top: 10px;">Compra control de red</h3>
+            <ul class="clean">
+              <li>Visibilidad multi-asociacion.</li>
+              <li>Data consolidada para negociar beneficios.</li>
+              <li>Herramienta de expansion a nuevos estados.</li>
+              <li>Base para benchmarking y decisiones ejecutivas.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <div class="mini-title">Asociacion afiliada</div>
+            <h3 style="margin-top: 10px;">Compra orden operativo</h3>
+            <ul class="clean">
+              <li>Padron, expediente y validaciones.</li>
+              <li>Cobranza visible y renovaciones.</li>
+              <li>Eventos, asistencia y seguimiento.</li>
+              <li>Menos Excel, menos seguimiento manual.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <div class="mini-title">Asociado o socio</div>
+            <h3 style="margin-top: 10px;">Recibe valor tangible</h3>
+            <ul class="clean">
+              <li>Perfil profesional y directorio.</li>
+              <li>Credencial digital y eventos.</li>
+              <li>Historial de membresia.</li>
+              <li>CRM base como beneficio de pertenecer.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <div class="mini-title">Broker Pro o inmobiliaria</div>
+            <h3 style="margin-top: 10px;">Compra crecimiento</h3>
+            <ul class="clean">
+              <li>Automatizaciones y embudos mas profundos.</li>
+              <li>Seguimiento con IA y productividad comercial.</li>
+              <li>Menos trabajo manual.</li>
+              <li>Mejor conversion y coaching.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <div class="mini-title">Patrocinadores y aliados</div>
+            <h3 style="margin-top: 10px;">Compran acceso y visibilidad</h3>
+            <ul class="clean">
+              <li>Audiencias segmentadas y red validada.</li>
+              <li>Patrocinios de eventos y beneficios.</li>
+              <li>Presencia institucional dentro de la comunidad.</li>
+              <li>Nueva linea de ingresos para COPIM.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <div class="mini-title">Resultado conjunto</div>
+            <h3 style="margin-top: 10px;">Una membresia que por fin se siente viva</h3>
+            <p style="margin-top: 16px;">
+              El mayor cambio no es tecnico. Es perceptual: la cuota deja de sentirse solo administrativa
+              y empieza a sentirse como acceso real a herramientas, comunidad, beneficios y operacion profesional.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="modelo">
+        <div class="section-head">
+          <div class="overline">Modelo de negocio</div>
+          <h2>La estructura correcta es B2B2B y la escalera debe avanzar de lo institucional a lo premium.</h2>
+          <p>
+            El negocio se vuelve mas claro cuando se separa por capas. La base sirve para estandarizar y adoptar.
+            Las capas superiores sirven para monetizar mas sin volver pesada la entrada.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="flow-grid">
+            <div class="flow-step">
+              <div class="mini-title">Capa 1</div>
+              <h3>Licencia nacional COPIM</h3>
+              <p>Control multi-asociacion, visibilidad ejecutiva, expansion, validaciones y soporte institucional.</p>
+            </div>
+            <div class="flow-step">
+              <div class="mini-title">Capa 2</div>
+              <h3>Sistema base por asociacion</h3>
+              <p>Socios, membresias, renovaciones, facturacion, eventos y credencializacion en cuota plana.</p>
+            </div>
+            <div class="flow-step">
+              <div class="mini-title">Capa 3</div>
+              <h3>Add-ons por asociado</h3>
+              <p>Broker Pro, automatizacion, plantillas, seguimiento y CRM mas profundo para quien quiera crecer.</p>
+            </div>
+            <div class="flow-step">
+              <div class="mini-title">Capa 4</div>
+              <h3>Add-ons por asociacion</h3>
+              <p>Dashboards propios, comunicacion segmentada, operacion premium y procesos avanzados.</p>
+            </div>
+            <div class="flow-step">
+              <div class="mini-title">Capa 5</div>
+              <h3>Monetizacion institucional</h3>
+              <p>Patrocinios, aliados, desarrolladores, bancos y beneficios nacionales cuando haya masa critica.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing">
+        <div class="section-head">
+          <div class="overline">Pricing sugerido</div>
+          <h2>La base debe ser facil de comprar. El margen fuerte debe crecer en upgrades y licencias premium.</h2>
+          <p>
+            Estos rangos son una banda de negociacion sugerida, no una cotizacion cerrada. La clave es respetar
+            la logica que Mario marco: sistema administrativo base con cuota simple, y variabilidad cobrada en lo premium.
+          </p>
+        </div>
+
+        <div class="pricing-grid">
+          <article class="pricing-card">
+            <div class="badge">Implementacion inicial</div>
+            <h3>Pilotar rapido y bien</h3>
+            <div class="price">$80k-$150k MXN</div>
+            <p>Setup, branding COPIM, configuracion de roles, alta de asociaciones piloto, datos iniciales y capacitacion.</p>
+          </article>
+
+          <article class="pricing-card recommended">
+            <div class="badge">Base recomendada</div>
+            <h3>Sistema base por asociacion</h3>
+            <div class="price">$790-$1,490 MXN/mes</div>
+            <p>Cuota plana con hasta 150 socios incluidos. Ideal para entrar sin friccion y evitar el rechazo por precio por usuario.</p>
+          </article>
+
+          <article class="pricing-card">
+            <div class="badge">Licencia nacional</div>
+            <h3>Capa consejo COPIM</h3>
+            <div class="price">$4.9k-$7.9k MXN/mes</div>
+            <p>Visibilidad nacional, dashboards, expansion, validaciones y evolucion institucional continua.</p>
+          </article>
+
+          <article class="pricing-card">
+            <div class="badge">Crecimiento premium</div>
+            <h3>Broker Pro y capas avanzadas</h3>
+            <div class="price">$399-$1.9k MXN/mes</div>
+            <p>Desde add-on individual hasta paquetes de oficina pequena alineados a la referencia que Mario compartio.</p>
+          </article>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 18px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Capa</th>
+                <th>Quien paga</th>
+                <th>Rango sugerido</th>
+                <th>Que compra</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Implementacion inicial</td>
+                <td>COPIM</td>
+                <td>$80,000-$150,000 MXN una sola vez</td>
+                <td>Setup del piloto, branding, configuracion, data inicial y capacitacion.</td>
+              </tr>
+              <tr>
+                <td>Licencia nacional COPIM</td>
+                <td>COPIM</td>
+                <td>$4,900-$7,900 MXN/mes o $49,000-$79,000 MXN/anio</td>
+                <td>Capa consejo nacional, expansion, tableros ejecutivos y soporte institucional.</td>
+              </tr>
+              <tr>
+                <td>Sistema base por asociacion</td>
+                <td>Asociacion o COPIM subsidiado</td>
+                <td>$790-$1,490 MXN/mes</td>
+                <td>Padron, membresias, renovaciones, facturas, eventos y credencializacion.</td>
+              </tr>
+              <tr>
+                <td>Broker Pro</td>
+                <td>Asociado o inmobiliaria</td>
+                <td>$399-$599 MXN/mes por usuario</td>
+                <td>Automatizaciones, plantillas, seguimiento y CRM mas profundo.</td>
+              </tr>
+              <tr>
+                <td>Team Pro</td>
+                <td>Inmobiliaria</td>
+                <td>$1,800-$1,900 MXN/mes</td>
+                <td>Paquete para oficina pequena, alineado con el benchmark de equipos de 5+ agentes.</td>
+              </tr>
+              <tr>
+                <td>Association Pro</td>
+                <td>Asociacion</td>
+                <td>$990-$1,490 MXN/mes adicionales</td>
+                <td>Dashboards propios, comunicacion segmentada, operacion premium y flujos avanzados.</td>
+              </tr>
+              <tr>
+                <td>Consejo Intelligence</td>
+                <td>COPIM</td>
+                <td>$3,900-$5,900 MXN/mes</td>
+                <td>Alertas, benchmarking, resumenes y copiloto ejecutivo cuando la data ya exista.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="venta">
+        <div class="section-head">
+          <div class="overline">Narrativa de venta</div>
+          <h2>La forma de presentarlo importa tanto como el producto.</h2>
+          <p>
+            Mario ya dio la pista del discurso: primero mostrar el dolor institucional, luego la solucion simple,
+            despues explicar por que el CRM base va incluido y cerrar con la escalera de valor y la monetizacion futura.
+          </p>
+        </div>
+
+        <div class="playbook-grid">
+          <div class="step-list">
+            <article class="step">
+              <div class="step-number">01</div>
+              <div>
+                <h3>Abrir con el dolor institucional</h3>
+                <p>Operacion fragmentada, poca visibilidad nacional, membresia que se siente administrativa y fuga de seguimiento en socios y renovaciones.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div class="step-number">02</div>
+              <div>
+                <h3>Ensenar valor inmediato</h3>
+                <p>Asociacion, socio, membresia, factura y evento. Lo importante es que Mario vea rapido: "esto si me resuelve operacion ya".</p>
+              </div>
+            </article>
+            <article class="step">
+              <div class="step-number">03</div>
+              <div>
+                <h3>Decir que el CRM base va incluido</h3>
+                <p>No venderlo aparte. Venderlo como beneficio directo de pertenecer a COPIM y de estar al corriente con la membresia.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div class="step-number">04</div>
+              <div>
+                <h3>Cerrar con la escalera de valor</h3>
+                <p>Base para todos. Pro para quien quiere crecer. Premium para asociaciones maduras. Inteligencia para COPIM nacional.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div class="step-number">05</div>
+              <div>
+                <h3>Rematar con monetizacion futura</h3>
+                <p>Con 500 o 1,000 usuarios activos, la plataforma se vuelve un activo para beneficios, patrocinadores y aliados nacionales.</p>
+              </div>
+            </article>
+          </div>
+
+          <aside class="pitch-box">
+            <div>
+              <div class="mini-title" style="color: rgba(255,255,255,0.72);">Guion corto</div>
+              <h3>Version de 90 segundos para Mario</h3>
+              <p>
+                Mario, creemos que la mejor manera de vender esta plataforma no es como un CRM, sino como el sistema operativo de COPIM.
+                La primera capa resuelve lo que hoy mas duele: asociaciones, socios, membresias, renovaciones, facturacion, eventos y credencializacion.
+                Eso le da a COPIM control nacional y a cada asociacion una forma mucho mas simple de operar.
+              </p>
+              <p>
+                Encima de eso, el socio ya no solo paga una cuota: recibe perfil profesional, directorio, credencial y un CRM base como beneficio de pertenecer.
+                Entonces la membresia se vuelve mucho mas valiosa y visible.
+              </p>
+              <p>
+                Despues, para quien quiera crecer, abrimos una escalera de valor: Broker Pro, Association Pro, automatizaciones, IA y analitica.
+                Asi la entrada es sencilla, la adopcion es organica y la monetizacion crece sin volver pesada la fase inicial.
+              </p>
+            </div>
+            <div class="pitch-sign">Pitch ejecutivo · COPIM x ROVI</div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="objeciones">
+        <div class="section-head">
+          <div class="overline">Objeciones probables</div>
+          <h2>Las respuestas deben reforzar simplicidad, adopcion y control del gasto base.</h2>
+          <p>
+            Estas son las fricciones mas probables y la linea de respuesta sugerida para no caer en una conversacion puramente tecnica.
+          </p>
+        </div>
+
+        <div class="details-grid">
+          <div class="details-card">
+            <details>
+              <summary>"No quiero pagar por usuario"</summary>
+              <div class="answer">
+                <p>Correcto. La base no esta planteada por usuario sino por asociacion. Solo la parte premium o la IA se pueden mover por uso o por add-on.</p>
+              </div>
+            </details>
+          </div>
+          <div class="details-card">
+            <details>
+              <summary>"La IA no me urge"</summary>
+              <div class="answer">
+                <p>De acuerdo. La IA no va al frente. Primero resolvemos operacion, adopcion y captura de data. Luego activamos inteligencia donde de verdad sume.</p>
+              </div>
+            </details>
+          </div>
+          <div class="details-card">
+            <details>
+              <summary>"Los socios no adoptan herramientas complejas"</summary>
+              <div class="answer">
+                <p>Por eso el bundle base es simple: perfil, membresia, credencial, eventos, directorio y CRM ligero. Lo mas complejo queda como upgrade para quien ya vea valor.</p>
+              </div>
+            </details>
+          </div>
+          <div class="details-card">
+            <details>
+              <summary>"Ya operamos con Excel y WhatsApp"</summary>
+              <div class="answer">
+                <p>Justamente. La plataforma no cambia el negocio. Ordena lo que hoy ya hacen y lo vuelve visible, medible y escalable.</p>
+              </div>
+            </details>
+          </div>
+          <div class="details-card">
+            <details>
+              <summary>"No quiero que esto sea caro para asociaciones pequenas"</summary>
+              <div class="answer">
+                <p>La base puede arrancar subsidiada por COPIM o con tarifa de piloto. El negocio fuerte viene despues con upgrades, licencias premium y patrocinios.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="lanzamiento">
+        <div class="section-head">
+          <div class="overline">Lanzamiento recomendado</div>
+          <h2>Primero piloto, luego adopcion, despues expansion comercial.</h2>
+          <p>
+            La estrategia sugerida es demostrar operacion real en pocas asociaciones, medir adopcion y luego usar ese caso para escalar a mas estados y abrir productos premium.
+          </p>
+        </div>
+
+        <div class="phase-grid">
+          <article class="phase">
+            <div class="phase-id">Fase 1</div>
+            <h3>Piloto institucional</h3>
+            <div class="time">30 a 45 dias</div>
+            <ul class="clean">
+              <li>Subir 3 a 5 asociaciones.</li>
+              <li>Dar de alta socios y membresias reales.</li>
+              <li>Operar renovaciones.</li>
+              <li>Correr 1 o 2 eventos completos.</li>
+            </ul>
+          </article>
+          <article class="phase">
+            <div class="phase-id">Fase 2</div>
+            <h3>Adopcion y prueba de valor</h3>
+            <div class="time">60 a 90 dias</div>
+            <ul class="clean">
+              <li>Medir activacion de socios.</li>
+              <li>Medir renovaciones gestionadas desde plataforma.</li>
+              <li>Validar que operacion ya no dependa de Excel.</li>
+              <li>Detectar candidatos a Broker Pro.</li>
+            </ul>
+          </article>
+          <article class="phase">
+            <div class="phase-id">Fase 3</div>
+            <h3>Expansion comercial</h3>
+            <div class="time">Despues del piloto</div>
+            <ul class="clean">
+              <li>Convertir nuevas asociaciones usando el caso piloto.</li>
+              <li>Lanzar add-ons premium.</li>
+              <li>Abrir espacios de patrocinio y beneficios.</li>
+              <li>Volver la plataforma un activo de afiliacion.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div class="overline">KPIs que si importan</div>
+          <h2>Mario necesita ver gestion, retencion, crecimiento y monetizacion.</h2>
+          <p>
+            Estos indicadores ayudan a probar que la plataforma no es solo una mejora operativa, sino una herramienta para afiliar mejor, retener mejor y vender mas valor dentro de la red.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="kpi-list">
+            <span class="kpi-pill">Asociaciones activas en plataforma</span>
+            <span class="kpi-pill">Socios activos y pendientes</span>
+            <span class="kpi-pill">Porcentaje de renovacion</span>
+            <span class="kpi-pill">Monto recuperado por membresias</span>
+            <span class="kpi-pill">Eventos y asistencia</span>
+            <span class="kpi-pill">Nuevas asociaciones afiliadas</span>
+            <span class="kpi-pill">Socios que activan CRM base</span>
+            <span class="kpi-pill">Conversion a Broker Pro</span>
+            <span class="kpi-pill">Conversion a Association Pro</span>
+            <span class="kpi-pill">Ingresos por patrocinadores y aliados</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="closing">
+          <div class="overline" style="color: rgba(255,255,255,0.72);">Cierre sugerido</div>
+          <h2>ROVI para COPIM no debe presentarse como una herramienta mas.</h2>
+          <p>
+            Debe presentarse como el sistema que convierte la membresia en una experiencia viva, medible y escalable para todo el ecosistema:
+            consejo, asociaciones y asociados. Esa es la posicion que le da mas claridad a Mario, mas adopcion a las asociaciones y mas espacio de crecimiento comercial al producto.
+          </p>
+        </div>
+      </section>
+
+      <footer class="footer-box">
+        <p>
+          Base de este documento: reunion con Mario del <strong>1 de mayo de 2026</strong>, analisis del producto COPIM ya desarrollado
+          dentro de ROVI y el plan de negocio en formato Markdown preparado para esta conversacion.
+        </p>
+        <div class="footer-links">
+          <a href="./COPIM_PLAN_NEGOCIO_MARIO.md">Ver version Markdown</a>
+          <a href="./copim_estado_modulos_mario.html">Ver estatus de modulos</a>
+          <a href="./copim_diagnostico_proyecto.html">Ver diagnostico del proyecto</a>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

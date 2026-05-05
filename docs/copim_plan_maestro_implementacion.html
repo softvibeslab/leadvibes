@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan Maestro de Implementacion - ROVI COPIM</title>
+  <style>
+    :root {
+      --bg: #06111d;
+      --panel: rgba(10, 22, 39, 0.92);
+      --card: rgba(18, 32, 53, 0.95);
+      --line: rgba(138, 191, 255, 0.16);
+      --text: #eaf2ff;
+      --muted: #9fb4cc;
+      --cyan: #3dd8ff;
+      --green: #48d8a8;
+      --amber: #f0c96d;
+      --red: #ff9d9d;
+      --blue: #7bb8ff;
+      --shadow: 0 28px 90px rgba(0, 0, 0, 0.34);
+      --radius: 26px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(61, 216, 255, 0.16), transparent 30%),
+        radial-gradient(circle at 0% 20%, rgba(72, 216, 168, 0.08), transparent 26%),
+        linear-gradient(180deg, #06111d 0%, #091624 100%);
+      line-height: 1.58;
+    }
+
+    .wrap {
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 28px 24px 72px;
+    }
+
+    .hero,
+    .section,
+    .card,
+    .aside {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 34px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(61, 216, 255, 0.08), transparent 35%),
+        linear-gradient(320deg, rgba(72, 216, 168, 0.08), transparent 32%);
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1.02;
+      max-width: 980px;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 18px;
+    }
+
+    h3 {
+      font-size: 1.06rem;
+      margin-bottom: 12px;
+    }
+
+    h4 {
+      font-size: 0.92rem;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #cbe7ff;
+    }
+
+    p { margin: 0 0 12px; }
+    ul { margin: 0; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: rgba(123, 184, 255, 0.08);
+      border: 1px solid rgba(123, 184, 255, 0.12);
+      color: #d9edff;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 0.92em;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(61, 216, 255, 0.12);
+      border: 1px solid rgba(61, 216, 255, 0.18);
+      color: #b8f4ff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+    }
+
+    .muted { color: var(--muted); }
+
+    .toc,
+    .tag-row,
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .toc {
+      margin-top: 18px;
+    }
+
+    .toc a,
+    .tag,
+    .pill {
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 999px;
+    }
+
+    .toc a,
+    .tag {
+      padding: 10px 14px;
+      font-size: 0.88rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 11px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .ok { background: rgba(72, 216, 168, 0.12); color: #b6f4df; border-color: rgba(72, 216, 168, 0.2); }
+    .partial { background: rgba(240, 201, 109, 0.12); color: #ffeab5; border-color: rgba(240, 201, 109, 0.2); }
+    .risk { background: rgba(255, 157, 157, 0.12); color: #ffd2d2; border-color: rgba(255, 157, 157, 0.2); }
+    .info { background: rgba(123, 184, 255, 0.12); color: #dff0ff; border-color: rgba(123, 184, 255, 0.2); }
+
+    .grid-2,
+    .grid-3,
+    .grid-4,
+    .hero-grid,
+    .phase-grid,
+    .module-grid,
+    .ops-grid,
+    .finish-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-grid { grid-template-columns: 1.45fr 0.9fr; margin-top: 24px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .phase-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ops-grid { grid-template-columns: 0.95fr 1.05fr; }
+    .finish-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .metric,
+    .card,
+    .aside,
+    .phase,
+    .module,
+    .step {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+    }
+
+    .metric {
+      padding: 18px 20px;
+      min-height: 140px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 12px;
+      font-size: 2rem;
+      letter-spacing: -0.04em;
+    }
+
+    .section {
+      margin-top: 22px;
+      padding: 28px;
+    }
+
+    .card,
+    .aside,
+    .phase,
+    .module,
+    .step {
+      padding: 18px;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 20px 22px;
+      border-radius: 22px;
+      border: 1px solid rgba(61, 216, 255, 0.18);
+      background: rgba(61, 216, 255, 0.08);
+    }
+
+    .callout strong {
+      color: #dff8ff;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(8, 18, 34, 0.56);
+    }
+
+    table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 14px 15px;
+      border-bottom: 1px solid rgba(138, 191, 255, 0.1);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #d5ebff;
+      background: rgba(123, 184, 255, 0.05);
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .phase .meta,
+    .module .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .phase .title-line,
+    .module .title-line {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      position: relative;
+      padding-left: 18px;
+    }
+
+    .step::before {
+      content: "";
+      position: absolute;
+      left: -1px;
+      top: -1px;
+      bottom: -1px;
+      width: 4px;
+      border-radius: 999px 0 0 999px;
+      background: linear-gradient(180deg, #3dd8ff 0%, #48d8a8 100%);
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 1100px) {
+      .hero-grid,
+      .grid-4,
+      .grid-3,
+      .grid-2,
+      .phase-grid,
+      .module-grid,
+      .ops-grid,
+      .finish-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .wrap { padding: 20px 16px 56px; }
+      .hero, .section { padding: 22px; }
+      table { min-width: 760px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">Plan maestro total</div>
+      <h1>ROVI COPIM: plan integral para implementar todo lo que falta y convertir la prueba de concepto en plataforma vendible y operable</h1>
+      <p class="muted" style="max-width: 980px; margin-top: 14px;">
+        Este plan parte del estado real del repositorio actual: CRUDs institucionales ya funcionando,
+        experiencia COPIM incrustada dentro de ROVI, varias capas avanzadas del CRM disponibles,
+        y huecos claros en portal de socio, pagos reales, roles/permisos, comunidad e inteligencia como producto.
+        La meta no es meter todo al mismo tiempo, sino cerrar por fases la plataforma institucional completa sin romper la promesa de simplicidad.
+      </p>
+
+      <div class="toc">
+        <a href="#north-star">North Star</a>
+        <a href="#fases">Roadmap</a>
+        <a href="#modulos">Backlog por modulo</a>
+        <a href="#tecnico">Plan tecnico</a>
+        <a href="#ia">Plan IA</a>
+        <a href="#done">Definition of Done</a>
+      </div>
+
+      <div class="hero-grid">
+        <div class="grid-4">
+          <div class="metric">
+            <small>Estado base actual</small>
+            <strong>PoC fuerte</strong>
+            <p class="muted">Asociaciones, socios, membresias, facturacion y eventos ya persisten en Mongo y ya viven dentro del CRM.</p>
+          </div>
+          <div class="metric">
+            <small>Brecha central</small>
+            <strong>Member OS</strong>
+            <p class="muted">Falta una experiencia simple y propia del socio final para pagos, credencial, directorio, beneficios y eventos.</p>
+          </div>
+          <div class="metric">
+            <small>Riesgo mayor</small>
+            <strong>Complejidad</strong>
+            <p class="muted">Si se muestra demasiado CRM, demasiada IA o demasiada configuracion, se debilita la promesa institucional.</p>
+          </div>
+          <div class="metric">
+            <small>Horizonte sugerido</small>
+            <strong>10-12 semanas</strong>
+            <p class="muted">Con foco fuerte, el producto se puede llevar de demo funcional a piloto institucional serio en un plan de 6 fases.</p>
+          </div>
+        </div>
+
+        <aside class="aside">
+          <h3>Resultado objetivo</h3>
+          <p>Dejar a ROVI COPIM como <strong>association OS</strong> en dos niveles:</p>
+          <ul>
+            <li><strong>Demo vendible:</strong> curada, simple, cerrada y lista para presentacion comercial.</li>
+            <li><strong>Piloto operable:</strong> portal de socio, cobranza, credencial, eventos, campañas y permisos reales.</li>
+          </ul>
+          <div class="tag-row" style="margin-top: 16px;">
+            <span class="tag">Padron + membresia</span>
+            <span class="tag">Cobranza + facturacion</span>
+            <span class="tag">Credencial + directorio</span>
+            <span class="tag">Eventos + difusion</span>
+            <span class="tag">Comunidad + IA</span>
+          </div>
+        </aside>
+      </div>
+    </header>
+
+    <section id="north-star" class="section">
+      <h2>1. North Star y principios de ejecucion</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Producto que estamos construyendo</h3>
+          <p>No es un CRM inmobiliario disfrazado. Es una plataforma institucional para operar asociaciones, socios, membresias, cobranza, eventos, directorio y credencializacion. El CRM y la IA avanzada entran despues como escalera de valor.</p>
+        </article>
+        <article class="card">
+          <h3>Regla de decision</h3>
+          <p>Si una funcionalidad no acelera la adopcion de presidencia, administracion o socio, no entra en las primeras fases. Todo lo que parezca “muy CRM”, “muy broker” o “muy tecnico” debe esconderse o aplazarse.</p>
+        </article>
+        <article class="card">
+          <h3>Secuencia correcta</h3>
+          <p>Primero experiencia simple y flujos cerrados. Luego portal de socio y pagos reales. Despues comunidad, IA operativa y expansion comercial. El error seria construir inteligencia compleja sobre una base operativa todavia incompleta.</p>
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>Regla madre del plan:</strong> cada fase debe mejorar al menos una de estas cuatro promesas:
+        <em>padron claro, membresia visible, cobranza accionable, evento operable</em>.
+      </div>
+    </section>
+
+    <section id="fases" class="section">
+      <h2>2. Roadmap maestro por fases</h2>
+
+      <div class="phase-grid">
+        <article class="phase">
+          <div class="title-line">
+            <div>
+              <h3>Fase 0. Curaduria y venta-ready</h3>
+              <p class="muted">Semana 1</p>
+            </div>
+            <span class="pill info">P0</span>
+          </div>
+          <div class="meta">
+            <span class="pill risk">Sin esto no se muestra</span>
+            <span class="pill partial">Impacto comercial inmediato</span>
+          </div>
+          <ul>
+            <li>Ocultar modulos no COPIM del sidebar y del flujo institucional.</li>
+            <li>Reescribir copy heredado de broker, Tulum, lujo, lotes y CRM de ventas.</li>
+            <li>Deep links desde <code>/copim/dashboard</code> al modulo y al item concreto.</li>
+            <li>Reorientar o apagar <code>AIChat</code> global en modo COPIM.</li>
+            <li>Marcar explicitamente <code>Community</code> e <code>Intelligence</code> como “proxima capa” o convertirlos en modulo minimo.</li>
+            <li>Definir demo script oficial de 5 a 7 minutos.</li>
+          </ul>
+        </article>
+
+        <article class="phase">
+          <div class="title-line">
+            <div>
+              <h3>Fase 1. Hardening de modulos core</h3>
+              <p class="muted">Semanas 2-3</p>
+            </div>
+            <span class="pill info">P0</span>
+          </div>
+          <div class="meta">
+            <span class="pill ok">Base de operacion</span>
+            <span class="pill partial">UX + flujo</span>
+          </div>
+          <ul>
+            <li>Resumen institucional con links profundos, quick actions y briefing diario.</li>
+            <li>Asociaciones con cards hero, salud institucional, quick actions y cockpit operativo mejorado.</li>
+            <li>Socios con vista lista + kanban, pipeline de aprobacion, activacion y credencial.</li>
+            <li>Membresias con cockpit de cobranza, renovaciones, estatus, recordatorios y vinculo a invoices.</li>
+            <li>Eventos con mejor panel de capacidad, asistencia, publicacion y seguimiento.</li>
+          </ul>
+        </article>
+
+        <article class="phase">
+          <div class="title-line">
+            <div>
+              <h3>Fase 2. Member OS</h3>
+              <p class="muted">Semanas 4-5</p>
+            </div>
+            <span class="pill info">P1</span>
+          </div>
+          <div class="meta">
+            <span class="pill partial">Experiencia del socio</span>
+            <span class="pill risk">Hoy es la mayor brecha</span>
+          </div>
+          <ul>
+            <li>Portal del socio autenticado o experiencia simplificada dentro de COPIM.</li>
+            <li>Perfil, membresia, adeudo, facturas, eventos, beneficios y directorio.</li>
+            <li>Credencial digital visible con QR/ID verificable.</li>
+            <li>Registro a eventos desde la vista del socio.</li>
+            <li>Historial de participacion y estatus de renovacion.</li>
+          </ul>
+        </article>
+
+        <article class="phase">
+          <div class="title-line">
+            <div>
+              <h3>Fase 3. Billing y pagos reales</h3>
+              <p class="muted">Semanas 6-7</p>
+            </div>
+            <span class="pill info">P1</span>
+          </div>
+          <div class="meta">
+            <span class="pill partial">Backoffice ya existe</span>
+            <span class="pill ok">Monetizacion real</span>
+          </div>
+          <ul>
+            <li>Integrar checkout real para pago de membresias y facturas.</li>
+            <li>Recurring billing o renovacion asistida.</li>
+            <li>Webhooks de pago, conciliacion y aging de cobranza.</li>
+            <li>Recordatorios multicanal y secuencias automaticas por vencimiento.</li>
+            <li>Vista financiera nacional y por asociacion.</li>
+          </ul>
+        </article>
+
+        <article class="phase">
+          <div class="title-line">
+            <div>
+              <h3>Fase 4. Event OS y difusion</h3>
+              <p class="muted">Semanas 8-9</p>
+            </div>
+            <span class="pill info">P1</span>
+          </div>
+          <div class="meta">
+            <span class="pill partial">Operacion interna hoy</span>
+            <span class="pill ok">Valor visible al socio</span>
+          </div>
+          <ul>
+            <li>Registro por asistente real, QR, folio o ticket simple.</li>
+            <li>Estados de publicacion y agenda institucional mas robustos.</li>
+            <li>Campanas pre-evento, recordatorios, post-evento y reactivacion.</li>
+            <li>Waitlist, niveles de acceso, cupos y asistencia por tipo de evento.</li>
+            <li>Seguimiento de participacion del socio a nivel historial.</li>
+          </ul>
+        </article>
+
+        <article class="phase">
+          <div class="title-line">
+            <div>
+              <h3>Fase 5. Comunidad e inteligencia operativa</h3>
+              <p class="muted">Semanas 10-11</p>
+            </div>
+            <span class="pill partial">P2</span>
+          </div>
+          <div class="meta">
+            <span class="pill partial">Debe entrar como copiloto</span>
+            <span class="pill risk">No debe complicar la adopcion</span>
+          </div>
+          <ul>
+            <li>Comunidad real: feed, comites, recursos, publicaciones y moderacion.</li>
+            <li>Inteligencia real: briefing por rol, riesgos de renovacion, alertas y sugerencias.</li>
+            <li>IA para resumenes ejecutivos, mensajes recomendados y siguiente mejor accion.</li>
+            <li>Conectar comunidad e inteligencia con campañas y eventos.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>Secuencia recomendada de salida:</strong> cerrar primero la demo vendible en Fase 0 y Fase 1.
+        El portal de socio y los pagos reales son la verdadera diferencia entre una demo bonita y un piloto institucional serio.
+      </div>
+    </section>
+
+    <section id="modulos" class="section">
+      <h2>3. Backlog por modulo y por brecha</h2>
+
+      <div class="module-grid">
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Resumen institucional</h3>
+              <p class="muted">Prioridad P0</p>
+            </div>
+            <span class="pill ok">Mejorar ya</span>
+          </div>
+          <ul>
+            <li>Deep links desde cada card al registro especifico y no solo al modulo raiz.</li>
+            <li>Quick actions: aprobar socio, enviar recordatorio, emitir credencial, registrar evento, lanzar campaña.</li>
+            <li>Briefing IA diario por rol y por workspace.</li>
+            <li>Alertas nacionales: asociaciones en riesgo, vencimientos, eventos sin difusion, facturas vencidas.</li>
+            <li>Filtro por asociacion, por rol y por semaforo de salud.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/pages/CopimOverviewPage.js</code>, <code>backend/server.py</code> <code>/copim/dashboard</code>.</p>
+        </article>
+
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Asociaciones</h3>
+              <p class="muted">Prioridad P0</p>
+            </div>
+            <span class="pill ok">Solido pero frio</span>
+          </div>
+          <ul>
+            <li>Cards con imagen hero, salud institucional, progreso y chips de riesgo.</li>
+            <li>Quick actions: ver padrón, lanzar campaña, abrir cobranza, crear evento, enviar aviso.</li>
+            <li>Detalle operativo mas interactivo con timeline, tareas, notas y acuerdos.</li>
+            <li>Dashboard real de asociacion/presidencia con KPIs propios.</li>
+            <li>Vista nacional comparativa entre asociaciones.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/pages/CopimAssociationsPage.js</code>, <code>backend/server.py</code> <code>/copim/associations</code>.</p>
+        </article>
+
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Socios</h3>
+              <p class="muted">Prioridad P0/P1</p>
+            </div>
+            <span class="pill partial">Falta Member OS</span>
+          </div>
+          <ul>
+            <li>Vista lista + kanban con estados: nuevo, por aprobar, aprobado, con deuda, suspendido, inactivo.</li>
+            <li>Portal del socio con perfil, beneficios, credencial, adeudo, historial y eventos.</li>
+            <li>Onboarding del socio mas claro: alta, validacion, activacion, primer pago y primera participacion.</li>
+            <li>Directorio navegable real, no solo bandera <code>directory_visible</code>.</li>
+            <li>Scoring de activacion y salud del socio.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/pages/CopimMembersPage.js</code>, <code>backend/server.py</code> <code>/copim/members</code>.</p>
+        </article>
+
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Membresias</h3>
+              <p class="muted">Prioridad P0/P1</p>
+            </div>
+            <span class="pill partial">Necesita cockpit</span>
+          </div>
+          <ul>
+            <li>Vista operativa unificada de renovaciones, recordatorios, facturacion y cobranza.</li>
+            <li>Semaforos de vencimiento, aging, proximas renovaciones y riesgo de fuga.</li>
+            <li>Playbooks de cobranza y reactivacion por segmento.</li>
+            <li>Acceso directo a invoice, checkout y campanas.</li>
+            <li>Tablero por asociacion y por plan de membresia.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/pages/CopimMembershipsPage.js</code>, <code>backend/server.py</code> <code>/copim/memberships</code>.</p>
+        </article>
+
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Facturacion y pagos</h3>
+              <p class="muted">Prioridad P1</p>
+            </div>
+            <span class="pill risk">Backoffice sin checkout</span>
+          </div>
+          <ul>
+            <li>Integrar pago real a facturas y membresias.</li>
+            <li>Vincular invoice status con evento de pago y no solo con accion manual.</li>
+            <li>Checkout del socio, webhooks, reconciliacion, recibos y confirmaciones.</li>
+            <li>Suscripcion/renovacion asistida para membresia anual o periodica.</li>
+            <li>Vista nacional de cobranza y cash visibility.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/pages/CopimInvoicesPage.js</code>, <code>backend/server.py</code> <code>/copim/invoices</code>, <code>backend/requirements.txt</code>.</p>
+        </article>
+
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Eventos</h3>
+              <p class="muted">Prioridad P1</p>
+            </div>
+            <span class="pill partial">Operacion interna fuerte</span>
+          </div>
+          <ul>
+            <li>Registro por persona, QR, ticket/folio y lista de asistentes real.</li>
+            <li>Landing de evento o registro member-facing.</li>
+            <li>Tipos de acceso: socio, invitado, patrocinador, administracion.</li>
+            <li>Waitlist, confirmaciones y post-event follow-up.</li>
+            <li>Conectar cada evento con campañas de difusion de ROVI.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/pages/CopimEventsPage.js</code>, <code>backend/server.py</code> <code>/copim/events</code>, <code>/campaigns</code>.</p>
+        </article>
+
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Comunidad</h3>
+              <p class="muted">Prioridad P2</p>
+            </div>
+            <span class="pill risk">Hoy es demo embebida</span>
+          </div>
+          <ul>
+            <li>Convertir <code>/copim/community</code> en modulo real.</li>
+            <li>Feed institucional, anuncios, grupos/comites, recursos y moderacion.</li>
+            <li>Publicaciones nacionales vs publicaciones por asociacion.</li>
+            <li>Conectar comunidad con eventos, directorio y beneficios.</li>
+            <li>Monetizacion futura: patrocinadores, aliados, espacios promocionales.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/App.js</code>, <code>frontend/src/pages/CopimDashboardDemoPage.js</code>, nueva capa backend/colecciones.</p>
+        </article>
+
+        <article class="module">
+          <div class="title-line">
+            <div>
+              <h3>Inteligencia</h3>
+              <p class="muted">Prioridad P2</p>
+            </div>
+            <span class="pill risk">Hoy es demo embebida</span>
+          </div>
+          <ul>
+            <li>Crear modulo real de inteligencia operativa y no solo tarjetas IA por entidad.</li>
+            <li>Briefings por rol: nacional, presidencia, admin y socio.</li>
+            <li>Riesgos de renovacion, score de participacion y acciones sugeridas.</li>
+            <li>Recomendaciones listas para enviar a campañas, email o WhatsApp.</li>
+            <li>Panel de “siguiente mejor accion” por asociacion y por socio.</li>
+          </ul>
+          <h4>Archivos ancla</h4>
+          <p><code>frontend/src/components/copim/CopimAIAnalysisPanel.js</code>, <code>backend/ai_service.py</code>, nuevo <code>CopimIntelligencePage</code>.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="tecnico" class="section">
+      <h2>4. Plan tecnico por capa</h2>
+
+      <div class="ops-grid">
+        <div class="aside">
+          <h3>Frontend</h3>
+          <ul>
+            <li>Separar definitivamente la experiencia institucional del resto del CRM a nivel navegación, copy y shell visible.</li>
+            <li>Crear nuevas páginas reales para <code>Community</code>, <code>Intelligence</code> y <code>Member Portal</code>.</li>
+            <li>Agregar deep-linking con query params o rutas por ID desde el resumen.</li>
+            <li>Unificar patrones UI: cards hero, popups operativos, tabs, quick actions, semaforos y CTA por contexto.</li>
+            <li>Crear estado compartido ligero por dominio COPIM si la complejidad empieza a crecer.</li>
+          </ul>
+        </div>
+
+        <div class="aside">
+          <h3>Backend</h3>
+          <ul>
+            <li>Extraer helpers y routers COPIM fuera de <code>backend/server.py</code> por dominios: associations, members, memberships, invoices, events, community, intelligence.</li>
+            <li>Agregar matrix de permisos por rol y accion.</li>
+            <li>Modelar portal de socio, beneficios, credencial, publicaciones y asistentes de evento.</li>
+            <li>Conectar pagos reales, webhooks y conciliacion.</li>
+            <li>Conectar campañas institucionales a socios/asociaciones, no solo a leads inmobiliarios.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top: 18px;">
+        <article class="card">
+          <h3>Datos y modelos nuevos</h3>
+          <ul>
+            <li><code>copim_member_portal_sessions</code> o extensión de auth para vista de socio.</li>
+            <li><code>copim_credentials</code> con QR/token/validity.</li>
+            <li><code>copim_directory_profiles</code> o extensión de members para ficha pública.</li>
+            <li><code>copim_community_posts</code>, <code>copim_community_groups</code>, <code>copim_resources</code>.</li>
+            <li><code>copim_event_attendees</code> en lugar de solo contadores agregados.</li>
+            <li><code>copim_payment_transactions</code> y/o webhooks.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Integraciones a activar</h3>
+          <ul>
+            <li><strong>Stripe:</strong> checkout, payment links, subscriptions, webhooks.</li>
+            <li><strong>Twilio/WhatsApp:</strong> recordatorios de cobro, eventos y reactivacion.</li>
+            <li><strong>SendGrid:</strong> facturas, confirmaciones, convocatorias y resúmenes.</li>
+            <li><strong>Google Calendar:</strong> sincronizacion de agenda institucional.</li>
+            <li><strong>Campaigns de ROVI:</strong> usar segmentos COPIM y plantillas institucionales.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Refactors recomendados</h3>
+          <ul>
+            <li>Crear <code>frontend/src/services/copim/</code> para evitar API calls directas dispersas.</li>
+            <li>Crear <code>backend/copim/</code> con routers y service layer por dominio.</li>
+            <li>Extraer prompts IA institucionales separados del prompt de broker/Tulum.</li>
+            <li>Crear fixtures/seed por rol y por asociación para demos consistentes.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="ia" class="section">
+      <h2>5. Como aprovechar la IA sin romper la simplicidad</h2>
+
+      <div class="grid-3">
+        <article class="card">
+          <h3>IA invisible para operacion</h3>
+          <ul>
+            <li>Resumen ejecutivo diario por consejo nacional.</li>
+            <li>Top 10 renovaciones en riesgo.</li>
+            <li>Socios que ya deberian activarse o ser contactados.</li>
+            <li>Eventos con baja ocupacion que requieren difusion.</li>
+            <li>Asociaciones con señales tempranas de desorden operativo.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>IA accionable por modulo</h3>
+          <ul>
+            <li>Asociaciones: score de salud, acuerdos pendientes y siguiente accion.</li>
+            <li>Socios: riesgo de churn, onboarding incomplete, mensaje sugerido.</li>
+            <li>Membresias: scoring de cobranza y playbook de renovacion.</li>
+            <li>Facturas: aging, conciliacion, copy de seguimiento.</li>
+            <li>Eventos: pronostico de ocupacion y campaña recomendada.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>IA que debe esperar</h3>
+          <ul>
+            <li>Chat abierto hiper-general como centro del producto.</li>
+            <li>Automatizaciones complejas generadas por IA desde el dia uno.</li>
+            <li>Scoring opaco sin trazabilidad visible para administracion.</li>
+            <li>Asistentes demasiado “vendedores” o con tono de broker en flujo institucional.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>Principio de IA para COPIM:</strong> primero <em>briefing, score y mensaje sugerido</em>.
+        Despues <em>automatizacion y copiloto</em>. Mucho despues <em>agente complejo</em>.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>6. Backlog P0 / P1 / P2</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Prioridad</th>
+              <th>Item</th>
+              <th>Tipo</th>
+              <th>Impacto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="pill info">P0</span></td>
+              <td>Curar experiencia COPIM y ocultar CRM no institucional</td>
+              <td>UX / Navegacion</td>
+              <td>Sube claridad de venta de inmediato.</td>
+            </tr>
+            <tr>
+              <td><span class="pill info">P0</span></td>
+              <td>Deep linking desde resumen a item operativo</td>
+              <td>Frontend / Routing</td>
+              <td>Hace que el dashboard deje de sentirse decorativo.</td>
+            </tr>
+            <tr>
+              <td><span class="pill info">P0</span></td>
+              <td>Mejorar asociaciones, socios y membresias como cockpit operativo</td>
+              <td>Frontend + Backend</td>
+              <td>Fortalece el corazon institucional.</td>
+            </tr>
+            <tr>
+              <td><span class="pill info">P0</span></td>
+              <td>Permisos reales por rol COPIM</td>
+              <td>Auth / Backend</td>
+              <td>Evita sobreexposicion y desorden operativo.</td>
+            </tr>
+            <tr>
+              <td><span class="pill partial">P1</span></td>
+              <td>Portal del socio con perfil, deuda, credencial y eventos</td>
+              <td>Nuevo modulo</td>
+              <td>Cierra la mayor brecha frente a una plataforma institucional completa.</td>
+            </tr>
+            <tr>
+              <td><span class="pill partial">P1</span></td>
+              <td>Checkout real, renovaciones y conciliacion</td>
+              <td>Payments / Integracion</td>
+              <td>Convierte facturacion en valor real y no solo administrativo.</td>
+            </tr>
+            <tr>
+              <td><span class="pill partial">P1</span></td>
+              <td>Event OS con asistentes reales y campañas de difusion</td>
+              <td>Eventos / Campañas</td>
+              <td>Hace visible el valor recurrente para socio y asociación.</td>
+            </tr>
+            <tr>
+              <td><span class="pill partial">P1</span></td>
+              <td>Dashboard por asociacion / presidencia</td>
+              <td>Frontend / Data</td>
+              <td>Baja la estrategia nacional a la operación local.</td>
+            </tr>
+            <tr>
+              <td><span class="pill risk">P2</span></td>
+              <td>Comunidad real y moderable</td>
+              <td>Nuevo modulo</td>
+              <td>Abre engagement y monetizacion futura.</td>
+            </tr>
+            <tr>
+              <td><span class="pill risk">P2</span></td>
+              <td>Inteligencia operativa como modulo real</td>
+              <td>Nuevo modulo IA</td>
+              <td>Vuelve la IA visible de forma util y no decorativa.</td>
+            </tr>
+            <tr>
+              <td><span class="pill risk">P2</span></td>
+              <td>Refactor por dominios en frontend y backend</td>
+              <td>Arquitectura</td>
+              <td>Prepara el sistema para crecer y sostener piloto.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="done" class="section">
+      <h2>7. Definition of Done por nivel</h2>
+
+      <div class="finish-grid">
+        <article class="card">
+          <h3>Done de demo vendible</h3>
+          <ul>
+            <li>El cliente solo ve flujo COPIM.</li>
+            <li>No aparece lenguaje de broker/Tulum.</li>
+            <li>Resumen navega a items concretos.</li>
+            <li>Flujo institucional cerrado de punta a punta.</li>
+            <li>Credencial y directorio son visibles y comprensibles.</li>
+            <li>Community/Intelligence ya tienen relato claro o quedan fuera del recorrido.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>Done de piloto operable</h3>
+          <ul>
+            <li>Portal de socio funcional.</li>
+            <li>Pago real o proceso real de cobranza conectado.</li>
+            <li>Eventos con registro real y seguimiento.</li>
+            <li>Permisos por rol funcionando.</li>
+            <li>Campañas para cobro, renovacion y eventos.</li>
+            <li>Metricas básicas de adopcion y salud operativa.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>Done de plataforma institucional madura</h3>
+          <ul>
+            <li>Comunidad productizada.</li>
+            <li>Inteligencia operativa real por rol.</li>
+            <li>Escalera de upsells CRM/IA bien conectada.</li>
+            <li>Arquitectura modular y segura.</li>
+            <li>Monitoreo, QA y soporte listos para escalar asociaciones.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>Conclusión ejecutiva:</strong> no hace falta rehacer ROVI.
+        Hace falta <em>curar, endurecer y completar</em> la capa institucional COPIM hasta que deje de verse como un CRM adaptado
+        y se sienta como una plataforma nativa para asociaciones inmobiliarias.
+      </div>
+
+      <p class="footer-note">
+        Documento generado el 2026-05-04 con base en el estado actual del repositorio, el diagnostico tecnico ya levantado
+        y los gaps detectados en modulos, experiencia de socio, pagos, comunidad, inteligencia y permisos.
+      </p>
+    </section>
+  </div>
+</body>
+</html>

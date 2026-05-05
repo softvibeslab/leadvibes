@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plan IA COPIM x ROVI</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --ink: #122033;
+      --muted: #5e6b7d;
+      --line: #dbe3ef;
+      --brand: #0f6fff;
+      --brand-2: #0fbf9f;
+      --warn: #c78211;
+      --danger: #c24141;
+      --ok: #14855b;
+      --shadow: 0 18px 50px rgba(15, 34, 51, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(15, 111, 255, 0.12), transparent 30%),
+        radial-gradient(circle at top left, rgba(15, 191, 159, 0.10), transparent 28%),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 40px 0 80px;
+    }
+
+    .hero,
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 111, 255, 0.10);
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 10px;
+      line-height: 1.15;
+    }
+
+    h1 { font-size: clamp(32px, 5vw, 48px); margin-top: 18px; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 18px; }
+
+    p { margin: 0 0 12px; color: var(--muted); }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      padding: 24px;
+    }
+
+    .kpi {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff, #f8fbff);
+    }
+
+    .kpi strong {
+      display: block;
+      font-size: 30px;
+      margin-top: 8px;
+      color: var(--ink);
+    }
+
+    .section {
+      margin-top: 24px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f9fbff;
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .band {
+      padding: 18px 20px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(15, 111, 255, 0.10), rgba(15, 191, 159, 0.10));
+      border: 1px solid rgba(15, 111, 255, 0.16);
+    }
+
+    .mini {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    ul, ol {
+      margin: 10px 0 0 18px;
+      padding: 0;
+      color: var(--muted);
+    }
+
+    li { margin: 8px 0; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--ink);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .good { color: var(--ok); font-weight: 600; }
+    .warn { color: var(--warn); font-weight: 600; }
+    .bad { color: var(--danger); font-weight: 600; }
+
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      background: #f4f7fb;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      white-space: pre-wrap;
+      color: #233347;
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      padding: 18px 20px;
+      border-radius: 20px;
+      background: #0f2233;
+      color: #d7e2f1;
+    }
+
+    .footer-note p { color: #d7e2f1; }
+
+    @media (max-width: 980px) {
+      .grid.cols-2,
+      .grid.cols-3,
+      .grid.cols-4 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Plan de Implementacion</span>
+      <h1>Analisis IA en Cards COPIM dentro de ROVI</h1>
+      <p>Objetivo: llevar a <strong>Asociaciones</strong>, <strong>Socios</strong>, <strong>Membresias</strong> y <strong>Eventos</strong> el mismo patron de valor que ya existe en <strong>Leads</strong>: detalle profundo, analisis con IA, lectura accionable y siguientes pasos claros.</p>
+      <div class="tag-row">
+        <span class="tag">Detalle por registro</span>
+        <span class="tag">Boton Analizar con IA</span>
+        <span class="tag">Respuesta persistida</span>
+        <span class="tag">Bloques accionables</span>
+        <span class="tag">Scripts o mensajes sugeridos</span>
+      </div>
+    </section>
+
+    <section class="grid cols-4">
+      <article class="kpi">
+        <span class="mini">Patron actual valido</span>
+        <strong>Leads</strong>
+        <p>Ya existe modal de detalle, tab de IA, endpoint de analisis y generacion de scripts.</p>
+      </article>
+      <article class="kpi">
+        <span class="mini">Modulo 1</span>
+        <strong>Asociaciones</strong>
+        <p>Salud institucional, expansion, cobranza y activacion por capitulo.</p>
+      </article>
+      <article class="kpi">
+        <span class="mini">Modulo 2</span>
+        <strong>Socios</strong>
+        <p>Activacion, completitud, riesgo de fuga, valor de directorio y credencial.</p>
+      </article>
+      <article class="kpi">
+        <span class="mini">Modulo 3 y 4</span>
+        <strong>Membresias + Eventos</strong>
+        <p>Renovacion, cobranza, asistencia, ocupacion y follow-up.</p>
+      </article>
+    </section>
+
+    <section class="section grid cols-2">
+      <article class="card">
+        <h2>1. Patron de referencia actual en Leads</h2>
+        <p>Hoy el modulo de Leads ya resuelve la experiencia correcta y debe usarse como blueprint directo para COPIM.</p>
+        <ul>
+          <li>El detalle vive dentro de un modal con tabs: informacion, actividades, analisis IA y script.</li>
+          <li>El analisis se ejecuta a demanda con un boton explicito: <span class="code">POST /api/leads/{lead_id}/analyze</span>.</li>
+          <li>El resultado se guarda en el lead como <span class="code">ai_analysis</span> y actualiza el score visible.</li>
+          <li>La salida no solo describe: tambien recomienda siguiente accion y puede generar script.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>2. Regla de diseno para COPIM</h2>
+        <p>El analisis IA no debe sentirse como dashboard aparte ni como juguete demo. Debe vivir en el flujo operativo donde ya se revisa cada registro.</p>
+        <ul>
+          <li>Cada card mantiene su boton <strong>Ver detalle</strong>.</li>
+          <li>Dentro del detalle se agrega tab o bloque <strong>Analisis IA</strong>.</li>
+          <li>El boton <strong>Analizar con IA</strong> corre el endpoint de esa entidad.</li>
+          <li>El resultado se persiste en Mongo para no recalcular cada vez.</li>
+          <li>Se muestra fecha de ultimo analisis y nivel de frescura.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section card">
+      <h2>Arquitectura propuesta</h2>
+      <div class="grid cols-3">
+        <div>
+          <h3>Frontend</h3>
+          <ul>
+            <li>Reusar los detail sheets ya creados en COPIM.</li>
+            <li>Agregar tab <strong>Analisis IA</strong> por entidad.</li>
+            <li>Mostrar score principal, resumen ejecutivo, riesgos, oportunidades y siguientes acciones.</li>
+            <li>Agregar boton secundario para generar mensaje o script de seguimiento cuando aplique.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Backend</h3>
+          <ul>
+            <li>Agregar endpoints <span class="code">/analyze</span> por entidad.</li>
+            <li>Agregar campo persistido <span class="code">ai_analysis</span>.</li>
+            <li>Agregar <span class="code">ai_last_analyzed_at</span> y score resumen.</li>
+            <li>Agregar funciones nuevas en <span class="code">backend/ai_service.py</span>.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Datos</h3>
+          <ul>
+            <li>Usar el documento actual de la entidad mas sus datos relacionados.</li>
+            <li>Construir contexto enriquecido antes de mandar el prompt.</li>
+            <li>Evitar prompts genicos: cada entidad necesita schema y semantica propia.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Esquema funcional por modulo</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Modulo</th>
+            <th>Pregunta de negocio que responde la IA</th>
+            <th>Score principal</th>
+            <th>Salida accionable esperada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Asociaciones</td>
+            <td>Que tan sana, activada y escalable esta la asociacion</td>
+            <td>association_health_score</td>
+            <td>Riesgos, bloqueos, expansion sugerida, acciones para presidencia y operacion</td>
+          </tr>
+          <tr>
+            <td>Socios</td>
+            <td>Que tan activado esta el socio y cuanto valor real esta recibiendo</td>
+            <td>member_activation_score</td>
+            <td>Completar perfil, emitir credencial, activar beneficios, renovar, invitar a evento</td>
+          </tr>
+          <tr>
+            <td>Membresias</td>
+            <td>Que tan probable es renovar o caer en mora</td>
+            <td>renewal_risk_score</td>
+            <td>Prioridad de cobranza, guion de cobro, riesgo de cancelacion, beneficios no usados</td>
+          </tr>
+          <tr>
+            <td>Eventos</td>
+            <td>Que tan bien va el evento y que hacer antes o despues para generar valor</td>
+            <td>event_momentum_score</td>
+            <td>Riesgo de baja asistencia, push de registro, acciones post evento, follow-up</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section grid cols-2">
+      <article class="card">
+        <h2>Analisis IA para Asociaciones</h2>
+        <p><strong>Entrada minima al prompt:</strong> estado, ciudad, estatus, meta de socios, activos, pendientes, renovaciones, credenciales emitidas, miembros visibles, cobranza visible, eventos proximos, responsables y notas.</p>
+        <h3>JSON recomendado</h3>
+        <div class="code">{
+  "association_health_score": 0,
+  "risk_level": "bajo|medio|alto",
+  "expansion_signal": "fuerte|moderado|debil",
+  "executive_summary": "...",
+  "key_strengths": ["..."],
+  "critical_risks": ["..."],
+  "operational_blockers": ["..."],
+  "recommended_actions": ["..."],
+  "presidency_message": "...",
+  "operations_message": "..."
+}</div>
+        <h3>UI recomendada</h3>
+        <ul>
+          <li>Score general arriba con badge de riesgo.</li>
+          <li>Resumen ejecutivo de 3 a 4 lineas.</li>
+          <li>Fortalezas y riesgos en dos columnas.</li>
+          <li>Acciones sugeridas para presidencia y para operacion.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Analisis IA para Socios</h2>
+        <p><strong>Entrada minima al prompt:</strong> estatus, tier, perfil, empresa, asociacion, visibilidad en directorio, credencial, saldo, membresias asociadas, fecha de alta, notas y completitud de perfil.</p>
+        <h3>JSON recomendado</h3>
+        <div class="code">{
+  "member_activation_score": 0,
+  "retention_risk": "bajo|medio|alto",
+  "profile_gap_summary": "...",
+  "value_realized": "alto|medio|bajo",
+  "key_gaps": ["..."],
+  "recommended_actions": ["..."],
+  "credential_recommendation": "...",
+  "outreach_message": "..."
+}</div>
+        <h3>UI recomendada</h3>
+        <ul>
+          <li>Score de activacion y riesgo de retencion.</li>
+          <li>Lo que le falta para que el perfil quede util.</li>
+          <li>Si conviene credencial, directorio o renovacion primero.</li>
+          <li>Boton para generar mensaje de seguimiento listo para copiar.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section grid cols-2">
+      <article class="card">
+        <h2>Analisis IA para Membresias</h2>
+        <p><strong>Entrada minima al prompt:</strong> plan, precio, periodo, renovacion, estatus de pago, saldo, metodo de pago, factura, auto-renovacion, recordatorios, beneficios y notas.</p>
+        <h3>JSON recomendado</h3>
+        <div class="code">{
+  "renewal_risk_score": 0,
+  "collection_priority": "baja|media|alta|critica",
+  "payment_context_summary": "...",
+  "renewal_probability": 0,
+  "key_blockers": ["..."],
+  "recommended_actions": ["..."],
+  "collection_message": "...",
+  "upsell_signal": "si|no"
+}</div>
+        <h3>UI recomendada</h3>
+        <ul>
+          <li>Semaforo de cobranza.</li>
+          <li>Probabilidad de renovacion y motivo.</li>
+          <li>Guion de cobro o seguimiento.</li>
+          <li>Indicador de si conviene upsell o si primero hay que regularizar.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Analisis IA para Eventos</h2>
+        <p><strong>Entrada minima al prompt:</strong> tipo, formato, estatus, speaker, fechas, capacidad, registros, check-ins, ocupacion, asistencia, visibilidad, sede y descripcion.</p>
+        <h3>JSON recomendado</h3>
+        <div class="code">{
+  "event_momentum_score": 0,
+  "attendance_risk": "bajo|medio|alto",
+  "registration_health": "fuerte|moderada|debil",
+  "event_summary": "...",
+  "critical_signals": ["..."],
+  "recommended_actions_pre_event": ["..."],
+  "recommended_actions_post_event": ["..."],
+  "followup_message": "..."
+}</div>
+        <h3>UI recomendada</h3>
+        <ul>
+          <li>Lectura de momentum antes del evento.</li>
+          <li>Riesgo de baja asistencia.</li>
+          <li>Siguiente empuje sugerido: invitaciones, recordatorio, post evento.</li>
+          <li>Mensaje sugerido para convocatoria o follow-up.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section card">
+      <h2>Modelo tecnico recomendado</h2>
+      <p>En vez de guardar la IA en otro collection separado, para esta fase conviene persistirla en el mismo documento de cada entidad, como ya se hace con <span class="code">ai_analysis</span> en Leads.</p>
+      <div class="code">{
+  "ai_analysis": {
+    "entity_type": "association|member|membership|event",
+    "version": "v1",
+    "score": 78,
+    "risk_level": "medio",
+    "executive_summary": "...",
+    "key_points": ["..."],
+    "recommended_actions": ["..."],
+    "suggested_message": "...",
+    "raw": {...}
+  },
+  "ai_last_analyzed_at": "2026-05-04T00:00:00Z"
+}</div>
+      <p class="mini">Si despues quieres historico, entonces si conviene agregar una coleccion tipo <span class="code">copim_ai_analysis_runs</span>.</p>
+    </section>
+
+    <section class="section card">
+      <h2>Endpoints propuestos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Metodo</th>
+            <th>Ruta</th>
+            <th>Uso</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>POST</td>
+            <td><span class="code">/api/copim/associations/{association_id}/analyze</span></td>
+            <td>Corre IA y persiste analisis de asociacion</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td><span class="code">/api/copim/members/{member_id}/analyze</span></td>
+            <td>Corre IA y persiste analisis del socio</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td><span class="code">/api/copim/memberships/{membership_id}/analyze</span></td>
+            <td>Corre IA y persiste analisis de renovacion/cobranza</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td><span class="code">/api/copim/events/{event_id}/analyze</span></td>
+            <td>Corre IA y persiste analisis de evento</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td><span class="code">/api/copim/members/{member_id}/generate-script</span></td>
+            <td>Genera mensaje o guion para activacion o seguimiento</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td><span class="code">/api/copim/memberships/{membership_id}/generate-script</span></td>
+            <td>Genera texto de cobranza o renovacion</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td><span class="code">/api/copim/events/{event_id}/generate-script</span></td>
+            <td>Genera texto de convocatoria o post evento</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>Mapa de archivos a tocar</h2>
+      <div class="grid cols-2">
+        <div>
+          <h3>Backend</h3>
+          <ul>
+            <li><span class="code">backend/ai_service.py</span>: nuevas funciones de analisis COPIM y generacion de mensajes.</li>
+            <li><span class="code">backend/server.py</span>: endpoints <span class="code">/analyze</span> y <span class="code">/generate-script</span>.</li>
+            <li><span class="code">backend/models.py</span>: si decides tipar requests o respuestas especiales.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Frontend</h3>
+          <ul>
+            <li><span class="code">frontend/src/pages/CopimAssociationsPage.js</span></li>
+            <li><span class="code">frontend/src/pages/CopimMembersPage.js</span></li>
+            <li><span class="code">frontend/src/pages/CopimMembershipsPage.js</span></li>
+            <li><span class="code">frontend/src/pages/CopimEventsPage.js</span></li>
+            <li>Opcional: extraer bloque reusable <span class="code">CopimAIAnalysisPanel.js</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Fases de implementacion</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Fase</th>
+            <th>Alcance</th>
+            <th>Resultado</th>
+            <th>Esfuerzo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fase 1</td>
+            <td>Infraestructura comun de IA COPIM</td>
+            <td>Patron base, persistencia, timestamps y bloque reusable</td>
+            <td>0.5 a 1 dia</td>
+          </tr>
+          <tr>
+            <td>Fase 2</td>
+            <td>Asociaciones y Socios</td>
+            <td>Analisis institucional y de activacion individual</td>
+            <td>1 a 1.5 dias</td>
+          </tr>
+          <tr>
+            <td>Fase 3</td>
+            <td>Membresias y Eventos</td>
+            <td>Analisis de cobranza, renovacion, ocupacion y asistencia</td>
+            <td>1 a 1.5 dias</td>
+          </tr>
+          <tr>
+            <td>Fase 4</td>
+            <td>Polish en cards y acciones</td>
+            <td>Badges IA, freshness state, mensajes sugeridos y ajustes UX</td>
+            <td>0.5 a 1 dia</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="band" style="margin-top:16px;">
+        <strong>Estimacion total realista:</strong>
+        <p>Entre 3 y 5 dias habiles para dejarlo funcional, consistente con Leads y presentable dentro del CRM.</p>
+      </div>
+    </section>
+
+    <section class="section grid cols-2">
+      <article class="card">
+        <h2>Criterios de aceptacion</h2>
+        <ul>
+          <li>Cada modulo COPIM tiene detalle con tab o bloque de IA.</li>
+          <li>El analisis corre desde el frontend y queda persistido.</li>
+          <li>El usuario puede volver a abrir el detalle y ver el ultimo analisis sin recalcular.</li>
+          <li>La IA siempre devuelve estructura consistente por entidad.</li>
+          <li>Si la IA falla, existe fallback legible y no se rompe la pantalla.</li>
+          <li>El analisis produce al menos una siguiente accion concreta.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Riesgos y decisiones</h2>
+        <ul>
+          <li><span class="warn">Riesgo:</span> prompts demasiado genericos dan analisis blandos. Solucion: schema y contexto por entidad.</li>
+          <li><span class="warn">Riesgo:</span> recalculo en cada apertura sube costo. Solucion: persistir resultado y refrescar bajo demanda.</li>
+          <li><span class="warn">Riesgo:</span> si solo se muestra texto largo, pierde valor. Solucion: scores, bullets y acciones.</li>
+          <li><span class="good">Decision recomendada:</span> arrancar con analisis bajo demanda, no automatico.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section footer-note">
+      <p><strong>Recomendacion final:</strong> no empieces por badges en las cards. Primero implementa el patron completo dentro del detalle, igual que en Leads. Cuando el analisis ya sea util y consistente, entonces si subimos una version resumida a la card: score, riesgo y fecha de ultimo analisis.</p>
+    </section>
+  </main>
+</body>
+</html>

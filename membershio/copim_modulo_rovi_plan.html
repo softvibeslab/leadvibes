@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan · COPIM como Módulo de ROVI</title>
+  <style>
+    :root {
+      --bg: #f6f1e7;
+      --panel: rgba(255, 255, 255, 0.92);
+      --card: rgba(255, 255, 255, 0.84);
+      --line: rgba(44, 34, 24, 0.12);
+      --text: #1e1915;
+      --muted: #6e655d;
+      --teal: #0f766e;
+      --teal-soft: rgba(15, 118, 110, 0.12);
+      --gold: #b45309;
+      --gold-soft: rgba(180, 83, 9, 0.12);
+      --blue: #1d4ed8;
+      --blue-soft: rgba(29, 78, 216, 0.1);
+      --red: #b42318;
+      --red-soft: rgba(180, 35, 24, 0.1);
+      --green: #15803d;
+      --green-soft: rgba(21, 128, 61, 0.1);
+      --shadow: 0 28px 72px rgba(55, 38, 24, 0.12);
+      --radius-xl: 30px;
+      --radius-lg: 22px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+      --font-sans: "Avenir Next", "Segoe UI", sans-serif;
+      --font-serif: "Iowan Old Style", "Palatino Linotype", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 24rem),
+        radial-gradient(circle at top right, rgba(180, 83, 9, 0.12), transparent 24rem),
+        linear-gradient(180deg, #f8f3ea 0%, #efe4d5 100%);
+      color: var(--text);
+      font-family: var(--font-sans);
+    }
+
+    a {
+      color: var(--teal);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .page {
+      width: min(1480px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 20px 0 42px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 34px;
+      border-radius: 38px;
+      background: linear-gradient(145deg, rgba(255, 251, 246, 0.97), rgba(246, 237, 225, 0.96));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .hero::before {
+      top: -90px;
+      right: -60px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.16), transparent 68%);
+    }
+
+    .hero::after {
+      bottom: -120px;
+      left: -70px;
+      width: 290px;
+      height: 290px;
+      background: radial-gradient(circle, rgba(180, 83, 9, 0.14), transparent 70%);
+    }
+
+    .eyebrow,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 25, 21, 0.08);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .eyebrow {
+      color: var(--teal);
+      background: var(--teal-soft);
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(36px, 4.8vw, 62px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+    }
+
+    .subtitle {
+      max-width: 980px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.72;
+    }
+
+    .meta {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .stat {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(30, 25, 21, 0.08);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 18px;
+      margin-top: 22px;
+      align-items: start;
+    }
+
+    .toc,
+    .panel {
+      border-radius: var(--radius-xl);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+      padding: 22px;
+    }
+
+    .toc h2,
+    .panel h2 {
+      margin: 0 0 8px;
+      letter-spacing: -0.04em;
+    }
+
+    .toc h2 { font-size: 18px; }
+
+    .toc p,
+    .lead,
+    .panel p,
+    .panel li {
+      color: var(--muted);
+      line-height: 1.62;
+      font-size: 14px;
+    }
+
+    .toc ol {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .toc a {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 24px;
+    }
+
+    .panel h2 {
+      font-size: 28px;
+    }
+
+    .lead {
+      margin: 0 0 18px;
+      font-size: 15px;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card,
+    .callout,
+    .summary,
+    .quote,
+    details {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(30, 25, 21, 0.08);
+    }
+
+    .card {
+      padding: 18px;
+      background: var(--card);
+    }
+
+    .card h3,
+    .callout h3,
+    .summary h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .card ul,
+    .callout ul,
+    .summary ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .callout {
+      padding: 18px 20px;
+      background: linear-gradient(140deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.9));
+    }
+
+    .quote {
+      padding: 18px 20px;
+      background: rgba(255, 255, 255, 0.85);
+      border-left: 5px solid var(--teal);
+    }
+
+    .quote p {
+      margin: 0;
+      font-family: var(--font-serif);
+      color: #302720;
+      font-size: 18px;
+      line-height: 1.65;
+    }
+
+    .quote footer {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .summary {
+      padding: 20px;
+      background: linear-gradient(140deg, rgba(17, 74, 71, 0.96), rgba(15, 118, 110, 0.92));
+      color: white;
+    }
+
+    .summary p,
+    .summary li {
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tag { background: rgba(255, 255, 255, 0.72); color: var(--text); }
+    .tag.ok { background: var(--green-soft); color: var(--green); }
+    .tag.warn { background: var(--gold-soft); color: var(--gold); }
+    .tag.info { background: var(--blue-soft); color: var(--blue); }
+    .tag.risk { background: var(--red-soft); color: var(--red); }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-lg);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(30, 25, 21, 0.08);
+    }
+
+    th,
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(30, 25, 21, 0.08);
+      vertical-align: top;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.58;
+    }
+
+    th {
+      background: rgba(15, 118, 110, 0.08);
+      color: #114a47;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    details {
+      padding: 0 18px;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    details + details { margin-top: 12px; }
+
+    summary {
+      padding: 18px 0;
+      cursor: pointer;
+      list-style: none;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    .detail-body {
+      padding: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.62;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1180px) {
+      .layout,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .toc { position: static; }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 16px, 100%);
+        padding-top: 12px;
+      }
+
+      .hero,
+      .toc,
+      .panel {
+        border-radius: 22px;
+      }
+
+      .hero { padding: 22px; }
+      .toc,
+      .panel { padding: 18px; }
+      h1 { font-size: 34px; }
+      th, td { min-width: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <span class="eyebrow">Plan de producto · COPIM como módulo real</span>
+      <h1>Cómo dejar de mostrar COPIM como demo y convertirlo en un módulo nuevo de ROVI</h1>
+      <p class="subtitle">
+        Sí hay forma, y además es el camino correcto. La recomendación no es eliminar el trabajo hecho, sino
+        <strong>productizarlo</strong>: mover COPIM de una experiencia de demo autónoma a un módulo institucional de ROVI
+        con navegación, permisos, estados y servicios propios, pero reutilizando la base multi-workspace y el shell actual.
+      </p>
+      <p class="meta">
+        Referencias base:
+        <a href="../frontend/src/pages/CopimDashboardDemoPage.js">frontend/src/pages/CopimDashboardDemoPage.js</a>,
+        <a href="../frontend/src/components/Sidebar.js">frontend/src/components/Sidebar.js</a>,
+        <a href="../frontend/src/App.js">frontend/src/App.js</a>,
+        <a href="../frontend/src/context/AuthContext.js">frontend/src/context/AuthContext.js</a>,
+        <a href="../backend/models.py">backend/models.py</a>,
+        <a href="../backend/server.py">backend/server.py</a>.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <strong>1</strong>
+          <span>objetivo central: pasar de “demo” a “módulo productizable”</span>
+        </div>
+        <div class="stat">
+          <strong>3</strong>
+          <span>capas a resolver: UX, servicios frontend y permisos/backend</span>
+        </div>
+        <div class="stat">
+          <strong>4</strong>
+          <span>fases recomendadas para hacerlo sin romper ROVI</span>
+        </div>
+        <div class="stat">
+          <strong>2-3</strong>
+          <span>semanas para dejarlo ya como módulo interno convincente</span>
+        </div>
+        <div class="stat">
+          <strong>1</strong>
+          <span>principio rector: COPIM no debe verse como landing, sino como workspace institucional</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="toc">
+        <h2>Índice</h2>
+        <p>Plan para convertir COPIM en una pieza nativa del producto y no en una experiencia aislada.</p>
+        <ol>
+          <li><a href="#decision">1. Decisión recomendada</a></li>
+          <li><a href="#target">2. Qué significa “módulo COPIM”</a></li>
+          <li><a href="#ux">3. Cambios de UX y narrativa</a></li>
+          <li><a href="#arquitectura">4. Arquitectura propuesta</a></li>
+          <li><a href="#backend">5. Qué necesita backend</a></li>
+          <li><a href="#fases">6. Fases de implementación</a></li>
+          <li><a href="#backlog">7. Backlog por archivo / frente</a></li>
+          <li><a href="#criterios">8. Criterios de éxito</a></li>
+          <li><a href="#riesgos">9. Riesgos y mitigación</a></li>
+        </ol>
+      </aside>
+
+      <main class="content">
+        <section class="panel" id="decision">
+          <h2>1. Decisión recomendada</h2>
+          <p class="lead">
+            La mejor decisión no es “borrar el demo”, sino <strong>convertir el demo en la primera versión del módulo</strong>.
+            En otras palabras: mantener el trabajo visual y de flujo, pero quitarle el framing comercial de demo y reubicarlo dentro
+            del producto como un módulo institucional de ROVI.
+          </p>
+          <div class="grid-2">
+            <article class="callout">
+              <h3>Lo que sí conviene hacer</h3>
+              <ul>
+                <li>Volver COPIM un módulo visible dentro del shell autenticado de ROVI.</li>
+                <li>Quitar lenguaje como “Demo interactivo”, “Listo para Mario” y “flujo de demo”.</li>
+                <li>Convertir la página actual en una experiencia de trabajo institucional.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Lo que no conviene hacer</h3>
+              <ul>
+                <li>No crear una app paralela.</li>
+                <li>No dejarlo para siempre como un micrositio público suelto.</li>
+                <li>No forzar desde ya todo el backend final antes de validar el módulo.</li>
+              </ul>
+            </article>
+          </div>
+          <div class="summary" style="margin-top:16px;">
+            <h3>Tesis del plan</h3>
+            <p>
+              COPIM debe pasar de ser una pantalla “para vender una idea” a una superficie “que ya parece producto”.
+              Eso se logra integrándolo al shell principal, a la navegación principal y a una capa de datos/servicios propia.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel" id="target">
+          <h2>2. Qué significa “módulo COPIM”</h2>
+          <p class="lead">
+            Un módulo COPIM real dentro de ROVI no es solo una ruta. Es una combinación de navegación, permisos, estructura de datos,
+            componentes y servicios dedicada a operación institucional.
+          </p>
+          <div class="grid-4">
+            <article class="card">
+              <h3>Navegación</h3>
+              <p>Entrada fija en sidebar o workspace switcher con subrutas institucionales.</p>
+            </article>
+            <article class="card">
+              <h3>Shell</h3>
+              <p>Renderiza dentro del layout autenticado de ROVI, no como landing aislada.</p>
+            </article>
+            <article class="card">
+              <h3>Servicios</h3>
+              <p>Usa una capa de datos propia para asociaciones, socios, membresías y eventos.</p>
+            </article>
+            <article class="card">
+              <h3>Permisos</h3>
+              <p>Visible según modo, workspace o feature flag, no solo por una URL pública.</p>
+            </article>
+          </div>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Hoy</th>
+                  <th>Meta</th>
+                  <th>Implicación</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Página tipo demo/autónoma</td>
+                  <td>Módulo institucional de ROVI</td>
+                  <td>Cambio de framing y de punto de entrada</td>
+                </tr>
+                <tr>
+                  <td>Data sembrada dentro de una sola página</td>
+                  <td>Servicios y estado por dominio</td>
+                  <td>Separar config, data y acciones</td>
+                </tr>
+                <tr>
+                  <td>Rutas especiales para presentación</td>
+                  <td>Rutas de producto</td>
+                  <td>El usuario debe “trabajar” ahí, no “ver un demo”</td>
+                </tr>
+                <tr>
+                  <td>Lenguaje comercial</td>
+                  <td>Lenguaje operativo</td>
+                  <td>Más institución, menos pitch</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" id="ux">
+          <h2>3. Cambios de UX y narrativa</h2>
+          <p class="lead">
+            El primer salto de “demo” a “módulo” es visual y semántico. Antes de tocar backend pesado, hay que hacer que COPIM
+            se sienta como una parte de ROVI y no como una pieza especial montada para vender.
+          </p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Quitar</h3>
+              <ul>
+                <li>`Demo interactivo`</li>
+                <li>`Listo para Mario`</li>
+                <li>`Ver flujo de demo`</li>
+                <li>Hero con tono de pitch comercial</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Poner</h3>
+              <ul>
+                <li>Header institucional más sobrio</li>
+                <li>Contexto de workspace: COPIM / Asociación / Socio</li>
+                <li>Breadcrumb o nombre del módulo</li>
+                <li>KPIs, cola operativa, actividad y acciones reales</li>
+              </ul>
+            </article>
+          </div>
+          <div class="quote" style="margin-top:16px;">
+            <p>
+              La señal más fuerte de que COPIM ya es módulo no es una tabla nueva. Es que deja de hablar como demo y empieza a hablar como producto.
+            </p>
+            <footer>Criterio de productización</footer>
+          </div>
+          <details style="margin-top:16px;">
+            <summary>Propuesta de navegación final</summary>
+            <div class="detail-body">
+              <p><strong>Item raíz:</strong> `COPIM` o `Institucional`</p>
+              <p><strong>Submódulos:</strong></p>
+              <ul>
+                <li>Resumen</li>
+                <li>Asociaciones</li>
+                <li>Socios</li>
+                <li>Membresías</li>
+                <li>Eventos</li>
+                <li>Comunidad</li>
+                <li>Inteligencia</li>
+              </ul>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" id="arquitectura">
+          <h2>4. Arquitectura propuesta</h2>
+          <p class="lead">
+            La forma correcta de incorporarlo es convertir COPIM en un módulo dentro del app shell, con sus propios componentes,
+            config y servicio, sin depender de una sola página gigante.
+          </p>
+          <div class="grid-3">
+            <article class="card">
+              <h3>Capa 1 · Routing</h3>
+              <ul>
+                <li>Rutas de producto bajo ` /copim/* `</li>
+                <li>Protección condicional por feature flag o modo</li>
+                <li>Fallback a overview institucional</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Capa 2 · Module shell</h3>
+              <ul>
+                <li>`CopimModulePage` o `CopimWorkspacePage`</li>
+                <li>Header institucional</li>
+                <li>Subnav interna</li>
+                <li>Contexto de rol / asociación / workspace</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Capa 3 · Data/service</h3>
+              <ul>
+                <li>`copimService.js` o hooks dedicados</li>
+                <li>Asociaciones, socios, renovaciones, eventos</li>
+                <li>Fuente mock primero, API después</li>
+              </ul>
+            </article>
+          </div>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Archivo / capa</th>
+                  <th>Estado actual</th>
+                  <th>Estado objetivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="../frontend/src/pages/CopimDashboardDemoPage.js">CopimDashboardDemoPage.js</a></td>
+                  <td>Todo vive en una sola página</td>
+                  <td>Se convierte en base o wrapper del módulo</td>
+                </tr>
+                <tr>
+                  <td><a href="../frontend/src/components/Sidebar.js">Sidebar.js</a></td>
+                  <td>Selector de perfil + nav general</td>
+                  <td>Entrada estable a módulo institucional</td>
+                </tr>
+                <tr>
+                  <td><a href="../frontend/src/App.js">App.js</a></td>
+                  <td>Rutas públicas + protegidas mezcladas</td>
+                  <td>Rutas del módulo definidas como rutas de producto</td>
+                </tr>
+                <tr>
+                  <td>Nuevo `services/copimService.js`</td>
+                  <td>No existe</td>
+                  <td>Capa única de acceso a datos COPIM</td>
+                </tr>
+                <tr>
+                  <td>Nuevo `components/copim/*`</td>
+                  <td>No existe</td>
+                  <td>Componentización real del módulo</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" id="backend">
+          <h2>5. Qué necesita backend</h2>
+          <p class="lead">
+            Para que COPIM se quede ya como módulo serio, no todo el backend tiene que estar listo desde el día 1,
+            pero sí conviene preparar el modelo correcto.
+          </p>
+          <div class="grid-2">
+            <article class="callout">
+              <h3>Mínimo backend para productizar</h3>
+              <ul>
+                <li>Feature flag de acceso a módulo COPIM.</li>
+                <li>Contexto de perfil o modo institucional.</li>
+                <li>Endpoints mock o seed para asociaciones, socios y renovaciones.</li>
+              </ul>
+            </article>
+            <article class="callout">
+              <h3>Backend completo posterior</h3>
+              <ul>
+                <li>Nuevos `tenant_type`: `association`, `council`.</li>
+                <li>`persona_type` en memberships.</li>
+                <li>Capabilities por módulo en vez de solo `account_type`.</li>
+              </ul>
+            </article>
+          </div>
+          <details style="margin-top:16px;">
+            <summary>Modelo recomendado de evolución</summary>
+            <div class="detail-body">
+              <p><strong>Fase rápida:</strong> dejarlo como módulo de frontend con fuente mock controlada.</p>
+              <p><strong>Fase productiva:</strong> conectar a workspaces reales y a un backend institucional.</p>
+              <p><strong>Fase escalable:</strong> mover permisos a capabilities y soportar COPIM nacional + asociaciones + socio dentro del mismo stack.</p>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" id="fases">
+          <h2>6. Fases de implementación</h2>
+          <p class="lead">
+            El plan correcto es migrar por capas, no rehacer todo a la vez.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fase</th>
+                  <th>Objetivo</th>
+                  <th>Resultado</th>
+                  <th>Tiempo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Fase 1</strong></td>
+                  <td>Desdemo-izar COPIM</td>
+                  <td>Quitar copy demo, reordenar header, dejarlo con tono de módulo</td>
+                  <td>2-3 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 2</strong></td>
+                  <td>Integrarlo al shell de ROVI</td>
+                  <td>Entrada estable en sidebar y navegación institucional interna</td>
+                  <td>2-4 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 3</strong></td>
+                  <td>Separar componentes y servicios</td>
+                  <td>Módulo mantenible con `copimService` y componentes propios</td>
+                  <td>4-6 días</td>
+                </tr>
+                <tr>
+                  <td><strong>Fase 4</strong></td>
+                  <td>Conectar datos y permisos reales</td>
+                  <td>Módulo listo para piloto interno / cliente</td>
+                  <td>1-2 semanas</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="summary" style="margin-top:16px;">
+            <h3>Orden recomendado</h3>
+            <ul>
+              <li>Primero producto visual.</li>
+              <li>Luego estructura técnica.</li>
+              <li>Después datos reales y permisos.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="panel" id="backlog">
+          <h2>7. Backlog por archivo / frente</h2>
+          <p class="lead">
+            Esto es lo que habría que hacer de forma concreta para convertirlo de verdad en módulo.
+          </p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Frontend product</h3>
+              <ul>
+                <li>Crear `CopimModulePage` como versión productizada del actual demo.</li>
+                <li>Extraer bloques: header, stat cards, roster, memberships, events, intelligence.</li>
+                <li>Reescribir copy y labels institucionales.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Routing & navigation</h3>
+              <ul>
+                <li>Definir `COPIM` como módulo principal dentro del sidebar.</li>
+                <li>Agregar subrutas y navegación persistente.</li>
+                <li>Ocultar o degradar la ruta pública demo a uso comercial secundario.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Service layer</h3>
+              <ul>
+                <li>Crear `copimService.js`.</li>
+                <li>Separar datasets mock de la página.</li>
+                <li>Preparar hooks tipo `useCopimOverview`, `useCopimMembers`, `useCopimEvents`.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Backend / permissions</h3>
+              <ul>
+                <li>Feature flag institucional por usuario o workspace.</li>
+                <li>Preparar endpoint `me` enriquecido con modo o capabilities.</li>
+                <li>Planear evolución a `tenant_type` y `persona_type`.</li>
+              </ul>
+            </article>
+          </div>
+          <details style="margin-top:16px;">
+            <summary>Propuesta de estructura nueva</summary>
+            <div class="detail-body">
+              <ul>
+                <li><code>frontend/src/pages/CopimModulePage.js</code></li>
+                <li><code>frontend/src/components/copim/CopimHeader.js</code></li>
+                <li><code>frontend/src/components/copim/CopimSidebarNav.js</code></li>
+                <li><code>frontend/src/components/copim/CopimOverviewPanel.js</code></li>
+                <li><code>frontend/src/components/copim/CopimMembersPanel.js</code></li>
+                <li><code>frontend/src/components/copim/CopimMembershipsPanel.js</code></li>
+                <li><code>frontend/src/components/copim/CopimEventsPanel.js</code></li>
+                <li><code>frontend/src/components/copim/CopimIntelligencePanel.js</code></li>
+                <li><code>frontend/src/services/copimService.js</code></li>
+                <li><code>frontend/src/data/copimMockData.js</code></li>
+              </ul>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" id="criterios">
+          <h2>8. Criterios de éxito</h2>
+          <p class="lead">
+            El módulo estará bien integrado cuando cumpla estas señales.
+          </p>
+          <div class="grid-3">
+            <article class="card">
+              <h3>Se ve nativo</h3>
+              <p>No parece landing ni demo. Parece una parte legítima del producto.</p>
+            </article>
+            <article class="card">
+              <h3>Se navega como producto</h3>
+              <p>El usuario entra, cambia de sección y entiende el modelo institucional sin explicación extra.</p>
+            </article>
+            <article class="card">
+              <h3>Se puede evolucionar</h3>
+              <p>La base técnica ya permite sustituir mocks por APIs reales sin rehacer todo.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel" id="riesgos">
+          <h2>9. Riesgos y mitigación</h2>
+          <p class="lead">
+            El riesgo no es técnico solamente. También es de posicionamiento de producto.
+          </p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Riesgo 1</h3>
+              <p><strong>Quedarse a medio camino:</strong> que COPIM siga oliendo a demo aunque viva en ROVI.</p>
+              <p><strong>Mitigación:</strong> cambiar copy, header, navegación y framing primero.</p>
+            </article>
+            <article class="card">
+              <h3>Riesgo 2</h3>
+              <p><strong>Acoplarlo a una sola página gigante:</strong> difícil de mantener.</p>
+              <p><strong>Mitigación:</strong> extraer componentes y servicios antes de crecer más.</p>
+            </article>
+            <article class="card">
+              <h3>Riesgo 3</h3>
+              <p><strong>Meter backend final demasiado pronto:</strong> mucho esfuerzo antes de validar producto.</p>
+              <p><strong>Mitigación:</strong> usar fuente mock controlada y migración gradual.</p>
+            </article>
+            <article class="card">
+              <h3>Riesgo 4</h3>
+              <p><strong>Separarlo demasiado de ROVI:</strong> perder reutilización del stack existente.</p>
+              <p><strong>Mitigación:</strong> mantener shell, auth, sidebar y workspaces como base.</p>
+            </article>
+          </div>
+          <div class="summary" style="margin-top:16px;">
+            <h3>Conclusión operativa</h3>
+            <p>
+              Sí hay forma de dejar de mostrar COPIM como demo y convertirlo en un módulo nuevo de ROVI. De hecho,
+              ese es el siguiente paso correcto: productizar la experiencia actual, integrarla al shell real y luego
+              ir sustituyendo lo mock por datos y permisos institucionales.
+            </p>
+          </div>
+          <p class="footer-note" style="margin-top:16px;">
+            Siguiente paso recomendado: convertir este plan en tickets técnicos y arrancar con la Fase 1 sobre
+            <a href="../frontend/src/pages/CopimDashboardDemoPage.js">CopimDashboardDemoPage.js</a>,
+            <a href="../frontend/src/components/Sidebar.js">Sidebar.js</a> y
+            <a href="../frontend/src/App.js">App.js</a>.
+          </p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
