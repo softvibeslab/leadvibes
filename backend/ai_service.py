@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import logging
 import httpx
+import json
 
 # Optional AI integration - falls back to mock if unavailable
 try:
@@ -276,6 +277,606 @@ El script debe incluir:
     except Exception as e:
         logger.error(f"Script generation error: {e}")
         return "Error al generar el script. Por favor intenta de nuevo."
+
+
+def _clamp_score(value: Any) -> int:
+    try:
+        return max(0, min(100, int(round(float(value)))))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _extract_json_object(response_text: str) -> Optional[Dict[str, Any]]:
+    if not response_text:
+        return None
+
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        pass
+
+    start_idx = response_text.find("{")
+    end_idx = response_text.rfind("}") + 1
+    if start_idx != -1 and end_idx > start_idx:
+        try:
+            return json.loads(response_text[start_idx:end_idx])
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def _normalize_string_list(items: Any, fallback: List[str]) -> List[str]:
+    if not isinstance(items, list):
+        return fallback
+    normalized = [str(item).strip() for item in items if str(item).strip()]
+    return normalized[:6] or fallback
+
+
+def _normalize_detail_sections(sections: Any, fallback: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not isinstance(sections, list):
+        return fallback
+
+    normalized_sections: List[Dict[str, Any]] = []
+    for section in sections:
+        if not isinstance(section, dict):
+            continue
+        title = str(section.get("title", "")).strip()
+        items = _normalize_string_list(section.get("items"), [])
+        if title and items:
+            normalized_sections.append({"title": title, "items": items[:5]})
+
+    return normalized_sections[:4] or fallback
+
+
+def _normalize_copim_analysis(
+    payload: Optional[Dict[str, Any]],
+    *,
+    entity_type: str,
+    analysis_type: str,
+    score_label: str,
+    status_label: str,
+    fallback: Dict[str, Any]
+) -> Dict[str, Any]:
+    source = payload if isinstance(payload, dict) else {}
+    normalized = {
+        "entity_type": entity_type,
+        "analysis_type": analysis_type,
+        "score_label": score_label,
+        "score": _clamp_score(source.get("score", fallback.get("score", 0))),
+        "status_label": status_label,
+        "status_value": str(source.get("status_value", fallback.get("status_value", "medio"))).strip().lower() or fallback.get("status_value", "medio"),
+        "executive_summary": str(source.get("executive_summary", fallback.get("executive_summary", ""))).strip() or fallback.get("executive_summary", ""),
+        "key_points": _normalize_string_list(source.get("key_points"), fallback.get("key_points", [])),
+        "recommended_actions": _normalize_string_list(source.get("recommended_actions"), fallback.get("recommended_actions", [])),
+        "suggested_message": str(source.get("suggested_message", fallback.get("suggested_message", ""))).strip() or fallback.get("suggested_message", ""),
+        "detail_sections": _normalize_detail_sections(source.get("detail_sections"), fallback.get("detail_sections", [])),
+    }
+    return normalized
+
+
+def _build_association_fallback(data: Dict[str, Any]) -> Dict[str, Any]:
+    active_members = int(data.get("active_members", 0) or 0)
+    pending_members = int(data.get("pending_members", 0) or 0)
+    renewals_due = int(data.get("renewals_due", 0) or 0)
+    upcoming_events = int(data.get("upcoming_events", 0) or 0)
+    goal = int(data.get("member_goal", 0) or 0)
+    revenue_due = float(data.get("revenue_due", 0) or 0)
+    goal_progress = min(active_members / goal, 1) if goal else 0.5
+    score = 48 + (goal_progress * 32) - (pending_members * 4) - (renewals_due * 5)
+    if upcoming_events > 0:
+        score += 6
+    if revenue_due > 0:
+        score -= min(12, revenue_due / 1500)
+    score = _clamp_score(score)
+
+    if score >= 75:
+        status_value = "bajo"
+    elif score >= 55:
+        status_value = "medio"
+    else:
+        status_value = "alto"
+
+    return {
+        "score": score,
+        "status_value": status_value,
+        "executive_summary": (
+            f"El capítulo tiene {active_members} socios activos, {pending_members} pendientes "
+            f"y {renewals_due} renovaciones por atender."
+        ),
+        "key_points": [
+            f"Meta institucional actual: {active_members} de {goal or 'sin meta definida'} socios activos.",
+            f"Cobranza visible acumulada: ${int(revenue_due):,} MXN.".replace(",", ","),
+            f"Eventos próximos programados: {upcoming_events}.",
+        ],
+        "recommended_actions": [
+            "Cerrar primero pendientes de validación para convertir la base visible en socios activos.",
+            "Atender renovaciones vencidas o por vencer antes de ampliar nuevos frentes operativos.",
+            "Usar el siguiente evento como palanca para reactivar miembros con baja participación.",
+        ],
+        "suggested_message": "Comparto un corte operativo del capítulo con foco en activación, renovaciones y próximos pasos institucionales.",
+        "detail_sections": [
+            {"title": "Fortalezas", "items": [
+                f"{active_members} socios activos con operación visible.",
+                f"{upcoming_events} eventos próximos que pueden empujar activación." if upcoming_events else "Existe base operativa para crecer sobre el padrón actual.",
+            ]},
+            {"title": "Riesgos", "items": [
+                f"{pending_members} perfiles aún no convertidos." if pending_members else "No hay presión crítica en aprobaciones pendientes.",
+                f"{renewals_due} renovaciones requieren seguimiento." if renewals_due else "La cartera inmediata de renovaciones está controlada.",
+            ]},
+        ],
+    }
+
+
+def _build_member_fallback(data: Dict[str, Any]) -> Dict[str, Any]:
+    profile_completion = int(data.get("profile_completion", 0) or 0)
+    amount_due = float(data.get("amount_due", 0) or 0)
+    member_status = str(data.get("member_status", "pending"))
+    credential_status = str(data.get("credential_status", "pending"))
+    directory_visible = bool(data.get("directory_visible"))
+    score = (profile_completion * 0.55)
+    if member_status == "active":
+        score += 22
+    elif member_status == "pending":
+        score += 8
+    if credential_status == "issued":
+        score += 12
+    if directory_visible:
+        score += 8
+    if amount_due > 0:
+        score -= min(18, amount_due / 200)
+    score = _clamp_score(score)
+
+    if score >= 75:
+        status_value = "bajo"
+    elif score >= 50:
+        status_value = "medio"
+    else:
+        status_value = "alto"
+
+    return {
+        "score": score,
+        "status_value": status_value,
+        "executive_summary": (
+            f"El socio muestra {profile_completion}% de completitud, estatus {member_status} "
+            f"y saldo pendiente de ${int(amount_due):,} MXN.".replace(",", ",")
+        ),
+        "key_points": [
+            "La activación mejora si el perfil está completo y la credencial ya fue emitida.",
+            "El directorio visible funciona como señal de valor recibido por el socio." if directory_visible else "El perfil aún no capitaliza visibilidad en directorio.",
+            f"Credencial actual: {credential_status}.",
+        ],
+        "recommended_actions": [
+            "Completar primero los campos faltantes del perfil profesional.",
+            "Emitir o reactivar la credencial si sigue pendiente o bloqueada.",
+            "Cerrar el saldo pendiente antes de impulsar beneficios avanzados.",
+        ],
+        "suggested_message": "Te compartimos tu estatus actual dentro de la plataforma y los siguientes pasos para activar por completo tu perfil y beneficios.",
+        "detail_sections": [
+            {"title": "Activación", "items": [
+                f"Completitud actual del perfil: {profile_completion}%.",
+                f"Estatus del socio: {member_status}.",
+            ]},
+            {"title": "Oportunidades", "items": [
+                "Mayor visibilidad en directorio y credencialización refuerzan el valor percibido.",
+                "El seguimiento administrativo debe priorizar regularización y adopción.",
+            ]},
+        ],
+    }
+
+
+def _build_membership_fallback(data: Dict[str, Any]) -> Dict[str, Any]:
+    payment_status = str(data.get("payment_status", "due"))
+    balance_due = float(data.get("balance_due", 0) or 0)
+    days_to_renewal = int(data.get("days_to_renewal", 0) or 0)
+    auto_renew = bool(data.get("auto_renew"))
+    reminder_enabled = bool(data.get("reminder_enabled", True))
+
+    score = 78
+    if payment_status == "active":
+        score += 10
+    elif payment_status == "due":
+        score -= 18
+    elif payment_status == "overdue":
+        score -= 34
+    elif payment_status == "cancelled":
+        score -= 46
+    if balance_due > 0:
+        score -= min(20, balance_due / 250)
+    if days_to_renewal < 0:
+        score -= 12
+    elif days_to_renewal <= 10:
+        score -= 8
+    if auto_renew:
+        score += 8
+    if not reminder_enabled:
+        score -= 6
+    score = _clamp_score(score)
+
+    if score >= 75:
+        status_value = "baja"
+    elif score >= 55:
+        status_value = "media"
+    elif score >= 35:
+        status_value = "alta"
+    else:
+        status_value = "critica"
+
+    return {
+        "score": score,
+        "status_value": status_value,
+        "executive_summary": (
+            f"La membresía está en estatus {payment_status} con saldo de ${int(balance_due):,} MXN "
+            f"y renovación en {days_to_renewal} días."
+        ).replace(",", ","),
+        "key_points": [
+            f"Periodo de facturación: {data.get('billing_period', 'annual')}.",
+            "La auto-renovación reduce fricción administrativa." if auto_renew else "Sin auto-renovación activa; depende de seguimiento manual.",
+            "Los recordatorios están habilitados." if reminder_enabled else "Los recordatorios están desactivados.",
+        ],
+        "recommended_actions": [
+            "Priorizar contacto de cobranza si el estatus está por vencer o vencido.",
+            "Regularizar saldo antes de ofrecer un plan superior.",
+            "Mantener visible la fecha de renovación y el método de pago del socio.",
+        ],
+        "suggested_message": "Te compartimos el estado actual de tu membresía y el paso recomendado para mantenerla vigente sin fricciones.",
+        "detail_sections": [
+            {"title": "Cobranza", "items": [
+                f"Saldo pendiente actual: ${int(balance_due):,} MXN.".replace(",", ","),
+                f"Estatus de pago: {payment_status}.",
+            ]},
+            {"title": "Renovación", "items": [
+                f"Días a renovación: {days_to_renewal}.",
+                "La membresía tiene condiciones favorables de permanencia." if score >= 70 else "Hay señales de fricción que pueden afectar la renovación.",
+            ]},
+        ],
+    }
+
+
+def _build_event_fallback(data: Dict[str, Any]) -> Dict[str, Any]:
+    occupancy_rate = int(data.get("occupancy_rate", 0) or 0)
+    attendance_rate = int(data.get("attendance_rate", 0) or 0)
+    status = str(data.get("status", "published"))
+    registration_open = bool(data.get("registration_open", True))
+    available_slots = data.get("available_slots")
+
+    score = (occupancy_rate * 0.55) + (attendance_rate * 0.25)
+    if status == "published":
+        score += 18
+    elif status == "completed":
+        score += 10
+    elif status == "draft":
+        score += 4
+    if registration_open:
+        score += 6
+    score = _clamp_score(score)
+
+    if score >= 75:
+        status_value = "bajo"
+    elif score >= 50:
+        status_value = "medio"
+    else:
+        status_value = "alto"
+
+    return {
+        "score": score,
+        "status_value": status_value,
+        "executive_summary": (
+            f"El evento tiene ocupación de {occupancy_rate}% y asistencia de {attendance_rate}% "
+            f"con estatus {status}."
+        ),
+        "key_points": [
+            f"Registros actuales: {data.get('registered_count', 0)}.",
+            f"Check-ins actuales: {data.get('checked_in_count', 0)}.",
+            f"Espacios disponibles: {available_slots if available_slots is not None else 'sin límite'}.",
+        ],
+        "recommended_actions": [
+            "Empujar convocatoria si la ocupación sigue baja y el registro continúa abierto.",
+            "Asegurar recordatorio previo cuando el evento está publicado pero la asistencia proyectada es débil.",
+            "Cerrar con mensaje post evento y seguimiento de participación al terminar.",
+        ],
+        "suggested_message": "Ya está disponible el siguiente corte del evento con foco en ocupación, asistencia y acciones sugeridas.",
+        "detail_sections": [
+            {"title": "Momentum", "items": [
+                f"Ocupación actual: {occupancy_rate}%.",
+                f"Asistencia efectiva: {attendance_rate}%.",
+            ]},
+            {"title": "Acciones sugeridas", "items": [
+                "Incrementar registros si la convocatoria aún puede empujar asistentes.",
+                "Usar seguimiento post evento para convertir participación en valor recurrente.",
+            ]},
+        ],
+    }
+
+
+def _build_invoice_fallback(data: Dict[str, Any]) -> Dict[str, Any]:
+    balance_due = float(data.get("balance_due", 0) or 0)
+    total_amount = float(data.get("total_amount", 0) or 0)
+    payment_status = str(data.get("payment_status", "pending"))
+    invoice_status = str(data.get("invoice_status", "draft"))
+    due_date = data.get("due_date")
+    days_to_due = int(data.get("days_to_due", 0) or 0)
+
+    score = 100
+    if payment_status == "paid":
+        score -= 8
+    elif payment_status == "pending":
+        score -= 32
+    elif payment_status == "overdue":
+        score -= 58
+    elif payment_status == "cancelled":
+        score -= 45
+
+    if invoice_status == "draft":
+        score -= 18
+    elif invoice_status == "issued":
+        score -= 6
+    elif invoice_status == "sent":
+        score -= 10
+
+    if days_to_due < 0:
+        score -= 18
+    elif days_to_due <= 5:
+        score -= 8
+
+    score = _clamp_score(score)
+
+    if score >= 80:
+        status_value = "baja"
+    elif score >= 60:
+        status_value = "media"
+    elif score >= 40:
+        status_value = "alta"
+    else:
+        status_value = "critica"
+
+    return {
+        "score": score,
+        "status_value": status_value,
+        "executive_summary": (
+            f"La factura está en estatus {invoice_status} con pago {payment_status}, "
+            f"saldo pendiente de ${int(balance_due):,} MXN y vencimiento {due_date or 'sin fecha'}.".replace(",", ",")
+        ),
+        "key_points": [
+            f"Importe total: ${int(total_amount):,} MXN.".replace(",", ","),
+            f"Saldo pendiente actual: ${int(balance_due):,} MXN.".replace(",", ","),
+            f"Días al vencimiento: {days_to_due}.",
+        ],
+        "recommended_actions": [
+            "Emitir o enviar la factura si aún no salió al socio.",
+            "Dar seguimiento de cobro cuando el vencimiento está cerca o ya venció.",
+            "Cerrar conciliación con confirmación de pago y referencia administrativa.",
+        ],
+        "suggested_message": "Te compartimos el estado de la factura y el siguiente paso sugerido para mantener la cobranza al día.",
+        "detail_sections": [
+            {"title": "Cobranza", "items": [
+                f"Estatus de pago: {payment_status}.",
+                f"Saldo pendiente: ${int(balance_due):,} MXN.".replace(",", ","),
+            ]},
+            {"title": "Administración", "items": [
+                f"Estatus documental: {invoice_status}.",
+                "Conviene priorizar seguimiento inmediato." if days_to_due <= 5 or payment_status == "overdue" else "El expediente mantiene una ventana administrable.",
+            ]},
+        ],
+    }
+
+
+async def _run_copim_analysis(
+    *,
+    session_id: str,
+    prompt: str,
+    entity_type: str,
+    analysis_type: str,
+    score_label: str,
+    status_label: str,
+    fallback: Dict[str, Any]
+) -> Dict[str, Any]:
+    if not AI_AVAILABLE:
+        return _normalize_copim_analysis(
+            None,
+            entity_type=entity_type,
+            analysis_type=analysis_type,
+            score_label=score_label,
+            status_label=status_label,
+            fallback=fallback,
+        )
+
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message="""Eres un analista de operaciones institucionales para COPIM x ROVI.
+Evalúas asociaciones, socios, membresías, facturas y eventos desde una perspectiva ejecutiva y operativa.
+Responde siempre en español mexicano.
+No uses markdown.
+Devuelve únicamente JSON válido con la estructura solicitada.
+Sé conciso, accionable y orientado a decisiones.""",
+        ).with_model("openai", "gpt-5.2")
+
+        response = await chat.send_message(UserMessage(text=prompt))
+        parsed = _extract_json_object(response)
+        return _normalize_copim_analysis(
+            parsed,
+            entity_type=entity_type,
+            analysis_type=analysis_type,
+            score_label=score_label,
+            status_label=status_label,
+            fallback=fallback,
+        )
+    except Exception as error:
+        logger.error(f"COPIM analysis error for {entity_type}: {error}")
+        return _normalize_copim_analysis(
+            None,
+            entity_type=entity_type,
+            analysis_type=analysis_type,
+            score_label=score_label,
+            status_label=status_label,
+            fallback=fallback,
+        )
+
+
+async def analyze_copim_association(association_data: Dict[str, Any]) -> Dict[str, Any]:
+    fallback = _build_association_fallback(association_data)
+    prompt = f"""Analiza esta asociación institucional y responde con JSON válido.
+
+Usa exactamente esta estructura:
+{{
+  "score": 0,
+  "status_value": "bajo|medio|alto",
+  "executive_summary": "texto breve",
+  "key_points": ["...", "..."],
+  "recommended_actions": ["...", "..."],
+  "suggested_message": "mensaje corto listo para compartir",
+  "detail_sections": [
+    {{"title": "Fortalezas", "items": ["...", "..."]}},
+    {{"title": "Riesgos", "items": ["...", "..."]}}
+  ]
+}}
+
+Contexto de la asociación:
+{json.dumps(association_data, ensure_ascii=False, indent=2)}
+"""
+
+    return await _run_copim_analysis(
+        session_id=f"copim-association-analysis-{association_data.get('id', 'unknown')}",
+        prompt=prompt,
+        entity_type="association",
+        analysis_type="institutional_health",
+        score_label="Salud institucional",
+        status_label="Riesgo",
+        fallback=fallback,
+    )
+
+
+async def analyze_copim_member(member_data: Dict[str, Any]) -> Dict[str, Any]:
+    fallback = _build_member_fallback(member_data)
+    prompt = f"""Analiza este socio institucional y responde con JSON válido.
+
+Usa exactamente esta estructura:
+{{
+  "score": 0,
+  "status_value": "bajo|medio|alto",
+  "executive_summary": "texto breve",
+  "key_points": ["...", "..."],
+  "recommended_actions": ["...", "..."],
+  "suggested_message": "mensaje corto listo para compartir",
+  "detail_sections": [
+    {{"title": "Activación", "items": ["...", "..."]}},
+    {{"title": "Oportunidades", "items": ["...", "..."]}}
+  ]
+}}
+
+Contexto del socio:
+{json.dumps(member_data, ensure_ascii=False, indent=2)}
+"""
+
+    return await _run_copim_analysis(
+        session_id=f"copim-member-analysis-{member_data.get('id', 'unknown')}",
+        prompt=prompt,
+        entity_type="member",
+        analysis_type="member_activation",
+        score_label="Activación",
+        status_label="Riesgo de fuga",
+        fallback=fallback,
+    )
+
+
+async def analyze_copim_membership(membership_data: Dict[str, Any]) -> Dict[str, Any]:
+    fallback = _build_membership_fallback(membership_data)
+    prompt = f"""Analiza esta membresía y responde con JSON válido.
+
+Usa exactamente esta estructura:
+{{
+  "score": 0,
+  "status_value": "baja|media|alta|critica",
+  "executive_summary": "texto breve",
+  "key_points": ["...", "..."],
+  "recommended_actions": ["...", "..."],
+  "suggested_message": "mensaje corto listo para compartir",
+  "detail_sections": [
+    {{"title": "Cobranza", "items": ["...", "..."]}},
+    {{"title": "Renovación", "items": ["...", "..."]}}
+  ]
+}}
+
+Contexto de la membresía:
+{json.dumps(membership_data, ensure_ascii=False, indent=2)}
+"""
+
+    return await _run_copim_analysis(
+        session_id=f"copim-membership-analysis-{membership_data.get('id', 'unknown')}",
+        prompt=prompt,
+        entity_type="membership",
+        analysis_type="renewal_health",
+        score_label="Salud de renovación",
+        status_label="Prioridad de cobro",
+        fallback=fallback,
+    )
+
+
+async def analyze_copim_event(event_data: Dict[str, Any]) -> Dict[str, Any]:
+    fallback = _build_event_fallback(event_data)
+    prompt = f"""Analiza este evento y responde con JSON válido.
+
+Usa exactamente esta estructura:
+{{
+  "score": 0,
+  "status_value": "bajo|medio|alto",
+  "executive_summary": "texto breve",
+  "key_points": ["...", "..."],
+  "recommended_actions": ["...", "..."],
+  "suggested_message": "mensaje corto listo para compartir",
+  "detail_sections": [
+    {{"title": "Momentum", "items": ["...", "..."]}},
+    {{"title": "Acciones sugeridas", "items": ["...", "..."]}}
+  ]
+}}
+
+Contexto del evento:
+{json.dumps(event_data, ensure_ascii=False, indent=2)}
+"""
+
+    return await _run_copim_analysis(
+        session_id=f"copim-event-analysis-{event_data.get('id', 'unknown')}",
+        prompt=prompt,
+        entity_type="event",
+        analysis_type="event_momentum",
+        score_label="Momentum",
+        status_label="Riesgo de asistencia",
+        fallback=fallback,
+    )
+
+
+async def analyze_copim_invoice(invoice_data: Dict[str, Any]) -> Dict[str, Any]:
+    fallback = _build_invoice_fallback(invoice_data)
+    prompt = f"""Analiza esta factura institucional y responde con JSON válido.
+
+Usa exactamente esta estructura:
+{{
+  "score": 0,
+  "status_value": "baja|media|alta|critica",
+  "executive_summary": "texto breve",
+  "key_points": ["...", "..."],
+  "recommended_actions": ["...", "..."],
+  "suggested_message": "mensaje corto listo para compartir",
+  "detail_sections": [
+    {{"title": "Cobranza", "items": ["...", "..."]}},
+    {{"title": "Administración", "items": ["...", "..."]}}
+  ]
+}}
+
+Contexto de la factura:
+{json.dumps(invoice_data, ensure_ascii=False, indent=2)}
+"""
+
+    return await _run_copim_analysis(
+        session_id=f"copim-invoice-analysis-{invoice_data.get('id', 'unknown')}",
+        prompt=prompt,
+        entity_type="invoice",
+        analysis_type="billing_health",
+        score_label="Salud de cobranza",
+        status_label="Prioridad de seguimiento",
+        fallback=fallback,
+    )
 
 def parse_natural_language_query(query: str) -> Dict[str, Any]:
     """

@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -28,6 +27,40 @@ import { DemoRequestPage } from './pages/DemoRequestPage';
 import { LeadSearchDashboard } from './pages/LeadSearchDashboard';
 import { PricingCalculatorPage } from './pages/PricingCalculatorPage';
 import { BrokerLinkPage } from './pages/BrokerLinkPage';
+import { CopimPresentationPage } from './pages/CopimPresentationPage';
+import { CopimDashboardDemoPage } from './pages/CopimDashboardDemoPage';
+import { CopimOverviewPage } from './pages/CopimOverviewPage';
+import { CopimAssociationsPage } from './pages/CopimAssociationsPage';
+import { CopimMembersPage } from './pages/CopimMembersPage';
+import { CopimMembershipsPage } from './pages/CopimMembershipsPage';
+import { CopimInvoicesPage } from './pages/CopimInvoicesPage';
+import { CopimEventsPage } from './pages/CopimEventsPage';
+import { CopimAssociationProfilePage } from './pages/CopimAssociationProfilePage';
+import { CopimAssociationCampaignsPage } from './pages/CopimAssociationCampaignsPage';
+import { CopimAssociationPropertiesPage } from './pages/CopimAssociationPropertiesPage';
+import { CopimAssociationCoursesPage } from './pages/CopimAssociationCoursesPage';
+import { CopimAssociationCommunityPage } from './pages/CopimAssociationCommunityPage';
+import { CopimAssociationModulesPage } from './pages/CopimAssociationModulesPage';
+import { CopimCoursesWorkspacePage } from './pages/CopimCoursesWorkspacePage';
+import { CopimMemberHomePage } from './pages/CopimMemberHomePage';
+import { CopimMemberProfilePage } from './pages/CopimMemberProfilePage';
+import { CopimMemberCampaignsPage } from './pages/CopimMemberCampaignsPage';
+import { CopimMemberPropertiesPage } from './pages/CopimMemberPropertiesPage';
+import { CopimMemberCoursesPage } from './pages/CopimMemberCoursesPage';
+import { CopimMemberMembershipPage } from './pages/CopimMemberMembershipPage';
+import { CopimMemberPaymentsPage } from './pages/CopimMemberPaymentsPage';
+import { CopimMemberCredentialPage } from './pages/CopimMemberCredentialPage';
+import { CopimMemberEventsPage } from './pages/CopimMemberEventsPage';
+import { CopimMemberCommunityPage } from './pages/CopimMemberCommunityPage';
+import { CopimMemberModulesPage } from './pages/CopimMemberModulesPage';
+import { CopimMemberDirectoryPage } from './pages/CopimMemberDirectoryPage';
+import {
+  canManageCopimWorkspace,
+  isCopimLocalAssociationUser,
+  isCopimMemberUser,
+  isCopimNationalUser,
+  resolveAuthenticatedHome,
+} from './lib/copimAccess';
 import './App.css';
 
 // Protected Route component
@@ -56,7 +89,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Public Route component (redirect if already logged in)
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, user, appMode } = useAuth();
   const nextPath = new URLSearchParams(window.location.search).get('next');
 
   if (loading) {
@@ -74,10 +107,115 @@ const PublicRoute = ({ children }) => {
     if (nextPath && nextPath.startsWith('/')) {
       return <Navigate to={nextPath} replace />;
     }
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={resolveAuthenticatedHome(user, appMode)} replace />;
   }
 
   return children;
+};
+
+const CopimModuleRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to={`/login?next=${encodeURIComponent(window.location.pathname)}`} replace />;
+  }
+
+  if (user && !user.onboarding_completed) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return children;
+};
+
+const CopimAssociationRoute = ({ children }) => {
+  const { user } = useAuth();
+
+  if (isCopimMemberUser(user)) {
+    return <Navigate to="/copim/member" replace />;
+  }
+
+  if (!canManageCopimWorkspace(user)) {
+    return <Navigate to="/copim-demo" replace />;
+  }
+
+  return children;
+};
+
+const CopimNationalRoute = ({ children }) => {
+  const { user } = useAuth();
+
+  if (isCopimMemberUser(user)) {
+    return <Navigate to="/copim/member" replace />;
+  }
+
+  if (isCopimLocalAssociationUser(user)) {
+    return <Navigate to="/copim/association/profile" replace />;
+  }
+
+  if (!isCopimNationalUser(user)) {
+    return <Navigate to="/copim-demo" replace />;
+  }
+
+  return children;
+};
+
+const CopimLocalAssociationRoute = ({ children }) => {
+  const { user } = useAuth();
+
+  if (isCopimMemberUser(user)) {
+    return <Navigate to="/copim/member" replace />;
+  }
+
+  if (isCopimNationalUser(user)) {
+    return <Navigate to="/copim/dashboard" replace />;
+  }
+
+  if (!isCopimLocalAssociationUser(user)) {
+    return <Navigate to="/copim-demo" replace />;
+  }
+
+  return children;
+};
+
+const CopimMemberPortalRoute = ({ children }) => {
+  const { user } = useAuth();
+
+  if (!isCopimMemberUser(user)) {
+    return <Navigate to={
+      isCopimLocalAssociationUser(user)
+        ? '/copim/association/profile'
+        : canManageCopimWorkspace(user)
+          ? '/copim/dashboard'
+          : '/copim-demo'
+    } replace />;
+  }
+
+  return children;
+};
+
+const CopimHomeRedirect = () => {
+  const { user } = useAuth();
+  if (isCopimMemberUser(user)) {
+    return <Navigate to="/copim/member" replace />;
+  }
+
+  if (isCopimLocalAssociationUser(user)) {
+    return <Navigate to="/copim/association/profile" replace />;
+  }
+
+  if (canManageCopimWorkspace(user)) {
+    return <Navigate to="/copim/dashboard" replace />;
+  }
+
+  return <Navigate to="/copim-demo" replace />;
 };
 
 function AppRoutes() {
@@ -95,6 +233,10 @@ function AppRoutes() {
       {/* Module Tracker - Public */}
       <Route path="/module-tracker" element={<ModuleTrackerPage />} />
       <Route path="/pricing-calculator" element={<PricingCalculatorPage />} />
+      <Route path="/copim-presentacion" element={<CopimPresentationPage />} />
+      <Route path="/copim-memberships" element={<CopimPresentationPage />} />
+      <Route path="/copim-demo" element={<CopimDashboardDemoPage />} />
+      <Route path="/copim-dashboard-demo" element={<CopimDashboardDemoPage />} />
 
       {/* Public routes */}
       <Route path="/link-broker" element={<BrokerLinkPage />} />
@@ -142,6 +284,277 @@ function AppRoutes() {
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/database-chat" element={<DatabaseChatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/copim" element={<CopimHomeRedirect />} />
+        <Route
+          path="/copim/dashboard"
+          element={
+            <CopimModuleRoute>
+              <CopimNationalRoute>
+                <CopimOverviewPage />
+              </CopimNationalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/associations"
+          element={
+            <CopimModuleRoute>
+              <CopimNationalRoute>
+                <CopimAssociationsPage />
+              </CopimNationalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/courses"
+          element={
+            <CopimModuleRoute>
+              <CopimNationalRoute>
+                <CopimCoursesWorkspacePage />
+              </CopimNationalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/association/profile"
+          element={
+            <CopimModuleRoute>
+              <CopimLocalAssociationRoute>
+                <CopimAssociationProfilePage />
+              </CopimLocalAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/association/campaigns"
+          element={
+            <CopimModuleRoute>
+              <CopimLocalAssociationRoute>
+                <CopimAssociationCampaignsPage />
+              </CopimLocalAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/association/properties"
+          element={
+            <CopimModuleRoute>
+              <CopimLocalAssociationRoute>
+                <CopimAssociationPropertiesPage />
+              </CopimLocalAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/association/courses"
+          element={
+            <CopimModuleRoute>
+              <CopimLocalAssociationRoute>
+                <CopimAssociationCoursesPage />
+              </CopimLocalAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/association/community"
+          element={
+            <CopimModuleRoute>
+              <CopimLocalAssociationRoute>
+                <CopimAssociationCommunityPage />
+              </CopimLocalAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/association/modules"
+          element={
+            <CopimModuleRoute>
+              <CopimLocalAssociationRoute>
+                <CopimAssociationModulesPage />
+              </CopimLocalAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/members"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <CopimMembersPage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/memberships"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <CopimMembershipsPage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/invoices"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <CopimInvoicesPage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/events"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <CopimEventsPage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/community"
+          element={
+            <CopimModuleRoute>
+              <CopimNationalRoute>
+                <CopimDashboardDemoPage workspaceMode embeddedMode initialModule="community" />
+              </CopimNationalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/intelligence"
+          element={
+            <CopimModuleRoute>
+              <CopimNationalRoute>
+                <CopimDashboardDemoPage workspaceMode embeddedMode initialModule="intelligence" />
+              </CopimNationalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberHomePage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/profile"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberProfilePage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/campaigns"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberCampaignsPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/properties"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberPropertiesPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/courses"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberCoursesPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/membership"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberMembershipPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/payments"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberPaymentsPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/credential"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberCredentialPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/events"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberEventsPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/community"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberCommunityPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/modules"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberModulesPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/directory"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <CopimMemberDirectoryPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
       </Route>
 
       {/* Email Editor - Full screen without Layout */}

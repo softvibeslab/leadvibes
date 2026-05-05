@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect, Form
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,10 +15,19 @@ import asyncio
 import math
 import jwt
 import base64
+import json
+from urllib.parse import quote, urlparse
 
 from models import (
-    User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, AuthMeResponse, SwitchWorkspaceRequest,
+    User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, AuthMeResponse, SwitchWorkspaceRequest, OnboardingCompletionRequest,
     BrokerCreate, BrokerUpdate,
+    CopimAssociationCreate, CopimAssociationUpdate,
+    CopimCommunityPostCreate, CopimCommunityCommentCreate,
+    CopimMemberCreate, CopimMemberUpdate, CopimMemberReviewUpdate, CopimMemberPortalProfileUpdate,
+    CopimMembershipCreate, CopimMembershipUpdate,
+    CopimInvoiceCreate, CopimInvoiceUpdate,
+    CopimEventCreate, CopimEventUpdate,
+    CopimCourseCreate, CopimCourseUpdate, CopimCourseAIDraftRequest, CopimCourseProgressUpdate,
     Goal, GoalCreate,
     AIProfile, AIProfileCreate, AIProfileUpdate,
     Lead, LeadCreate, LeadUpdate, LeadStatus, LeadPriority,
@@ -32,9 +41,11 @@ from models import (
     Campaign, CampaignCreate, CampaignType, CampaignStatus,
     CallRecord, CallRecordCreate, CallStatus,
     SMSRecord, SMSRecordCreate, SMSStatus,
+    WhatsAppRecord, WhatsAppRecordCreate, WhatsAppStatus,
     ConversationAnalysis,
     EmailRecord, EmailRecordCreate, EmailStatus,
     EmailTemplate, EmailTemplateCreate,
+    CampaignSegment, CampaignSegmentCreate, CampaignSegmentUpdate,
     ImportJob, ImportStatus, ImportMappingRequest, CombinedImportMappingRequest, ColumnMapping,
     CampaignMetrics, AnalyticsDashboard,
     AutomationWorkflow, AutomationWorkflowCreate, AutomationExecution,
@@ -54,7 +65,17 @@ from leads_improvements import (
     validate_lead_unique_fields, get_leads_advanced_filters, delete_lead,
     bulk_update_leads_status, bulk_delete_leads
 )
-from ai_service import get_ai_response, analyze_lead, generate_sales_script, query_database_with_ai
+from ai_service import (
+    get_ai_response,
+    analyze_lead,
+    analyze_copim_association,
+    analyze_copim_member,
+    analyze_copim_membership,
+    analyze_copim_invoice,
+    analyze_copim_event,
+    generate_sales_script,
+    query_database_with_ai,
+)
 from module_tracker import (
     CRM_MODULES, MVP_CONFIG, MVPTier, WEEKLY_PLAN,
     get_modules_for_tier, get_module_info, get_completion_percentage,
@@ -111,12 +132,46 @@ async def get_or_create_tenant(user_id: str) -> str:
     return f"tenant-{user_id[:8]}"
 
 
+def resolve_account_tenant_type(account_type: str) -> str:
+    if account_type == "agency":
+        return "agency"
+    if account_type == "copim":
+        return "copim"
+    return "individual"
+
+
+def resolve_user_role(account_type: str, requested_role: str | None) -> str:
+    requested_role = requested_role or "broker"
+    copim_roles = {"copim_admin", "copim_operator", "copim_member"}
+
+    if account_type == "copim":
+        return requested_role if requested_role in copim_roles else "copim_admin"
+
+    if account_type == "copim_member":
+        return "copim_member"
+
+    if requested_role in copim_roles:
+        return "broker"
+
+    return requested_role
+
+
+def uses_personal_workspace(account_type: str) -> bool:
+    return account_type not in {"individual", "copim_member"}
+
+
 def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -> str:
     base_name = user.get("name") or user.get("email") or "Workspace"
     if personal:
         return f"{base_name} Personal"
     if tenant_type == "agency":
         return f"{base_name} Inmobiliaria"
+    if tenant_type == "association":
+        return f"{base_name} Asociacion"
+    if tenant_type == "council":
+        return f"{base_name} Consejo"
+    if tenant_type == "copim":
+        return f"{base_name} COPIM"
     return f"{base_name} Workspace"
 
 
@@ -129,9 +184,10 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
     account_type = user.get("account_type", "individual")
     current_tenant_id = user.get("tenant_id") or f"tenant-{user_id[:8]}"
     personal_tenant_id = user.get("personal_tenant_id") or (
-        current_tenant_id if account_type == "individual" else f"personal-{user_id[:8]}"
+        current_tenant_id if not uses_personal_workspace(account_type) else f"personal-{user_id[:8]}"
     )
     role = user.get("role", "broker")
+    is_copim_member_account = account_type == "copim_member"
     now = datetime.now(timezone.utc).isoformat()
 
     if user.get("personal_tenant_id") != personal_tenant_id:
@@ -142,7 +198,7 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
         user["personal_tenant_id"] = personal_tenant_id
         user["tenant_id"] = current_tenant_id
 
-    current_tenant_type = "agency" if account_type == "agency" else "individual"
+    current_tenant_type = resolve_account_tenant_type(account_type)
 
     async def ensure_tenant_doc(tenant_id: str, *, name: str, tenant_type: str, owner_user_id: str):
         existing_tenant = await db.tenants.find_one({"id": tenant_id}, {"_id": 0, "id": 1})
@@ -211,13 +267,17 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
         )
 
     if personal_tenant_id == current_tenant_id:
-        await ensure_membership_doc(current_tenant_id, membership_role="owner" if role == "broker" else role, is_default=True)
+        await ensure_membership_doc(
+            current_tenant_id,
+            membership_role="owner" if role == "broker" or is_copim_member_account else role,
+            is_default=not is_copim_member_account,
+        )
     else:
-        await ensure_membership_doc(personal_tenant_id, membership_role="owner", is_default=account_type != "agency")
+        await ensure_membership_doc(personal_tenant_id, membership_role="owner", is_default=account_type != "agency" and account_type != "copim")
         await ensure_membership_doc(
             current_tenant_id,
             membership_role="owner" if account_type == "agency" and role == "broker" else role,
-            is_default=account_type == "agency",
+            is_default=account_type in {"agency", "copim"},
         )
 
     return user
@@ -283,6 +343,7 @@ def build_user_response_payload(user: dict, ai_profile: dict | None = None) -> d
         "onboarding_completed": user.get("onboarding_completed", False),
         "personal_tenant_id": user.get("personal_tenant_id"),
         "account_type": user.get("account_type", "individual"),
+        "linked_copim_association_id": user.get("linked_copim_association_id"),
         "ai_profile": serialize_doc(ai_profile) if ai_profile else None,
     }
 
@@ -300,6 +361,3115 @@ def build_access_token_payload(user: dict, active_workspace: dict | None) -> dic
         "account_type": user.get("account_type", "individual"),
         "email": user["email"],
         "name": user["name"],
+    }
+
+
+def resolve_auth_workspace_target(user: dict) -> str | None:
+    if user.get("role") == "copim_member":
+        return user.get("linked_copim_tenant_id")
+    return user.get("tenant_id")
+
+
+def parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def build_copim_credential_id() -> str:
+    return f"COPIM-{uuid.uuid4().hex[:8].upper()}"
+
+
+def build_copim_invoice_number() -> str:
+    return f"FAC-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+
+
+COPIM_ADMIN_ROLES = {"copim_admin", "copim_operator"}
+COPIM_NATIONAL_ROLES = {"copim_admin"}
+COPIM_MEMBER_PASSWORD = "demo123"
+COPIM_OPERATOR_PASSWORD = "demo123"
+COPIM_VALIDATION_CHECKLIST_TEMPLATE = {
+    "perfil_completo": False,
+    "correo_validado": False,
+    "documentacion_recibida": False,
+    "membresia_asignada": False,
+}
+
+
+def normalize_copim_validation_checklist(checklist: dict | None) -> dict:
+    normalized = dict(COPIM_VALIDATION_CHECKLIST_TEMPLATE)
+    for key, value in (checklist or {}).items():
+        normalized[key] = bool(value)
+    return normalized
+
+
+def build_copim_qr_url(payload: str, size: int = 240) -> str:
+    return f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&data={quote(payload)}"
+
+
+async def require_copim_admin_workspace(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user.get("role") not in COPIM_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Este módulo es solo para operación de asociación")
+    return current_user
+
+
+async def require_copim_national_workspace(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user.get("role") not in COPIM_NATIONAL_ROLES:
+        raise HTTPException(status_code=403, detail="Este módulo es solo para COPIM nacional")
+    return current_user
+
+
+async def require_copim_local_workspace(current_user: dict = Depends(require_copim_admin_workspace)) -> dict:
+    if current_user.get("role") != "copim_operator":
+        raise HTTPException(status_code=403, detail="Este módulo es solo para asociaciones locales")
+    return current_user
+
+
+async def require_copim_member_portal(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user.get("role") != "copim_member":
+        raise HTTPException(status_code=403, detail="Este portal es solo para asociados")
+    return current_user
+
+
+def calculate_copim_profile_completion(member: dict) -> int:
+    tracked_fields = [
+        member.get("full_name"),
+        member.get("email"),
+        member.get("phone"),
+        member.get("association_id"),
+        member.get("title"),
+        member.get("city"),
+        member.get("specialty"),
+        member.get("company_name"),
+        member.get("credential_id"),
+    ]
+    completed = sum(1 for field in tracked_fields if field not in (None, "", []))
+    return int((completed / len(tracked_fields)) * 100)
+
+
+def add_copim_billing_period(base_date: datetime, billing_period: str) -> datetime:
+    period_days = {
+        "monthly": 30,
+        "quarterly": 90,
+        "annual": 365,
+    }
+    return base_date + timedelta(days=period_days.get(billing_period, 365))
+
+
+async def fetch_copim_association_or_404(tenant_id: str, association_id: str) -> dict:
+    association = await db.copim_associations.find_one(
+        {"tenant_id": tenant_id, "id": association_id},
+        {"_id": 0},
+    )
+    if not association:
+        raise HTTPException(status_code=404, detail="Asociacion no encontrada")
+    return association
+
+
+async def fetch_copim_member_or_404(tenant_id: str, member_id: str) -> dict:
+    member = await db.copim_members.find_one(
+        {"tenant_id": tenant_id, "id": member_id},
+        {"_id": 0},
+    )
+    if not member:
+        raise HTTPException(status_code=404, detail="Socio no encontrado")
+    return member
+
+
+async def fetch_copim_membership_or_404(tenant_id: str, membership_id: str) -> dict:
+    membership = await db.copim_memberships.find_one(
+        {"tenant_id": tenant_id, "id": membership_id},
+        {"_id": 0},
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Membresia no encontrada")
+    return membership
+
+
+async def fetch_copim_invoice_or_404(tenant_id: str, invoice_id: str) -> dict:
+    invoice = await db.copim_invoices.find_one(
+        {"tenant_id": tenant_id, "id": invoice_id},
+        {"_id": 0},
+    )
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+    return invoice
+
+
+async def fetch_copim_event_or_404(tenant_id: str, event_id: str) -> dict:
+    event = await db.copim_events.find_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {"_id": 0},
+    )
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    return event
+
+
+async def sync_copim_association_stats(tenant_id: str, association_id: str | None) -> None:
+    if not association_id:
+        return
+
+    total_members = await db.copim_members.count_documents({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+    })
+    active_members = await db.copim_members.count_documents({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+        "member_status": "active",
+    })
+    pending_members = await db.copim_members.count_documents({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+        "member_status": "pending",
+    })
+    renewals_due = await db.copim_memberships.count_documents({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+        "payment_status": {"$in": ["due", "overdue"]},
+    })
+    credentials_issued = await db.copim_members.count_documents({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+        "credential_status": "issued",
+    })
+    directory_visible_members = await db.copim_members.count_documents({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+        "directory_visible": True,
+    })
+    upcoming_events = await db.copim_events.count_documents({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+        "start_at": {"$gte": datetime.now(timezone.utc).isoformat()},
+        "status": {"$in": ["draft", "published"]},
+    })
+    memberships_due_cursor = await db.copim_memberships.find(
+        {
+            "tenant_id": tenant_id,
+            "association_id": association_id,
+            "payment_status": {"$in": ["due", "overdue"]},
+        },
+        {"_id": 0, "balance_due": 1},
+    ).to_list(1000)
+    revenue_due = sum(float(item.get("balance_due") or 0) for item in memberships_due_cursor)
+
+    await db.copim_associations.update_one(
+        {"tenant_id": tenant_id, "id": association_id},
+        {
+            "$set": {
+                "member_count": total_members,
+                "active_members": active_members,
+                "pending_members": pending_members,
+                "renewals_due": renewals_due,
+                "credentials_issued": credentials_issued,
+                "directory_visible_members": directory_visible_members,
+                "upcoming_events": upcoming_events,
+                "revenue_due": revenue_due,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        },
+    )
+
+
+async def build_copim_association_map(tenant_id: str) -> dict[str, dict]:
+    associations = await db.copim_associations.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(500)
+    return {association["id"]: association for association in associations}
+
+
+async def build_copim_member_map(tenant_id: str) -> dict[str, dict]:
+    members = await db.copim_members.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(1000)
+    return {member["id"]: member for member in members}
+
+
+async def ensure_copim_member_user_account(
+    tenant_id: str,
+    member: dict,
+    *,
+    created_by_user_id: str,
+    temporary_password: str = COPIM_MEMBER_PASSWORD,
+) -> dict:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    existing_user = await db.users.find_one({"email": member["email"]}, {"_id": 0})
+    created = False
+
+    if existing_user:
+        user_id = existing_user["id"]
+        await db.users.update_one(
+            {"id": user_id},
+            {
+                "$set": {
+                    "name": member.get("full_name") or existing_user.get("name"),
+                    "phone": member.get("phone"),
+                    "avatar_url": member.get("avatar_url"),
+                    "role": "copim_member",
+                    "account_type": "copim_member",
+                    "onboarding_completed": True,
+                    "linked_copim_member_id": member["id"],
+                    "linked_copim_tenant_id": tenant_id,
+                    "updated_at": now_iso,
+                }
+            },
+        )
+        user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
+    else:
+        created = True
+        user_id = str(uuid.uuid4())
+        tenant_seed = f"tenant-{user_id[:8]}"
+        user_doc = {
+            "id": user_id,
+            "email": member["email"],
+            "name": member.get("full_name") or "Asociado COPIM",
+            "role": "copim_member",
+            "phone": member.get("phone"),
+            "password_hash": get_password_hash(temporary_password),
+            "avatar_url": member.get("avatar_url"),
+            "is_active": True,
+            "onboarding_completed": True,
+            "tenant_id": tenant_seed,
+            "personal_tenant_id": tenant_seed,
+            "account_type": "copim_member",
+            "linked_copim_member_id": member["id"],
+            "linked_copim_tenant_id": tenant_id,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        }
+        await db.users.insert_one(user_doc)
+
+    user_doc = await ensure_workspace_infra_for_user(user_doc)
+    membership_payload = {
+        "tenant_id": tenant_id,
+        "user_id": user_id,
+        "role": "copim_member",
+        "status": "active",
+        "linked_via": "manual",
+        "is_default": True,
+        "accepted_at": now_iso,
+        "created_by_user_id": created_by_user_id,
+        "updated_at": now_iso,
+    }
+    existing_membership = await db.tenant_memberships.find_one(
+        {"tenant_id": tenant_id, "user_id": user_id},
+        {"_id": 0, "id": 1},
+    )
+    if existing_membership:
+        await db.tenant_memberships.update_one(
+            {"tenant_id": tenant_id, "user_id": user_id},
+            {"$set": membership_payload},
+        )
+    else:
+        await db.tenant_memberships.insert_one({
+            "id": f"tm-{tenant_id}-{user_id}",
+            **membership_payload,
+            "joined_at": now_iso,
+            "created_at": now_iso,
+            "revoked_at": None,
+        })
+
+    await db.tenant_memberships.update_many(
+        {"user_id": user_id, "tenant_id": {"$ne": tenant_id}},
+        {"$set": {"is_default": False, "updated_at": now_iso}},
+    )
+    await db.users.update_one(
+        {"id": user_id},
+        {
+            "$set": {
+                "role": "copim_member",
+                "account_type": "copim_member",
+                "linked_copim_member_id": member["id"],
+                "linked_copim_tenant_id": tenant_id,
+                "updated_at": now_iso,
+            }
+        },
+    )
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member["id"]},
+        {
+            "$set": {
+                "linked_user_id": user_id,
+                "portal_access_enabled": True,
+                "updated_at": now_iso,
+            }
+        },
+    )
+
+    return {
+        "user_id": user_id,
+        "email": member["email"],
+        "temporary_password": temporary_password,
+        "created": created,
+    }
+
+
+async def ensure_copim_operator_user_account(
+    tenant_id: str,
+    association: dict,
+    *,
+    created_by_user_id: str,
+    temporary_password: str = COPIM_OPERATOR_PASSWORD,
+) -> dict:
+    operator_email = association.get("admin_email") or association.get("president_email")
+    operator_name = association.get("admin_name") or association.get("president_name") or association.get("name")
+    if not operator_email:
+        raise HTTPException(status_code=400, detail="La asociación no tiene un correo operativo para crear el usuario local")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    existing_user = await db.users.find_one({"email": operator_email}, {"_id": 0})
+    created = False
+
+    if existing_user:
+        user_id = existing_user["id"]
+        await db.users.update_one(
+            {"id": user_id},
+            {
+                "$set": {
+                    "name": operator_name,
+                    "phone": association.get("phone"),
+                    "role": "copim_operator",
+                    "account_type": "copim",
+                    "onboarding_completed": True,
+                    "linked_copim_association_id": association["id"],
+                    "updated_at": now_iso,
+                }
+            },
+        )
+        user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
+    else:
+        created = True
+        user_id = str(uuid.uuid4())
+        tenant_seed = f"tenant-{user_id[:8]}"
+        user_doc = {
+            "id": user_id,
+            "email": operator_email,
+            "name": operator_name,
+            "role": "copim_operator",
+            "phone": association.get("phone"),
+            "password_hash": get_password_hash(temporary_password),
+            "avatar_url": association.get("logo_url"),
+            "is_active": True,
+            "onboarding_completed": True,
+            "tenant_id": tenant_id,
+            "personal_tenant_id": tenant_seed,
+            "account_type": "copim",
+            "linked_copim_association_id": association["id"],
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        }
+        await db.users.insert_one(user_doc)
+
+    user_doc = await ensure_workspace_infra_for_user(user_doc)
+    existing_membership = await db.tenant_memberships.find_one(
+        {"tenant_id": tenant_id, "user_id": user_doc["id"]},
+        {"_id": 0, "id": 1},
+    )
+    membership_payload = {
+        "tenant_id": tenant_id,
+        "user_id": user_doc["id"],
+        "role": "copim_operator",
+        "status": "active",
+        "linked_via": "manual",
+        "is_default": True,
+        "accepted_at": now_iso,
+        "created_by_user_id": created_by_user_id,
+        "updated_at": now_iso,
+    }
+    if existing_membership:
+        await db.tenant_memberships.update_one(
+            {"tenant_id": tenant_id, "user_id": user_doc["id"]},
+            {"$set": membership_payload},
+        )
+    else:
+        await db.tenant_memberships.insert_one({
+            "id": f"tm-{tenant_id}-{user_doc['id']}",
+            **membership_payload,
+            "joined_at": now_iso,
+            "created_at": now_iso,
+            "revoked_at": None,
+        })
+
+    await db.tenant_memberships.update_many(
+        {"user_id": user_doc["id"], "tenant_id": {"$ne": tenant_id}},
+        {"$set": {"is_default": False, "updated_at": now_iso}},
+    )
+    await db.users.update_one(
+        {"id": user_doc["id"]},
+        {
+            "$set": {
+                "role": "copim_operator",
+                "account_type": "copim",
+                "tenant_id": tenant_id,
+                "linked_copim_association_id": association["id"],
+                "updated_at": now_iso,
+            }
+        },
+    )
+    return {
+        "user_id": user_doc["id"],
+        "email": operator_email,
+        "temporary_password": temporary_password,
+        "created": created,
+        "association_id": association["id"],
+    }
+
+
+async def fetch_copim_member_for_portal(tenant_id: str, user_id: str, email: str) -> dict:
+    member = await db.copim_members.find_one(
+        {
+            "tenant_id": tenant_id,
+            "$or": [
+                {"linked_user_id": user_id},
+                {"email": email},
+            ],
+        },
+        {"_id": 0},
+    )
+    if not member:
+        raise HTTPException(status_code=404, detail="No encontramos un perfil de asociado vinculado a esta cuenta")
+    return member
+
+
+async def resolve_local_copim_association(current_user: dict, *, strict: bool = False) -> dict | None:
+    if current_user.get("role") != "copim_operator":
+        return None
+
+    user_doc = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0, "linked_copim_association_id": 1})
+    association_id = user_doc.get("linked_copim_association_id") if user_doc else None
+
+    if association_id:
+        return await fetch_copim_association_or_404(current_user["tenant_id"], association_id)
+
+    association = await db.copim_associations.find_one(
+        {"tenant_id": current_user["tenant_id"], "status": {"$in": ["active", "onboarding"]}},
+        {"_id": 0},
+        sort=[("created_at", 1)],
+    )
+    if association:
+        return association
+
+    if strict:
+        raise HTTPException(status_code=404, detail="No encontramos una asociación local vinculada a esta cuenta")
+    return None
+
+
+async def resolve_copim_association_scope_id(current_user: dict, *, strict: bool = False) -> str | None:
+    association = await resolve_local_copim_association(current_user, strict=strict)
+    return association.get("id") if association else None
+
+
+async def resolve_scoped_copim_association_id(
+    current_user: dict,
+    requested_association_id: str | None = None,
+    *,
+    strict: bool = False,
+) -> str | None:
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=strict)
+    if not scoped_association_id:
+        return requested_association_id
+    if requested_association_id and requested_association_id != scoped_association_id:
+        raise HTTPException(status_code=403, detail="Solo puedes operar información de tu asociación local")
+    return scoped_association_id
+
+
+async def assert_copim_association_scope(current_user: dict, association_id: str | None) -> None:
+    scoped_association_id = await resolve_copim_association_scope_id(current_user)
+    if scoped_association_id and association_id and association_id != scoped_association_id:
+        raise HTTPException(status_code=403, detail="Solo puedes operar información de tu asociación local")
+
+
+def slugify_copim_course_title(raw_title: str) -> str:
+    cleaned = "".join(character.lower() if character.isalnum() else "-" for character in str(raw_title or "").strip())
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned.strip("-") or f"curso-{uuid.uuid4().hex[:6]}"
+
+
+def normalize_copim_course_materials(materials: list[dict] | None) -> list[dict]:
+    normalized: list[dict] = []
+    for index, item in enumerate(materials or []):
+        if hasattr(item, "model_dump"):
+            item = item.model_dump()
+        title = str(item.get("title") or item.get("source_name") or f"Material {index + 1}").strip()
+        normalized.append({
+            "id": item.get("id") or str(uuid.uuid4()),
+            "title": title,
+            "material_type": item.get("material_type") or "file",
+            "source_name": item.get("source_name") or title,
+            "content_type": item.get("content_type"),
+            "url": item.get("url"),
+            "summary": item.get("summary"),
+            "size_label": item.get("size_label"),
+            "is_downloadable": bool(item.get("is_downloadable", True)),
+        })
+    return normalized
+
+
+def normalize_copim_course_lessons(lessons: list[dict] | None) -> list[dict]:
+    normalized: list[dict] = []
+    for index, lesson in enumerate(lessons or []):
+        if hasattr(lesson, "model_dump"):
+            lesson = lesson.model_dump()
+        title = str(lesson.get("title") or f"Lección {index + 1}").strip()
+        normalized.append({
+            "id": lesson.get("id") or str(uuid.uuid4()),
+            "title": title,
+            "description": lesson.get("description"),
+            "duration_minutes": max(int(lesson.get("duration_minutes") or 0), 0),
+            "lesson_type": lesson.get("lesson_type") or "video",
+            "video_source": lesson.get("video_source"),
+            "video_url": lesson.get("video_url"),
+            "transcript": lesson.get("transcript"),
+            "subtitle_text": lesson.get("subtitle_text"),
+            "notes": lesson.get("notes"),
+            "is_preview": bool(lesson.get("is_preview", False)),
+            "resources": normalize_copim_course_materials(lesson.get("resources")),
+            "order": index,
+        })
+    return normalized
+
+
+def normalize_copim_course_modules(modules: list[dict] | None) -> list[dict]:
+    normalized: list[dict] = []
+    for index, module in enumerate(modules or []):
+        if hasattr(module, "model_dump"):
+            module = module.model_dump()
+        title = str(module.get("title") or f"Módulo {index + 1}").strip()
+        normalized.append({
+            "id": module.get("id") or str(uuid.uuid4()),
+            "title": title,
+            "description": module.get("description"),
+            "order": index,
+            "lessons": normalize_copim_course_lessons(module.get("lessons")),
+        })
+    return normalized
+
+
+def flatten_copim_course_lessons(course: dict) -> list[dict]:
+    lessons: list[dict] = []
+    for module in course.get("modules") or []:
+        for lesson in module.get("lessons") or []:
+            lessons.append({
+                **lesson,
+                "module_id": module.get("id"),
+                "module_title": module.get("title"),
+            })
+    return lessons
+
+
+def compute_copim_course_estimated_minutes(course: dict) -> int:
+    estimated = int(course.get("estimated_minutes") or 0)
+    if estimated > 0:
+        return estimated
+    total = 0
+    for lesson in flatten_copim_course_lessons(course):
+        total += int(lesson.get("duration_minutes") or 0)
+    return total
+
+
+def build_copim_course_fallback_cover(category: str | None = None) -> str:
+    category = str(category or "").lower()
+    if "ética" in category or "etica" in category:
+        return "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80"
+    if "marketing" in category:
+        return "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1400&q=80"
+    if "cert" in category:
+        return "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1400&q=80"
+    return "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80"
+
+
+def build_copim_course_ai_outline(payload: dict) -> dict:
+    title = str(payload.get("title") or "Curso COPIM").strip()
+    category = str(payload.get("category") or "Capacitación").strip()
+    audience = str(payload.get("audience") or "socios").strip()
+    prompt = str(payload.get("prompt") or "").strip()
+    material_titles = [str(item).strip() for item in (payload.get("material_titles") or []) if str(item or "").strip()]
+    text_hint = str(payload.get("material_text") or "").strip()
+
+    objective_base = [
+        f"Entender los fundamentos de {title.lower()} para {audience}.",
+        "Aplicar el contenido en operación diaria con pasos simples.",
+        "Cerrar la ruta con evidencia de avance, práctica y certificación visible.",
+    ]
+    if material_titles:
+        objective_base.append(f"Aprovechar materiales como {', '.join(material_titles[:3])}.")
+
+    module_names = [
+        ("Panorama y objetivos", "Contexto, expectativas y ruta del curso."),
+        ("Framework operativo", "Método paso a paso para llevar el contenido a práctica."),
+        ("Aplicación guiada", "Ejemplos, casos y checklist de implementación."),
+    ]
+    if "cert" in category.lower() or "evalu" in prompt.lower():
+        module_names.append(("Cierre y certificación", "Evaluación final, evidencia y emisión de certificado."))
+    else:
+        module_names.append(("Cierre y siguientes pasos", "Resumen, materiales de apoyo y continuidad."))
+
+    generated_modules: list[dict] = []
+    for module_index, (module_title, module_description) in enumerate(module_names):
+        lessons: list[dict] = []
+        for lesson_index in range(2):
+            reference = material_titles[(module_index + lesson_index) % len(material_titles)] if material_titles else None
+            lesson_title = (
+                f"{module_title} · Lección {lesson_index + 1}"
+                if not reference
+                else f"{module_title} · {reference[:42]}"
+            )
+            lessons.append({
+                "id": str(uuid.uuid4()),
+                "title": lesson_title,
+                "description": (
+                    f"Bloque guiado para {title.lower()}."
+                    if not reference
+                    else f"Lección construida a partir de {reference.lower()}."
+                ),
+                "duration_minutes": 12 if lesson_index == 0 else 18,
+                "lesson_type": "video",
+                "video_source": "youtube" if lesson_index == 0 else None,
+                "video_url": None,
+                "transcript": text_hint[:480] or f"Resumen operativo de {lesson_title.lower()}.",
+                "subtitle_text": f"Subtítulos base sugeridos para {lesson_title.lower()}.",
+                "notes": "Agrega puntos clave, checklist o actividad breve.",
+                "is_preview": module_index == 0 and lesson_index == 0,
+                "resources": [],
+                "order": lesson_index,
+            })
+        generated_modules.append({
+            "id": str(uuid.uuid4()),
+            "title": module_title,
+            "description": module_description,
+            "order": module_index,
+            "lessons": lessons,
+        })
+
+    quiz_prompts = [
+        f"Checklist de aplicación de {title.lower()}",
+        "Tres preguntas de validación de aprendizaje",
+        "Una actividad breve para medir adopción",
+    ]
+    if material_titles:
+        quiz_prompts.append(f"Mini evaluación basada en {material_titles[0]}")
+
+    return {
+        "summary": f"Ruta sugerida para {title} con foco en {category.lower()} y adopción simple.",
+        "description": (
+            f"{title} queda estructurado como experiencia ligera para {audience}, con módulos cortos, "
+            "progreso visible y recursos de apoyo listos para publicar."
+        ),
+        "learning_objectives": objective_base,
+        "modules": generated_modules,
+        "quiz_suggestions": quiz_prompts,
+        "marketplace_copy": f"Curso {category.lower()} pensado para acelerar adopción y valor visible de membresía.",
+    }
+
+
+async def fetch_copim_course_or_404(tenant_id: str, course_id: str) -> dict:
+    course = await db.copim_courses.find_one({"tenant_id": tenant_id, "id": course_id}, {"_id": 0})
+    if not course:
+        raise HTTPException(status_code=404, detail="Curso no encontrado")
+    return course
+
+
+def can_copim_user_manage_course(current_user: dict, course: dict, scoped_association_id: str | None = None) -> bool:
+    if current_user.get("role") == "copim_admin":
+        return True
+    if current_user.get("role") != "copim_operator":
+        return False
+    return course.get("association_id") == scoped_association_id and course.get("scope") == "association"
+
+
+def can_copim_member_access_course(course: dict, member: dict) -> bool:
+    if course.get("status") != "published":
+        return False
+    association_id = member.get("association_id")
+    if course.get("scope") == "association" and course.get("association_id") not in {None, association_id}:
+        return False
+    visibility = course.get("visibility") or "members"
+    if visibility == "association" and course.get("association_id") != association_id:
+        return False
+    return visibility in {"members", "association", "public"}
+
+
+def compute_copim_course_progress_percent(course: dict, completed_lesson_ids: list[str] | None) -> int:
+    lesson_ids = [lesson.get("id") for lesson in flatten_copim_course_lessons(course) if lesson.get("id")]
+    if not lesson_ids:
+        return 0
+    completed = set(completed_lesson_ids or [])
+    progress = round((len([lesson_id for lesson_id in lesson_ids if lesson_id in completed]) / len(lesson_ids)) * 100)
+    return max(0, min(progress, 100))
+
+
+async def sync_copim_association_course_counts(tenant_id: str) -> None:
+    associations = await db.copim_associations.find({"tenant_id": tenant_id}, {"_id": 0, "id": 1}).to_list(200)
+    for association in associations:
+        active_count = await db.copim_courses.count_documents({
+            "tenant_id": tenant_id,
+            "association_id": association["id"],
+            "status": {"$in": ["draft", "published"]},
+        })
+        await db.copim_associations.update_one(
+            {"tenant_id": tenant_id, "id": association["id"]},
+            {"$set": {"active_courses_count": active_count, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+
+
+async def ensure_copim_course_seed_data(current_user: dict) -> None:
+    tenant_id = current_user["tenant_id"]
+    existing_courses = await db.copim_courses.count_documents({"tenant_id": tenant_id})
+    if existing_courses:
+        return
+
+    associations = await db.copim_associations.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(200)
+    members = await db.copim_members.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(500)
+    if not associations:
+        return
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    first_association = associations[0]
+
+    course_docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "association_id": None,
+            "scope": "national",
+            "title": "Onboarding COPIM y estándar ético",
+            "subtitle": "Curso nacional base para altas, operación y reputación profesional.",
+            "summary": "Ruta corta para que el socio entienda membresía, ética, directorio y participación.",
+            "description": "Curso institucional base para todos los asociados COPIM.",
+            "category": "Onboarding",
+            "modality": "Video on demand",
+            "audience": "socios",
+            "visibility": "members",
+            "status": "published",
+            "cover_image_url": build_copim_course_fallback_cover("etica"),
+            "hero_image_url": build_copim_course_fallback_cover("etica"),
+            "pricing_type": "free",
+            "price_amount": 0,
+            "currency": "MXN",
+            "marketplace_enabled": True,
+            "certificate_enabled": True,
+            "certificate_title": "Asociado COPIM · Onboarding completado",
+            "tags": ["onboarding", "etica", "copim"],
+            "learning_objectives": [
+                "Entender el estándar ético y operativo de COPIM.",
+                "Activar directorio, credencial y participación institucional.",
+                "Cerrar la ruta de alta con trazabilidad simple.",
+            ],
+            "language": "es-MX",
+            "estimated_minutes": 52,
+            "onboarding_notes": "Ideal para nuevos socios y activación temprana de membresía.",
+            "instructors": [
+                {"id": str(uuid.uuid4()), "name": "Academia COPIM", "role": "Instructor nacional", "bio": "Ruta base institucional.", "avatar_url": None},
+            ],
+            "modules": build_copim_course_ai_outline({"title": "Onboarding COPIM y estándar ético", "category": "Onboarding", "audience": "socios"}).get("modules", []),
+            "materials": [],
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "association_id": None,
+            "scope": "national",
+            "title": "Valoración profesional de propiedades",
+            "subtitle": "Certificación nacional para pricing, argumento técnico y confianza comercial.",
+            "summary": "Curso premium con enfoque en análisis, pricing y presentación profesional.",
+            "description": "Programa premium pensado para socios que quieren reforzar capacidad técnica y certificado visible.",
+            "category": "Certificación",
+            "modality": "Blended",
+            "audience": "socios",
+            "visibility": "members",
+            "status": "published",
+            "cover_image_url": build_copim_course_fallback_cover("certificacion"),
+            "hero_image_url": build_copim_course_fallback_cover("certificacion"),
+            "pricing_type": "premium",
+            "price_amount": 1490,
+            "currency": "MXN",
+            "marketplace_enabled": True,
+            "certificate_enabled": True,
+            "certificate_title": "COPIM Certifica · Valoración profesional",
+            "tags": ["certificacion", "pricing", "analisis"],
+            "learning_objectives": [
+                "Estructurar comparables y pricing defendible.",
+                "Mejorar la presentación técnica frente al cliente.",
+                "Cerrar la ruta con certificado visible en perfil.",
+            ],
+            "language": "es-MX",
+            "estimated_minutes": 96,
+            "onboarding_notes": "Curso premium para marketplace nacional.",
+            "instructors": [
+                {"id": str(uuid.uuid4()), "name": "COPIM Certifica", "role": "Mentor nacional", "bio": "Especialista en valoración y pricing.", "avatar_url": None},
+            ],
+            "modules": build_copim_course_ai_outline({"title": "Valoración profesional de propiedades", "category": "Certificación", "audience": "socios"}).get("modules", []),
+            "materials": [],
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "association_id": first_association["id"],
+            "scope": "association",
+            "title": f"Inducción local {first_association['name']}",
+            "subtitle": "Ruta de arranque para procesos, agenda y cultura del capítulo.",
+            "summary": "Curso local para activar a nuevos socios dentro de la operación del capítulo.",
+            "description": f"Programa de inducción local para {first_association['name']}.",
+            "category": "Inducción local",
+            "modality": "Video on demand",
+            "audience": "socios",
+            "visibility": "association",
+            "status": "published",
+            "cover_image_url": build_copim_course_fallback_cover("onboarding"),
+            "hero_image_url": build_copim_course_fallback_cover("onboarding"),
+            "pricing_type": "free",
+            "price_amount": 0,
+            "currency": "MXN",
+            "marketplace_enabled": False,
+            "certificate_enabled": False,
+            "certificate_title": None,
+            "tags": ["capitulo", "induccion"],
+            "learning_objectives": [
+                "Conocer agenda, directorio y padrón local.",
+                "Entender cómo participar en eventos y renovaciones.",
+            ],
+            "language": "es-MX",
+            "estimated_minutes": 44,
+            "onboarding_notes": "Curso local del capítulo.",
+            "instructors": [
+                {"id": str(uuid.uuid4()), "name": first_association.get("admin_name") or "Operación local", "role": "Operación del capítulo", "bio": "Gestión local de socios.", "avatar_url": None},
+            ],
+            "modules": build_copim_course_ai_outline({"title": f"Inducción local {first_association['name']}", "category": "Onboarding", "audience": "socios"}).get("modules", []),
+            "materials": [],
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        },
+    ]
+    await db.copim_courses.insert_many(course_docs)
+
+    active_members = [member for member in members if member.get("member_status") == "active"]
+    enrollment_docs = []
+    free_course = course_docs[0]
+    premium_course = course_docs[1]
+    local_course = course_docs[2]
+    for index, member in enumerate(active_members[:6]):
+        completed_lesson_ids = [lesson["id"] for lesson in flatten_copim_course_lessons(free_course)[: max(1, min(3 + index, 6))]]
+        free_progress = compute_copim_course_progress_percent(free_course, completed_lesson_ids)
+        enrollment_docs.append({
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "course_id": free_course["id"],
+            "member_id": member["id"],
+            "association_id": member.get("association_id"),
+            "status": "completed" if free_progress == 100 else "in_progress",
+            "payment_status": "free",
+            "progress_percent": free_progress,
+            "completed_lesson_ids": completed_lesson_ids,
+            "last_lesson_id": completed_lesson_ids[-1] if completed_lesson_ids else None,
+            "certificate_earned": free_progress == 100,
+            "purchased_at": None,
+            "started_at": now_iso,
+            "completed_at": now_iso if free_progress == 100 else None,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        })
+        if member.get("association_id") == local_course.get("association_id"):
+            local_completed = [lesson["id"] for lesson in flatten_copim_course_lessons(local_course)[:2]]
+            local_progress = compute_copim_course_progress_percent(local_course, local_completed)
+            enrollment_docs.append({
+                "id": str(uuid.uuid4()),
+                "tenant_id": tenant_id,
+                "course_id": local_course["id"],
+                "member_id": member["id"],
+                "association_id": member.get("association_id"),
+                "status": "in_progress",
+                "payment_status": "free",
+                "progress_percent": local_progress,
+                "completed_lesson_ids": local_completed,
+                "last_lesson_id": local_completed[-1] if local_completed else None,
+                "certificate_earned": False,
+                "purchased_at": None,
+                "started_at": now_iso,
+                "completed_at": None,
+                "created_at": now_iso,
+                "updated_at": now_iso,
+            })
+    if active_members:
+        premium_member = active_members[0]
+        premium_completed = [lesson["id"] for lesson in flatten_copim_course_lessons(premium_course)[:3]]
+        premium_progress = compute_copim_course_progress_percent(premium_course, premium_completed)
+        enrollment_docs.append({
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "course_id": premium_course["id"],
+            "member_id": premium_member["id"],
+            "association_id": premium_member.get("association_id"),
+            "status": "in_progress",
+            "payment_status": "paid",
+            "progress_percent": premium_progress,
+            "completed_lesson_ids": premium_completed,
+            "last_lesson_id": premium_completed[-1] if premium_completed else None,
+            "certificate_earned": False,
+            "purchased_at": now_iso,
+            "started_at": now_iso,
+            "completed_at": None,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        })
+    if enrollment_docs:
+        await db.copim_course_enrollments.insert_many(enrollment_docs)
+    await sync_copim_association_course_counts(tenant_id)
+
+
+async def get_copim_course_stats_map(tenant_id: str, course_ids: list[str]) -> dict[str, dict]:
+    enrollments = await db.copim_course_enrollments.find(
+        {"tenant_id": tenant_id, "course_id": {"$in": course_ids}},
+        {"_id": 0},
+    ).to_list(5000)
+    stats_map: dict[str, dict] = {
+        course_id: {
+            "enrollment_count": 0,
+            "completion_count": 0,
+            "premium_sales_count": 0,
+            "premium_revenue": 0.0,
+            "average_progress": 0,
+        }
+        for course_id in course_ids
+    }
+    progress_buckets: dict[str, list[int]] = {course_id: [] for course_id in course_ids}
+    for enrollment in enrollments:
+        course_id = enrollment.get("course_id")
+        if course_id not in stats_map:
+            continue
+        stats_map[course_id]["enrollment_count"] += 1
+        if enrollment.get("status") == "completed":
+            stats_map[course_id]["completion_count"] += 1
+        if enrollment.get("payment_status") == "paid":
+            stats_map[course_id]["premium_sales_count"] += 1
+        progress_buckets[course_id].append(int(enrollment.get("progress_percent") or 0))
+    return {
+        course_id: {
+            **stats,
+            "average_progress": round(sum(progress_buckets[course_id]) / len(progress_buckets[course_id])) if progress_buckets[course_id] else 0,
+        }
+        for course_id, stats in stats_map.items()
+    }
+
+
+async def build_copim_courses_workspace_payload(current_user: dict) -> dict:
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_course_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=current_user.get("role") == "copim_operator")
+    query: dict = {"tenant_id": tenant_id}
+    if current_user.get("role") == "copim_operator":
+        query["$or"] = [
+            {"scope": "national"},
+            {"association_id": scoped_association_id},
+        ]
+    courses = await db.copim_courses.find(query, {"_id": 0}).sort("updated_at", -1).to_list(500)
+    course_ids = [course["id"] for course in courses]
+    stats_map = await get_copim_course_stats_map(tenant_id, course_ids)
+    association_map = {
+        item["id"]: item
+        for item in await db.copim_associations.find({"tenant_id": tenant_id}, {"_id": 0, "id": 1, "name": 1}).to_list(200)
+    }
+    enriched_courses = []
+    for course in courses:
+        course_stats = stats_map.get(course["id"], {})
+        lesson_count = len(flatten_copim_course_lessons(course))
+        estimated_minutes = compute_copim_course_estimated_minutes(course)
+        scope_label = "Nacional" if course.get("scope") == "national" else "Asociación"
+        association = association_map.get(course.get("association_id"))
+        price_amount = float(course.get("price_amount") or 0)
+        enriched_courses.append(serialize_doc({
+            **course,
+            "lesson_count": lesson_count,
+            "module_count": len(course.get("modules") or []),
+            "estimated_minutes": estimated_minutes,
+            "association_name": association.get("name") if association else None,
+            "scope_label": scope_label,
+            "can_edit": can_copim_user_manage_course(current_user, course, scoped_association_id),
+            "enrollment_count": course_stats.get("enrollment_count", 0),
+            "completion_count": course_stats.get("completion_count", 0),
+            "average_progress": course_stats.get("average_progress", 0),
+            "premium_sales_count": course_stats.get("premium_sales_count", 0),
+            "premium_revenue": course_stats.get("premium_sales_count", 0) * price_amount,
+        }))
+
+    premium_courses = [course for course in enriched_courses if course.get("pricing_type") == "premium" and course.get("marketplace_enabled")]
+    stats = {
+        "total_courses": len(enriched_courses),
+        "draft_courses": len([course for course in enriched_courses if course.get("status") == "draft"]),
+        "published_courses": len([course for course in enriched_courses if course.get("status") == "published"]),
+        "premium_courses": len(premium_courses),
+        "enrollments": sum(int(course.get("enrollment_count") or 0) for course in enriched_courses),
+        "completions": sum(int(course.get("completion_count") or 0) for course in enriched_courses),
+        "premium_revenue": sum(float(course.get("premium_revenue") or 0) for course in premium_courses),
+    }
+
+    association = await resolve_local_copim_association(current_user, strict=False)
+    return {
+        "scope": "association" if current_user.get("role") == "copim_operator" else "national",
+        "association": serialize_doc(association) if association else None,
+        "stats": stats,
+        "courses": enriched_courses,
+    }
+
+
+async def build_copim_member_courses_payload(current_user: dict) -> dict:
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_course_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    association = await fetch_copim_association_or_404(tenant_id, member["association_id"]) if member.get("association_id") else None
+    all_courses = await db.copim_courses.find({"tenant_id": tenant_id, "status": "published"}, {"_id": 0}).sort("updated_at", -1).to_list(500)
+    visible_courses = [course for course in all_courses if can_copim_member_access_course(course, member)]
+    enrollments = await db.copim_course_enrollments.find(
+        {"tenant_id": tenant_id, "member_id": member["id"]},
+        {"_id": 0},
+    ).sort("updated_at", -1).to_list(500)
+    enrollment_map = {enrollment["course_id"]: enrollment for enrollment in enrollments}
+
+    def serialize_course_for_member(course: dict) -> dict:
+        enrollment = enrollment_map.get(course["id"])
+        lessons = flatten_copim_course_lessons(course)
+        completed_ids = set(enrollment.get("completed_lesson_ids", [])) if enrollment else set()
+        next_lesson = next((lesson for lesson in lessons if lesson.get("id") not in completed_ids), None)
+        return serialize_doc({
+            **course,
+            "association_name": association.get("name") if association and course.get("association_id") == association.get("id") else None,
+            "lesson_count": len(lessons),
+            "module_count": len(course.get("modules") or []),
+            "estimated_minutes": compute_copim_course_estimated_minutes(course),
+            "is_enrolled": bool(enrollment),
+            "is_purchased": enrollment.get("payment_status") == "paid" if enrollment else False,
+            "progress": enrollment.get("progress_percent") if enrollment else 0,
+            "status": enrollment.get("status") if enrollment else ("locked" if course.get("pricing_type") == "premium" else "available"),
+            "certificate_earned": bool(enrollment.get("certificate_earned")) if enrollment else False,
+            "modules_completed": len(completed_ids),
+            "modules_total": len(lessons),
+            "completed_lesson_ids": list(completed_ids),
+            "last_lesson_id": enrollment.get("last_lesson_id") if enrollment else None,
+            "next_lesson_id": next_lesson.get("id") if next_lesson else None,
+            "next_lesson_title": next_lesson.get("title") if next_lesson else None,
+        })
+
+    member_courses = [serialize_course_for_member(course) for course in visible_courses if enrollment_map.get(course["id"])]
+    marketplace_courses = [
+        serialize_course_for_member(course)
+        for course in visible_courses
+        if course.get("marketplace_enabled") or course.get("pricing_type") == "premium" or not enrollment_map.get(course["id"])
+    ]
+    completed_courses = [course for course in member_courses if course.get("status") == "completed"]
+    in_progress_courses = [course for course in member_courses if course.get("status") == "in_progress"]
+    purchased_courses = [course for course in member_courses if course.get("is_purchased")]
+    average_progress = round(sum(int(course.get("progress") or 0) for course in member_courses) / len(member_courses)) if member_courses else 0
+
+    return {
+        "member": (await enrich_copim_members(tenant_id, [member]))[0],
+        "association": serialize_doc(association) if association else None,
+        "summary": {
+            "completed_courses": len(completed_courses),
+            "in_progress_courses": len(in_progress_courses),
+            "average_progress": average_progress,
+            "certifications": len([course for course in member_courses if course.get("certificate_earned")]),
+            "purchased_courses": len(purchased_courses),
+        },
+        "courses": member_courses,
+        "marketplace_courses": marketplace_courses,
+        "certificates": completed_courses,
+    }
+
+
+def build_local_association_campaign_seed(association: dict) -> list[dict]:
+    member_count = int(association.get("member_count") or 0)
+    return [
+        {
+            "id": f"{association['id']}-wa",
+            "channel": "WhatsApp",
+            "campaign_name": f"Convención {association.get('city') or 'COPIM'} 2026",
+            "status": "active",
+            "sent": max(member_count, 48),
+            "delivered_rate": 97,
+            "responses": max(12, round(member_count * 0.14)),
+            "goal": "Confirmar asistencia y mover registros al evento principal.",
+            "next_action": "Revisar respuestas y reenviar a no abiertos.",
+        },
+        {
+            "id": f"{association['id']}-email",
+            "channel": "Email",
+            "campaign_name": "Renovación y beneficios activos",
+            "status": "scheduled",
+            "sent": max(member_count + 20, 60),
+            "open_rate": 46,
+            "click_rate": 18,
+            "goal": "Acelerar renovaciones y activar beneficios de membresía.",
+            "next_action": "Ajustar copy de beneficios y disparar recordatorio a vencidos.",
+        },
+        {
+            "id": f"{association['id']}-sms",
+            "channel": "SMS",
+            "campaign_name": "Recordatorio de pago y credencial",
+            "status": "draft",
+            "sent": max(round(member_count * 0.4), 24),
+            "delivered_rate": 99,
+            "responses": max(6, round(member_count * 0.06)),
+            "goal": "Reducir cartera vencida y empujar facturación pendiente.",
+            "next_action": "Conectar con socios pendientes en próxima semana.",
+        },
+    ]
+
+
+def build_local_association_properties_seed(association: dict) -> list[dict]:
+    city = association.get("city") or "México"
+    coverage_zone = association.get("coverage_zone") or city
+    return [
+        {
+            "id": f"{association['id']}-prop-1",
+            "title": f"Exclusiva residencial en {city}",
+            "type": "Residencial",
+            "city": city,
+            "price_label": "$6.4M MXN",
+            "views": 142,
+            "status": "activa",
+            "specialty": "Residencial premium",
+            "image_url": "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1200&q=80",
+            "summary": f"Oportunidad compartida por socios del capítulo para crecer referidos en {coverage_zone}.",
+        },
+        {
+            "id": f"{association['id']}-prop-2",
+            "title": f"Terreno para desarrollo en {coverage_zone}",
+            "type": "Terreno",
+            "city": city,
+            "price_label": "$9.8M MXN",
+            "views": 88,
+            "status": "en difusión",
+            "specialty": "Inversión y desarrollos",
+            "image_url": "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
+            "summary": "Inventario visible para networking comercial y cruces entre socios activos.",
+        },
+        {
+            "id": f"{association['id']}-prop-3",
+            "title": f"Oficinas corporativas en {city}",
+            "type": "Comercial",
+            "city": city,
+            "price_label": "$4.9M MXN",
+            "views": 61,
+            "status": "publicada",
+            "specialty": "Comercial",
+            "image_url": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
+            "summary": "Inventario de oportunidad para campañas y comités de negocio.",
+        },
+    ]
+
+
+def build_local_association_courses_seed(association: dict) -> list[dict]:
+    city = association.get("city") or "la asociación"
+    return [
+        {
+            "id": f"{association['id']}-course-1",
+            "title": "Onboarding y estándar ético",
+            "status": "active",
+            "progress": 82,
+            "attendees": 34,
+            "certifications": 18,
+            "format": "Virtual",
+            "summary": f"Curso base para nuevos socios del capítulo en {city}.",
+        },
+        {
+            "id": f"{association['id']}-course-2",
+            "title": "Cierre profesional y referidos",
+            "status": "in_progress",
+            "progress": 56,
+            "attendees": 21,
+            "certifications": 9,
+            "format": "Híbrido",
+            "summary": "Capacitación comercial ligada al valor práctico de la membresía.",
+        },
+        {
+            "id": f"{association['id']}-course-3",
+            "title": "Certificación de actualización 2026",
+            "status": "completed",
+            "progress": 100,
+            "attendees": 43,
+            "certifications": 43,
+            "format": "Presencial",
+            "summary": "Programa insignia para visibilidad y profesionalización del padrón.",
+        },
+    ]
+
+
+def build_local_association_module_seed(association: dict) -> dict:
+    member_count = int(association.get("member_count") or 0)
+    premium_members = max(6, round(member_count * 0.18))
+    revenue_share = premium_members * 980
+    modules = [
+        {
+            "id": "prospects",
+            "name": "Gestión de prospectos",
+            "status": "available",
+            "price_label": "$49 USD / mes por socio",
+            "commission_label": "$9.80 USD por activación",
+            "commission_rate": "20%",
+            "adoption": max(4, round(premium_members * 0.4)),
+            "summary": "Ideal para socios que quieran ordenar seguimiento y originación básica.",
+        },
+        {
+            "id": "agenda",
+            "name": "Agenda inteligente",
+            "status": "available",
+            "price_label": "$49 USD / mes por socio",
+            "commission_label": "Incluido en paquete Profesional",
+            "commission_rate": "bundle",
+            "adoption": max(3, round(premium_members * 0.3)),
+            "summary": "Organiza citas, recordatorios y agenda operativa de socios activos.",
+        },
+        {
+            "id": "landing",
+            "name": "Landing personal",
+            "status": "available",
+            "price_label": "$49 USD / mes por socio",
+            "commission_label": "Incluido en paquete Profesional",
+            "commission_rate": "bundle",
+            "adoption": max(2, round(premium_members * 0.25)),
+            "summary": "Ayuda a elevar presencia digital sin meter CRM pesado en la adopción base.",
+        },
+        {
+            "id": "mass-campaigns",
+            "name": "Campañas masivas",
+            "status": "available",
+            "price_label": "$99 USD / mes por socio",
+            "commission_label": "$29.70 USD por activación",
+            "commission_rate": "30%",
+            "adoption": max(1, round(premium_members * 0.15)),
+            "summary": "Módulo de valor para socios con necesidad real de alcance comercial.",
+        },
+    ]
+    return {
+        "stats": {
+            "active_members": member_count,
+            "premium_members": premium_members,
+            "revenue_share_mxn": revenue_share,
+            "adoption_rate": round((premium_members / member_count) * 100) if member_count else 0,
+        },
+        "modules": modules,
+    }
+
+
+def build_local_association_channels(association: dict) -> list[dict]:
+    association_name = association.get("name") or "Mi asociación"
+    association_member_count = int(association.get("member_count") or 0)
+    return [
+        {
+            "id": "general",
+            "label": "Comunidad general",
+            "description": "Vista amplia de la red COPIM",
+            "count": max(association_member_count + 54, 86),
+            "can_view": True,
+            "can_comment": True,
+            "can_post": False,
+        },
+        {
+            "id": "association",
+            "label": association_name,
+            "description": "Canal local del capítulo",
+            "count": max(association_member_count, 18),
+            "can_view": True,
+            "can_comment": True,
+            "can_post": True,
+        },
+        {
+            "id": "announcements",
+            "label": "Comunicados",
+            "description": "Presidencia y avisos clave",
+            "count": 6,
+            "can_view": True,
+            "can_comment": False,
+            "can_post": False,
+        },
+        {
+            "id": "courses",
+            "label": "Cursos y certificaciones",
+            "description": "Agenda académica y avisos",
+            "count": 14,
+            "can_view": True,
+            "can_comment": True,
+            "can_post": False,
+        },
+        {
+            "id": "business",
+            "label": "Oportunidades de negocio",
+            "description": "Networking y cruces comerciales",
+            "count": 11,
+            "can_view": True,
+            "can_comment": True,
+            "can_post": False,
+        },
+    ]
+
+
+async def ensure_local_association_community_seed(tenant_id: str, association: dict, created_by_user_id: str) -> None:
+    now = datetime.now(timezone.utc)
+    created_at = now.isoformat()
+    channel_templates = [
+        {
+            "channel_id": "general",
+            "author_name": "COPIM Nacional",
+            "author_role": "copim_admin",
+            "content": "Se abrió la convocatoria nacional para actualizar directorio, credenciales y agenda del próximo trimestre.",
+            "comment_count": 1,
+            "comments": [
+                {
+                    "id": str(uuid.uuid4()),
+                    "author_name": association.get("admin_name") or association.get("name"),
+                    "author_role": "copim_operator",
+                    "content": "Nuestro capítulo ya está coordinando el barrido de renovaciones y la publicación local.",
+                    "created_at": created_at,
+                }
+            ],
+        },
+        {
+            "channel_id": "association",
+            "author_name": association.get("admin_name") or association.get("name"),
+            "author_role": "copim_operator",
+            "content": "Esta semana priorizamos tres frentes: aprobación de solicitudes, cobranza de renovaciones y confirmación de asistentes al siguiente evento.",
+            "comment_count": 0,
+            "comments": [],
+        },
+        {
+            "channel_id": "announcements",
+            "author_name": "Presidencia COPIM",
+            "author_role": "copim_admin",
+            "content": "Se actualizaron lineamientos de visibilidad, credencialización y trazabilidad de membresías para todos los capítulos activos.",
+            "comment_count": 0,
+            "comments": [],
+        },
+        {
+            "channel_id": "courses",
+            "author_name": association.get("admin_name") or association.get("name"),
+            "author_role": "copim_operator",
+            "content": "Ya está abierta la inscripción al bloque de certificaciones comerciales y reputación digital para asociados vigentes.",
+            "comment_count": 1,
+            "comments": [
+                {
+                    "id": str(uuid.uuid4()),
+                    "author_name": "COPIM Nacional",
+                    "author_role": "copim_admin",
+                    "content": "Recuerden que este ciclo suma puntos para ranking y validación profesional.",
+                    "created_at": created_at,
+                }
+            ],
+        },
+        {
+            "channel_id": "business",
+            "author_name": association.get("president_name") or association.get("name"),
+            "author_role": "copim_operator",
+            "content": "Buscamos cruces entre socios visibles para oportunidades en residencial, desarrollos verticales y operaciones compartidas.",
+            "comment_count": 0,
+            "comments": [],
+        },
+    ]
+    existing_channel_ids = set(await db.copim_association_posts.distinct(
+        "channel_id",
+        {
+            "tenant_id": tenant_id,
+            "association_id": association["id"],
+        },
+    ))
+    posts_to_insert = []
+    for template in channel_templates:
+        if template["channel_id"] in existing_channel_ids:
+            continue
+        posts_to_insert.append({
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "association_id": association["id"],
+            "created_by_user_id": created_by_user_id,
+            "created_at": created_at,
+            "updated_at": created_at,
+            **template,
+        })
+
+    if posts_to_insert:
+        await db.copim_association_posts.insert_many(posts_to_insert)
+
+
+async def sync_copim_member_financials(tenant_id: str, member_id: str | None) -> None:
+    if not member_id:
+        return
+
+    memberships = await db.copim_memberships.find(
+        {"tenant_id": tenant_id, "member_id": member_id},
+        {"_id": 0, "balance_due": 1},
+    ).to_list(1000)
+    total_due = sum(float(item.get("balance_due") or 0) for item in memberships)
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member_id},
+        {"$set": {"amount_due": total_due, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+
+
+async def enrich_copim_members(tenant_id: str, members: list[dict]) -> list[dict]:
+    association_map = await build_copim_association_map(tenant_id)
+    for member in members:
+        association = association_map.get(member.get("association_id"))
+        member["association_name"] = association.get("name") if association else "Sin asociacion"
+        member["profile_completion"] = calculate_copim_profile_completion(member)
+    return [serialize_doc(member) for member in members]
+
+
+async def enrich_copim_memberships(tenant_id: str, memberships: list[dict]) -> list[dict]:
+    association_map = await build_copim_association_map(tenant_id)
+    member_map = await build_copim_member_map(tenant_id)
+    invoice_map: dict[str, list[dict]] = {}
+    invoices = await db.copim_invoices.find(
+        {"tenant_id": tenant_id},
+        {
+            "_id": 0,
+            "id": 1,
+            "membership_id": 1,
+            "invoice_number": 1,
+            "invoice_status": 1,
+            "payment_status": 1,
+            "balance_due": 1,
+            "total_amount": 1,
+            "due_date": 1,
+            "updated_at": 1,
+        },
+    ).sort("updated_at", -1).to_list(1000)
+    for invoice in invoices:
+        membership_id = invoice.get("membership_id")
+        if not membership_id:
+            continue
+        invoice_map.setdefault(membership_id, []).append(invoice)
+
+    now = datetime.now(timezone.utc)
+    for membership in memberships:
+        association = association_map.get(membership.get("association_id"))
+        member = member_map.get(membership.get("member_id"))
+        related_invoices = invoice_map.get(membership.get("id"), [])
+        latest_invoice = related_invoices[0] if related_invoices else None
+        membership["association_name"] = association.get("name") if association else "Sin asociacion"
+        membership["member_name"] = member.get("full_name") if member else "Socio no encontrado"
+        renewal_at = parse_iso_datetime(membership.get("renewal_date"))
+        membership["days_to_renewal"] = (renewal_at - now).days if renewal_at else None
+        membership["open_invoice_count"] = len([
+            item for item in related_invoices
+            if item.get("payment_status") in {"pending", "overdue"} and item.get("invoice_status") != "cancelled"
+        ])
+        membership["latest_invoice_id"] = latest_invoice.get("id") if latest_invoice else None
+        membership["latest_invoice_number"] = latest_invoice.get("invoice_number") if latest_invoice else None
+        membership["latest_invoice_payment_status"] = latest_invoice.get("payment_status") if latest_invoice else None
+        membership["latest_invoice_balance_due"] = float(latest_invoice.get("balance_due") or 0) if latest_invoice else 0
+    return [serialize_doc(membership) for membership in memberships]
+
+
+async def enrich_copim_invoices(tenant_id: str, invoices: list[dict]) -> list[dict]:
+    association_map = await build_copim_association_map(tenant_id)
+    member_map = await build_copim_member_map(tenant_id)
+    membership_map = {
+        item["id"]: item
+        for item in await db.copim_memberships.find({"tenant_id": tenant_id}, {"_id": 0, "id": 1, "plan_name": 1}).to_list(1000)
+    }
+    now = datetime.now(timezone.utc)
+    for invoice in invoices:
+        association = association_map.get(invoice.get("association_id"))
+        member = member_map.get(invoice.get("member_id"))
+        membership = membership_map.get(invoice.get("membership_id"))
+        invoice["association_name"] = association.get("name") if association else "Sin asociacion"
+        invoice["member_name"] = member.get("full_name") if member else "Socio no encontrado"
+        invoice["membership_name"] = membership.get("plan_name") if membership else "Sin membresia"
+        due_at = parse_iso_datetime(invoice.get("due_date"))
+        invoice["days_to_due"] = (due_at - now).days if due_at else None
+    return [serialize_doc(invoice) for invoice in invoices]
+
+
+async def enrich_copim_events(tenant_id: str, events: list[dict]) -> list[dict]:
+    association_map = await build_copim_association_map(tenant_id)
+    for event in events:
+        association = association_map.get(event.get("association_id"))
+        event["association_name"] = association.get("name") if association else "Vista nacional COPIM"
+        capacity = event.get("capacity", 0) or 0
+        registered = event.get("registered_count", 0) or 0
+        checked_in = event.get("checked_in_count", 0) or 0
+        event["available_slots"] = max(capacity - registered, 0) if capacity else None
+        event["occupancy_rate"] = int((registered / capacity) * 100) if capacity else 0
+        event["attendance_rate"] = int((checked_in / registered) * 100) if registered else 0
+    return [serialize_doc(event) for event in events]
+
+
+async def build_copim_member_event_registrations(tenant_id: str, member_id: str) -> list[dict]:
+    registrations = await db.copim_event_registrations.find(
+        {"tenant_id": tenant_id, "member_id": member_id},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(200)
+    if not registrations:
+        return []
+
+    event_map = {
+        item["id"]: item
+        for item in await db.copim_events.find(
+            {"tenant_id": tenant_id, "id": {"$in": [registration["event_id"] for registration in registrations]}},
+            {"_id": 0},
+        ).to_list(200)
+    }
+    enriched_events = {
+        item["id"]: item
+        for item in await enrich_copim_events(tenant_id, list(event_map.values()))
+    }
+
+    result = []
+    for registration in registrations:
+        event = enriched_events.get(registration.get("event_id"))
+        if not event:
+            continue
+        qr_value = registration.get("qr_payload") or f"copim:event:{registration['id']}"
+        result.append(serialize_doc({
+            **registration,
+            "event": event,
+            "qr_url": build_copim_qr_url(qr_value),
+        }))
+    return result
+
+
+async def create_copim_event_registration(
+    tenant_id: str,
+    event_id: str,
+    member_id: str,
+    *,
+    source: str = "member_portal",
+) -> dict:
+    event = await fetch_copim_event_or_404(tenant_id, event_id)
+    await fetch_copim_member_or_404(tenant_id, member_id)
+    existing = await db.copim_event_registrations.find_one(
+        {"tenant_id": tenant_id, "event_id": event_id, "member_id": member_id},
+        {"_id": 0},
+    )
+    if existing:
+        return existing
+
+    if event.get("status") in {"completed", "cancelled"}:
+        raise HTTPException(status_code=400, detail="El evento ya no acepta registros")
+    if event.get("registration_open") is False:
+        raise HTTPException(status_code=400, detail="El registro para este evento esta cerrado")
+
+    capacity = event.get("capacity", 0) or 0
+    registered_count = event.get("registered_count", 0) or 0
+    if capacity and registered_count >= capacity:
+        raise HTTPException(status_code=400, detail="El evento ya alcanzo su capacidad")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    registration_id = str(uuid.uuid4())
+    registration_doc = {
+        "id": registration_id,
+        "tenant_id": tenant_id,
+        "event_id": event_id,
+        "member_id": member_id,
+        "association_id": event.get("association_id"),
+        "registration_status": "registered",
+        "source": source,
+        "qr_payload": f"copim:event:{event_id}:member:{member_id}:registration:{registration_id}",
+        "created_at": now_iso,
+        "updated_at": now_iso,
+        "checked_in_at": None,
+    }
+    await db.copim_event_registrations.insert_one(registration_doc)
+    await db.copim_events.update_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {
+            "$inc": {"registered_count": 1},
+            "$set": {"updated_at": now_iso},
+        },
+    )
+    return registration_doc
+
+
+async def checkin_copim_event_registration(tenant_id: str, event_id: str, member_id: str) -> dict:
+    event = await fetch_copim_event_or_404(tenant_id, event_id)
+    registration = await db.copim_event_registrations.find_one(
+        {"tenant_id": tenant_id, "event_id": event_id, "member_id": member_id},
+        {"_id": 0},
+    )
+    if not registration:
+        raise HTTPException(status_code=404, detail="El asociado no tiene registro para este evento")
+    if registration.get("registration_status") == "checked_in":
+        return registration
+    if event.get("status") == "cancelled":
+        raise HTTPException(status_code=400, detail="No puedes registrar check-in en un evento cancelado")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_event_registrations.update_one(
+        {"tenant_id": tenant_id, "id": registration["id"]},
+        {
+            "$set": {
+                "registration_status": "checked_in",
+                "checked_in_at": now_iso,
+                "updated_at": now_iso,
+            }
+        },
+    )
+    await db.copim_events.update_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {
+            "$inc": {"checked_in_count": 1},
+            "$set": {"updated_at": now_iso},
+        },
+    )
+    return await db.copim_event_registrations.find_one({"tenant_id": tenant_id, "id": registration["id"]}, {"_id": 0})
+
+
+async def sync_copim_membership_invoice_state(tenant_id: str, membership_id: str | None) -> None:
+    if not membership_id:
+        return
+
+    invoices = await db.copim_invoices.find(
+        {"tenant_id": tenant_id, "membership_id": membership_id},
+        {"_id": 0, "invoice_status": 1, "payment_status": 1, "updated_at": 1},
+    ).sort("updated_at", -1).to_list(50)
+
+    if not invoices:
+        next_status = "not_requested"
+    else:
+        latest = invoices[0]
+        if latest.get("payment_status") == "paid":
+            next_status = "issued"
+        elif latest.get("invoice_status") in {"issued", "sent", "paid"}:
+            next_status = "issued"
+        else:
+            next_status = "pending"
+
+    await db.copim_memberships.update_one(
+        {"tenant_id": tenant_id, "id": membership_id},
+        {"$set": {"invoice_status": next_status, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+
+
+async def create_copim_invoice_for_membership(
+    tenant_id: str,
+    membership_id: str,
+    current_user: dict,
+) -> tuple[dict, bool]:
+    membership = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    member = await fetch_copim_member_or_404(tenant_id, membership["member_id"])
+
+    existing_open_invoice = await db.copim_invoices.find_one(
+        {
+            "tenant_id": tenant_id,
+            "membership_id": membership_id,
+            "payment_status": {"$in": ["pending", "overdue"]},
+            "invoice_status": {"$ne": "cancelled"},
+        },
+        {"_id": 0},
+        sort=[("updated_at", -1)],
+    )
+    if existing_open_invoice:
+        return existing_open_invoice, False
+
+    base_amount = float(membership.get("balance_due") or 0)
+    if base_amount <= 0:
+        if membership.get("payment_status") == "active":
+            raise HTTPException(status_code=400, detail="La membresía ya está al corriente y no tiene saldo pendiente por facturar")
+        base_amount = float(membership.get("plan_price") or 0)
+
+    if base_amount <= 0:
+        raise HTTPException(status_code=400, detail="No hay saldo ni plan disponible para generar la factura")
+
+    now = datetime.now(timezone.utc)
+    renewal_at = parse_iso_datetime(membership.get("renewal_date"))
+    due_date = renewal_at if renewal_at and renewal_at > now else now + timedelta(days=7)
+    subtotal = round(base_amount / 1.16, 2)
+    tax_amount = round(base_amount - subtotal, 2)
+    now_iso = now.isoformat()
+
+    invoice_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "created_by_user_id": current_user["user_id"],
+        "membership_id": membership.get("id"),
+        "member_id": member.get("id"),
+        "association_id": membership.get("association_id") or member.get("association_id"),
+        "invoice_number": build_copim_invoice_number(),
+        "concept": f"Facturacion de {membership.get('plan_name', 'membresia')}",
+        "subtotal": subtotal,
+        "tax_amount": tax_amount,
+        "total_amount": base_amount,
+        "balance_due": base_amount,
+        "currency": "MXN",
+        "issue_date": now_iso,
+        "due_date": due_date.isoformat(),
+        "invoice_status": "issued",
+        "payment_status": "overdue" if due_date < now else "pending",
+        "recipient_name": member.get("full_name"),
+        "recipient_rfc": None,
+        "recipient_email": member.get("email"),
+        "cfdi_use": "G03",
+        "payment_method": membership.get("payment_method"),
+        "payment_reference": None,
+        "sent_at": None,
+        "paid_at": None,
+        "notes": f"Factura operativa generada desde la membresia {membership.get('plan_name', 'COPIM')}.",
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_invoices.insert_one(invoice_doc)
+    await sync_copim_membership_invoice_state(tenant_id, membership_id)
+    return invoice_doc, True
+
+
+async def apply_copim_membership_payment(tenant_id: str, membership_id: str) -> dict:
+    existing = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    now = datetime.now(timezone.utc)
+    renewal_base = parse_iso_datetime(existing.get("renewal_date")) or now
+    if renewal_base < now:
+        renewal_base = now
+    next_renewal = add_copim_billing_period(renewal_base, existing.get("billing_period", "annual"))
+    paid_at = now.isoformat()
+
+    await db.copim_memberships.update_one(
+        {"tenant_id": tenant_id, "id": membership_id},
+        {
+            "$set": {
+                "payment_status": "active",
+                "balance_due": 0,
+                "paid_at": paid_at,
+                "renewal_date": next_renewal.isoformat(),
+                "updated_at": paid_at,
+            }
+        },
+    )
+    await sync_copim_member_financials(tenant_id, existing.get("member_id"))
+    await sync_copim_association_stats(tenant_id, existing.get("association_id"))
+    await sync_copim_membership_invoice_state(tenant_id, membership_id)
+    return await fetch_copim_membership_or_404(tenant_id, membership_id)
+
+
+async def ensure_copim_seed_data(current_user: dict) -> None:
+    tenant_id = current_user["tenant_id"]
+    existing_associations = await db.copim_associations.count_documents({"tenant_id": tenant_id})
+    if existing_associations:
+        stored_associations = await db.copim_associations.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(100)
+        for association in stored_associations:
+            update_payload = {}
+            if "tagline" not in association:
+                update_payload["tagline"] = f"Asociación inmobiliaria de {association.get('city') or association.get('state') or 'COPIM'}"
+            if "logo_url" not in association:
+                update_payload["logo_url"] = None
+            if "bio" not in association:
+                update_payload["bio"] = (
+                    f"{association.get('name')} opera el padrón, membresías, eventos y comunicación del capítulo "
+                    "con una narrativa institucional simple y accionable."
+                )
+            if "mission" not in association:
+                update_payload["mission"] = "Profesionalizar al asociado y ordenar la operación del capítulo."
+            if "vision" not in association:
+                update_payload["vision"] = "Ser un capítulo visible, confiable y útil para su comunidad profesional."
+            if "national_score" not in association:
+                update_payload["national_score"] = 82
+            if "national_badge" not in association:
+                update_payload["national_badge"] = "ORO"
+            if "annual_events_count" not in association:
+                update_payload["annual_events_count"] = max(association.get("upcoming_events", 0), 6)
+            if "active_courses_count" not in association:
+                update_payload["active_courses_count"] = max(3, round((association.get("member_count", 0) or 12) / 18))
+            if "achievements" not in association:
+                update_payload["achievements"] = [
+                    {"label": "Top institucional", "detail": "Capítulo con operación visible y padrón activo."},
+                    {"label": "Cobranza trazable", "detail": "Control de renovaciones y facturación operativa."},
+                ]
+            if "leadership_team" not in association:
+                update_payload["leadership_team"] = [
+                    {
+                        "name": association.get("president_name") or "Presidencia",
+                        "role": "Presidencia",
+                        "period": "2025-Actual",
+                        "highlight": "Impulsa adopción y visibilidad del capítulo.",
+                    },
+                    {
+                        "name": association.get("admin_name") or "Operación",
+                        "role": "Administración",
+                        "period": "2025-Actual",
+                        "highlight": "Coordina membresías, cobros y eventos.",
+                    },
+                ]
+            if update_payload:
+                update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+                await db.copim_associations.update_one(
+                    {"tenant_id": tenant_id, "id": association["id"]},
+                    {"$set": update_payload},
+                )
+
+        existing_members = await db.copim_members.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(200)
+        for member in existing_members:
+            update_payload = {}
+            if "review_state" not in member:
+                update_payload["review_state"] = "approved" if member.get("member_status") == "active" else "submitted"
+            if "validation_checklist" not in member:
+                update_payload["validation_checklist"] = normalize_copim_validation_checklist({
+                    "perfil_completo": bool(member.get("full_name") and member.get("email")),
+                    "correo_validado": bool(member.get("email")),
+                    "documentacion_recibida": member.get("member_status") == "active",
+                    "membresia_asignada": True,
+                })
+            if "portal_access_enabled" not in member:
+                update_payload["portal_access_enabled"] = bool(member.get("linked_user_id"))
+            if "certifications" not in member:
+                update_payload["certifications"] = []
+            if update_payload:
+                update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+                await db.copim_members.update_one(
+                    {"tenant_id": tenant_id, "id": member["id"]},
+                    {"$set": update_payload},
+                )
+
+        for member in existing_members[:3]:
+            if member.get("email") and not member.get("linked_user_id"):
+                await ensure_copim_member_user_account(
+                    tenant_id,
+                    {**member, "portal_access_enabled": member.get("portal_access_enabled", False)},
+                    created_by_user_id=current_user["user_id"],
+                )
+
+        refreshed_associations = await db.copim_associations.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(100)
+        for association in refreshed_associations:
+            if association.get("admin_email") or association.get("president_email"):
+                await ensure_copim_operator_user_account(
+                    tenant_id,
+                    association,
+                    created_by_user_id=current_user["user_id"],
+                )
+        return
+
+    now = datetime.now(timezone.utc)
+    created_at = now.isoformat()
+
+    association_docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "name": "CIIB Queretaro",
+            "state": "Queretaro",
+            "city": "Queretaro",
+            "tagline": "Colegio de Inmobiliarios de Queretaro A.C.",
+            "logo_url": None,
+            "bio": "Capítulo referente para demostrar padrón, cobranza, eventos y directorio con una experiencia institucional más clara.",
+            "mission": "Ordenar la operación local y dar valor recurrente a cada socio del capítulo.",
+            "vision": "Ser una asociación visible, activa y profesionalizada dentro de la red COPIM.",
+            "president_name": "Consejo Regional Bajio",
+            "president_email": "presidencia.ciib@copim.mx",
+            "admin_name": "Operacion CIIB",
+            "admin_email": "operacion.ciib@copim.mx",
+            "phone": "+52 442 100 2200",
+            "status": "active",
+            "member_goal": 140,
+            "national_score": 87,
+            "national_badge": "ORO",
+            "annual_events_count": 45,
+            "active_courses_count": 23,
+            "achievements": [
+                {"label": "Top 3 nacional", "detail": "Scoring institucional 2026."},
+                {"label": "Certificación ISO", "detail": "Proceso operativo con foco en calidad."},
+                {"label": "500 graduados", "detail": "Capacitación anual en red local."},
+            ],
+            "leadership_team": [
+                {"name": "Consejo Regional Bajio", "role": "Presidencia", "period": "2025-Actual", "highlight": "Crecimiento y visibilidad regional."},
+                {"name": "Operacion CIIB", "role": "Administración", "period": "2025-Actual", "highlight": "Ejecución de membresías, eventos y cobros."},
+            ],
+            "coverage_zone": "Bajio Centro",
+            "website": "https://ciib.copim.mx",
+            "notes": "Capitulo referente para validar operacion institucional y expansion estatal.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "name": "PAIS Guadalajara",
+            "state": "Jalisco",
+            "city": "Guadalajara",
+            "tagline": "Plataforma de Asociados Inmobiliarios de Occidente",
+            "logo_url": None,
+            "bio": "Capítulo orientado a renovaciones, networking y activación comercial dentro de la red.",
+            "mission": "Asegurar un padrón vivo y una agenda con participación constante.",
+            "vision": "Convertirse en el capítulo más activo del occidente con adopción digital real.",
+            "president_name": "Viviana Ortega",
+            "president_email": "pais@copim.mx",
+            "admin_name": "Mesa Administrativa PAIS",
+            "admin_email": "admin.pais@copim.mx",
+            "phone": "+52 33 2200 4100",
+            "status": "active",
+            "member_goal": 90,
+            "national_score": 84,
+            "national_badge": "PLATA",
+            "annual_events_count": 28,
+            "active_courses_count": 14,
+            "achievements": [
+                {"label": "Renovación visible", "detail": "Capítulo con alta respuesta en recordatorios."},
+                {"label": "Agenda híbrida", "detail": "Mix de formación y networking."},
+            ],
+            "leadership_team": [
+                {"name": "Viviana Ortega", "role": "Presidencia", "period": "2025-Actual", "highlight": "Enfoque en activación regional."},
+                {"name": "Mesa Administrativa PAIS", "role": "Operación", "period": "2025-Actual", "highlight": "Cobranza y agenda vivas."},
+            ],
+            "coverage_zone": "Occidente",
+            "website": "https://pais.copim.mx",
+            "notes": "Capitulo activo con foco en renovaciones, eventos y adopcion del directorio.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "name": "INAPIM Merida",
+            "state": "Yucatan",
+            "city": "Merida",
+            "tagline": "Instituto de Profesionales Inmobiliarios del Sureste",
+            "logo_url": None,
+            "bio": "Capítulo ideal para mostrar onboarding, validación documental y regularización de membresías.",
+            "mission": "Simplificar altas, pagos y activación temprana del asociado.",
+            "vision": "Escalar la operación del sureste con procesos simples y trazables.",
+            "president_name": "Roberto Sanchez",
+            "president_email": "inapim@copim.mx",
+            "admin_name": "Coordinacion INAPIM",
+            "admin_email": "coordinacion.inapim@copim.mx",
+            "phone": "+52 999 142 7700",
+            "status": "onboarding",
+            "member_goal": 75,
+            "national_score": 76,
+            "national_badge": "BRONCE",
+            "annual_events_count": 18,
+            "active_courses_count": 9,
+            "achievements": [
+                {"label": "Onboarding activo", "detail": "Capítulo ideal para mostrar alta y validación."},
+                {"label": "Crecimiento en sureste", "detail": "Potencial para expansión y captación."},
+            ],
+            "leadership_team": [
+                {"name": "Roberto Sanchez", "role": "Presidencia", "period": "2025-Actual", "highlight": "Impulso de apertura regional."},
+                {"name": "Coordinacion INAPIM", "role": "Operación", "period": "2025-Actual", "highlight": "Carga inicial y onboarding."},
+            ],
+            "coverage_zone": "Sureste",
+            "website": "https://inapim.copim.mx",
+            "notes": "Capitulo en onboarding ideal para digitalizar altas, pagos y eventos.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+    ]
+    await db.copim_associations.insert_many(association_docs)
+
+    association_ids = {association["name"]: association["id"] for association in association_docs}
+
+    member_docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "full_name": "Yoselin Alvarez",
+            "email": "yoselin@copim.mx",
+            "phone": "+52 999 400 1001",
+            "association_id": association_ids["CIIB Queretaro"],
+            "title": "Socia profesional",
+            "city": "Queretaro",
+            "specialty": "Broker residencial",
+            "company_name": "Alvarez Realty",
+            "avatar_url": None,
+            "bio": "Especialista en operación residencial y networking institucional.",
+            "certifications": ["Certificación COPIM 2025", "Capacitación comercial"],
+            "join_date": (now - timedelta(days=280)).isoformat(),
+            "member_status": "active",
+            "review_state": "approved",
+            "membership_tier": "base",
+            "credential_status": "issued",
+            "credential_id": build_copim_credential_id(),
+            "directory_visible": True,
+            "amount_due": 0,
+            "validation_checklist": normalize_copim_validation_checklist({
+                "perfil_completo": True,
+                "correo_validado": True,
+                "documentacion_recibida": True,
+                "membresia_asignada": True,
+            }),
+            "validation_notes": "Perfil aprobado y visible para el directorio institucional.",
+            "requested_information": None,
+            "linked_user_id": None,
+            "portal_access_enabled": False,
+            "notes": "Perfil visible en directorio nacional.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "full_name": "Fernanda Ruiz",
+            "email": "fernanda@copim.mx",
+            "phone": "+52 442 700 9010",
+            "association_id": association_ids["CIIB Queretaro"],
+            "title": "Solicitud en revision",
+            "city": "Queretaro",
+            "specialty": "Mercado comercial",
+            "company_name": "Ruiz Comercial",
+            "member_status": "pending",
+            "review_state": "awaiting_info",
+            "membership_tier": "base",
+            "credential_status": "pending",
+            "directory_visible": False,
+            "amount_due": 1800,
+            "validation_checklist": normalize_copim_validation_checklist({
+                "perfil_completo": True,
+                "correo_validado": True,
+                "documentacion_recibida": False,
+                "membresia_asignada": True,
+            }),
+            "validation_notes": "Falta completar comprobante documental para validación final.",
+            "requested_information": "Subir identificación y comprobante de actividad profesional.",
+            "linked_user_id": None,
+            "portal_access_enabled": False,
+            "notes": "Pendiente de validacion documental.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "full_name": "Carlos Mendez",
+            "email": "carlos@copim.mx",
+            "phone": "+52 33 3300 4411",
+            "association_id": association_ids["PAIS Guadalajara"],
+            "title": "Socio activo",
+            "city": "Guadalajara",
+            "specialty": "Desarrollos verticales",
+            "company_name": "Mendez Capital",
+            "avatar_url": None,
+            "bio": "Perfil enfocado en desarrollos verticales y alianzas regionales.",
+            "certifications": ["Asociación Pro", "Liderazgo regional"],
+            "join_date": (now - timedelta(days=180)).isoformat(),
+            "member_status": "active",
+            "review_state": "approved",
+            "membership_tier": "pro",
+            "credential_status": "issued",
+            "credential_id": build_copim_credential_id(),
+            "directory_visible": True,
+            "amount_due": 3900,
+            "validation_checklist": normalize_copim_validation_checklist({
+                "perfil_completo": True,
+                "correo_validado": True,
+                "documentacion_recibida": True,
+                "membresia_asignada": True,
+            }),
+            "validation_notes": "Socio activo con renovación próxima.",
+            "requested_information": None,
+            "linked_user_id": None,
+            "portal_access_enabled": False,
+            "notes": "Usa la membresia como puerta al CRM base.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "full_name": "Andrea Lugo",
+            "email": "andrea@copim.mx",
+            "phone": "+52 999 812 7711",
+            "association_id": association_ids["INAPIM Merida"],
+            "title": "Socia nueva",
+            "city": "Merida",
+            "specialty": "Capacitacion y networking",
+            "company_name": "Lugo Network",
+            "member_status": "pending",
+            "review_state": "submitted",
+            "membership_tier": "base",
+            "credential_status": "pending",
+            "directory_visible": True,
+            "amount_due": 1800,
+            "validation_checklist": normalize_copim_validation_checklist({
+                "perfil_completo": True,
+                "correo_validado": True,
+                "documentacion_recibida": False,
+                "membresia_asignada": False,
+            }),
+            "validation_notes": "Solicitud lista para revisión administrativa.",
+            "requested_information": None,
+            "linked_user_id": None,
+            "portal_access_enabled": False,
+            "notes": "Lista para onboarding y credencial digital.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+    ]
+    await db.copim_members.insert_many(member_docs)
+    member_ids = {member["full_name"]: member["id"] for member in member_docs}
+    member_docs_by_name = {member["full_name"]: member for member in member_docs}
+
+    membership_docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "member_id": member_ids["Yoselin Alvarez"],
+            "association_id": association_ids["CIIB Queretaro"],
+            "plan_name": "Membresia Base",
+            "plan_price": 1800,
+            "billing_period": "annual",
+            "renewal_date": (now + timedelta(days=42)).isoformat(),
+            "payment_status": "active",
+            "balance_due": 0,
+            "auto_renew": False,
+            "reminder_enabled": True,
+            "payment_method": "transferencia",
+            "invoice_status": "issued",
+            "paid_at": (now - timedelta(days=20)).isoformat(),
+            "benefits_summary": "Directorio, eventos y CRM base incluido.",
+            "notes": "Caso de uso ideal para mostrar valor al socio.",
+            "last_reminder_at": None,
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "member_id": member_ids["Carlos Mendez"],
+            "association_id": association_ids["PAIS Guadalajara"],
+            "plan_name": "Asociacion Pro",
+            "plan_price": 3900,
+            "billing_period": "annual",
+            "renewal_date": (now + timedelta(days=8)).isoformat(),
+            "payment_status": "due",
+            "balance_due": 3900,
+            "auto_renew": False,
+            "reminder_enabled": True,
+            "payment_method": "transferencia",
+            "invoice_status": "pending",
+            "paid_at": None,
+            "benefits_summary": "CRM base, eventos premium y automatizaciones futuras.",
+            "notes": "Ideal para mostrar recordatorios de renovacion.",
+            "last_reminder_at": None,
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "member_id": member_ids["Andrea Lugo"],
+            "association_id": association_ids["INAPIM Merida"],
+            "plan_name": "Membresia Base",
+            "plan_price": 1800,
+            "billing_period": "annual",
+            "renewal_date": (now - timedelta(days=3)).isoformat(),
+            "payment_status": "overdue",
+            "balance_due": 1800,
+            "auto_renew": False,
+            "reminder_enabled": True,
+            "payment_method": "tarjeta",
+            "invoice_status": "not_requested",
+            "paid_at": None,
+            "benefits_summary": "Directorio y eventos institucionales.",
+            "notes": "Caso visible de pago vencido para seguimiento.",
+            "last_reminder_at": None,
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+    ]
+    await db.copim_memberships.insert_many(membership_docs)
+    membership_ids = {membership["member_id"]: membership["id"] for membership in membership_docs}
+
+    invoice_docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "membership_id": membership_ids[member_ids["Yoselin Alvarez"]],
+            "member_id": member_ids["Yoselin Alvarez"],
+            "association_id": association_ids["CIIB Queretaro"],
+            "invoice_number": build_copim_invoice_number(),
+            "concept": "Renovacion anual de Membresia Base",
+            "subtotal": 1552,
+            "tax_amount": 248,
+            "total_amount": 1800,
+            "balance_due": 0,
+            "currency": "MXN",
+            "issue_date": (now - timedelta(days=25)).isoformat(),
+            "due_date": (now - timedelta(days=15)).isoformat(),
+            "invoice_status": "paid",
+            "payment_status": "paid",
+            "recipient_name": "Yoselin Alvarez",
+            "recipient_rfc": "AAVY900101Q12",
+            "recipient_email": "yoselin@copim.mx",
+            "cfdi_use": "G03",
+            "payment_method": "transferencia",
+            "payment_reference": "TRX-COPIM-001",
+            "sent_at": (now - timedelta(days=24)).isoformat(),
+            "paid_at": (now - timedelta(days=20)).isoformat(),
+            "notes": "Factura conciliada y enviada al socio.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "membership_id": membership_ids[member_ids["Carlos Mendez"]],
+            "member_id": member_ids["Carlos Mendez"],
+            "association_id": association_ids["PAIS Guadalajara"],
+            "invoice_number": build_copim_invoice_number(),
+            "concept": "Renovacion anual Asociacion Pro",
+            "subtotal": 3362,
+            "tax_amount": 538,
+            "total_amount": 3900,
+            "balance_due": 3900,
+            "currency": "MXN",
+            "issue_date": (now - timedelta(days=4)).isoformat(),
+            "due_date": (now + timedelta(days=6)).isoformat(),
+            "invoice_status": "sent",
+            "payment_status": "pending",
+            "recipient_name": "Carlos Mendez",
+            "recipient_rfc": "MECC890214L89",
+            "recipient_email": "carlos@copim.mx",
+            "cfdi_use": "G03",
+            "payment_method": "transferencia",
+            "payment_reference": None,
+            "sent_at": (now - timedelta(days=3)).isoformat(),
+            "paid_at": None,
+            "notes": "Pendiente de confirmacion bancaria.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "membership_id": membership_ids[member_ids["Andrea Lugo"]],
+            "member_id": member_ids["Andrea Lugo"],
+            "association_id": association_ids["INAPIM Merida"],
+            "invoice_number": build_copim_invoice_number(),
+            "concept": "Regularizacion de Membresia Base",
+            "subtotal": 1552,
+            "tax_amount": 248,
+            "total_amount": 1800,
+            "balance_due": 1800,
+            "currency": "MXN",
+            "issue_date": (now - timedelta(days=12)).isoformat(),
+            "due_date": (now - timedelta(days=2)).isoformat(),
+            "invoice_status": "issued",
+            "payment_status": "overdue",
+            "recipient_name": "Andrea Lugo",
+            "recipient_rfc": "LUGA910404M55",
+            "recipient_email": "andrea@copim.mx",
+            "cfdi_use": "G03",
+            "payment_method": "tarjeta",
+            "payment_reference": None,
+            "sent_at": (now - timedelta(days=11)).isoformat(),
+            "paid_at": None,
+            "notes": "Vencida; requiere seguimiento inmediato.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+    ]
+    await db.copim_invoices.insert_many(invoice_docs)
+
+    event_docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "title": "Asamblea Nacional COPIM",
+            "association_id": association_ids["CIIB Queretaro"],
+            "event_type": "asamblea",
+            "event_format": "presencial",
+            "venue": "Queretaro Centro",
+            "visibility": "members",
+            "status": "published",
+            "registration_open": True,
+            "speaker_name": "Consejo Nacional",
+            "start_at": (now + timedelta(days=10)).isoformat(),
+            "end_at": (now + timedelta(days=10, hours=3)).isoformat(),
+            "capacity": 120,
+            "registered_count": 84,
+            "checked_in_count": 0,
+            "description": "Evento nacional para presidentes y lideres de asociacion.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "title": "Capacitacion C17",
+            "association_id": association_ids["PAIS Guadalajara"],
+            "event_type": "capacitacion",
+            "event_format": "virtual",
+            "venue": "Virtual",
+            "visibility": "members",
+            "status": "published",
+            "registration_open": True,
+            "speaker_name": "Comite Academico",
+            "start_at": (now + timedelta(days=4)).isoformat(),
+            "end_at": (now + timedelta(days=4, hours=2)).isoformat(),
+            "capacity": 60,
+            "registered_count": 37,
+            "checked_in_count": 15,
+            "description": "Sesion para socios activos y solicitantes con interes en certificacion.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "title": "Networking regional Merida",
+            "association_id": association_ids["INAPIM Merida"],
+            "event_type": "networking",
+            "event_format": "hibrido",
+            "venue": "Merida",
+            "visibility": "public",
+            "status": "draft",
+            "registration_open": False,
+            "speaker_name": "Invitados regionales",
+            "start_at": (now + timedelta(days=18)).isoformat(),
+            "end_at": (now + timedelta(days=18, hours=4)).isoformat(),
+            "capacity": 80,
+            "registered_count": 28,
+            "checked_in_count": 0,
+            "description": "Evento para captar asociados y generar networking temprano.",
+            "created_at": created_at,
+            "updated_at": created_at,
+        },
+    ]
+    await db.copim_events.insert_many(event_docs)
+
+    registration_docs = []
+    for member_name, event_title, status_name in [
+        ("Yoselin Alvarez", "Asamblea Nacional COPIM", "registered"),
+        ("Carlos Mendez", "Capacitacion C17", "checked_in"),
+        ("Andrea Lugo", "Networking regional Merida", "registered"),
+    ]:
+        event = next((item for item in event_docs if item["title"] == event_title), None)
+        member_id = member_ids.get(member_name)
+        if not event or not member_id:
+            continue
+        registration_id = str(uuid.uuid4())
+        checked_in_at = (now - timedelta(hours=2)).isoformat() if status_name == "checked_in" else None
+        registration_docs.append({
+            "id": registration_id,
+            "tenant_id": tenant_id,
+            "event_id": event["id"],
+            "member_id": member_id,
+            "association_id": event.get("association_id"),
+            "registration_status": status_name,
+            "source": "seed_demo",
+            "qr_payload": f"copim:event:{event['id']}:member:{member_id}:registration:{registration_id}",
+            "created_at": created_at,
+            "updated_at": created_at,
+            "checked_in_at": checked_in_at,
+        })
+    if registration_docs:
+        await db.copim_event_registrations.insert_many(registration_docs)
+
+    for member_name in ["Yoselin Alvarez", "Carlos Mendez", "Andrea Lugo"]:
+        await ensure_copim_member_user_account(
+            tenant_id,
+            member_docs_by_name[member_name],
+            created_by_user_id=current_user["user_id"],
+        )
+
+    for association in association_docs:
+        await ensure_copim_operator_user_account(
+            tenant_id,
+            association,
+            created_by_user_id=current_user["user_id"],
+        )
+
+    for association in association_docs:
+        await sync_copim_association_stats(tenant_id, association["id"])
+
+
+async def ensure_copim_invoice_seed_data(current_user: dict) -> None:
+    tenant_id = current_user["tenant_id"]
+    existing_invoices = await db.copim_invoices.count_documents({"tenant_id": tenant_id})
+    if existing_invoices:
+        return
+
+    memberships = await db.copim_memberships.find({"tenant_id": tenant_id}, {"_id": 0}).sort("created_at", 1).to_list(50)
+    if not memberships:
+        return
+
+    member_map = await build_copim_member_map(tenant_id)
+    association_map = await build_copim_association_map(tenant_id)
+    now = datetime.now(timezone.utc)
+    docs = []
+
+    for membership in memberships[: min(len(memberships), 6)]:
+        member = member_map.get(membership.get("member_id"))
+        if not member:
+            continue
+
+        renewal_at = parse_iso_datetime(membership.get("renewal_date")) or now
+        issue_date = renewal_at - timedelta(days=15)
+        due_date = renewal_at - timedelta(days=3)
+        payment_status = membership.get("payment_status", "pending")
+        invoice_status = "paid" if payment_status == "active" and float(membership.get("balance_due") or 0) <= 0 else (
+            "issued" if payment_status == "overdue" else "sent"
+        )
+        association = association_map.get(membership.get("association_id"))
+        total_amount = float(membership.get("plan_price") or membership.get("balance_due") or 0)
+        subtotal = round(total_amount / 1.16, 2) if total_amount else 0
+        tax_amount = round(total_amount - subtotal, 2)
+
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "membership_id": membership.get("id"),
+            "member_id": member.get("id"),
+            "association_id": membership.get("association_id"),
+            "invoice_number": build_copim_invoice_number(),
+            "concept": f"Facturacion de {membership.get('plan_name', 'membresia')}",
+            "subtotal": subtotal,
+            "tax_amount": tax_amount,
+            "total_amount": total_amount,
+            "balance_due": float(membership.get("balance_due") or 0),
+            "currency": "MXN",
+            "issue_date": issue_date.isoformat(),
+            "due_date": due_date.isoformat(),
+            "invoice_status": invoice_status,
+            "payment_status": "paid" if payment_status == "active" and float(membership.get("balance_due") or 0) <= 0 else payment_status,
+            "recipient_name": member.get("full_name"),
+            "recipient_rfc": None,
+            "recipient_email": member.get("email"),
+            "cfdi_use": "G03",
+            "payment_method": membership.get("payment_method"),
+            "payment_reference": None,
+            "sent_at": issue_date.isoformat() if invoice_status in {"sent", "issued", "paid"} else None,
+            "paid_at": membership.get("paid_at"),
+            "notes": f"Factura generada automaticamente para {association.get('name') if association else 'la operacion COPIM'}.",
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        })
+
+    if docs:
+        await db.copim_invoices.insert_many(docs)
+
+
+async def build_copim_association_summary_payload(tenant_id: str, association_id: str) -> dict:
+    association = await fetch_copim_association_or_404(tenant_id, association_id)
+    members = await db.copim_members.find(
+        {"tenant_id": tenant_id, "association_id": association_id},
+        {"_id": 0},
+    ).sort("full_name", 1).to_list(200)
+    memberships = await db.copim_memberships.find(
+        {"tenant_id": tenant_id, "association_id": association_id},
+        {"_id": 0},
+    ).sort("renewal_date", 1).to_list(200)
+    events = await db.copim_events.find(
+        {"tenant_id": tenant_id, "association_id": association_id},
+        {"_id": 0},
+    ).sort("start_at", 1).to_list(100)
+
+    return {
+        "association": serialize_doc(association),
+        "members": await enrich_copim_members(tenant_id, members),
+        "memberships": await enrich_copim_memberships(tenant_id, memberships),
+        "events": await enrich_copim_events(tenant_id, events),
+        "stats": {
+            "active_members": association.get("active_members", 0),
+            "pending_members": association.get("pending_members", 0),
+            "renewals_due": association.get("renewals_due", 0),
+            "directory_visible_members": association.get("directory_visible_members", 0),
+            "credentials_issued": association.get("credentials_issued", 0),
+            "upcoming_events": association.get("upcoming_events", 0),
+            "revenue_due": association.get("revenue_due", 0),
+        },
+    }
+
+
+async def build_copim_member_summary_payload(tenant_id: str, member_id: str) -> dict:
+    member = await fetch_copim_member_or_404(tenant_id, member_id)
+    memberships = await db.copim_memberships.find(
+        {"tenant_id": tenant_id, "member_id": member_id},
+        {"_id": 0},
+    ).sort("renewal_date", 1).to_list(50)
+    association = None
+    if member.get("association_id"):
+        association = await fetch_copim_association_or_404(tenant_id, member["association_id"])
+
+    return {
+        "member": (await enrich_copim_members(tenant_id, [member]))[0],
+        "association": serialize_doc(association) if association else None,
+        "memberships": await enrich_copim_memberships(tenant_id, memberships),
+        "stats": {
+            "amount_due": float(member.get("amount_due") or 0),
+            "directory_visible": bool(member.get("directory_visible")),
+            "profile_completion": calculate_copim_profile_completion(member),
+            "credential_issued": member.get("credential_status") == "issued",
+        },
+    }
+
+
+async def build_copim_membership_summary_payload(tenant_id: str, membership_id: str) -> dict:
+    membership = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    member = await fetch_copim_member_or_404(tenant_id, membership["member_id"])
+    association = None
+    if membership.get("association_id"):
+        association = await fetch_copim_association_or_404(tenant_id, membership["association_id"])
+    invoices = await db.copim_invoices.find(
+        {"tenant_id": tenant_id, "membership_id": membership_id},
+        {"_id": 0},
+    ).sort("updated_at", -1).to_list(25)
+
+    enriched = (await enrich_copim_memberships(tenant_id, [membership]))[0]
+    return {
+        "membership": enriched,
+        "member": (await enrich_copim_members(tenant_id, [member]))[0],
+        "association": serialize_doc(association) if association else None,
+        "invoices": await enrich_copim_invoices(tenant_id, invoices),
+        "invoice_stats": {
+            "total": len(invoices),
+            "open": len([item for item in invoices if item.get("payment_status") in {"pending", "overdue"} and item.get("invoice_status") != "cancelled"]),
+            "paid": len([item for item in invoices if item.get("payment_status") == "paid"]),
+            "balance_due": float(sum(float(item.get("balance_due") or 0) for item in invoices)),
+        },
+    }
+
+
+async def build_copim_invoice_summary_payload(tenant_id: str, invoice_id: str) -> dict:
+    invoice = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    member = await fetch_copim_member_or_404(tenant_id, invoice["member_id"])
+    membership = await fetch_copim_membership_or_404(tenant_id, invoice["membership_id"]) if invoice.get("membership_id") else None
+    association = await fetch_copim_association_or_404(tenant_id, invoice["association_id"]) if invoice.get("association_id") else None
+    enriched = (await enrich_copim_invoices(tenant_id, [invoice]))[0]
+    return {
+        "invoice": enriched,
+        "member": (await enrich_copim_members(tenant_id, [member]))[0],
+        "membership": (await enrich_copim_memberships(tenant_id, [membership]))[0] if membership else None,
+        "association": serialize_doc(association) if association else None,
+    }
+
+
+async def build_copim_event_summary_payload(tenant_id: str, event_id: str) -> dict:
+    event = await fetch_copim_event_or_404(tenant_id, event_id)
+    association = None
+    if event.get("association_id"):
+        association = await fetch_copim_association_or_404(tenant_id, event["association_id"])
+    registrations = await db.copim_event_registrations.find(
+        {"tenant_id": tenant_id, "event_id": event_id},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(200)
+    member_map = await build_copim_member_map(tenant_id)
+    attendee_rows = []
+    for registration in registrations:
+        member = member_map.get(registration.get("member_id"))
+        if not member:
+            continue
+        attendee_rows.append(serialize_doc({
+            **registration,
+            "member_name": member.get("full_name"),
+            "member_email": member.get("email"),
+            "member_city": member.get("city"),
+            "member_specialty": member.get("specialty"),
+            "qr_url": build_copim_qr_url(registration.get("qr_payload") or registration["id"]),
+        }))
+    return {
+        "event": (await enrich_copim_events(tenant_id, [event]))[0],
+        "association": serialize_doc(association) if association else None,
+        "attendees": attendee_rows,
+    }
+
+
+def build_copim_member_campaign_seed(member: dict, association: dict | None) -> dict:
+    association_name = association.get("name") if association else "COPIM"
+    city = member.get("city") or association.get("city") if association else "Mexico"
+    specialty = member.get("specialty") or "Posicionamiento inmobiliario"
+    campaigns = [
+        {
+            "id": "member-campaign-whatsapp",
+            "channel": "whatsapp",
+            "title": f"Invitación a networking {association_name}",
+            "description": f"Campaña breve para activar prospectos cercanos a {city} y llevarlos al siguiente evento visible.",
+            "status": "active",
+            "sent_count": 856,
+            "delivered_rate": 98,
+            "response_count": 127,
+            "click_rate": 19,
+            "last_activity_label": "Hace 2 horas",
+            "cta_label": "Revisar respuestas",
+        },
+        {
+            "id": "member-campaign-email",
+            "channel": "email",
+            "title": f"Nueva oportunidad en {specialty}",
+            "description": "Secuencia corta de email para compartir inventario destacado, generar interés y capturar seguimiento.",
+            "status": "recent",
+            "sent_count": 1234,
+            "open_rate": 45,
+            "click_rate": 23,
+            "response_count": 51,
+            "last_activity_label": "Ayer",
+            "cta_label": "Abrir campaña",
+        },
+        {
+            "id": "member-campaign-sms",
+            "channel": "sms",
+            "title": "Recordatorio de evento y agenda",
+            "description": "Mensaje directo para confirmar asistentes, recordar ubicación y activar el check-in institucional.",
+            "status": "scheduled",
+            "sent_count": 500,
+            "delivered_rate": 99,
+            "confirmed_count": 87,
+            "response_count": 63,
+            "last_activity_label": "Hace 3 días",
+            "cta_label": "Ver detalle",
+        },
+    ]
+    return {
+        "summary": {
+            "active_count": len(campaigns),
+            "total_sent": sum(int(item.get("sent_count") or 0) for item in campaigns),
+            "best_channel": "WhatsApp",
+            "response_rate": 21,
+        },
+        "campaigns": campaigns,
+    }
+
+
+def build_copim_member_property_seed(member: dict, association: dict | None) -> dict:
+    city = member.get("city") or association.get("city") if association else "Ciudad de Mexico"
+    specialty = member.get("specialty") or "Residencial y comercial"
+    properties = [
+        {
+            "id": "property-polanco-tower",
+            "title": "Torre ejecutiva Polanco",
+            "type": "Oficina premium",
+            "location": f"{city} · 240 m2",
+            "specs": ["3 privados", "3 banos", "2 estacionamientos"],
+            "price_label": "$2.5M MXN",
+            "status": "active",
+            "views_this_month": 124,
+            "image_url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1400&q=80",
+            "summary": f"Activo dentro de tu narrativa profesional de {specialty.lower()}.",
+        },
+        {
+            "id": "property-yucatan-residence",
+            "title": "Residencial lujo Yucatan",
+            "type": "Casa premium",
+            "location": "Yucatan · 450 m2",
+            "specs": ["4 recamaras", "5 banos", "Alberca"],
+            "price_label": "$4.8M MXN",
+            "status": "featured",
+            "views_this_month": 81,
+            "image_url": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1400&q=80",
+            "summary": "Propiedad ideal para mostrar ticket alto y posicionamiento premium.",
+        },
+        {
+            "id": "property-tulum-development",
+            "title": "Desarrollo Tulum",
+            "type": "Condominio boutique",
+            "location": "Tulum · 180 m2",
+            "specs": ["2 recamaras", "2 banos", "Jardin"],
+            "price_label": "$1.9M MXN",
+            "status": "new",
+            "views_this_month": 40,
+            "image_url": "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1400&q=80",
+            "summary": "Pieza visual de inventario para abrir conversación comercial y follow-up.",
+        },
+    ]
+    return {
+        "summary": {
+            "active_count": len(properties),
+            "views_this_month": sum(int(item.get("views_this_month") or 0) for item in properties),
+            "featured_count": len([item for item in properties if item.get("status") in {"featured", "new"}]),
+        },
+        "properties": properties,
+    }
+
+
+def build_copim_member_course_seed(member: dict, association: dict | None) -> dict:
+    specialty = member.get("specialty") or "Comercial"
+    courses = [
+        {
+            "id": "course-negociacion",
+            "title": "Negociación efectiva",
+            "category": "Cierre comercial",
+            "progress": 75,
+            "modules_completed": 6,
+            "modules_total": 8,
+            "status": "in_progress",
+            "certificate_earned": False,
+            "mentor": "COPIM Academia",
+            "summary": f"Ruta útil para fortalecer tu propuesta en {specialty.lower()}.",
+        },
+        {
+            "id": "course-marketing",
+            "title": "Marketing digital inmobiliario",
+            "category": "Atracción y reputación",
+            "progress": 50,
+            "modules_completed": 4,
+            "modules_total": 8,
+            "status": "in_progress",
+            "certificate_earned": False,
+            "mentor": association.get("name") if association else "COPIM Red",
+            "summary": "Bloque práctico para campañas, visibilidad y conversiones más limpias.",
+        },
+        {
+            "id": "course-valuations",
+            "title": "Valoración de propiedades",
+            "category": "Análisis y pricing",
+            "progress": 100,
+            "modules_completed": 8,
+            "modules_total": 8,
+            "status": "completed",
+            "certificate_earned": True,
+            "mentor": "COPIM Certifica",
+            "summary": "Curso ya completado para reforzar discurso técnico y confianza comercial.",
+        },
+    ]
+    completed = len([item for item in courses if item.get("status") == "completed"])
+    in_progress = len([item for item in courses if item.get("status") == "in_progress"])
+    average_progress = round(sum(int(item.get("progress") or 0) for item in courses) / len(courses)) if courses else 0
+    return {
+        "summary": {
+            "completed_courses": completed,
+            "in_progress_courses": in_progress,
+            "average_progress": average_progress,
+            "certifications": len([item for item in courses if item.get("certificate_earned")]),
+        },
+        "courses": courses,
+    }
+
+
+def get_copim_member_addon_module_ids(member: dict) -> list[str]:
+    stored = member.get("addon_module_ids")
+    if isinstance(stored, list):
+        return [str(item) for item in stored if item]
+    if member.get("membership_tier") == "pro":
+        return ["campaigns"]
+    return []
+
+
+def build_copim_member_module_seed(member: dict, association: dict | None, current_membership: dict | None) -> dict:
+    active_addons = set(get_copim_member_addon_module_ids(member))
+    membership_tier = member.get("membership_tier") or "base"
+    plan_name = current_membership.get("plan_name") if current_membership else "Membresia COPIM"
+
+    modules = [
+        {
+            "id": "prospects",
+            "label": "Gestion de prospectos",
+            "description": "Pipeline personal, seguimiento y notas para tus oportunidades clave.",
+            "features": ["Tablero kanban", "Seguimiento", "Alertas"],
+            "price_monthly": 0,
+            "included": True,
+        },
+        {
+            "id": "calendar",
+            "label": "Agenda inteligente",
+            "description": "Agenda personal conectada con recordatorios para visitas, llamadas y eventos.",
+            "features": ["Sync calendar", "Recordatorios", "Agenda viva"],
+            "price_monthly": 0,
+            "included": True,
+        },
+        {
+            "id": "landing",
+            "label": "Landing personal",
+            "description": "Tu micrositio con WhatsApp, visibilidad y analítica ligera.",
+            "features": ["Micrositio", "CTA WhatsApp", "Analytics"],
+            "price_monthly": 0,
+            "included": True,
+        },
+        {
+            "id": "campaigns",
+            "label": "Campanas masivas",
+            "description": "Difusión por WhatsApp, email y SMS para inventario, eventos y seguimientos.",
+            "features": ["WhatsApp", "Email", "SMS"],
+            "price_monthly": 49,
+            "included": False,
+        },
+        {
+            "id": "assistant",
+            "label": "Asistente IA 24/7",
+            "description": "Apoyo operativo para respuestas rápidas, borradores y clasificación inicial.",
+            "features": ["Respuestas", "Priorización", "Borradores"],
+            "price_monthly": 49,
+            "included": False,
+        },
+        {
+            "id": "automations",
+            "label": "Automatizaciones",
+            "description": "Flujos simples para seguimiento, recordatorios y tareas recurrentes.",
+            "features": ["Flujos", "Tareas", "Disparadores"],
+            "price_monthly": 49,
+            "included": False,
+        },
+    ]
+
+    for module in modules:
+        module["status"] = "active" if module["included"] or module["id"] in active_addons else "inactive"
+        module["plan_note"] = (
+            f"Incluido en {plan_name}" if module["included"] else f"Disponible para {association.get('name') if association else 'tu capitulo'}"
+        )
+
+    active_count = len([item for item in modules if item["status"] == "active"])
+    available_count = len([item for item in modules if item["status"] == "inactive"])
+    monthly_total = sum(int(item.get("price_monthly") or 0) for item in modules if item["id"] in active_addons)
+    return {
+        "summary": {
+            "active_count": active_count,
+            "available_count": available_count,
+            "monthly_total": monthly_total,
+            "membership_tier": membership_tier,
+        },
+        "modules": modules,
+    }
+
+
+def build_copim_member_profile_story(
+    member: dict,
+    association: dict | None,
+    current_membership: dict | None,
+    registrations: list[dict],
+    payments: list[dict],
+) -> dict:
+    member_name = member.get("full_name") or "Asociado COPIM"
+    specialty = member.get("specialty") or "Especialista inmobiliario"
+    title = member.get("title") or f"{specialty} | Asociado COPIM"
+    city = member.get("city") or association.get("city") if association else "Mexico"
+    state = association.get("state") if association else None
+    location_label = ", ".join([part for part in [city, state, "Mexico"] if part])
+    cover_image_url = (
+        member.get("cover_image_url")
+        or "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1600&q=80"
+    )
+    membership_tier = (member.get("membership_tier") or "base").capitalize()
+    years_experience = int(member.get("years_experience") or (12 if member.get("membership_tier") == "pro" else 8))
+    points = int(member.get("networking_points") or (2450 if member.get("membership_tier") == "pro" else 1580))
+    connections = int(member.get("connection_count") or max(association.get("member_count", 0) // 2, 96) if association else 96)
+    recommendations = int(member.get("recommendation_count") or 28)
+    course_count = 12
+    ranking = member.get("ranking_label") or ("Top 10%" if member.get("membership_tier") == "pro" else "Top 25%")
+    certifications = member.get("certifications") or []
+
+    about_paragraphs = [
+        member.get("bio") or (
+            f"{member_name} participa activamente en la red {association.get('name') if association else 'COPIM'} con foco en {specialty.lower()}, reputación profesional y activación comercial consistente."
+        ),
+        f"Su membresía {membership_tier} le permite operar con directorio visible, agenda institucional, credencial digital y seguimiento más claro de pagos, eventos y posicionamiento profesional.",
+    ]
+    specialties = [specialty, "Networking institucional", "Negociación comercial"]
+    languages = member.get("languages") or ["Español", "Inglés"]
+    association_name = association.get("name") if association else "COPIM"
+    experience_items = member.get("experience_items") or [
+        {
+            "company": member.get("company_name") or f"{member_name.split()[0]} Realty",
+            "role": member.get("title") or "Asociado profesional",
+            "period": "2019 - Actual",
+            "highlight": f"{len(registrations) + 18} operaciones acompañadas y presencia activa en {association_name}.",
+        },
+        {
+            "company": association_name,
+            "role": "Embajador local",
+            "period": "2016 - 2019",
+            "highlight": "Impulso a networking, referidos y agenda de formación profesional.",
+        },
+    ]
+    education_items = member.get("education_items") or [
+        {
+            "title": "Licenciatura en Administración",
+            "institution": "Universidad regional",
+            "period": "2009 - 2014",
+        },
+        {
+            "title": "Certificación COPIM Nivel Profesional",
+            "institution": "COPIM Academia",
+            "period": "2024",
+        },
+        {
+            "title": "Programa de reputación y cierres",
+            "institution": association_name,
+            "period": "2025",
+        },
+    ]
+    portfolio_items = member.get("portfolio_items") or build_copim_member_property_seed(member, association)["properties"]
+    testimonials = member.get("testimonials") or [
+        {
+            "name": "Patricia Gomez",
+            "role": "Cliente",
+            "rating": 5,
+            "date_label": "Feb 2026",
+            "content": f"Excelente acompañamiento, claridad comercial y seguimiento impecable en todo el proceso con {member_name}.",
+        },
+        {
+            "name": "Luis Herrera",
+            "role": "Aliado comercial",
+            "rating": 5,
+            "date_label": "Ene 2026",
+            "content": "Su presencia en la red institucional facilita cruces de negocio y confianza operativa.",
+        },
+    ]
+    recognitions = member.get("recognitions") or [
+        {"label": "Top en visibilidad", "detail": f"Perfil visible y activo dentro de {association_name}."},
+        {"label": "Credencial vigente", "detail": "Listo para eventos, check-ins y directorio institucional."},
+        {"label": "Renovación trazable", "detail": f"{len([item for item in payments if item.get('payment_status') == 'paid'])} pagos conciliados en historial reciente."},
+    ]
+
+    return {
+        "cover_image_url": cover_image_url,
+        "professional_headline": title,
+        "location_label": location_label,
+        "metrics": {
+            "points": points,
+            "connections": connections,
+            "recommendations": recommendations,
+            "courses": course_count,
+            "ranking": ranking,
+        },
+        "about_paragraphs": about_paragraphs,
+        "specialties": specialties,
+        "languages": languages,
+        "years_experience": years_experience,
+        "experience_items": experience_items,
+        "education_items": education_items,
+        "portfolio_items": portfolio_items,
+        "testimonials": testimonials,
+        "recognitions": recognitions,
+        "certifications": certifications,
+    }
+
+
+async def build_copim_member_portal_payload(current_user: dict) -> dict:
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_invoice_seed_data(current_user)
+    await ensure_copim_course_seed_data(current_user)
+
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    association = await fetch_copim_association_or_404(tenant_id, member["association_id"]) if member.get("association_id") else None
+    memberships = await db.copim_memberships.find(
+        {"tenant_id": tenant_id, "member_id": member["id"]},
+        {"_id": 0},
+    ).sort("renewal_date", -1).to_list(50)
+    invoices = await db.copim_invoices.find(
+        {"tenant_id": tenant_id, "member_id": member["id"]},
+        {"_id": 0},
+    ).sort("issue_date", -1).to_list(50)
+    registrations = await build_copim_member_event_registrations(tenant_id, member["id"])
+    membership_history = await enrich_copim_memberships(tenant_id, memberships)
+    payment_history = await enrich_copim_invoices(tenant_id, invoices)
+
+    visible_events = await enrich_copim_events(
+        tenant_id,
+        await db.copim_events.find(
+            {
+                "tenant_id": tenant_id,
+                "status": {"$in": ["published", "completed"]},
+                "$or": [
+                    {"visibility": "public"},
+                    {"visibility": "members"},
+                    {"association_id": member.get("association_id")},
+                ],
+            },
+            {"_id": 0},
+        ).sort("start_at", 1).to_list(200),
+    )
+    registration_map = {item["event"]["id"]: item for item in registrations if item.get("event")}
+    available_events = []
+    for event in visible_events:
+        registration = registration_map.get(event["id"])
+        available_events.append({
+            **event,
+            "member_registered": bool(registration),
+            "member_checkin_status": registration.get("registration_status") if registration else None,
+            "member_registration_id": registration.get("id") if registration else None,
+            "member_qr_url": registration.get("qr_url") if registration else None,
+        })
+
+    current_membership = next((item for item in membership_history if item.get("payment_status") == "active"), None)
+    if not current_membership and membership_history:
+        current_membership = membership_history[0]
+
+    pending_invoices = [
+        item for item in payment_history
+        if item.get("payment_status") in {"pending", "overdue"}
+    ]
+    next_event = next(
+        (
+            item.get("event")
+            for item in registrations
+            if item.get("event") and parse_iso_datetime(item["event"].get("start_at")) and parse_iso_datetime(item["event"].get("start_at")) >= datetime.now(timezone.utc)
+        ),
+        None,
+    ) or next(
+        (
+            item for item in available_events
+            if parse_iso_datetime(item.get("start_at")) and parse_iso_datetime(item.get("start_at")) >= datetime.now(timezone.utc)
+        ),
+        None,
+    )
+
+    member_enriched = (await enrich_copim_members(tenant_id, [member]))[0]
+    credential_payload = {
+        "credential_id": member_enriched.get("credential_id") or build_copim_credential_id(),
+        "credential_status": member_enriched.get("credential_status"),
+        "directory_visible": bool(member_enriched.get("directory_visible")),
+        "expires_at": current_membership.get("renewal_date") if current_membership else None,
+        "qr_url": build_copim_qr_url(
+            f"copim:credential:{member_enriched.get('credential_id') or member_enriched.get('id')}"
+        ),
+    }
+    campaign_payload = build_copim_member_campaign_seed(member_enriched, association)
+    property_payload = build_copim_member_property_seed(member_enriched, association)
+    course_payload = await build_copim_member_courses_payload(current_user)
+    module_payload = build_copim_member_module_seed(member_enriched, association, current_membership)
+    profile_story = build_copim_member_profile_story(
+        member_enriched,
+        association,
+        current_membership,
+        registrations,
+        payment_history,
+    )
+
+    return {
+        "member": member_enriched,
+        "association": serialize_doc(association) if association else None,
+        "current_membership": current_membership,
+        "membership_history": membership_history,
+        "payments": payment_history,
+        "pending_invoices": pending_invoices,
+        "registrations": registrations,
+        "events": available_events,
+        "next_event": next_event,
+        "credential": credential_payload,
+        "campaigns": campaign_payload,
+        "properties": property_payload,
+        "courses": course_payload,
+        "modules": module_payload,
+        "profile_story": profile_story,
+        "stats": {
+            "amount_due": float(member_enriched.get("amount_due") or 0),
+            "profile_completion": calculate_copim_profile_completion(member),
+            "events_registered": len(registrations),
+            "directory_visible": bool(member_enriched.get("directory_visible")),
+        },
+    }
+
+
+async def persist_copim_ai_analysis(collection_name: str, tenant_id: str, entity_id: str, analysis: dict) -> dict:
+    analyzed_at = datetime.now(timezone.utc).isoformat()
+    await db[collection_name].update_one(
+        {"tenant_id": tenant_id, "id": entity_id},
+        {"$set": {"ai_analysis": analysis, "ai_last_analyzed_at": analyzed_at, "updated_at": analyzed_at}},
+    )
+    return {
+        "ai_analysis": analysis,
+        "ai_last_analyzed_at": analyzed_at,
     }
 
 
@@ -473,13 +3643,15 @@ async def register(user_data: UserCreate):
     # Create user
     user_id = str(uuid.uuid4())
     tenant_id = f"tenant-{user_id[:8]}"
-    personal_tenant_id = tenant_id if user_data.account_type == "individual" else f"personal-{user_id[:8]}"
+    personal_tenant_id = tenant_id if not uses_personal_workspace(user_data.account_type) else f"personal-{user_id[:8]}"
     
+    resolved_role = resolve_user_role(user_data.account_type, user_data.role)
+
     user_doc = {
         "id": user_id,
         "email": user_data.email,
         "name": user_data.name,
-        "role": user_data.role,
+        "role": resolved_role,
         "phone": user_data.phone,
         "password_hash": get_password_hash(user_data.password),
         "avatar_url": None,
@@ -494,7 +3666,7 @@ async def register(user_data: UserCreate):
     await db.users.insert_one(user_doc)
     user_doc = await ensure_workspace_infra_for_user(user_doc)
     workspaces = await get_user_workspaces(user_doc)
-    active_workspace = select_active_workspace(workspaces, tenant_id)
+    active_workspace = select_active_workspace(workspaces, resolve_auth_workspace_target(user_doc) or tenant_id)
     
     # Seed default gamification rules for new tenant
     for rule in SEED_GAMIFICATION_RULES:
@@ -521,15 +3693,63 @@ async def register(user_data: UserCreate):
             upsert=True
         )
     
-    # Create token
+    # Create access + refresh tokens so newly registered users get the same session flow as login.
     token = create_access_token(build_access_token_payload(user_doc, active_workspace))
-    
+    token_jti, refresh_token = create_refresh_token({
+        "sub": user_doc["id"],
+        "tenant_id": user_doc["tenant_id"],
+        "active_tenant_id": active_workspace["tenant_id"] if active_workspace else user_doc["tenant_id"],
+        "active_membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "active_role": active_workspace["role"] if active_workspace else user_doc.get("role", "broker"),
+        "account_type": user_doc.get("account_type", "individual"),
+    })
+
+    await db.refresh_tokens.update_one(
+        {"jti": token_jti},
+        {"$set": {
+            "jti": token_jti,
+            "user_id": user_doc["id"],
+            "tenant_id": active_workspace["tenant_id"] if active_workspace else user_doc["tenant_id"],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+            "revoked": False,
+            "used": False
+        }},
+        upsert=True
+    )
+
     return TokenResponse(
         access_token=token,
+        refresh_token=refresh_token,
+        expires_in=JWT_EXPIRATION_MINUTES * 60,
         user=UserResponse(**build_user_response_payload(user_doc)),
         active_workspace=active_workspace,
         available_workspaces=workspaces,
     )
+
+
+@api_router.post("/auth/complete-onboarding", response_model=dict)
+async def complete_onboarding(
+    payload: OnboardingCompletionRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Complete onboarding for non-sales personas such as COPIM institutional users."""
+    update_payload = {
+        "onboarding_completed": True,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if payload.context:
+        update_payload["onboarding_context"] = payload.context
+    if payload.metadata:
+        update_payload["onboarding_metadata"] = payload.metadata
+
+    await db.users.update_one(
+        {"id": current_user["user_id"]},
+        {"$set": update_payload},
+    )
+
+    return {"message": "Onboarding completado"}
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin):
@@ -543,7 +3763,7 @@ async def login(credentials: UserLogin):
 
     user = await ensure_workspace_infra_for_user(user)
     workspaces = await get_user_workspaces(user)
-    active_workspace = select_active_workspace(workspaces, user.get("tenant_id"))
+    active_workspace = select_active_workspace(workspaces, resolve_auth_workspace_target(user))
     
     # Create access token (15 min)
     access_token = create_access_token(build_access_token_payload(user, active_workspace))
@@ -598,7 +3818,10 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
     user = await ensure_workspace_infra_for_user(user)
     workspaces = await get_user_workspaces(user)
-    active_workspace = select_active_workspace(workspaces, current_user.get("active_tenant_id") or current_user.get("tenant_id"))
+    active_workspace = select_active_workspace(
+        workspaces,
+        current_user.get("active_tenant_id") or resolve_auth_workspace_target(user) or current_user.get("tenant_id"),
+    )
 
     return {
         "user": build_user_response_payload(user, ai_profile),
@@ -689,7 +3912,7 @@ async def refresh_token(request: RefreshTokenRequest):
         user = await db.users.find_one({"id": user_info["user_id"]}, {"_id": 0})
         user = await ensure_workspace_infra_for_user(user)
         workspaces = await get_user_workspaces(user)
-        active_workspace = select_active_workspace(workspaces, requested_tenant_id)
+        active_workspace = select_active_workspace(workspaces, requested_tenant_id or resolve_auth_workspace_target(user))
 
         # Create new access token
         new_access_token = create_access_token(build_access_token_payload(user, active_workspace))
@@ -832,6 +4055,2501 @@ async def cleanup_tokens(current_user: dict = Depends(require_role(["admin"]))):
     Elimina tokens expirados o revocados hace más de 30 días
     """
     return await cleanup_expired_tokens(db)
+
+
+# ==================== COPIM MODULE ROUTES ====================
+
+@api_router.post("/copim/bootstrap-demo", response_model=dict)
+async def bootstrap_copim_demo(current_user: dict = Depends(require_copim_national_workspace)):
+    tenant_id = current_user["tenant_id"]
+    await db.copim_course_enrollments.delete_many({"tenant_id": tenant_id})
+    await db.copim_courses.delete_many({"tenant_id": tenant_id})
+    await db.copim_association_posts.delete_many({"tenant_id": tenant_id})
+    await db.copim_event_registrations.delete_many({"tenant_id": tenant_id})
+    await db.copim_invoices.delete_many({"tenant_id": tenant_id})
+    await db.copim_events.delete_many({"tenant_id": tenant_id})
+    await db.copim_memberships.delete_many({"tenant_id": tenant_id})
+    await db.copim_members.delete_many({"tenant_id": tenant_id})
+    await db.copim_associations.delete_many({"tenant_id": tenant_id})
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_course_seed_data(current_user)
+
+    return {
+        "message": "Datos demo de COPIM listos",
+        "associations": await db.copim_associations.count_documents({"tenant_id": tenant_id}),
+        "members": await db.copim_members.count_documents({"tenant_id": tenant_id}),
+        "memberships": await db.copim_memberships.count_documents({"tenant_id": tenant_id}),
+        "invoices": await db.copim_invoices.count_documents({"tenant_id": tenant_id}),
+        "events": await db.copim_events.count_documents({"tenant_id": tenant_id}),
+        "courses": await db.copim_courses.count_documents({"tenant_id": tenant_id}),
+    }
+
+
+@api_router.get("/copim/dashboard", response_model=dict)
+async def get_copim_dashboard(current_user: dict = Depends(require_copim_national_workspace)):
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_invoice_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    associations = await db.copim_associations.find({"tenant_id": tenant_id}, {"_id": 0}).sort("name", 1).to_list(100)
+    members = await db.copim_members.find({"tenant_id": tenant_id}, {"_id": 0}).sort("full_name", 1).to_list(500)
+    memberships = await db.copim_memberships.find({"tenant_id": tenant_id}, {"_id": 0}).sort("renewal_date", 1).to_list(500)
+    invoices = await db.copim_invoices.find({"tenant_id": tenant_id}, {"_id": 0}).sort("due_date", 1).to_list(500)
+    events = await db.copim_events.find({"tenant_id": tenant_id}, {"_id": 0}).sort("start_at", 1).to_list(500)
+
+    stats = {
+        "associations_total": len(associations),
+        "associations_active": sum(1 for item in associations if item.get("status") == "active"),
+        "members_total": len(members),
+        "members_active": sum(1 for item in members if item.get("member_status") == "active"),
+        "members_pending": sum(1 for item in members if item.get("member_status") == "pending"),
+        "credentials_issued": sum(1 for item in members if item.get("credential_status") == "issued"),
+        "directory_visible": sum(1 for item in members if item.get("directory_visible")),
+        "memberships_due": sum(1 for item in memberships if item.get("payment_status") in {"due", "overdue"}),
+        "revenue_due": sum(float(item.get("balance_due") or 0) for item in memberships if item.get("payment_status") in {"due", "overdue"}),
+        "invoices_open": sum(1 for item in invoices if item.get("payment_status") in {"pending", "overdue"}),
+        "invoices_overdue": sum(1 for item in invoices if item.get("payment_status") == "overdue"),
+        "events_upcoming": sum(1 for item in events if item.get("start_at", "") >= now_iso),
+        "event_registrations": sum(item.get("registered_count", 0) or 0 for item in events),
+    }
+
+    pending_members = await enrich_copim_members(
+        tenant_id,
+        [item for item in members if item.get("member_status") == "pending"][:5],
+    )
+    renewal_watchlist = await enrich_copim_memberships(
+        tenant_id,
+        [item for item in memberships if item.get("payment_status") in {"due", "overdue"}][:5],
+    )
+    billing_watchlist = await enrich_copim_invoices(
+        tenant_id,
+        [item for item in invoices if item.get("payment_status") in {"pending", "overdue"}][:5],
+    )
+    upcoming_events = await enrich_copim_events(
+        tenant_id,
+        [item for item in events if item.get("start_at", "") >= now_iso][:5],
+    )
+
+    return {
+        "stats": stats,
+        "pending_members": pending_members,
+        "renewal_watchlist": renewal_watchlist,
+        "billing_watchlist": billing_watchlist,
+        "upcoming_events": upcoming_events,
+        "top_associations": [serialize_doc(item) for item in associations[:4]],
+    }
+
+
+@api_router.get("/copim/local-association/profile", response_model=dict)
+async def get_local_copim_association_profile(
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_invoice_seed_data(current_user)
+    await ensure_copim_course_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    association = await resolve_local_copim_association(current_user, strict=True)
+    await ensure_local_association_community_seed(tenant_id, association, current_user["user_id"])
+
+    summary = await build_copim_association_summary_payload(tenant_id, association["id"])
+    other_associations = await db.copim_associations.find(
+        {"tenant_id": tenant_id, "id": {"$ne": association["id"]}},
+        {"_id": 0},
+    ).sort("national_score", -1).to_list(4)
+
+    campaigns = build_local_association_campaign_seed(association)
+    properties = build_local_association_properties_seed(association)
+    course_workspace = await build_copim_courses_workspace_payload(current_user)
+    courses = [course for course in (course_workspace.get("courses") or []) if course.get("association_id") == association["id"] or course.get("scope") == "national"][:3]
+    modules = build_local_association_module_seed(association)
+
+    return {
+        "association": serialize_doc(association),
+        "stats": summary.get("stats", {}),
+        "upcoming_events": summary.get("events", [])[:3],
+        "featured_members": summary.get("members", [])[:4],
+        "renewal_watchlist": summary.get("memberships", [])[:4],
+        "other_associations": [serialize_doc(item) for item in other_associations],
+        "campaign_preview": campaigns,
+        "property_preview": properties,
+        "course_preview": courses,
+        "module_preview": modules,
+    }
+
+
+@api_router.get("/copim/local-association/campaigns", response_model=dict)
+async def get_local_copim_association_campaigns(
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    association = await resolve_local_copim_association(current_user, strict=True)
+    campaigns = build_local_association_campaign_seed(association)
+    sent_total = sum(int(item.get("sent") or 0) for item in campaigns)
+    return {
+        "association": serialize_doc(association),
+        "stats": {
+            "campaigns_total": len(campaigns),
+            "sent_total": sent_total,
+            "responses_total": sum(int(item.get("responses") or 0) for item in campaigns),
+            "active_channels": len({item.get("channel") for item in campaigns}),
+        },
+        "campaigns": campaigns,
+    }
+
+
+@api_router.get("/copim/local-association/properties", response_model=dict)
+async def get_local_copim_association_properties(
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    association = await resolve_local_copim_association(current_user, strict=True)
+    properties = build_local_association_properties_seed(association)
+    return {
+        "association": serialize_doc(association),
+        "stats": {
+            "properties_total": len(properties),
+            "views_total": sum(int(item.get("views") or 0) for item in properties),
+            "active_total": len([item for item in properties if item.get("status") in {"activa", "publicada", "en difusión"}]),
+        },
+        "properties": properties,
+    }
+
+
+@api_router.get("/copim/courses", response_model=dict)
+async def list_copim_courses_workspace(
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    return await build_copim_courses_workspace_payload(current_user)
+
+
+@api_router.post("/copim/courses/ai-draft", response_model=dict)
+async def generate_copim_course_ai_draft(
+    payload: CopimCourseAIDraftRequest,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    return build_copim_course_ai_outline(payload.model_dump())
+
+
+@api_router.post("/copim/courses", response_model=dict)
+async def create_copim_course(
+    course_data: CopimCourseCreate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=current_user.get("role") == "copim_operator")
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    scope = course_data.scope
+    association_id = course_data.association_id
+    if current_user.get("role") == "copim_operator":
+        scope = "association"
+        association_id = scoped_association_id
+
+    if scope == "association":
+        association_id = await resolve_scoped_copim_association_id(current_user, association_id, strict=current_user.get("role") == "copim_operator")
+
+    title = course_data.title.strip()
+    course_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "created_by_user_id": current_user["user_id"],
+        "association_id": association_id if scope == "association" else None,
+        "scope": scope,
+        "title": title,
+        "slug": slugify_copim_course_title(title),
+        "subtitle": course_data.subtitle,
+        "summary": course_data.summary,
+        "description": course_data.description,
+        "category": course_data.category,
+        "modality": course_data.modality,
+        "audience": course_data.audience,
+        "visibility": course_data.visibility,
+        "status": course_data.status,
+        "cover_image_url": course_data.cover_image_url or build_copim_course_fallback_cover(course_data.category),
+        "hero_image_url": course_data.hero_image_url or course_data.cover_image_url or build_copim_course_fallback_cover(course_data.category),
+        "pricing_type": course_data.pricing_type,
+        "price_amount": float(course_data.price_amount or 0),
+        "currency": course_data.currency or "MXN",
+        "marketplace_enabled": bool(course_data.marketplace_enabled),
+        "certificate_enabled": bool(course_data.certificate_enabled),
+        "certificate_title": course_data.certificate_title,
+        "tags": [str(item).strip() for item in course_data.tags if str(item or "").strip()],
+        "learning_objectives": [str(item).strip() for item in course_data.learning_objectives if str(item or "").strip()],
+        "language": course_data.language or "es-MX",
+        "estimated_minutes": max(int(course_data.estimated_minutes or 0), 0),
+        "onboarding_notes": course_data.onboarding_notes,
+        "instructors": [item.model_dump() if hasattr(item, "model_dump") else item for item in course_data.instructors],
+        "modules": normalize_copim_course_modules([item.model_dump() if hasattr(item, "model_dump") else item for item in course_data.modules]),
+        "materials": normalize_copim_course_materials([item.model_dump() if hasattr(item, "model_dump") else item for item in course_data.materials]),
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    if not course_doc["modules"]:
+        ai_outline = build_copim_course_ai_outline({"title": title, "category": course_doc["category"], "audience": course_doc["audience"]})
+        course_doc["modules"] = ai_outline.get("modules", [])
+        if not course_doc["learning_objectives"]:
+            course_doc["learning_objectives"] = ai_outline.get("learning_objectives", [])
+        if not course_doc.get("summary"):
+            course_doc["summary"] = ai_outline.get("summary")
+        if not course_doc.get("description"):
+            course_doc["description"] = ai_outline.get("description")
+
+    await db.copim_courses.insert_one(course_doc)
+    await sync_copim_association_course_counts(tenant_id)
+    return serialize_doc(course_doc)
+
+
+@api_router.get("/copim/courses/{course_id}", response_model=dict)
+async def get_copim_course_detail(
+    course_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_course_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    course = await fetch_copim_course_or_404(tenant_id, course_id)
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=False)
+    if current_user.get("role") == "copim_operator" and course.get("scope") == "association" and course.get("association_id") != scoped_association_id:
+        raise HTTPException(status_code=403, detail="Solo puedes consultar cursos de tu asociación local")
+
+    course_stats = await get_copim_course_stats_map(tenant_id, [course_id])
+    enrollments = await db.copim_course_enrollments.find({"tenant_id": tenant_id, "course_id": course_id}, {"_id": 0}).sort("updated_at", -1).to_list(200)
+    member_map = await build_copim_member_map(tenant_id)
+    attendees = []
+    for enrollment in enrollments:
+      member = member_map.get(enrollment.get("member_id"))
+      if not member:
+        continue
+      attendees.append(serialize_doc({
+          **enrollment,
+          "member_name": member.get("full_name"),
+          "member_email": member.get("email"),
+          "member_avatar_url": member.get("avatar_url"),
+          "member_association_id": member.get("association_id"),
+      }))
+    association = await fetch_copim_association_or_404(tenant_id, course["association_id"]) if course.get("association_id") else None
+    return {
+        "course": serialize_doc({
+            **course,
+            "lesson_count": len(flatten_copim_course_lessons(course)),
+            "module_count": len(course.get("modules") or []),
+            "estimated_minutes": compute_copim_course_estimated_minutes(course),
+            "association_name": association.get("name") if association else None,
+            "can_edit": can_copim_user_manage_course(current_user, course, scoped_association_id),
+            **course_stats.get(course_id, {}),
+        }),
+        "association": serialize_doc(association) if association else None,
+        "enrollments": attendees,
+    }
+
+
+@api_router.put("/copim/courses/{course_id}", response_model=dict)
+async def update_copim_course(
+    course_id: str,
+    course_data: CopimCourseUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_course_or_404(tenant_id, course_id)
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=False)
+    if not can_copim_user_manage_course(current_user, existing, scoped_association_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para editar este curso")
+
+    update_payload = {key: value for key, value in course_data.model_dump().items() if value is not None}
+    if "scope" in update_payload and current_user.get("role") == "copim_operator":
+        update_payload["scope"] = "association"
+    if current_user.get("role") == "copim_operator":
+        update_payload["association_id"] = scoped_association_id
+    elif update_payload.get("scope") == "national":
+        update_payload["association_id"] = None
+    elif "association_id" in update_payload and update_payload.get("association_id"):
+        update_payload["association_id"] = await resolve_scoped_copim_association_id(current_user, update_payload["association_id"], strict=False)
+
+    if "modules" in update_payload:
+        update_payload["modules"] = normalize_copim_course_modules(update_payload["modules"])
+    if "materials" in update_payload:
+        update_payload["materials"] = normalize_copim_course_materials(update_payload["materials"])
+    if "tags" in update_payload:
+        update_payload["tags"] = [str(item).strip() for item in (update_payload["tags"] or []) if str(item or "").strip()]
+    if "learning_objectives" in update_payload:
+        update_payload["learning_objectives"] = [str(item).strip() for item in (update_payload["learning_objectives"] or []) if str(item or "").strip()]
+    if "title" in update_payload:
+        update_payload["title"] = update_payload["title"].strip()
+        update_payload["slug"] = slugify_copim_course_title(update_payload["title"])
+    if "category" in update_payload and not update_payload.get("cover_image_url") and not existing.get("cover_image_url"):
+        update_payload["cover_image_url"] = build_copim_course_fallback_cover(update_payload["category"])
+        update_payload["hero_image_url"] = update_payload["cover_image_url"]
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.copim_courses.update_one({"tenant_id": tenant_id, "id": course_id}, {"$set": update_payload})
+    await sync_copim_association_course_counts(tenant_id)
+    updated = await fetch_copim_course_or_404(tenant_id, course_id)
+    return serialize_doc(updated)
+
+
+@api_router.post("/copim/courses/{course_id}/duplicate", response_model=dict)
+async def duplicate_copim_course(
+    course_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_course_or_404(tenant_id, course_id)
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=False)
+    if not can_copim_user_manage_course(current_user, existing, scoped_association_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para duplicar este curso")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    duplicate = {
+        **existing,
+        "id": str(uuid.uuid4()),
+        "slug": slugify_copim_course_title(f"{existing.get('title', 'curso')}-copia"),
+        "title": f"{existing.get('title')} · Copia",
+        "status": "draft",
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_courses.insert_one(duplicate)
+    await sync_copim_association_course_counts(tenant_id)
+    return serialize_doc(duplicate)
+
+
+@api_router.post("/copim/courses/{course_id}/publish", response_model=dict)
+async def publish_copim_course(
+    course_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_course_or_404(tenant_id, course_id)
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=False)
+    if not can_copim_user_manage_course(current_user, existing, scoped_association_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para publicar este curso")
+    await db.copim_courses.update_one(
+        {"tenant_id": tenant_id, "id": course_id},
+        {"$set": {"status": "published", "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return serialize_doc(await fetch_copim_course_or_404(tenant_id, course_id))
+
+
+@api_router.post("/copim/courses/{course_id}/archive", response_model=dict)
+async def archive_copim_course(
+    course_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_course_or_404(tenant_id, course_id)
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=False)
+    if not can_copim_user_manage_course(current_user, existing, scoped_association_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para archivar este curso")
+    await db.copim_courses.update_one(
+        {"tenant_id": tenant_id, "id": course_id},
+        {"$set": {"status": "archived", "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    await sync_copim_association_course_counts(tenant_id)
+    return serialize_doc(await fetch_copim_course_or_404(tenant_id, course_id))
+
+
+@api_router.delete("/copim/courses/{course_id}", response_model=dict)
+async def delete_copim_course(
+    course_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_course_or_404(tenant_id, course_id)
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=False)
+    if not can_copim_user_manage_course(current_user, existing, scoped_association_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para eliminar este curso")
+    await db.copim_course_enrollments.delete_many({"tenant_id": tenant_id, "course_id": course_id})
+    await db.copim_courses.delete_one({"tenant_id": tenant_id, "id": course_id})
+    await sync_copim_association_course_counts(tenant_id)
+    return {"message": "Curso eliminado"}
+
+
+@api_router.post("/copim/courses/{course_id}/materials/upload", response_model=dict)
+async def upload_copim_course_materials(
+    course_id: str,
+    files: List[UploadFile] = File(...),
+    material_type: str = Form("file"),
+    lesson_id: Optional[str] = Form(default=None),
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_course_or_404(tenant_id, course_id)
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=False)
+    if not can_copim_user_manage_course(current_user, existing, scoped_association_id):
+        raise HTTPException(status_code=403, detail="No tienes permisos para cargar materiales a este curso")
+
+    materials = normalize_copim_course_materials(existing.get("materials"))
+    modules = normalize_copim_course_modules(existing.get("modules"))
+    for file in files:
+        content = await file.read()
+        if len(content) > 8 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Cada archivo debe pesar menos de 8 MB para esta demo")
+        encoded = base64.b64encode(content).decode("utf-8")
+        data_url = f"data:{file.content_type or 'application/octet-stream'};base64,{encoded}"
+        material_doc = {
+            "id": str(uuid.uuid4()),
+            "title": file.filename or "material",
+            "material_type": material_type,
+            "source_name": file.filename or "material",
+            "content_type": file.content_type,
+            "url": data_url,
+            "summary": f"Material cargado desde {file.filename or 'archivo local'}.",
+            "size_label": f"{max(1, math.ceil(len(content) / 1024))} KB",
+            "is_downloadable": True,
+        }
+        materials.append(material_doc)
+        if lesson_id:
+            for module in modules:
+                for lesson in module.get("lessons") or []:
+                    if lesson.get("id") != lesson_id:
+                        continue
+                    if material_type == "video":
+                        lesson["video_source"] = "upload"
+                        lesson["video_url"] = data_url
+                    lesson_resources = normalize_copim_course_materials(lesson.get("resources"))
+                    lesson_resources.append(material_doc)
+                    lesson["resources"] = lesson_resources
+    await db.copim_courses.update_one(
+        {"tenant_id": tenant_id, "id": course_id},
+        {"$set": {
+            "materials": materials,
+            "modules": modules,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    updated = await fetch_copim_course_or_404(tenant_id, course_id)
+    return serialize_doc(updated)
+
+
+@api_router.get("/copim/local-association/courses", response_model=dict)
+async def get_local_copim_association_courses(
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    return await build_copim_courses_workspace_payload(current_user)
+
+
+@api_router.get("/copim/local-association/community", response_model=dict)
+async def get_local_copim_association_community(
+    channel_id: Optional[str] = Query(default=None),
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    association = await resolve_local_copim_association(current_user, strict=True)
+    await ensure_local_association_community_seed(tenant_id, association, current_user["user_id"])
+
+    channels = build_local_association_channels(association)
+    selected_channel = channel_id or "association"
+    valid_channel_ids = {item["id"] for item in channels}
+    if selected_channel not in valid_channel_ids:
+        raise HTTPException(status_code=400, detail="Canal no disponible")
+
+    posts = await db.copim_association_posts.find(
+        {
+            "tenant_id": tenant_id,
+            "association_id": association["id"],
+            "channel_id": selected_channel,
+        },
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(100)
+
+    return {
+        "association": serialize_doc(association),
+        "selected_channel": selected_channel,
+        "channels": channels,
+        "permissions": {
+            "can_post_in_association": True,
+            "can_post_in_general": False,
+            "can_comment_general": True,
+        },
+        "posts": [serialize_doc(item) for item in posts],
+    }
+
+
+@api_router.post("/copim/local-association/community/posts", response_model=dict)
+async def create_local_copim_association_post(
+    payload: CopimCommunityPostCreate,
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    association = await resolve_local_copim_association(current_user, strict=True)
+
+    if payload.channel_id != "association":
+        raise HTTPException(status_code=400, detail="En esta fase solo puedes publicar en el canal de tu asociación")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    post_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "association_id": association["id"],
+        "channel_id": payload.channel_id,
+        "author_name": current_user.get("name") or association.get("admin_name") or association.get("name"),
+        "author_role": current_user.get("role"),
+        "content": payload.content.strip(),
+        "created_by_user_id": current_user["user_id"],
+        "comment_count": 0,
+        "comments": [],
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    if not post_doc["content"]:
+        raise HTTPException(status_code=400, detail="El contenido del post no puede ir vacío")
+
+    await db.copim_association_posts.insert_one(post_doc)
+    return serialize_doc(post_doc)
+
+
+@api_router.post("/copim/local-association/community/posts/{post_id}/comments", response_model=dict)
+async def create_local_copim_association_comment(
+    post_id: str,
+    payload: CopimCommunityCommentCreate,
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    association = await resolve_local_copim_association(current_user, strict=True)
+    post = await db.copim_association_posts.find_one(
+        {"tenant_id": tenant_id, "association_id": association["id"], "id": post_id},
+        {"_id": 0},
+    )
+    if not post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    comment_content = payload.content.strip()
+    if not comment_content:
+        raise HTTPException(status_code=400, detail="El comentario no puede ir vacío")
+
+    comment = {
+        "id": str(uuid.uuid4()),
+        "author_name": current_user.get("name") or association.get("admin_name") or association.get("name"),
+        "author_role": current_user.get("role"),
+        "content": comment_content,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    comments = list(post.get("comments") or [])
+    comments.append(comment)
+    await db.copim_association_posts.update_one(
+        {"tenant_id": tenant_id, "id": post_id},
+        {
+            "$set": {
+                "comments": comments,
+                "comment_count": len(comments),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        },
+    )
+    updated = await db.copim_association_posts.find_one({"tenant_id": tenant_id, "id": post_id}, {"_id": 0})
+    return serialize_doc(updated)
+
+
+@api_router.get("/copim/local-association/modules", response_model=dict)
+async def get_local_copim_association_modules(
+    current_user: dict = Depends(require_copim_local_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    association = await resolve_local_copim_association(current_user, strict=True)
+    module_payload = build_local_association_module_seed(association)
+    return {
+        "association": serialize_doc(association),
+        **module_payload,
+    }
+
+
+@api_router.get("/copim/associations", response_model=List[dict])
+async def list_copim_associations(
+    search: Optional[str] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    query: dict[str, Any] = {"tenant_id": current_user["tenant_id"]}
+    scoped_association_id = await resolve_copim_association_scope_id(current_user, strict=current_user.get("role") == "copim_operator")
+    if scoped_association_id:
+        query["id"] = scoped_association_id
+    if status:
+        query["status"] = status
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"state": {"$regex": search, "$options": "i"}},
+            {"city": {"$regex": search, "$options": "i"}},
+            {"president_name": {"$regex": search, "$options": "i"}},
+            {"admin_name": {"$regex": search, "$options": "i"}},
+        ]
+    associations = await db.copim_associations.find(
+        query,
+        {"_id": 0},
+    ).sort("name", 1).to_list(500)
+    return [serialize_doc(item) for item in associations]
+
+
+@api_router.get("/copim/associations/{association_id}/summary", response_model=dict)
+async def get_copim_association_summary(
+    association_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await assert_copim_association_scope(current_user, association_id)
+    return await build_copim_association_summary_payload(current_user["tenant_id"], association_id)
+
+
+@api_router.post("/copim/associations/{association_id}/analyze", response_model=dict)
+async def analyze_copim_association_ai(
+    association_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await assert_copim_association_scope(current_user, association_id)
+    tenant_id = current_user["tenant_id"]
+    summary = await build_copim_association_summary_payload(tenant_id, association_id)
+    association = summary["association"]
+    analysis_input = {
+        **association,
+        **summary.get("stats", {}),
+        "members_count": len(summary.get("members", [])),
+        "memberships_count": len(summary.get("memberships", [])),
+        "events_count": len(summary.get("events", [])),
+        "member_samples": [
+            {
+                "full_name": item.get("full_name"),
+                "member_status": item.get("member_status"),
+                "credential_status": item.get("credential_status"),
+            }
+            for item in summary.get("members", [])[:5]
+        ],
+        "renewal_samples": [
+            {
+                "member_name": item.get("member_name"),
+                "payment_status": item.get("payment_status"),
+                "balance_due": item.get("balance_due"),
+                "days_to_renewal": item.get("days_to_renewal"),
+            }
+            for item in summary.get("memberships", [])[:5]
+        ],
+        "event_samples": [
+            {
+                "title": item.get("title"),
+                "status": item.get("status"),
+                "occupancy_rate": item.get("occupancy_rate"),
+            }
+            for item in summary.get("events", [])[:5]
+        ],
+    }
+    analysis = await analyze_copim_association(analysis_input)
+    return await persist_copim_ai_analysis("copim_associations", tenant_id, association_id, analysis)
+
+
+@api_router.post("/copim/associations", response_model=dict)
+async def create_copim_association(
+    association_data: CopimAssociationCreate,
+    current_user: dict = Depends(require_copim_national_workspace),
+):
+    association_id = str(uuid.uuid4())
+    now_iso = datetime.now(timezone.utc).isoformat()
+    association_doc = {
+        "id": association_id,
+        "tenant_id": current_user["tenant_id"],
+        "created_by_user_id": current_user["user_id"],
+        **association_data.model_dump(),
+        "member_count": 0,
+        "active_members": 0,
+        "pending_members": 0,
+        "renewals_due": 0,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_associations.insert_one(association_doc)
+    return serialize_doc(association_doc)
+
+
+@api_router.put("/copim/associations/{association_id}", response_model=dict)
+async def update_copim_association(
+    association_id: str,
+    association_data: CopimAssociationUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await assert_copim_association_scope(current_user, association_id)
+    await fetch_copim_association_or_404(current_user["tenant_id"], association_id)
+    update_payload = association_data.model_dump(exclude_unset=True)
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.copim_associations.update_one(
+        {"tenant_id": current_user["tenant_id"], "id": association_id},
+        {"$set": update_payload},
+    )
+    updated = await fetch_copim_association_or_404(current_user["tenant_id"], association_id)
+    if updated.get("admin_email") or updated.get("president_email"):
+        await ensure_copim_operator_user_account(
+            current_user["tenant_id"],
+            updated,
+            created_by_user_id=current_user["user_id"],
+        )
+    return serialize_doc(updated)
+
+
+@api_router.delete("/copim/associations/{association_id}", response_model=dict)
+async def delete_copim_association(
+    association_id: str,
+    current_user: dict = Depends(require_copim_national_workspace),
+):
+    await fetch_copim_association_or_404(current_user["tenant_id"], association_id)
+    tenant_id = current_user["tenant_id"]
+
+    deleted_memberships = await db.copim_memberships.delete_many({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+    })
+    deleted_members = await db.copim_members.delete_many({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+    })
+    deleted_events = await db.copim_events.delete_many({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+    })
+    deleted_invoices = await db.copim_invoices.delete_many({
+        "tenant_id": tenant_id,
+        "association_id": association_id,
+    })
+    await db.copim_associations.delete_one({"tenant_id": tenant_id, "id": association_id})
+
+    return {
+        "message": "Asociacion eliminada",
+        "deleted_members": deleted_members.deleted_count,
+        "deleted_memberships": deleted_memberships.deleted_count,
+        "deleted_events": deleted_events.deleted_count,
+        "deleted_invoices": deleted_invoices.deleted_count,
+    }
+
+
+@api_router.get("/copim/members", response_model=List[dict])
+async def list_copim_members(
+    search: Optional[str] = Query(default=None),
+    association_id: Optional[str] = Query(default=None),
+    member_status: Optional[str] = Query(default=None),
+    city: Optional[str] = Query(default=None),
+    specialty: Optional[str] = Query(default=None),
+    directory_visible: Optional[bool] = Query(default=None),
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    query: dict[str, Any] = {"tenant_id": current_user["tenant_id"]}
+    scoped_association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        association_id,
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if scoped_association_id:
+        query["association_id"] = scoped_association_id
+    if member_status:
+        query["member_status"] = member_status
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if specialty:
+        query["specialty"] = {"$regex": specialty, "$options": "i"}
+    if directory_visible is not None:
+        query["directory_visible"] = directory_visible
+    if search:
+        query["$or"] = [
+            {"full_name": {"$regex": search, "$options": "i"}},
+            {"email": {"$regex": search, "$options": "i"}},
+            {"specialty": {"$regex": search, "$options": "i"}},
+            {"company_name": {"$regex": search, "$options": "i"}},
+            {"credential_id": {"$regex": search, "$options": "i"}},
+        ]
+
+    members = await db.copim_members.find(query, {"_id": 0}).sort("full_name", 1).to_list(1000)
+    return await enrich_copim_members(current_user["tenant_id"], members)
+
+
+@api_router.get("/copim/members/{member_id}/summary", response_model=dict)
+async def get_copim_member_summary(
+    member_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    member = await fetch_copim_member_or_404(current_user["tenant_id"], member_id)
+    await assert_copim_association_scope(current_user, member.get("association_id"))
+    return await build_copim_member_summary_payload(current_user["tenant_id"], member_id)
+
+
+@api_router.post("/copim/members/{member_id}/analyze", response_model=dict)
+async def analyze_copim_member_ai(
+    member_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_or_404(tenant_id, member_id)
+    await assert_copim_association_scope(current_user, member.get("association_id"))
+    summary = await build_copim_member_summary_payload(tenant_id, member_id)
+    member = summary["member"]
+    analysis_input = {
+        **member,
+        **summary.get("stats", {}),
+        "association": summary.get("association"),
+        "membership_samples": [
+            {
+                "plan_name": item.get("plan_name"),
+                "payment_status": item.get("payment_status"),
+                "balance_due": item.get("balance_due"),
+                "days_to_renewal": item.get("days_to_renewal"),
+            }
+            for item in summary.get("memberships", [])[:5]
+        ],
+    }
+    analysis = await analyze_copim_member(analysis_input)
+    return await persist_copim_ai_analysis("copim_members", tenant_id, member_id, analysis)
+
+
+@api_router.post("/copim/members", response_model=dict)
+async def create_copim_member(
+    member_data: CopimMemberCreate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        member_data.association_id,
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if association_id:
+        await fetch_copim_association_or_404(current_user["tenant_id"], association_id)
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    payload = member_data.model_dump()
+    payload["association_id"] = association_id
+    if payload.get("join_date"):
+        payload["join_date"] = payload["join_date"].isoformat()
+    payload["validation_checklist"] = normalize_copim_validation_checklist(payload.get("validation_checklist"))
+    if payload.get("credential_status") == "issued" and not payload.get("credential_id"):
+        payload["credential_id"] = build_copim_credential_id()
+    if payload.get("member_status") == "active" and not payload.get("join_date"):
+        payload["join_date"] = now_iso
+    if payload.get("member_status") == "active":
+        payload["review_state"] = "approved"
+    member_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": current_user["tenant_id"],
+        "created_by_user_id": current_user["user_id"],
+        **payload,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_members.insert_one(member_doc)
+    await sync_copim_association_stats(current_user["tenant_id"], member_doc.get("association_id"))
+    return (await enrich_copim_members(current_user["tenant_id"], [member_doc]))[0]
+
+
+@api_router.put("/copim/members/{member_id}", response_model=dict)
+async def update_copim_member(
+    member_id: str,
+    member_data: CopimMemberUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_member_or_404(tenant_id, member_id)
+    previous_association_id = existing.get("association_id")
+    await assert_copim_association_scope(current_user, previous_association_id)
+
+    update_payload = member_data.model_dump(exclude_unset=True)
+    next_association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        update_payload.get("association_id", previous_association_id),
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if next_association_id:
+        await fetch_copim_association_or_404(tenant_id, next_association_id)
+        update_payload["association_id"] = next_association_id
+    if update_payload.get("join_date"):
+        update_payload["join_date"] = update_payload["join_date"].isoformat()
+    if "validation_checklist" in update_payload:
+        update_payload["validation_checklist"] = normalize_copim_validation_checklist(update_payload.get("validation_checklist"))
+    if update_payload.get("credential_status") == "issued" and not update_payload.get("credential_id"):
+        update_payload["credential_id"] = existing.get("credential_id") or build_copim_credential_id()
+    if update_payload.get("member_status") == "active" and not existing.get("join_date") and not update_payload.get("join_date"):
+        update_payload["join_date"] = datetime.now(timezone.utc).isoformat()
+    if update_payload.get("member_status") == "active" and "review_state" not in update_payload:
+        update_payload["review_state"] = "approved"
+
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member_id},
+        {"$set": update_payload},
+    )
+
+    if "association_id" in update_payload:
+        await db.copim_memberships.update_many(
+            {"tenant_id": tenant_id, "member_id": member_id},
+            {"$set": {"association_id": next_association_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        await db.copim_invoices.update_many(
+            {"tenant_id": tenant_id, "member_id": member_id},
+            {"$set": {"association_id": next_association_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+
+    await sync_copim_association_stats(tenant_id, previous_association_id)
+    await sync_copim_association_stats(tenant_id, next_association_id)
+
+    updated = await fetch_copim_member_or_404(tenant_id, member_id)
+    return (await enrich_copim_members(tenant_id, [updated]))[0]
+
+
+@api_router.delete("/copim/members/{member_id}", response_model=dict)
+async def delete_copim_member(
+    member_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_member_or_404(tenant_id, member_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    await db.copim_invoices.delete_many({"tenant_id": tenant_id, "member_id": member_id})
+    await db.copim_memberships.delete_many({"tenant_id": tenant_id, "member_id": member_id})
+    await db.copim_members.delete_one({"tenant_id": tenant_id, "id": member_id})
+    await sync_copim_association_stats(tenant_id, existing.get("association_id"))
+
+    return {"message": "Socio eliminado"}
+
+
+@api_router.post("/copim/members/{member_id}/approve", response_model=dict)
+async def approve_copim_member(member_id: str, current_user: dict = Depends(require_copim_admin_workspace)):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_member_or_404(tenant_id, member_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member_id},
+        {
+            "$set": {
+                "member_status": "active",
+                "review_state": "approved",
+                "credential_status": "issued",
+                "credential_id": existing.get("credential_id") or build_copim_credential_id(),
+                "validation_checklist": normalize_copim_validation_checklist({
+                    **existing.get("validation_checklist", {}),
+                    "perfil_completo": True,
+                    "correo_validado": True,
+                    "documentacion_recibida": True,
+                    "membresia_asignada": True,
+                }),
+                "requested_information": None,
+                "join_date": existing.get("join_date") or datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        },
+    )
+    await sync_copim_association_stats(tenant_id, existing.get("association_id"))
+    updated = await fetch_copim_member_or_404(tenant_id, member_id)
+    return (await enrich_copim_members(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/members/{member_id}/issue-credential", response_model=dict)
+async def issue_copim_member_credential(
+    member_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_member_or_404(tenant_id, member_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member_id},
+        {
+            "$set": {
+                "member_status": existing.get("member_status") if existing.get("member_status") != "pending" else "active",
+                "review_state": "approved" if existing.get("member_status") == "pending" else existing.get("review_state", "approved"),
+                "credential_status": "issued",
+                "credential_id": existing.get("credential_id") or build_copim_credential_id(),
+                "join_date": existing.get("join_date") or datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        },
+    )
+    await sync_copim_association_stats(tenant_id, existing.get("association_id"))
+    updated = await fetch_copim_member_or_404(tenant_id, member_id)
+    return (await enrich_copim_members(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/members/{member_id}/request-info", response_model=dict)
+async def request_copim_member_information(
+    member_id: str,
+    review_data: CopimMemberReviewUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_member_or_404(tenant_id, member_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member_id},
+        {
+            "$set": {
+                "member_status": "pending",
+                "review_state": "awaiting_info",
+                "validation_checklist": normalize_copim_validation_checklist(review_data.validation_checklist or existing.get("validation_checklist")),
+                "validation_notes": review_data.validation_notes or existing.get("validation_notes"),
+                "requested_information": review_data.requested_information or "Completar información pendiente.",
+                "updated_at": now_iso,
+            }
+        },
+    )
+    updated = await fetch_copim_member_or_404(tenant_id, member_id)
+    return (await enrich_copim_members(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/members/{member_id}/reject", response_model=dict)
+async def reject_copim_member(
+    member_id: str,
+    review_data: CopimMemberReviewUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_member_or_404(tenant_id, member_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member_id},
+        {
+            "$set": {
+                "member_status": "pending",
+                "review_state": "rejected",
+                "directory_visible": False,
+                "validation_checklist": normalize_copim_validation_checklist(review_data.validation_checklist or existing.get("validation_checklist")),
+                "validation_notes": review_data.validation_notes or "Solicitud rechazada por operación.",
+                "requested_information": review_data.requested_information or existing.get("requested_information"),
+                "updated_at": now_iso,
+            }
+        },
+    )
+    updated = await fetch_copim_member_or_404(tenant_id, member_id)
+    return (await enrich_copim_members(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/members/{member_id}/provision-portal-access", response_model=dict)
+async def provision_copim_member_portal_access(
+    member_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_or_404(tenant_id, member_id)
+    await assert_copim_association_scope(current_user, member.get("association_id"))
+    account = await ensure_copim_member_user_account(
+        tenant_id,
+        member,
+        created_by_user_id=current_user["user_id"],
+    )
+    updated_member = await fetch_copim_member_or_404(tenant_id, member_id)
+    return {
+        "message": "Acceso portal habilitado",
+        "credentials": account,
+        "member": (await enrich_copim_members(tenant_id, [updated_member]))[0],
+    }
+
+
+@api_router.get("/copim/memberships", response_model=List[dict])
+async def list_copim_memberships(
+    association_id: Optional[str] = Query(default=None),
+    payment_status: Optional[str] = Query(default=None),
+    search: Optional[str] = Query(default=None),
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    query: dict[str, Any] = {"tenant_id": tenant_id}
+    scoped_association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        association_id,
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if scoped_association_id:
+        query["association_id"] = scoped_association_id
+    if payment_status:
+        query["payment_status"] = payment_status
+    if search:
+        matching_member_ids = [
+            member["id"]
+            for member in await db.copim_members.find(
+                {
+                    "tenant_id": tenant_id,
+                    "$or": [
+                        {"full_name": {"$regex": search, "$options": "i"}},
+                        {"email": {"$regex": search, "$options": "i"}},
+                    ],
+                },
+                {"_id": 0, "id": 1},
+            ).to_list(200)
+        ]
+        matching_association_ids = [
+            association["id"]
+            for association in await db.copim_associations.find(
+                {
+                    "tenant_id": tenant_id,
+                    "$or": [
+                        {"name": {"$regex": search, "$options": "i"}},
+                        {"state": {"$regex": search, "$options": "i"}},
+                    ],
+                },
+                {"_id": 0, "id": 1},
+            ).to_list(200)
+        ]
+        query["$or"] = [
+            {"plan_name": {"$regex": search, "$options": "i"}},
+            {"member_id": {"$in": matching_member_ids or ["__none__"]}},
+            {"association_id": {"$in": matching_association_ids or ["__none__"]}},
+        ]
+
+    memberships = await db.copim_memberships.find(query, {"_id": 0}).sort("renewal_date", 1).to_list(1000)
+    return await enrich_copim_memberships(current_user["tenant_id"], memberships)
+
+
+@api_router.get("/copim/memberships/{membership_id}/summary", response_model=dict)
+async def get_copim_membership_summary(
+    membership_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    membership = await fetch_copim_membership_or_404(current_user["tenant_id"], membership_id)
+    await assert_copim_association_scope(current_user, membership.get("association_id"))
+    return await build_copim_membership_summary_payload(current_user["tenant_id"], membership_id)
+
+
+@api_router.post("/copim/memberships/{membership_id}/analyze", response_model=dict)
+async def analyze_copim_membership_ai(
+    membership_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    membership_row = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    await assert_copim_association_scope(current_user, membership_row.get("association_id"))
+    summary = await build_copim_membership_summary_payload(tenant_id, membership_id)
+    membership = summary["membership"]
+    analysis_input = {
+        **membership,
+        "member": summary.get("member"),
+        "association": summary.get("association"),
+    }
+    analysis = await analyze_copim_membership(analysis_input)
+    return await persist_copim_ai_analysis("copim_memberships", tenant_id, membership_id, analysis)
+
+
+@api_router.post("/copim/memberships", response_model=dict)
+async def create_copim_membership(
+    membership_data: CopimMembershipCreate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_or_404(tenant_id, membership_data.member_id)
+    await assert_copim_association_scope(current_user, member.get("association_id"))
+    association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        membership_data.association_id or member.get("association_id"),
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if association_id:
+        await fetch_copim_association_or_404(tenant_id, association_id)
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    payload = membership_data.model_dump()
+    payload["renewal_date"] = membership_data.renewal_date.isoformat()
+    if payload.get("paid_at"):
+        payload["paid_at"] = payload["paid_at"].isoformat()
+    elif payload.get("payment_status") == "active" and float(payload.get("balance_due") or 0) <= 0:
+        payload["paid_at"] = now_iso
+    membership_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "created_by_user_id": current_user["user_id"],
+        **payload,
+        "association_id": association_id,
+        "last_reminder_at": None,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_memberships.insert_one(membership_doc)
+    await sync_copim_member_financials(tenant_id, membership_doc.get("member_id"))
+    await sync_copim_association_stats(tenant_id, association_id)
+    return (await enrich_copim_memberships(tenant_id, [membership_doc]))[0]
+
+
+@api_router.put("/copim/memberships/{membership_id}", response_model=dict)
+async def update_copim_membership(
+    membership_id: str,
+    membership_data: CopimMembershipUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    previous_association_id = existing.get("association_id")
+    await assert_copim_association_scope(current_user, previous_association_id)
+
+    update_payload = membership_data.model_dump(exclude_unset=True)
+    if update_payload.get("member_id"):
+        member = await fetch_copim_member_or_404(tenant_id, update_payload["member_id"])
+        await assert_copim_association_scope(current_user, member.get("association_id"))
+        if not update_payload.get("association_id"):
+            update_payload["association_id"] = member.get("association_id")
+    if "association_id" in update_payload or current_user.get("role") == "copim_operator":
+        next_association_id = await resolve_scoped_copim_association_id(
+            current_user,
+            update_payload.get("association_id", previous_association_id),
+            strict=current_user.get("role") == "copim_operator",
+        )
+        update_payload["association_id"] = next_association_id
+    if update_payload.get("association_id"):
+        await fetch_copim_association_or_404(tenant_id, update_payload["association_id"])
+    if update_payload.get("renewal_date"):
+        update_payload["renewal_date"] = update_payload["renewal_date"].isoformat()
+    if update_payload.get("paid_at"):
+        update_payload["paid_at"] = update_payload["paid_at"].isoformat()
+    elif update_payload.get("payment_status") == "active" and float(update_payload.get("balance_due") or 0) <= 0:
+        update_payload["paid_at"] = datetime.now(timezone.utc).isoformat()
+
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.copim_memberships.update_one(
+        {"tenant_id": tenant_id, "id": membership_id},
+        {"$set": update_payload},
+    )
+    if "association_id" in update_payload or "member_id" in update_payload:
+        await db.copim_invoices.update_many(
+            {"tenant_id": tenant_id, "membership_id": membership_id},
+            {
+                "$set": {
+                    "association_id": update_payload.get("association_id", existing.get("association_id")),
+                    "member_id": update_payload.get("member_id", existing.get("member_id")),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
+        )
+
+    await sync_copim_member_financials(tenant_id, update_payload.get("member_id", existing.get("member_id")))
+    await sync_copim_association_stats(tenant_id, previous_association_id)
+    await sync_copim_association_stats(tenant_id, update_payload.get("association_id", previous_association_id))
+    updated = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    return (await enrich_copim_memberships(tenant_id, [updated]))[0]
+
+
+@api_router.delete("/copim/memberships/{membership_id}", response_model=dict)
+async def delete_copim_membership(
+    membership_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    await db.copim_invoices.delete_many({"tenant_id": tenant_id, "membership_id": membership_id})
+    await db.copim_memberships.delete_one({"tenant_id": tenant_id, "id": membership_id})
+    await sync_copim_member_financials(tenant_id, existing.get("member_id"))
+    await sync_copim_association_stats(tenant_id, existing.get("association_id"))
+    return {"message": "Membresia eliminada"}
+
+
+@api_router.post("/copim/memberships/{membership_id}/send-reminder", response_model=dict)
+async def send_copim_membership_reminder(
+    membership_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    reminder_at = datetime.now(timezone.utc).isoformat()
+    await db.copim_memberships.update_one(
+        {"tenant_id": tenant_id, "id": membership_id},
+        {"$set": {"last_reminder_at": reminder_at, "updated_at": reminder_at}},
+    )
+    updated = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    return (await enrich_copim_memberships(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/memberships/{membership_id}/invoice", response_model=dict)
+async def create_copim_membership_invoice(
+    membership_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    membership = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    await assert_copim_association_scope(current_user, membership.get("association_id"))
+    invoice_doc, created = await create_copim_invoice_for_membership(tenant_id, membership_id, current_user)
+    refreshed_membership = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    return {
+        "created": created,
+        "invoice": (await enrich_copim_invoices(tenant_id, [invoice_doc]))[0],
+        "membership": (await enrich_copim_memberships(tenant_id, [refreshed_membership]))[0],
+    }
+
+
+@api_router.post("/copim/memberships/{membership_id}/mark-paid", response_model=dict)
+async def mark_copim_membership_paid(
+    membership_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    membership = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    await assert_copim_association_scope(current_user, membership.get("association_id"))
+    paid_membership = await apply_copim_membership_payment(tenant_id, membership_id)
+    await db.copim_invoices.update_many(
+        {"tenant_id": tenant_id, "membership_id": membership_id, "payment_status": {"$ne": "paid"}},
+        {
+            "$set": {
+                "payment_status": "paid",
+                "invoice_status": "paid",
+                "balance_due": 0,
+                "paid_at": paid_membership.get("paid_at"),
+                "updated_at": paid_membership.get("paid_at"),
+            }
+        },
+    )
+    updated = await fetch_copim_membership_or_404(tenant_id, membership_id)
+    return (await enrich_copim_memberships(tenant_id, [updated]))[0]
+
+
+@api_router.get("/copim/invoices", response_model=List[dict])
+async def list_copim_invoices(
+    association_id: Optional[str] = Query(default=None),
+    payment_status: Optional[str] = Query(default=None),
+    invoice_status: Optional[str] = Query(default=None),
+    search: Optional[str] = Query(default=None),
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_invoice_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    query: dict[str, Any] = {"tenant_id": tenant_id}
+    scoped_association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        association_id,
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if scoped_association_id:
+        query["association_id"] = scoped_association_id
+    if payment_status:
+        query["payment_status"] = payment_status
+    if invoice_status:
+        query["invoice_status"] = invoice_status
+    if search:
+        matching_member_ids = [
+            member["id"]
+            for member in await db.copim_members.find(
+                {
+                    "tenant_id": tenant_id,
+                    "$or": [
+                        {"full_name": {"$regex": search, "$options": "i"}},
+                        {"email": {"$regex": search, "$options": "i"}},
+                    ],
+                },
+                {"_id": 0, "id": 1},
+            ).to_list(200)
+        ]
+        matching_association_ids = [
+            association["id"]
+            for association in await db.copim_associations.find(
+                {
+                    "tenant_id": tenant_id,
+                    "name": {"$regex": search, "$options": "i"},
+                },
+                {"_id": 0, "id": 1},
+            ).to_list(200)
+        ]
+        query["$or"] = [
+            {"invoice_number": {"$regex": search, "$options": "i"}},
+            {"concept": {"$regex": search, "$options": "i"}},
+            {"recipient_rfc": {"$regex": search, "$options": "i"}},
+            {"member_id": {"$in": matching_member_ids or ["__none__"]}},
+            {"association_id": {"$in": matching_association_ids or ["__none__"]}},
+        ]
+
+    invoices = await db.copim_invoices.find(query, {"_id": 0}).sort("due_date", 1).to_list(1000)
+    return await enrich_copim_invoices(tenant_id, invoices)
+
+
+@api_router.get("/copim/invoices/{invoice_id}/summary", response_model=dict)
+async def get_copim_invoice_summary(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    await ensure_copim_invoice_seed_data(current_user)
+    invoice = await fetch_copim_invoice_or_404(current_user["tenant_id"], invoice_id)
+    await assert_copim_association_scope(current_user, invoice.get("association_id"))
+    return await build_copim_invoice_summary_payload(current_user["tenant_id"], invoice_id)
+
+
+@api_router.post("/copim/invoices/{invoice_id}/analyze", response_model=dict)
+async def analyze_copim_invoice_ai(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    invoice = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await assert_copim_association_scope(current_user, invoice.get("association_id"))
+    summary = await build_copim_invoice_summary_payload(tenant_id, invoice_id)
+    invoice = summary["invoice"]
+    analysis_input = {
+        **invoice,
+        "member": summary.get("member"),
+        "membership": summary.get("membership"),
+        "association": summary.get("association"),
+    }
+    analysis = await analyze_copim_invoice(analysis_input)
+    return await persist_copim_ai_analysis("copim_invoices", tenant_id, invoice_id, analysis)
+
+
+@api_router.post("/copim/invoices", response_model=dict)
+async def create_copim_invoice(
+    invoice_data: CopimInvoiceCreate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_or_404(tenant_id, invoice_data.member_id)
+    await assert_copim_association_scope(current_user, member.get("association_id"))
+    membership = None
+    if invoice_data.membership_id:
+        membership = await fetch_copim_membership_or_404(tenant_id, invoice_data.membership_id)
+        await assert_copim_association_scope(current_user, membership.get("association_id"))
+        if membership.get("member_id") != invoice_data.member_id:
+            raise HTTPException(status_code=400, detail="La factura no coincide con el socio de la membresía")
+    association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        invoice_data.association_id or (membership.get("association_id") if membership else member.get("association_id")),
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if association_id:
+        await fetch_copim_association_or_404(tenant_id, association_id)
+    if invoice_data.due_date < invoice_data.issue_date:
+        raise HTTPException(status_code=400, detail="La fecha de vencimiento no puede ser anterior a la emisión")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    payload = invoice_data.model_dump()
+    payload["invoice_number"] = payload.get("invoice_number") or build_copim_invoice_number()
+    payload["issue_date"] = invoice_data.issue_date.isoformat()
+    payload["due_date"] = invoice_data.due_date.isoformat()
+    if payload.get("sent_at"):
+        payload["sent_at"] = invoice_data.sent_at.isoformat()
+    if payload.get("paid_at"):
+        payload["paid_at"] = invoice_data.paid_at.isoformat()
+    invoice_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "created_by_user_id": current_user["user_id"],
+        **payload,
+        "association_id": association_id,
+        "recipient_name": payload.get("recipient_name") or member.get("full_name"),
+        "recipient_email": payload.get("recipient_email") or member.get("email"),
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_invoices.insert_one(invoice_doc)
+    if invoice_doc.get("payment_status") == "paid" and invoice_doc.get("membership_id"):
+        await apply_copim_membership_payment(tenant_id, invoice_doc.get("membership_id"))
+    else:
+        await sync_copim_membership_invoice_state(tenant_id, invoice_doc.get("membership_id"))
+    created = await fetch_copim_invoice_or_404(tenant_id, invoice_doc["id"])
+    return (await enrich_copim_invoices(tenant_id, [created]))[0]
+
+
+@api_router.put("/copim/invoices/{invoice_id}", response_model=dict)
+async def update_copim_invoice(
+    invoice_id: str,
+    invoice_data: CopimInvoiceUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    update_payload = invoice_data.model_dump(exclude_unset=True)
+
+    next_membership_id = update_payload.get("membership_id", existing.get("membership_id"))
+    next_member_id = update_payload.get("member_id", existing.get("member_id"))
+    next_association_id = update_payload.get("association_id", existing.get("association_id"))
+
+    member = await fetch_copim_member_or_404(tenant_id, next_member_id)
+    await assert_copim_association_scope(current_user, member.get("association_id"))
+    membership = None
+    if next_membership_id:
+        membership = await fetch_copim_membership_or_404(tenant_id, next_membership_id)
+        await assert_copim_association_scope(current_user, membership.get("association_id"))
+        if membership.get("member_id") != next_member_id:
+            raise HTTPException(status_code=400, detail="La factura no coincide con el socio de la membresía")
+        if "association_id" not in update_payload and membership.get("association_id"):
+            next_association_id = membership.get("association_id")
+            update_payload["association_id"] = next_association_id
+
+    next_association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        next_association_id,
+        strict=current_user.get("role") == "copim_operator",
+    )
+    update_payload["association_id"] = next_association_id
+    if next_association_id:
+        await fetch_copim_association_or_404(tenant_id, next_association_id)
+
+    issue_date = update_payload.get("issue_date", parse_iso_datetime(existing.get("issue_date")))
+    due_date = update_payload.get("due_date", parse_iso_datetime(existing.get("due_date")))
+    if isinstance(issue_date, datetime) and isinstance(due_date, datetime) and due_date < issue_date:
+        raise HTTPException(status_code=400, detail="La fecha de vencimiento no puede ser anterior a la emisión")
+
+    if update_payload.get("issue_date"):
+        update_payload["issue_date"] = update_payload["issue_date"].isoformat()
+    if update_payload.get("due_date"):
+        update_payload["due_date"] = update_payload["due_date"].isoformat()
+    if update_payload.get("sent_at"):
+        update_payload["sent_at"] = update_payload["sent_at"].isoformat()
+    if update_payload.get("paid_at"):
+        update_payload["paid_at"] = update_payload["paid_at"].isoformat()
+    if "recipient_name" not in update_payload and existing.get("recipient_name") in (None, ""):
+        update_payload["recipient_name"] = member.get("full_name")
+    if "recipient_email" not in update_payload and existing.get("recipient_email") in (None, ""):
+        update_payload["recipient_email"] = member.get("email")
+
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.copim_invoices.update_one(
+        {"tenant_id": tenant_id, "id": invoice_id},
+        {"$set": update_payload},
+    )
+
+    if update_payload.get("payment_status") == "paid" and next_membership_id:
+        await apply_copim_membership_payment(tenant_id, next_membership_id)
+    else:
+        await sync_copim_membership_invoice_state(tenant_id, next_membership_id)
+        if next_membership_id != existing.get("membership_id"):
+            await sync_copim_membership_invoice_state(tenant_id, existing.get("membership_id"))
+
+    updated = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    return (await enrich_copim_invoices(tenant_id, [updated]))[0]
+
+
+@api_router.delete("/copim/invoices/{invoice_id}", response_model=dict)
+async def delete_copim_invoice(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    await db.copim_invoices.delete_one({"tenant_id": tenant_id, "id": invoice_id})
+    await sync_copim_membership_invoice_state(tenant_id, existing.get("membership_id"))
+    return {"message": "Factura eliminada"}
+
+
+@api_router.post("/copim/invoices/{invoice_id}/issue", response_model=dict)
+async def issue_copim_invoice(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_invoices.update_one(
+        {"tenant_id": tenant_id, "id": invoice_id},
+        {"$set": {"invoice_status": "issued", "updated_at": now_iso}},
+    )
+    updated = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await sync_copim_membership_invoice_state(tenant_id, updated.get("membership_id"))
+    return (await enrich_copim_invoices(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/invoices/{invoice_id}/send", response_model=dict)
+async def send_copim_invoice(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_invoices.update_one(
+        {"tenant_id": tenant_id, "id": invoice_id},
+        {"$set": {"invoice_status": "sent", "sent_at": now_iso, "updated_at": now_iso}},
+    )
+    updated = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await sync_copim_membership_invoice_state(tenant_id, updated.get("membership_id"))
+    return (await enrich_copim_invoices(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/invoices/{invoice_id}/mark-paid", response_model=dict)
+async def mark_copim_invoice_paid(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_invoices.update_one(
+        {"tenant_id": tenant_id, "id": invoice_id},
+        {
+            "$set": {
+                "payment_status": "paid",
+                "invoice_status": "paid",
+                "balance_due": 0,
+                "paid_at": now_iso,
+                "updated_at": now_iso,
+            }
+        },
+    )
+    if existing.get("membership_id"):
+        await apply_copim_membership_payment(tenant_id, existing.get("membership_id"))
+    updated = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    return (await enrich_copim_invoices(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/invoices/{invoice_id}/cancel", response_model=dict)
+async def cancel_copim_invoice(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_invoices.update_one(
+        {"tenant_id": tenant_id, "id": invoice_id},
+        {
+            "$set": {
+                "payment_status": "cancelled",
+                "invoice_status": "cancelled",
+                "updated_at": now_iso,
+            }
+        },
+    )
+    await sync_copim_membership_invoice_state(tenant_id, existing.get("membership_id"))
+    updated = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    return (await enrich_copim_invoices(tenant_id, [updated]))[0]
+
+
+@api_router.get("/copim/events", response_model=List[dict])
+async def list_copim_events(
+    association_id: Optional[str] = Query(default=None),
+    future_only: bool = Query(default=False),
+    status: Optional[str] = Query(default=None),
+    search: Optional[str] = Query(default=None),
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    await ensure_copim_seed_data(current_user)
+    query: dict[str, Any] = {"tenant_id": current_user["tenant_id"]}
+    scoped_association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        association_id,
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if scoped_association_id:
+        query["association_id"] = scoped_association_id
+    if future_only:
+        query["start_at"] = {"$gte": datetime.now(timezone.utc).isoformat()}
+    if status:
+        query["status"] = status
+    if search:
+        matching_association_ids = [
+            association["id"]
+            for association in await db.copim_associations.find(
+                {
+                    "tenant_id": current_user["tenant_id"],
+                    "name": {"$regex": search, "$options": "i"},
+                },
+                {"_id": 0, "id": 1},
+            ).to_list(200)
+        ]
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"venue": {"$regex": search, "$options": "i"}},
+            {"speaker_name": {"$regex": search, "$options": "i"}},
+            {"association_id": {"$in": matching_association_ids or ["__none__"]}},
+        ]
+
+    events = await db.copim_events.find(query, {"_id": 0}).sort("start_at", 1).to_list(1000)
+    return await enrich_copim_events(current_user["tenant_id"], events)
+
+
+@api_router.get("/copim/events/{event_id}/summary", response_model=dict)
+async def get_copim_event_summary(
+    event_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    event = await fetch_copim_event_or_404(current_user["tenant_id"], event_id)
+    await assert_copim_association_scope(current_user, event.get("association_id"))
+    return await build_copim_event_summary_payload(current_user["tenant_id"], event_id)
+
+
+@api_router.post("/copim/events/{event_id}/analyze", response_model=dict)
+async def analyze_copim_event_ai(
+    event_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    event = await fetch_copim_event_or_404(tenant_id, event_id)
+    await assert_copim_association_scope(current_user, event.get("association_id"))
+    summary = await build_copim_event_summary_payload(tenant_id, event_id)
+    event = summary["event"]
+    analysis_input = {
+        **event,
+        "association": summary.get("association"),
+    }
+    analysis = await analyze_copim_event(analysis_input)
+    return await persist_copim_ai_analysis("copim_events", tenant_id, event_id, analysis)
+
+
+@api_router.post("/copim/events", response_model=dict)
+async def create_copim_event(
+    event_data: CopimEventCreate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    association_id = await resolve_scoped_copim_association_id(
+        current_user,
+        event_data.association_id,
+        strict=current_user.get("role") == "copim_operator",
+    )
+    if association_id:
+        await fetch_copim_association_or_404(tenant_id, association_id)
+    if event_data.end_at and event_data.end_at < event_data.start_at:
+        raise HTTPException(status_code=400, detail="La fecha de fin no puede ser anterior al inicio")
+    if event_data.capacity and event_data.registered_count > event_data.capacity:
+        raise HTTPException(status_code=400, detail="Los registros no pueden superar la capacidad")
+    if event_data.checked_in_count > event_data.registered_count:
+        raise HTTPException(status_code=400, detail="Los check-ins no pueden superar los registros")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    event_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "created_by_user_id": current_user["user_id"],
+        **event_data.model_dump(),
+        "association_id": association_id,
+        "start_at": event_data.start_at.isoformat(),
+        "end_at": event_data.end_at.isoformat() if event_data.end_at else None,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_events.insert_one(event_doc)
+    await sync_copim_association_stats(tenant_id, event_doc.get("association_id"))
+    return (await enrich_copim_events(tenant_id, [event_doc]))[0]
+
+
+@api_router.put("/copim/events/{event_id}", response_model=dict)
+async def update_copim_event(
+    event_id: str,
+    event_data: CopimEventUpdate,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_event_or_404(tenant_id, event_id)
+    previous_association_id = existing.get("association_id")
+    await assert_copim_association_scope(current_user, previous_association_id)
+    update_payload = event_data.model_dump(exclude_unset=True)
+    if "association_id" in update_payload or current_user.get("role") == "copim_operator":
+        next_association_id = await resolve_scoped_copim_association_id(
+            current_user,
+            update_payload.get("association_id", previous_association_id),
+            strict=current_user.get("role") == "copim_operator",
+        )
+        update_payload["association_id"] = next_association_id
+    if update_payload.get("association_id"):
+        await fetch_copim_association_or_404(tenant_id, update_payload["association_id"])
+    if update_payload.get("start_at"):
+        update_payload["start_at"] = update_payload["start_at"].isoformat()
+    if update_payload.get("end_at"):
+        update_payload["end_at"] = update_payload["end_at"].isoformat()
+    start_at = parse_iso_datetime(update_payload.get("start_at") or existing.get("start_at"))
+    end_at = parse_iso_datetime(update_payload.get("end_at") or existing.get("end_at"))
+    capacity = update_payload.get("capacity", existing.get("capacity", 0)) or 0
+    registered_count = update_payload.get("registered_count", existing.get("registered_count", 0)) or 0
+    checked_in_count = update_payload.get("checked_in_count", existing.get("checked_in_count", 0)) or 0
+    if end_at and start_at and end_at < start_at:
+        raise HTTPException(status_code=400, detail="La fecha de fin no puede ser anterior al inicio")
+    if capacity and registered_count > capacity:
+        raise HTTPException(status_code=400, detail="Los registros no pueden superar la capacidad")
+    if checked_in_count > registered_count:
+        raise HTTPException(status_code=400, detail="Los check-ins no pueden superar los registros")
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.copim_events.update_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {"$set": update_payload},
+    )
+    await sync_copim_association_stats(tenant_id, previous_association_id)
+    await sync_copim_association_stats(tenant_id, update_payload.get("association_id", previous_association_id))
+    updated = await fetch_copim_event_or_404(tenant_id, event_id)
+    return (await enrich_copim_events(tenant_id, [updated]))[0]
+
+
+@api_router.delete("/copim/events/{event_id}", response_model=dict)
+async def delete_copim_event(
+    event_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_event_or_404(tenant_id, event_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    await db.copim_events.delete_one({"tenant_id": tenant_id, "id": event_id})
+    await sync_copim_association_stats(tenant_id, existing.get("association_id"))
+    return {"message": "Evento eliminado"}
+
+
+@api_router.post("/copim/events/{event_id}/register", response_model=dict)
+async def register_copim_event_attendee(
+    event_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    event = await fetch_copim_event_or_404(tenant_id, event_id)
+    await assert_copim_association_scope(current_user, event.get("association_id"))
+    if event.get("status") in {"completed", "cancelled"}:
+        raise HTTPException(status_code=400, detail="El evento ya no acepta registros")
+    if event.get("registration_open") is False:
+        raise HTTPException(status_code=400, detail="El registro para este evento esta cerrado")
+    capacity = event.get("capacity", 0) or 0
+    registered_count = event.get("registered_count", 0) or 0
+    if capacity and registered_count >= capacity:
+        raise HTTPException(status_code=400, detail="El evento ya alcanzo su capacidad")
+
+    await db.copim_events.update_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()},
+            "$inc": {"registered_count": 1},
+        },
+    )
+    updated = await fetch_copim_event_or_404(tenant_id, event_id)
+    return (await enrich_copim_events(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/events/{event_id}/check-in", response_model=dict)
+async def checkin_copim_event_attendee(
+    event_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    event = await fetch_copim_event_or_404(tenant_id, event_id)
+    await assert_copim_association_scope(current_user, event.get("association_id"))
+    if event.get("status") == "cancelled":
+        raise HTTPException(status_code=400, detail="No puedes registrar check-in en un evento cancelado")
+    registered_count = event.get("registered_count", 0) or 0
+    checked_in_count = event.get("checked_in_count", 0) or 0
+    if registered_count and checked_in_count >= registered_count:
+        raise HTTPException(status_code=400, detail="Todos los asistentes registrados ya hicieron check-in")
+
+    await db.copim_events.update_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()},
+            "$inc": {"checked_in_count": 1},
+        },
+    )
+    updated = await fetch_copim_event_or_404(tenant_id, event_id)
+    return (await enrich_copim_events(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/events/{event_id}/publish", response_model=dict)
+async def publish_copim_event(
+    event_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_event_or_404(tenant_id, event_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_events.update_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {"$set": {"status": "published", "registration_open": True, "updated_at": now_iso}},
+    )
+    await sync_copim_association_stats(tenant_id, (await fetch_copim_event_or_404(tenant_id, event_id)).get("association_id"))
+    updated = await fetch_copim_event_or_404(tenant_id, event_id)
+    return (await enrich_copim_events(tenant_id, [updated]))[0]
+
+
+@api_router.post("/copim/events/{event_id}/complete", response_model=dict)
+async def complete_copim_event(
+    event_id: str,
+    current_user: dict = Depends(require_copim_admin_workspace),
+):
+    tenant_id = current_user["tenant_id"]
+    existing = await fetch_copim_event_or_404(tenant_id, event_id)
+    await assert_copim_association_scope(current_user, existing.get("association_id"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_events.update_one(
+        {"tenant_id": tenant_id, "id": event_id},
+        {"$set": {"status": "completed", "registration_open": False, "updated_at": now_iso}},
+    )
+    await sync_copim_association_stats(tenant_id, (await fetch_copim_event_or_404(tenant_id, event_id)).get("association_id"))
+    updated = await fetch_copim_event_or_404(tenant_id, event_id)
+    return (await enrich_copim_events(tenant_id, [updated]))[0]
+
+
+@api_router.get("/copim/member-portal/home", response_model=dict)
+async def get_copim_member_portal_home(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return {
+        "member": portal["member"],
+        "association": portal["association"],
+        "current_membership": portal["current_membership"],
+        "pending_invoices": portal["pending_invoices"],
+        "next_event": portal["next_event"],
+        "credential": portal["credential"],
+        "stats": portal["stats"],
+    }
+
+
+@api_router.get("/copim/member-portal/profile", response_model=dict)
+async def get_copim_member_portal_profile(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return {
+        "member": portal["member"],
+        "association": portal["association"],
+        "stats": portal["stats"],
+        "profile_story": portal["profile_story"],
+    }
+
+
+@api_router.put("/copim/member-portal/profile", response_model=dict)
+async def update_copim_member_portal_profile(
+    profile_data: CopimMemberPortalProfileUpdate,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    payload = profile_data.model_dump(exclude_unset=True)
+    if "certifications" in payload and payload["certifications"] is None:
+        payload["certifications"] = []
+    payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member["id"]},
+        {"$set": payload},
+    )
+    await db.users.update_one(
+        {"id": current_user["user_id"]},
+        {"$set": {
+            "name": payload.get("full_name", member.get("full_name")),
+            "phone": payload.get("phone", member.get("phone")),
+            "avatar_url": payload.get("avatar_url", member.get("avatar_url")),
+            "updated_at": payload["updated_at"],
+        }},
+    )
+    updated = await fetch_copim_member_or_404(tenant_id, member["id"])
+    return {
+        "member": (await enrich_copim_members(tenant_id, [updated]))[0],
+    }
+
+
+@api_router.get("/copim/member-portal/campaigns", response_model=dict)
+async def get_copim_member_portal_campaigns(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return portal["campaigns"]
+
+
+@api_router.get("/copim/member-portal/properties", response_model=dict)
+async def get_copim_member_portal_properties(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return portal["properties"]
+
+
+@api_router.get("/copim/member-portal/courses", response_model=dict)
+async def get_copim_member_portal_courses(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    return await build_copim_member_courses_payload(current_user)
+
+
+@api_router.get("/copim/member-portal/courses/{course_id}", response_model=dict)
+async def get_copim_member_portal_course_detail(
+    course_id: str,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    payload = await build_copim_member_courses_payload(current_user)
+    course = next((item for item in payload.get("courses", []) if item.get("id") == course_id), None)
+    if not course:
+        course = next((item for item in payload.get("marketplace_courses", []) if item.get("id") == course_id), None)
+    if not course:
+        raise HTTPException(status_code=404, detail="Curso no disponible para este asociado")
+    tenant_id = current_user["tenant_id"]
+    base_course = await fetch_copim_course_or_404(tenant_id, course_id)
+    return {
+        "course": serialize_doc({**base_course, **course}),
+        "member": payload.get("member"),
+        "association": payload.get("association"),
+    }
+
+
+@api_router.post("/copim/member-portal/courses/{course_id}/enroll", response_model=dict)
+async def enroll_copim_member_portal_course(
+    course_id: str,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    course = await fetch_copim_course_or_404(tenant_id, course_id)
+    if not can_copim_member_access_course(course, member):
+        raise HTTPException(status_code=403, detail="Este curso no está visible para tu perfil")
+    if course.get("pricing_type") == "premium":
+        raise HTTPException(status_code=400, detail="Este curso premium requiere compra o desbloqueo")
+    existing = await db.copim_course_enrollments.find_one(
+        {"tenant_id": tenant_id, "course_id": course_id, "member_id": member["id"]},
+        {"_id": 0},
+    )
+    if existing:
+        return serialize_doc(existing)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    enrollment = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "course_id": course_id,
+        "member_id": member["id"],
+        "association_id": member.get("association_id"),
+        "status": "enrolled",
+        "payment_status": "free",
+        "progress_percent": 0,
+        "completed_lesson_ids": [],
+        "last_lesson_id": None,
+        "certificate_earned": False,
+        "purchased_at": None,
+        "started_at": now_iso,
+        "completed_at": None,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_course_enrollments.insert_one(enrollment)
+    return serialize_doc(enrollment)
+
+
+@api_router.post("/copim/member-portal/courses/{course_id}/purchase", response_model=dict)
+async def purchase_copim_member_portal_course(
+    course_id: str,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    course = await fetch_copim_course_or_404(tenant_id, course_id)
+    if not can_copim_member_access_course(course, member):
+        raise HTTPException(status_code=403, detail="Este curso no está disponible para tu perfil")
+    if course.get("pricing_type") != "premium":
+        raise HTTPException(status_code=400, detail="Este curso no requiere compra premium")
+    existing = await db.copim_course_enrollments.find_one(
+        {"tenant_id": tenant_id, "course_id": course_id, "member_id": member["id"]},
+        {"_id": 0},
+    )
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if existing:
+        await db.copim_course_enrollments.update_one(
+            {"tenant_id": tenant_id, "id": existing["id"]},
+            {"$set": {"payment_status": "paid", "updated_at": now_iso, "purchased_at": existing.get("purchased_at") or now_iso}},
+        )
+        enrollment_id = existing["id"]
+    else:
+        enrollment_id = str(uuid.uuid4())
+        await db.copim_course_enrollments.insert_one({
+            "id": enrollment_id,
+            "tenant_id": tenant_id,
+            "course_id": course_id,
+            "member_id": member["id"],
+            "association_id": member.get("association_id"),
+            "status": "enrolled",
+            "payment_status": "paid",
+            "progress_percent": 0,
+            "completed_lesson_ids": [],
+            "last_lesson_id": None,
+            "certificate_earned": False,
+            "purchased_at": now_iso,
+            "started_at": now_iso,
+            "completed_at": None,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        })
+    invoice_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": tenant_id,
+        "created_by_user_id": current_user["user_id"],
+        "membership_id": None,
+        "member_id": member["id"],
+        "association_id": member.get("association_id"),
+        "invoice_number": f"CUR-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}",
+        "concept": f"Curso premium · {course.get('title')}",
+        "subtotal": float(course.get("price_amount") or 0),
+        "tax_amount": 0.0,
+        "total_amount": float(course.get("price_amount") or 0),
+        "balance_due": 0.0,
+        "currency": course.get("currency") or "MXN",
+        "issue_date": now_iso,
+        "due_date": now_iso,
+        "invoice_status": "paid",
+        "payment_status": "paid",
+        "recipient_name": member.get("full_name"),
+        "recipient_rfc": None,
+        "recipient_email": member.get("email"),
+        "cfdi_use": None,
+        "payment_method": "cargo_manual_demo",
+        "payment_reference": enrollment_id,
+        "sent_at": now_iso,
+        "paid_at": now_iso,
+        "notes": "Compra premium de curso desde portal del asociado.",
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    await db.copim_invoices.insert_one(invoice_doc)
+    return {"message": "Compra registrada", "invoice": serialize_doc(invoice_doc)}
+
+
+@api_router.post("/copim/member-portal/courses/{course_id}/lessons/{lesson_id}/progress", response_model=dict)
+async def update_copim_member_course_progress(
+    course_id: str,
+    lesson_id: str,
+    payload: CopimCourseProgressUpdate,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    course = await fetch_copim_course_or_404(tenant_id, course_id)
+    enrollment = await db.copim_course_enrollments.find_one(
+        {"tenant_id": tenant_id, "course_id": course_id, "member_id": member["id"]},
+        {"_id": 0},
+    )
+    if not enrollment:
+        raise HTTPException(status_code=400, detail="Primero debes inscribirte o comprar el curso")
+    if course.get("pricing_type") == "premium" and enrollment.get("payment_status") != "paid":
+        raise HTTPException(status_code=403, detail="Este curso premium aún no está desbloqueado")
+    lesson_ids = {lesson.get("id") for lesson in flatten_copim_course_lessons(course)}
+    if lesson_id not in lesson_ids:
+        raise HTTPException(status_code=404, detail="Lección no encontrada")
+
+    completed_ids = set(enrollment.get("completed_lesson_ids") or [])
+    if payload.mark_completed:
+        completed_ids.add(lesson_id)
+    else:
+        completed_ids.discard(lesson_id)
+    progress_percent = compute_copim_course_progress_percent(course, list(completed_ids))
+    status_value = "completed" if progress_percent == 100 else ("in_progress" if progress_percent > 0 else "enrolled")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_payload = {
+        "completed_lesson_ids": list(completed_ids),
+        "progress_percent": progress_percent,
+        "last_lesson_id": lesson_id,
+        "status": status_value,
+        "certificate_earned": progress_percent == 100 and bool(course.get("certificate_enabled")),
+        "completed_at": now_iso if progress_percent == 100 else None,
+        "updated_at": now_iso,
+    }
+    await db.copim_course_enrollments.update_one(
+        {"tenant_id": tenant_id, "id": enrollment["id"]},
+        {"$set": update_payload},
+    )
+    updated = await db.copim_course_enrollments.find_one({"tenant_id": tenant_id, "id": enrollment["id"]}, {"_id": 0})
+    return serialize_doc(updated)
+
+
+@api_router.get("/copim/member-portal/membership", response_model=dict)
+async def get_copim_member_portal_membership(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return {
+        "current_membership": portal["current_membership"],
+        "history": portal["membership_history"],
+    }
+
+
+@api_router.get("/copim/member-portal/payments", response_model=dict)
+async def get_copim_member_portal_payments(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return {
+        "pending_invoices": portal["pending_invoices"],
+        "payments": portal["payments"],
+        "amount_due": portal["stats"]["amount_due"],
+    }
+
+
+@api_router.get("/copim/member-portal/community", response_model=dict)
+async def get_copim_member_portal_community(
+    channel_id: Optional[str] = Query(default=None),
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    await ensure_copim_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    association = await fetch_copim_association_or_404(tenant_id, member["association_id"]) if member.get("association_id") else None
+    if not association:
+        raise HTTPException(status_code=404, detail="No encontramos una asociación vinculada a este asociado")
+
+    await ensure_local_association_community_seed(tenant_id, association, current_user["user_id"])
+    channels = build_local_association_channels(association)
+    selected_channel = channel_id or "association"
+    valid_channel_ids = {item["id"] for item in channels}
+    if selected_channel not in valid_channel_ids:
+        raise HTTPException(status_code=400, detail="Canal no disponible")
+
+    posts = await db.copim_association_posts.find(
+        {
+            "tenant_id": tenant_id,
+            "association_id": association["id"],
+            "channel_id": selected_channel,
+        },
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(100)
+
+    return {
+        "member": (await enrich_copim_members(tenant_id, [member]))[0],
+        "association": serialize_doc(association),
+        "selected_channel": selected_channel,
+        "channels": channels,
+        "permissions": {
+            "can_post_in_association": False,
+            "can_post_in_general": False,
+            "can_comment_general": True,
+            "can_comment_association": True,
+        },
+        "posts": [serialize_doc(item) for item in posts],
+    }
+
+
+@api_router.post("/copim/member-portal/community/posts/{post_id}/comments", response_model=dict)
+async def create_copim_member_portal_comment(
+    post_id: str,
+    payload: CopimCommunityCommentCreate,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    await ensure_copim_seed_data(current_user)
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    association = await fetch_copim_association_or_404(tenant_id, member["association_id"]) if member.get("association_id") else None
+    if not association:
+        raise HTTPException(status_code=404, detail="No encontramos una asociación vinculada a este asociado")
+
+    await ensure_local_association_community_seed(tenant_id, association, current_user["user_id"])
+    post = await db.copim_association_posts.find_one(
+        {"tenant_id": tenant_id, "association_id": association["id"], "id": post_id},
+        {"_id": 0},
+    )
+    if not post:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    channels = {item["id"]: item for item in build_local_association_channels(association)}
+    channel_config = channels.get(post.get("channel_id"))
+    if not channel_config or not channel_config.get("can_comment"):
+        raise HTTPException(status_code=400, detail="Este canal no permite comentarios en esta fase")
+
+    comment_content = payload.content.strip()
+    if not comment_content:
+        raise HTTPException(status_code=400, detail="El comentario no puede ir vacío")
+
+    comment = {
+        "id": str(uuid.uuid4()),
+        "author_name": current_user.get("name") or member.get("full_name"),
+        "author_role": "copim_member",
+        "content": comment_content,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    comments = list(post.get("comments") or [])
+    comments.append(comment)
+    await db.copim_association_posts.update_one(
+        {"tenant_id": tenant_id, "id": post_id},
+        {
+            "$set": {
+                "comments": comments,
+                "comment_count": len(comments),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        },
+    )
+    updated = await db.copim_association_posts.find_one({"tenant_id": tenant_id, "id": post_id}, {"_id": 0})
+    return serialize_doc(updated)
+
+
+@api_router.post("/copim/member-portal/payments/{invoice_id}/pay", response_model=dict)
+async def pay_copim_member_portal_invoice(
+    invoice_id: str,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    existing = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    if existing.get("member_id") != member["id"]:
+        raise HTTPException(status_code=403, detail="La factura no pertenece al asociado actual")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.copim_invoices.update_one(
+        {"tenant_id": tenant_id, "id": invoice_id},
+        {
+            "$set": {
+                "payment_status": "paid",
+                "invoice_status": "paid",
+                "balance_due": 0,
+                "paid_at": now_iso,
+                "updated_at": now_iso,
+            }
+        },
+    )
+    if existing.get("membership_id"):
+        await apply_copim_membership_payment(tenant_id, existing.get("membership_id"))
+    updated = await fetch_copim_invoice_or_404(tenant_id, invoice_id)
+    return (await enrich_copim_invoices(tenant_id, [updated]))[0]
+
+
+@api_router.get("/copim/member-portal/credential", response_model=dict)
+async def get_copim_member_portal_credential(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return {
+        "member": portal["member"],
+        "credential": portal["credential"],
+        "current_membership": portal["current_membership"],
+    }
+
+
+@api_router.get("/copim/member-portal/modules", response_model=dict)
+async def get_copim_member_portal_modules(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return portal["modules"]
+
+
+@api_router.post("/copim/member-portal/modules/{module_id}/activate", response_model=dict)
+async def activate_copim_member_portal_module(
+    module_id: str,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    association = await fetch_copim_association_or_404(tenant_id, member["association_id"]) if member.get("association_id") else None
+    memberships = await db.copim_memberships.find(
+        {"tenant_id": tenant_id, "member_id": member["id"]},
+        {"_id": 0},
+    ).sort("renewal_date", -1).to_list(20)
+    current_membership = next((item for item in memberships if item.get("payment_status") == "active"), None) or (memberships[0] if memberships else None)
+    module_payload = build_copim_member_module_seed(member, association, current_membership)
+    module_map = {item["id"]: item for item in module_payload["modules"]}
+    module = module_map.get(module_id)
+    if not module:
+        raise HTTPException(status_code=404, detail="Módulo no encontrado")
+    if module.get("included"):
+        raise HTTPException(status_code=400, detail="Ese módulo ya está incluido en tu plan actual")
+    if module.get("status") == "active":
+        raise HTTPException(status_code=400, detail="Ese módulo ya está activo")
+
+    addon_ids = get_copim_member_addon_module_ids(member)
+    addon_ids.append(module_id)
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    await db.copim_members.update_one(
+        {"tenant_id": tenant_id, "id": member["id"]},
+        {"$set": {"addon_module_ids": addon_ids, "updated_at": now_iso}},
+    )
+
+    existing_invoice = await db.copim_invoices.find_one(
+        {
+            "tenant_id": tenant_id,
+            "member_id": member["id"],
+            "payment_status": {"$in": ["pending", "overdue"]},
+            "notes": f"module:{module_id}",
+        },
+        {"_id": 0},
+    )
+    if not existing_invoice:
+        total_amount = float(module.get("price_monthly") or 0)
+        subtotal = round(total_amount / 1.16, 2)
+        tax_amount = round(total_amount - subtotal, 2)
+        invoice_doc = {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "created_by_user_id": current_user["user_id"],
+            "membership_id": current_membership.get("id") if current_membership else None,
+            "member_id": member["id"],
+            "association_id": member.get("association_id"),
+            "invoice_number": build_copim_invoice_number(),
+            "concept": f"Activación de módulo {module['label']}",
+            "subtotal": subtotal,
+            "tax_amount": tax_amount,
+            "total_amount": total_amount,
+            "balance_due": total_amount,
+            "currency": "MXN",
+            "issue_date": now_iso,
+            "due_date": (now + timedelta(days=7)).isoformat(),
+            "invoice_status": "issued",
+            "payment_status": "pending",
+            "recipient_name": member.get("full_name"),
+            "recipient_email": member.get("email"),
+            "cfdi_use": "G03",
+            "payment_method": "por_definir",
+            "payment_reference": None,
+            "sent_at": now_iso,
+            "paid_at": None,
+            "notes": f"module:{module_id}",
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        }
+        await db.copim_invoices.insert_one(invoice_doc)
+        await sync_copim_member_financials(tenant_id, member["id"])
+
+    portal = await build_copim_member_portal_payload(current_user)
+    return portal["modules"]
+
+
+@api_router.get("/copim/member-portal/events", response_model=dict)
+async def get_copim_member_portal_events(
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    portal = await build_copim_member_portal_payload(current_user)
+    return {
+        "events": portal["events"],
+        "registrations": portal["registrations"],
+        "next_event": portal["next_event"],
+    }
+
+
+@api_router.post("/copim/member-portal/events/{event_id}/register", response_model=dict)
+async def register_copim_member_portal_event(
+    event_id: str,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    registration = await create_copim_event_registration(tenant_id, event_id, member["id"])
+    return serialize_doc({
+        **registration,
+        "qr_url": build_copim_qr_url(registration.get("qr_payload") or registration["id"]),
+    })
+
+
+@api_router.post("/copim/member-portal/events/{event_id}/check-in", response_model=dict)
+async def checkin_copim_member_portal_event(
+    event_id: str,
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    member = await fetch_copim_member_for_portal(tenant_id, current_user["user_id"], current_user["email"])
+    registration = await checkin_copim_event_registration(tenant_id, event_id, member["id"])
+    return serialize_doc({
+        **registration,
+        "qr_url": build_copim_qr_url(registration.get("qr_payload") or registration["id"]),
+    })
+
+
+@api_router.get("/copim/member-portal/directory", response_model=List[dict])
+async def get_copim_member_portal_directory(
+    search: Optional[str] = Query(default=None),
+    city: Optional[str] = Query(default=None),
+    specialty: Optional[str] = Query(default=None),
+    current_user: dict = Depends(require_copim_member_portal),
+):
+    tenant_id = current_user["tenant_id"]
+    query: dict[str, Any] = {
+        "tenant_id": tenant_id,
+        "member_status": "active",
+        "directory_visible": True,
+    }
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if specialty:
+        query["specialty"] = {"$regex": specialty, "$options": "i"}
+    if search:
+        query["$or"] = [
+            {"full_name": {"$regex": search, "$options": "i"}},
+            {"city": {"$regex": search, "$options": "i"}},
+            {"specialty": {"$regex": search, "$options": "i"}},
+            {"company_name": {"$regex": search, "$options": "i"}},
+        ]
+    members = await db.copim_members.find(query, {"_id": 0}).sort("full_name", 1).to_list(500)
+    return await enrich_copim_members(tenant_id, members)
 
 
 # ==================== GOALS/ONBOARDING ROUTES ====================
@@ -1418,6 +7136,27 @@ async def get_leads(
         "total_pages": result["total_pages"]
     }
 
+@api_router.get("/leads/tags")
+async def get_lead_tags(current_user: dict = Depends(get_current_user)):
+    pipeline = [
+        {
+            "$match": {
+                "tenant_id": current_user["tenant_id"],
+                "tags": {"$exists": True, "$ne": []}
+            }
+        },
+        {"$unwind": "$tags"},
+        {
+            "$group": {
+                "_id": "$tags",
+                "count": {"$sum": 1}
+            }
+        },
+        {"$sort": {"count": -1, "_id": 1}},
+    ]
+    tags = await db.leads.aggregate(pipeline).to_list(length=200)
+    return [{"tag": row["_id"], "count": row["count"]} for row in tags if row.get("_id")]
+
 @api_router.get("/leads/{lead_id}", response_model=dict)
 async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
     """Get single lead with details"""
@@ -1474,6 +7213,11 @@ async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_cu
         if "priority" not in sanitized_data:
             sanitized_data["priority"] = "media"
         
+        sanitized_data["tags"] = normalize_lead_tags(lead_data.tags)
+        sanitized_data["email_opt_out"] = bool(lead_data.email_opt_out)
+        sanitized_data["sms_opt_out"] = bool(lead_data.sms_opt_out)
+        sanitized_data["whatsapp_opt_out"] = bool(lead_data.whatsapp_opt_out)
+        sanitized_data["call_opt_out"] = bool(lead_data.call_opt_out)
         sanitized_data.setdefault("custom_fields_data", lead_data.custom_fields_data or {})
 
         lead_doc = {
@@ -1548,6 +7292,11 @@ async def update_lead(lead_id: str, lead_data: LeadUpdate, current_user: dict = 
 
         if "custom_fields_data" in update_data:
             update_dict["custom_fields_data"] = update_data["custom_fields_data"] or {}
+        if "tags" in update_data:
+            update_dict["tags"] = normalize_lead_tags(update_data["tags"])
+        for opt_out_field in ("email_opt_out", "sms_opt_out", "whatsapp_opt_out", "call_opt_out"):
+            if opt_out_field in update_data:
+                update_dict[opt_out_field] = bool(update_data[opt_out_field])
         
         # Check uniqueness if email or phone is being updated
         if 'email' in update_dict or 'phone' in update_dict:
@@ -3556,13 +9305,262 @@ async def get_landing_leads(current_user: dict = Depends(get_current_user)):
 
 # ==================== INTEGRATION SETTINGS ====================
 
+async def resolve_active_tenant_id(current_user: dict) -> str:
+    return current_user.get("tenant_id") or current_user.get("active_tenant_id") or await get_or_create_tenant(current_user["user_id"])
+
+
+async def get_workspace_integration_settings(current_user: dict, *, clone_legacy: bool = False) -> dict | None:
+    tenant_id = await resolve_active_tenant_id(current_user)
+
+    settings = await db.integration_settings.find_one({"tenant_id": tenant_id}, {"_id": 0})
+    if settings:
+        return settings
+
+    legacy = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    if not legacy:
+        return None
+
+    legacy_tenant_id = legacy.get("tenant_id")
+    if not legacy_tenant_id or legacy_tenant_id == tenant_id:
+        if legacy_tenant_id != tenant_id:
+            await db.integration_settings.update_one(
+                {"id": legacy["id"]},
+                {"$set": {"tenant_id": tenant_id, "updated_at": datetime.now(timezone.utc)}}
+            )
+            legacy["tenant_id"] = tenant_id
+        return legacy
+
+    if clone_legacy:
+        cloned_settings = {
+            **legacy,
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "updated_at": datetime.now(timezone.utc),
+        }
+        await db.integration_settings.insert_one(cloned_settings)
+        return cloned_settings
+
+    return None
+
+
+def normalize_lead_tags(tags: Optional[List[str]]) -> List[str]:
+    if not tags:
+        return []
+
+    seen: set[str] = set()
+    normalized: List[str] = []
+    for tag in tags:
+        value = str(tag or "").strip()
+        if not value:
+            continue
+        canonical = " ".join(value.split()).lower()
+        if canonical in seen:
+            continue
+        seen.add(canonical)
+        normalized.append(canonical)
+    return normalized
+
+
+def normalize_phone_like_value(value: Optional[str]) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("whatsapp:"):
+        raw = raw.split(":", 1)[1]
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if raw.startswith("+") and digits:
+        return f"+{digits}"
+    if digits:
+        return f"+{digits}"
+    return raw
+
+
+def normalize_whatsapp_address(value: Optional[str]) -> str:
+    normalized_phone = normalize_phone_like_value(value)
+    if not normalized_phone:
+        return ""
+    return f"whatsapp:{normalized_phone}"
+
+
+def get_twilio_status_callback_url() -> Optional[str]:
+    base_url = (
+        os.environ.get("PUBLIC_API_BASE_URL")
+        or os.environ.get("WEBHOOK_URL")
+        or os.environ.get("APP_BASE_URL")
+    )
+    if not base_url:
+        return None
+    parsed = urlparse(base_url)
+    host = (parsed.hostname or "").lower()
+    if host in {"localhost", "127.0.0.1", "0.0.0.0"} or host.endswith(".local"):
+        logger.info("Skipping Twilio status callback because PUBLIC_API_BASE_URL is local: %s", base_url)
+        return None
+    return f"{base_url.rstrip('/')}/api/webhooks/twilio/messaging-status"
+
+def validate_twilio_account_sid(settings: Dict[str, Any]) -> str:
+    raw_sid = str(settings.get("twilio_account_sid") or "").strip()
+    if not raw_sid:
+        raise HTTPException(status_code=400, detail="Twilio no configurado")
+    if raw_sid.startswith("SK"):
+        raise HTTPException(
+            status_code=400,
+            detail="El campo Account SID debe iniciar con 'AC'. Detecté un valor 'SK', que corresponde a una API Key SID de Twilio y no va en este campo."
+        )
+    if not raw_sid.startswith("AC"):
+        raise HTTPException(
+            status_code=400,
+            detail="El Account SID de Twilio debe iniciar con 'AC'. Revisa el dato en Twilio Console > Account Info."
+        )
+    return raw_sid
+
+def validate_twilio_auth_token(settings: Dict[str, Any]) -> str:
+    raw_token = str(settings.get("twilio_auth_token") or "").strip()
+    if not raw_token:
+        raise HTTPException(status_code=400, detail="Falta el Auth Token de Twilio")
+    return raw_token
+
+
+def format_vapi_error(error: Exception) -> str:
+    message = str(error)
+    if "Invalid Key" in message:
+        return (
+            "Vapi rechazó la API key. Revisa si pegaste una llave pública en vez de una privada, "
+            "o si la key ya no está activa en dashboard.vapi.ai."
+        )
+    return message
+
+
+def personalize_campaign_message(template: str, lead: dict) -> str:
+    return (
+        str(template or "")
+        .replace("{nombre}", lead.get("name", ""))
+        .replace("{{nombre}}", lead.get("name", ""))
+    )
+
+
+def lead_allows_campaign(lead: dict, campaign_type: Optional[str]) -> bool:
+    if campaign_type == CampaignType.EMAIL.value:
+        return not bool(lead.get("email_opt_out"))
+    if campaign_type == CampaignType.SMS.value:
+        return not bool(lead.get("sms_opt_out"))
+    if campaign_type == CampaignType.WHATSAPP.value:
+        return not bool(lead.get("whatsapp_opt_out"))
+    if campaign_type == CampaignType.CALL.value:
+        return not bool(lead.get("call_opt_out"))
+    return True
+
+
+def campaign_has_ab_test(campaign: dict) -> bool:
+    if not campaign.get("ab_test_enabled"):
+        return False
+    return bool(campaign.get("variant_b_message_template") or campaign.get("variant_b_email_subject"))
+
+
+def select_campaign_variant(campaign: dict) -> str:
+    if not campaign_has_ab_test(campaign):
+        return "A"
+    split_percentage = max(1, min(int(campaign.get("ab_test_split_percentage", 50) or 50), 99))
+    return "B" if random.randint(1, 100) <= split_percentage else "A"
+
+
+def clean_campaign_lead_filter(lead_filter: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not lead_filter:
+        return {}
+
+    cleaned: Dict[str, Any] = {}
+    for key in ("status", "priority", "source"):
+        values = [str(value).strip() for value in (lead_filter.get(key) or []) if str(value or "").strip()]
+        if values:
+            cleaned[key] = values
+
+    tags = normalize_lead_tags(lead_filter.get("tags") or [])
+    if tags:
+        cleaned["tags"] = tags
+
+    for key in ("require_email", "require_phone"):
+        if lead_filter.get(key):
+            cleaned[key] = True
+
+    if lead_filter.get("has_product_interest") is True:
+        cleaned["has_product_interest"] = True
+    if "respect_opt_out" in lead_filter:
+        cleaned["respect_opt_out"] = bool(lead_filter.get("respect_opt_out"))
+
+    return cleaned
+
+
+async def estimate_campaign_segment_count(
+    tenant_id: str,
+    lead_filter: Optional[Dict[str, Any]],
+    campaign_type: Optional[str] = None
+) -> int:
+    query = build_campaign_lead_query(tenant_id, lead_filter or {}, campaign_type)
+    return await db.leads.count_documents(query)
+
+
+def build_campaign_lead_query(tenant_id: str, lead_filter: Optional[Dict[str, Any]] = None, campaign_type: Optional[str] = None) -> Dict[str, Any]:
+    query: Dict[str, Any] = {"tenant_id": tenant_id}
+    conditions: List[Dict[str, Any]] = []
+
+    if lead_filter:
+        statuses = [value for value in (lead_filter.get("status") or []) if value]
+        priorities = [value for value in (lead_filter.get("priority") or []) if value]
+        sources = [value for value in (lead_filter.get("source") or []) if value]
+        tags = normalize_lead_tags(lead_filter.get("tags") or [])
+
+        if statuses:
+            conditions.append({"status": {"$in": statuses}})
+        if priorities:
+            conditions.append({"priority": {"$in": priorities}})
+        if sources:
+            conditions.append({"source": {"$in": sources}})
+        if tags:
+            conditions.append({"tags": {"$in": tags}})
+        if lead_filter.get("require_email"):
+            conditions.append({"email": {"$exists": True, "$nin": ["", None]}})
+        if lead_filter.get("require_phone"):
+            conditions.append({"phone": {"$exists": True, "$nin": ["", None]}})
+
+        has_product_interest = lead_filter.get("has_product_interest")
+        if has_product_interest is True:
+            conditions.append({
+                "$or": [
+                    {"property_interest": {"$exists": True, "$nin": ["", None]}},
+                    {"interested_product_ids.0": {"$exists": True}},
+                ]
+            })
+        elif has_product_interest is False:
+            conditions.append({
+                "$and": [
+                    {"$or": [
+                        {"property_interest": {"$exists": False}},
+                        {"property_interest": {"$in": ["", None]}},
+                    ]},
+                    {"interested_product_ids.0": {"$exists": False}},
+                ]
+            })
+
+    if campaign_type == CampaignType.EMAIL.value:
+        conditions.append({"email": {"$exists": True, "$nin": ["", None]}})
+        conditions.append({"email_opt_out": {"$ne": True}})
+    elif campaign_type in [CampaignType.SMS.value, CampaignType.CALL.value, CampaignType.WHATSAPP.value]:
+        conditions.append({"phone": {"$exists": True, "$nin": ["", None]}})
+        if campaign_type == CampaignType.SMS.value:
+            conditions.append({"sms_opt_out": {"$ne": True}})
+        elif campaign_type == CampaignType.WHATSAPP.value:
+            conditions.append({"whatsapp_opt_out": {"$ne": True}})
+        elif campaign_type == CampaignType.CALL.value:
+            conditions.append({"call_opt_out": {"$ne": True}})
+
+    if conditions:
+        query["$and"] = conditions
+
+    return query
+
 @api_router.get("/settings/integrations")
 async def get_integration_settings(current_user: dict = Depends(get_current_user)):
     """Get integration settings for the current user"""
-    settings = await db.integration_settings.find_one(
-        {"user_id": current_user["user_id"]},
-        {"_id": 0}
-    )
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
     if not settings:
         # Return empty settings
         return {
@@ -3572,6 +9570,7 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
             "twilio_account_sid": "",
             "twilio_auth_token": "",
             "twilio_phone_number": "",
+            "twilio_whatsapp_number": "",
             "sendgrid_api_key": "",
             "sendgrid_sender_email": "",
             "sendgrid_sender_name": "",
@@ -3580,6 +9579,7 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
             "google_calendar_email": None,
             "vapi_enabled": False,
             "twilio_enabled": False,
+            "twilio_whatsapp_enabled": False,
             "sendgrid_enabled": False,
             "google_calendar_enabled": False
         }
@@ -3604,10 +9604,10 @@ async def update_integration_settings(
     current_user: dict = Depends(get_current_user)
 ):
     """Update integration settings"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     
     # Get existing settings
-    existing = await db.integration_settings.find_one({"user_id": current_user["user_id"]})
+    existing = await get_workspace_integration_settings(current_user, clone_legacy=True)
     
     update_dict = {}
     data = update_data.model_dump(exclude_unset=True)
@@ -3635,6 +9635,11 @@ async def update_integration_settings(
         current.get("twilio_auth_token") and 
         current.get("twilio_phone_number")
     )
+    update_dict["twilio_whatsapp_enabled"] = bool(
+        current.get("twilio_account_sid") and
+        current.get("twilio_auth_token") and
+        current.get("twilio_whatsapp_number")
+    )
     update_dict["sendgrid_enabled"] = bool(
         current.get("sendgrid_api_key") and 
         current.get("sendgrid_sender_email")
@@ -3644,7 +9649,7 @@ async def update_integration_settings(
     
     if existing:
         await db.integration_settings.update_one(
-            {"user_id": current_user["user_id"]},
+            {"id": existing["id"]},
             {"$set": update_dict}
         )
     else:
@@ -3660,6 +9665,7 @@ async def update_integration_settings(
         "message": "Configuración actualizada", 
         "vapi_enabled": update_dict.get("vapi_enabled", False), 
         "twilio_enabled": update_dict.get("twilio_enabled", False),
+        "twilio_whatsapp_enabled": update_dict.get("twilio_whatsapp_enabled", False),
         "sendgrid_enabled": update_dict.get("sendgrid_enabled", False),
         "google_calendar_enabled": current.get("google_calendar_enabled", False)
     }
@@ -3667,34 +9673,63 @@ async def update_integration_settings(
 @api_router.post("/settings/integrations/test-vapi")
 async def test_vapi_connection(current_user: dict = Depends(get_current_user)):
     """Test VAPI connection"""
-    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
     if not settings or not settings.get("vapi_api_key"):
         raise HTTPException(status_code=400, detail="VAPI no configurado")
     
     try:
-        from vapi_server_sdk import Vapi
+        from vapi import Vapi
         vapi_client = Vapi(token=settings["vapi_api_key"])
         # Try to list calls to verify connection
         calls = vapi_client.calls.list(limit=1)
         return {"status": "success", "message": "Conexión exitosa con VAPI"}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error de conexión: {format_vapi_error(e)}")
 
 @api_router.post("/settings/integrations/test-twilio")
 async def test_twilio_connection(current_user: dict = Depends(get_current_user)):
     """Test Twilio connection"""
-    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
-    if not settings or not settings.get("twilio_account_sid"):
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+    if not settings:
         raise HTTPException(status_code=400, detail="Twilio no configurado")
+
+    account_sid = validate_twilio_account_sid(settings)
+    auth_token = validate_twilio_auth_token(settings)
     
     try:
         from twilio.rest import Client
-        client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+        client = Client(account_sid, auth_token)
         # Verify account
-        account = client.api.accounts(settings["twilio_account_sid"]).fetch()
+        account = client.api.accounts(account_sid).fetch()
         return {"status": "success", "message": f"Conexión exitosa - Cuenta: {account.friendly_name}"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error de conexión: {str(e)}")
+
+@api_router.post("/settings/integrations/test-whatsapp")
+async def test_twilio_whatsapp_connection(current_user: dict = Depends(get_current_user)):
+    """Test Twilio WhatsApp sender readiness"""
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+    if not settings:
+        raise HTTPException(status_code=400, detail="Twilio no configurado")
+
+    account_sid = validate_twilio_account_sid(settings)
+    auth_token = validate_twilio_auth_token(settings)
+
+    whatsapp_sender = normalize_whatsapp_address(settings.get("twilio_whatsapp_number"))
+    if not whatsapp_sender:
+        raise HTTPException(status_code=400, detail="Número de WhatsApp no configurado")
+
+    try:
+        from twilio.rest import Client
+        client = Client(account_sid, auth_token)
+        account = client.api.accounts(account_sid).fetch()
+        return {
+            "status": "success",
+            "message": f"WhatsApp listo en Twilio - Cuenta: {account.friendly_name}",
+            "sender": whatsapp_sender,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error de conexión WhatsApp: {str(e)}")
 
 # ==================== CAMPAIGNS ====================
 
@@ -3704,7 +9739,7 @@ async def get_campaigns(
     current_user: dict = Depends(get_current_user)
 ):
     """Get all campaigns"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     query = {"tenant_id": tenant_id}
     if campaign_type:
         query["campaign_type"] = campaign_type
@@ -3712,31 +9747,186 @@ async def get_campaigns(
     campaigns = await db.campaigns.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
     return [serialize_doc(c) for c in campaigns]
 
+
+@api_router.get("/campaign-segments")
+async def get_campaign_segments(current_user: dict = Depends(get_current_user)):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    segments = await db.campaign_segments.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("updated_at", -1).to_list(100)
+
+    segment_ids = [segment["id"] for segment in segments]
+    campaigns = await db.campaigns.find(
+        {"tenant_id": tenant_id, "saved_segment_id": {"$in": segment_ids}},
+        {"_id": 0, "id": 1, "saved_segment_id": 1, "sent_count": 1, "delivered_count": 1, "failed_count": 1, "completed_at": 1, "created_at": 1}
+    ).to_list(500)
+
+    campaign_ids_by_segment: Dict[str, List[str]] = {}
+    campaign_metrics: Dict[str, Dict[str, Any]] = {}
+    for campaign in campaigns:
+        segment_id = campaign.get("saved_segment_id")
+        if not segment_id:
+            continue
+        campaign_ids_by_segment.setdefault(segment_id, []).append(campaign["id"])
+        metrics = campaign_metrics.setdefault(segment_id, {
+            "campaign_count": 0,
+            "total_sent_count": 0,
+            "total_delivered_count": 0,
+            "total_failed_count": 0,
+            "last_used_at": None,
+        })
+        metrics["campaign_count"] += 1
+        metrics["total_sent_count"] += int(campaign.get("sent_count") or 0)
+        metrics["total_delivered_count"] += int(campaign.get("delivered_count") or 0)
+        metrics["total_failed_count"] += int(campaign.get("failed_count") or 0)
+        last_used_at = campaign.get("completed_at") or campaign.get("created_at")
+        if last_used_at and (metrics["last_used_at"] is None or last_used_at > metrics["last_used_at"]):
+            metrics["last_used_at"] = last_used_at
+
+    email_opened_by_segment: Dict[str, int] = {}
+    if campaign_ids_by_segment:
+        campaign_to_segment = {
+            campaign_id: segment_id
+            for segment_id, campaign_ids in campaign_ids_by_segment.items()
+            for campaign_id in campaign_ids
+        }
+        email_records = await db.email_records.find(
+            {"tenant_id": tenant_id, "campaign_id": {"$in": list(campaign_to_segment.keys())}, "status": {"$in": ["opened", "clicked"]}},
+            {"_id": 0, "campaign_id": 1}
+        ).to_list(10000)
+        for record in email_records:
+            segment_id = campaign_to_segment.get(record.get("campaign_id"))
+            if segment_id:
+                email_opened_by_segment[segment_id] = email_opened_by_segment.get(segment_id, 0) + 1
+
+    enriched_segments = []
+    for segment in segments:
+        serialized = serialize_doc(segment)
+        metrics = campaign_metrics.get(segment["id"], {})
+        serialized["campaign_count"] = metrics.get("campaign_count", 0)
+        serialized["total_sent_count"] = metrics.get("total_sent_count", 0)
+        serialized["total_delivered_count"] = metrics.get("total_delivered_count", 0)
+        serialized["total_failed_count"] = metrics.get("total_failed_count", 0)
+        serialized["total_opened_count"] = email_opened_by_segment.get(segment["id"], 0)
+        last_used_at = metrics.get("last_used_at")
+        serialized["last_used_at"] = last_used_at.isoformat() if isinstance(last_used_at, datetime) else last_used_at
+        enriched_segments.append(serialized)
+
+    return enriched_segments
+
+
+@api_router.post("/campaign-segments")
+async def create_campaign_segment(
+    segment_data: CampaignSegmentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    cleaned_filter = clean_campaign_lead_filter(segment_data.lead_filter)
+    estimated_count = await estimate_campaign_segment_count(
+        tenant_id,
+        cleaned_filter,
+        segment_data.campaign_type.value if segment_data.campaign_type else None
+    )
+
+    segment = CampaignSegment(
+        user_id=current_user["user_id"],
+        tenant_id=tenant_id,
+        name=segment_data.name.strip(),
+        description=(segment_data.description or "").strip() or None,
+        campaign_type=segment_data.campaign_type,
+        lead_filter=cleaned_filter,
+        color=segment_data.color,
+        last_estimated_count=estimated_count,
+    )
+    await db.campaign_segments.insert_one(segment.model_dump())
+    return serialize_doc(segment.model_dump())
+
+
+@api_router.put("/campaign-segments/{segment_id}")
+async def update_campaign_segment(
+    segment_id: str,
+    segment_data: CampaignSegmentUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    existing = await db.campaign_segments.find_one({"id": segment_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Segmento no encontrado")
+
+    update_dict = {key: value for key, value in segment_data.model_dump(exclude_unset=True).items() if value is not None}
+    if "name" in update_dict:
+        update_dict["name"] = update_dict["name"].strip()
+    if "description" in update_dict:
+        update_dict["description"] = update_dict["description"].strip() or None
+    if "lead_filter" in update_dict:
+        update_dict["lead_filter"] = clean_campaign_lead_filter(update_dict["lead_filter"])
+
+    effective_filter = update_dict.get("lead_filter", existing.get("lead_filter") or {})
+    effective_campaign_type = update_dict.get("campaign_type", existing.get("campaign_type"))
+    estimated_count = await estimate_campaign_segment_count(
+        tenant_id,
+        effective_filter,
+        effective_campaign_type.value if hasattr(effective_campaign_type, "value") else effective_campaign_type
+    )
+
+    update_dict["last_estimated_count"] = estimated_count
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+
+    await db.campaign_segments.update_one(
+        {"id": segment_id, "tenant_id": tenant_id},
+        {"$set": update_dict}
+    )
+
+    updated = await db.campaign_segments.find_one({"id": segment_id, "tenant_id": tenant_id}, {"_id": 0})
+    return serialize_doc(updated)
+
+
+@api_router.delete("/campaign-segments/{segment_id}")
+async def delete_campaign_segment(segment_id: str, current_user: dict = Depends(get_current_user)):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    result = await db.campaign_segments.delete_one({"id": segment_id, "tenant_id": tenant_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Segmento no encontrado")
+    return {"message": "Segmento eliminado"}
+
 @api_router.post("/campaigns")
 async def create_campaign(
     campaign_data: CampaignCreate,
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new campaign"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
+
+    if campaign_data.saved_segment_id:
+        saved_segment = await db.campaign_segments.find_one(
+            {"id": campaign_data.saved_segment_id, "tenant_id": tenant_id},
+            {"_id": 0, "id": 1}
+        )
+        if not saved_segment:
+            raise HTTPException(status_code=404, detail="Segmento guardado no encontrado")
+
+    if campaign_data.ab_test_enabled:
+        campaign_data.ab_test_split_percentage = max(1, min(int(campaign_data.ab_test_split_percentage or 50), 99))
+    else:
+        campaign_data.ab_test_split_percentage = 50
     
     # Get leads count
     lead_count = len(campaign_data.lead_ids)
     if campaign_data.lead_filter:
-        # Count leads matching filter
-        filter_query = {"tenant_id": tenant_id}
-        if campaign_data.lead_filter.get("status"):
-            filter_query["status"] = {"$in": campaign_data.lead_filter["status"]}
-        if campaign_data.lead_filter.get("priority"):
-            filter_query["priority"] = {"$in": campaign_data.lead_filter["priority"]}
+        cleaned_filter = clean_campaign_lead_filter(campaign_data.lead_filter)
+        filter_query = build_campaign_lead_query(tenant_id, cleaned_filter, campaign_data.campaign_type.value)
         lead_count = await db.leads.count_documents(filter_query)
+    else:
+        cleaned_filter = None
     
-    campaign = Campaign(
-        **campaign_data.model_dump(),
-        user_id=current_user["user_id"],
-        tenant_id=tenant_id,
-        total_recipients=lead_count
-    )
+    campaign_payload = campaign_data.model_dump()
+    campaign_payload["lead_filter"] = cleaned_filter
+    campaign_payload["user_id"] = current_user["user_id"]
+    campaign_payload["tenant_id"] = tenant_id
+    campaign_payload["total_recipients"] = lead_count
+
+    campaign = Campaign(**campaign_payload)
     
     await db.campaigns.insert_one(campaign.model_dump())
     return serialize_doc(campaign.model_dump())
@@ -3747,13 +9937,13 @@ async def start_campaign(
     current_user: dict = Depends(get_current_user)
 ):
     """Start a campaign - sends calls or SMS"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     
     campaign = await db.campaigns.find_one({"id": campaign_id, "tenant_id": tenant_id}, {"_id": 0})
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     
-    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
     
     # Get leads
     leads = []
@@ -3763,12 +9953,10 @@ async def start_campaign(
             {"_id": 0}
         ).to_list(1000)
     elif campaign.get("lead_filter"):
-        filter_query = {"tenant_id": tenant_id}
-        if campaign["lead_filter"].get("status"):
-            filter_query["status"] = {"$in": campaign["lead_filter"]["status"]}
-        if campaign["lead_filter"].get("priority"):
-            filter_query["priority"] = {"$in": campaign["lead_filter"]["priority"]}
+        filter_query = build_campaign_lead_query(tenant_id, campaign["lead_filter"], campaign["campaign_type"])
         leads = await db.leads.find(filter_query, {"_id": 0}).to_list(1000)
+
+    leads = [lead for lead in leads if lead_allows_campaign(lead, campaign["campaign_type"])]
     
     if not leads:
         raise HTTPException(status_code=400, detail="No hay leads para esta campaña")
@@ -3779,7 +9967,7 @@ async def start_campaign(
         {"$set": {"status": CampaignStatus.RUNNING.value, "started_at": datetime.now(timezone.utc)}}
     )
     
-    results = {"success": 0, "failed": 0, "errors": []}
+    results = {"success": 0, "failed": 0, "errors": [], "variant_a": 0, "variant_b": 0}
     
     if campaign["campaign_type"] == CampaignType.CALL.value:
         # Process calls with VAPI
@@ -3787,7 +9975,7 @@ async def start_campaign(
             raise HTTPException(status_code=400, detail="VAPI no está configurado")
         
         try:
-            from vapi_server_sdk import Vapi
+            from vapi import Vapi
             vapi_client = Vapi(token=settings["vapi_api_key"])
             
             for lead in leads:
@@ -3812,9 +10000,9 @@ async def start_campaign(
                     results["success"] += 1
                 except Exception as e:
                     results["failed"] += 1
-                    results["errors"].append(f"{lead['name']}: {str(e)}")
+                    results["errors"].append(f"{lead['name']}: {format_vapi_error(e)}")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error VAPI: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error VAPI: {format_vapi_error(e)}")
     
     elif campaign["campaign_type"] == CampaignType.SMS.value:
         # Process SMS with Twilio
@@ -3823,18 +10011,26 @@ async def start_campaign(
         
         try:
             from twilio.rest import Client
-            twilio_client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+            account_sid = validate_twilio_account_sid(settings)
+            auth_token = validate_twilio_auth_token(settings)
+            twilio_client = Client(account_sid, auth_token)
+            status_callback = get_twilio_status_callback_url()
             
             for lead in leads:
                 try:
-                    # Personalize message
-                    message_body = campaign.get("message_template", "").replace("{nombre}", lead["name"])
+                    variant_key = select_campaign_variant(campaign)
+                    base_template = campaign.get("variant_b_message_template") if variant_key == "B" and campaign.get("variant_b_message_template") else campaign.get("message_template", "")
+                    message_body = personalize_campaign_message(base_template, lead)
                     
-                    message = twilio_client.messages.create(
+                    message_params = dict(
                         body=message_body,
                         from_=settings["twilio_phone_number"],
                         to=lead["phone"]
                     )
+                    if status_callback:
+                        message_params["status_callback"] = status_callback
+
+                    message = twilio_client.messages.create(**message_params)
                     
                     sms_record = SMSRecord(
                         user_id=current_user["user_id"],
@@ -3844,17 +10040,71 @@ async def start_campaign(
                         phone_number=lead["phone"],
                         message=message_body,
                         campaign_id=campaign_id,
+                        ab_variant=variant_key,
                         twilio_sid=message.sid,
                         status=SMSStatus.SENT,
                         sent_at=datetime.now(timezone.utc)
                     )
                     await db.sms_records.insert_one(sms_record.model_dump())
                     results["success"] += 1
+                    results["variant_a" if variant_key == "A" else "variant_b"] += 1
                 except Exception as e:
                     results["failed"] += 1
                     results["errors"].append(f"{lead['name']}: {str(e)}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error Twilio: {str(e)}")
+
+    elif campaign["campaign_type"] == CampaignType.WHATSAPP.value:
+        if not settings or not settings.get("twilio_whatsapp_enabled"):
+            raise HTTPException(status_code=400, detail="WhatsApp en Twilio no está configurado")
+
+        whatsapp_sender = normalize_whatsapp_address(settings.get("twilio_whatsapp_number"))
+        if not whatsapp_sender:
+            raise HTTPException(status_code=400, detail="Número de WhatsApp inválido")
+
+        try:
+            from twilio.rest import Client
+            account_sid = validate_twilio_account_sid(settings)
+            auth_token = validate_twilio_auth_token(settings)
+            twilio_client = Client(account_sid, auth_token)
+            status_callback = get_twilio_status_callback_url()
+
+            for lead in leads:
+                try:
+                    variant_key = select_campaign_variant(campaign)
+                    base_template = campaign.get("variant_b_message_template") if variant_key == "B" and campaign.get("variant_b_message_template") else campaign.get("message_template", "")
+                    message_body = personalize_campaign_message(base_template, lead)
+                    message_params = dict(
+                        body=message_body,
+                        from_=whatsapp_sender,
+                        to=normalize_whatsapp_address(lead["phone"])
+                    )
+                    if status_callback:
+                        message_params["status_callback"] = status_callback
+
+                    message = twilio_client.messages.create(**message_params)
+
+                    whatsapp_record = WhatsAppRecord(
+                        user_id=current_user["user_id"],
+                        tenant_id=tenant_id,
+                        lead_id=lead["id"],
+                        lead_name=lead["name"],
+                        phone_number=normalize_phone_like_value(lead["phone"]),
+                        message=message_body,
+                        campaign_id=campaign_id,
+                        ab_variant=variant_key,
+                        twilio_sid=message.sid,
+                        status=WhatsAppStatus.SENT,
+                        sent_at=datetime.now(timezone.utc)
+                    )
+                    await db.whatsapp_records.insert_one(whatsapp_record.model_dump())
+                    results["success"] += 1
+                    results["variant_a" if variant_key == "A" else "variant_b"] += 1
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(f"{lead['name']}: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error WhatsApp Twilio: {str(e)}")
     
     elif campaign["campaign_type"] == CampaignType.EMAIL.value:
         # Process Emails with SendGrid
@@ -3878,7 +10128,7 @@ async def start_campaign(
 
         try:
             from sendgrid import SendGridAPIClient
-            from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking
+            from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking, CustomArg
 
             sg = SendGridAPIClient(settings["sendgrid_api_key"])
 
@@ -3889,6 +10139,7 @@ async def start_campaign(
                     continue
 
                 try:
+                    variant_key = select_campaign_variant(campaign)
                     # Personalize content
                     if template:
                         # Use email template with advanced variable replacement
@@ -3903,6 +10154,12 @@ async def start_campaign(
                         subject = subject.replace("{nombre}", lead["name"])
                         html_content = html_content.replace("{nombre}", lead["name"])
 
+                    if variant_key == "B":
+                        if campaign.get("variant_b_email_subject"):
+                            subject = personalize_campaign_message(campaign.get("variant_b_email_subject", ""), lead)
+                        if campaign.get("variant_b_message_template"):
+                            html_content = personalize_campaign_message(campaign.get("variant_b_message_template", ""), lead)
+
                     message = Mail(
                         from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "Rovi")),
                         to_emails=lead["email"],
@@ -3916,8 +10173,11 @@ async def start_campaign(
                     tracking_settings.open_tracking = OpenTracking(enable=True)
                     message.tracking_settings = tracking_settings
 
-                    # Add custom argument for webhook tracking
-                    message.custom_args = {"rovi_email_id": f"{lead['id']}-{campaign_id}"}
+                    # Attach custom args at personalization level for SendGrid event webhook tracking.
+                    if message.personalizations:
+                        message.personalizations[0].add_custom_arg(
+                            CustomArg("rovi_email_id", f"{lead['id']}-{campaign_id}")
+                        )
 
                     response = sg.send(message)
 
@@ -3930,12 +10190,14 @@ async def start_campaign(
                         subject=subject,
                         html_content=html_content,
                         campaign_id=campaign_id,
+                        ab_variant=variant_key,
                         sendgrid_id=response.headers.get("X-Message-Id", ""),
                         status=EmailStatus.SENT if response.status_code == 202 else EmailStatus.FAILED,
                         sent_at=datetime.now(timezone.utc)
                     )
                     await db.email_records.insert_one(email_record.model_dump())
                     results["success"] += 1
+                    results["variant_a" if variant_key == "A" else "variant_b"] += 1
                 except Exception as e:
                     results["failed"] += 1
                     results["errors"].append(f"{lead['name']}: {str(e)}")
@@ -3949,9 +10211,17 @@ async def start_campaign(
             "status": CampaignStatus.COMPLETED.value,
             "completed_at": datetime.now(timezone.utc),
             "sent_count": results["success"],
-            "failed_count": results["failed"]
+            "failed_count": results["failed"],
+            "variant_a_sent_count": results["variant_a"],
+            "variant_b_sent_count": results["variant_b"],
         }}
     )
+
+    if campaign.get("saved_segment_id"):
+        await db.campaign_segments.update_one(
+            {"id": campaign["saved_segment_id"], "tenant_id": tenant_id},
+            {"$set": {"last_used_at": datetime.now(timezone.utc), "updated_at": datetime.now(timezone.utc)}}
+        )
     
     return results
 
@@ -3963,7 +10233,7 @@ async def get_call_records(
     current_user: dict = Depends(get_current_user)
 ):
     """Get call history"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     calls = await db.call_records.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -3976,8 +10246,8 @@ async def create_single_call(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a single call to a lead"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
-    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    tenant_id = await resolve_active_tenant_id(current_user)
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
     
     if not settings or not settings.get("vapi_enabled"):
         raise HTTPException(status_code=400, detail="VAPI no está configurado")
@@ -3988,7 +10258,7 @@ async def create_single_call(
         raise HTTPException(status_code=404, detail="Lead no encontrado")
     
     try:
-        from vapi_server_sdk import Vapi
+        from vapi import Vapi
         vapi_client = Vapi(token=settings["vapi_api_key"])
         
         call_params = {
@@ -4016,7 +10286,7 @@ async def create_single_call(
         
         return serialize_doc(call_record.model_dump())
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al crear llamada: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al crear llamada: {format_vapi_error(e)}")
 
 # ==================== SMS RECORDS ====================
 
@@ -4026,7 +10296,7 @@ async def get_sms_records(
     current_user: dict = Depends(get_current_user)
 ):
     """Get SMS history"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     sms_list = await db.sms_records.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -4039,8 +10309,8 @@ async def send_single_sms(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a single SMS to a lead"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
-    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    tenant_id = await resolve_active_tenant_id(current_user)
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
     
     if not settings or not settings.get("twilio_enabled"):
         raise HTTPException(status_code=400, detail="Twilio no está configurado")
@@ -4049,16 +10319,25 @@ async def send_single_sms(
     lead = await db.leads.find_one({"id": sms_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
     if not lead:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
+    if lead.get("sms_opt_out"):
+        raise HTTPException(status_code=400, detail="Este lead tiene SMS desactivado")
     
     try:
         from twilio.rest import Client
-        twilio_client = Client(settings["twilio_account_sid"], settings["twilio_auth_token"])
+        account_sid = validate_twilio_account_sid(settings)
+        auth_token = validate_twilio_auth_token(settings)
+        twilio_client = Client(account_sid, auth_token)
+        status_callback = get_twilio_status_callback_url()
         
-        message = twilio_client.messages.create(
+        message_params = dict(
             body=sms_data.message,
             from_=settings["twilio_phone_number"],
             to=sms_data.phone_number
         )
+        if status_callback:
+            message_params["status_callback"] = status_callback
+
+        message = twilio_client.messages.create(**message_params)
         
         sms_record = SMSRecord(
             user_id=current_user["user_id"],
@@ -4077,6 +10356,77 @@ async def send_single_sms(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al enviar SMS: {str(e)}")
 
+# ==================== WHATSAPP RECORDS ====================
+
+@api_router.get("/whatsapp")
+async def get_whatsapp_records(
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    records = await db.whatsapp_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(record) for record in records]
+
+
+@api_router.post("/whatsapp/single")
+async def send_single_whatsapp(
+    whatsapp_data: WhatsAppRecordCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+
+    if not settings or not settings.get("twilio_whatsapp_enabled"):
+        raise HTTPException(status_code=400, detail="WhatsApp en Twilio no está configurado")
+
+    lead = await db.leads.find_one({"id": whatsapp_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    if lead.get("whatsapp_opt_out"):
+        raise HTTPException(status_code=400, detail="Este lead tiene WhatsApp desactivado")
+
+    whatsapp_sender = normalize_whatsapp_address(settings.get("twilio_whatsapp_number"))
+    if not whatsapp_sender:
+        raise HTTPException(status_code=400, detail="Número de WhatsApp inválido")
+
+    try:
+        from twilio.rest import Client
+        account_sid = validate_twilio_account_sid(settings)
+        auth_token = validate_twilio_auth_token(settings)
+        twilio_client = Client(account_sid, auth_token)
+        status_callback = get_twilio_status_callback_url()
+
+        message_params = dict(
+            body=whatsapp_data.message,
+            from_=whatsapp_sender,
+            to=normalize_whatsapp_address(whatsapp_data.phone_number)
+        )
+        if status_callback:
+            message_params["status_callback"] = status_callback
+
+        message = twilio_client.messages.create(**message_params)
+
+        whatsapp_record = WhatsAppRecord(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            lead_id=whatsapp_data.lead_id,
+            lead_name=lead["name"],
+            phone_number=normalize_phone_like_value(whatsapp_data.phone_number),
+            message=whatsapp_data.message,
+            campaign_id=whatsapp_data.campaign_id,
+            twilio_sid=message.sid,
+            status=WhatsAppStatus.SENT,
+            sent_at=datetime.now(timezone.utc)
+        )
+        await db.whatsapp_records.insert_one(whatsapp_record.model_dump())
+
+        return serialize_doc(whatsapp_record.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar WhatsApp: {str(e)}")
+
 # ==================== EMAIL RECORDS ====================
 
 @api_router.get("/emails")
@@ -4085,7 +10435,7 @@ async def get_email_records(
     current_user: dict = Depends(get_current_user)
 ):
     """Get email history"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     emails = await db.email_records.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -4098,8 +10448,8 @@ async def send_single_email(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a single email to a lead"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
-    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    tenant_id = await resolve_active_tenant_id(current_user)
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
     
     if not settings or not settings.get("sendgrid_enabled"):
         raise HTTPException(status_code=400, detail="SendGrid no está configurado")
@@ -4152,7 +10502,7 @@ async def send_single_email(
 @api_router.post("/settings/integrations/test-sendgrid")
 async def test_sendgrid_connection(current_user: dict = Depends(get_current_user)):
     """Test SendGrid connection"""
-    settings = await db.integration_settings.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
     if not settings or not settings.get("sendgrid_api_key"):
         raise HTTPException(status_code=400, detail="SendGrid no configurado")
     
@@ -4728,7 +11078,7 @@ async def full_calendar_sync(current_user: dict = Depends(get_current_user)):
 @api_router.get("/email-templates")
 async def get_email_templates(current_user: dict = Depends(get_current_user)):
     """Get all email templates"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     templates = await db.email_templates.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
@@ -4741,7 +11091,7 @@ async def create_email_template(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new email template"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     
     template = EmailTemplate(
         **template_data.model_dump(),
@@ -4758,7 +11108,7 @@ async def delete_email_template(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete an email template"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     result = await db.email_templates.delete_one({"id": template_id, "tenant_id": tenant_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Plantilla no encontrada")
@@ -4771,7 +11121,7 @@ async def update_email_template(
     current_user: dict = Depends(get_current_user)
 ):
     """Update an email template"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     
     existing = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id})
     if not existing:
@@ -4794,7 +11144,7 @@ async def get_email_template(
     current_user: dict = Depends(get_current_user)
 ):
     """Get a single email template"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     template = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id}, {"_id": 0})
     if not template:
         raise HTTPException(status_code=404, detail="Plantilla no encontrada")
@@ -4808,7 +11158,7 @@ async def preview_email_template(
     current_user: dict = Depends(get_current_user)
 ):
     """Preview email template with sample data"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     template = await db.email_templates.find_one({"id": template_id, "tenant_id": tenant_id}, {"_id": 0})
     if not template:
         raise HTTPException(status_code=404, detail="Plantilla no encontrada")
@@ -4854,7 +11204,7 @@ async def send_test_email(
     current_user: dict = Depends(get_current_user)
 ):
     """Send a test email using a template"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
 
     # Get template_id from request body
     template_id = request_data.get("template_id")
@@ -4869,26 +11219,41 @@ async def send_test_email(
     # Get recipient email from request
     recipient = request_data.get("recipient_email") or current_user.get("email")
     preview_data = request_data.get("preview_data", {})
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+
+    if not recipient:
+        raise HTTPException(status_code=422, detail="recipient_email es requerido")
+
+    if not settings or not settings.get("sendgrid_enabled"):
+        raise HTTPException(status_code=400, detail="SendGrid no está configurado para este workspace")
 
     # Generate preview with data
     preview_result = await preview_email_template(template_id, preview_data, current_user)
 
-    # Here you would integrate with SendGrid or another email service
-    # For now, we'll just log and return success
-    logger.info(f"Test email would be sent to {recipient}")
-    logger.info(f"Subject: {preview_result['subject']}")
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking, OpenTracking
 
-    # TODO: Implement actual SendGrid integration
-    # from sendgrid import SendGridAPIClient
-    # from sendgrid.helpers.mail import Mail
-    # message = Mail(
-    #     from_email='noreply@rovirealestate.com',
-    #     to_emails=recipient,
-    #     subject=preview_result['subject'],
-    #     html_content=preview_result['html_content']
-    # )
-    # sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-    # response = sg.send(message)
+        sg = SendGridAPIClient(settings["sendgrid_api_key"])
+        message = Mail(
+            from_email=(settings["sendgrid_sender_email"], settings.get("sendgrid_sender_name", "Rovi")),
+            to_emails=recipient,
+            subject=preview_result["subject"],
+            html_content=preview_result["html_content"]
+        )
+
+        tracking_settings = TrackingSettings()
+        tracking_settings.click_tracking = ClickTracking(enable=True)
+        tracking_settings.open_tracking = OpenTracking(enable=True)
+        message.tracking_settings = tracking_settings
+
+        response = sg.send(message)
+        if response.status_code not in [200, 202]:
+            raise HTTPException(status_code=500, detail=f"SendGrid respondió con estado {response.status_code}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error enviando prueba por SendGrid: {str(e)}")
 
     return {
         "success": True,
@@ -4902,7 +11267,7 @@ async def send_test_email(
 @api_router.post("/email-templates/seed")
 async def seed_email_templates(current_user: dict = Depends(get_current_user)):
     """Seed predefined email templates for real estate"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
 
     # Check if templates already exist
     existing = await db.email_templates.count_documents({"tenant_id": tenant_id})
@@ -5530,7 +11895,7 @@ async def get_call_analysis(
     current_user: dict = Depends(get_current_user)
 ):
     """Get conversation analysis for a call (DEMO - returns mock data)"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_active_tenant_id(current_user)
     
     call = await db.call_records.find_one({"id": call_id, "tenant_id": tenant_id}, {"_id": 0})
     if not call:
@@ -5571,8 +11936,8 @@ async def get_call_analysis(
 async def get_communications_analytics(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get communications analytics (calls + SMS)"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    """Get communications analytics (calls + SMS + WhatsApp + email)"""
+    tenant_id = await resolve_active_tenant_id(current_user)
     
     # Get call stats
     total_calls = await db.call_records.count_documents({"tenant_id": tenant_id})
@@ -5581,6 +11946,10 @@ async def get_communications_analytics(
     # Get SMS stats
     total_sms = await db.sms_records.count_documents({"tenant_id": tenant_id})
     delivered_sms = await db.sms_records.count_documents({"tenant_id": tenant_id, "status": "delivered"})
+
+    total_whatsapp = await db.whatsapp_records.count_documents({"tenant_id": tenant_id})
+    delivered_whatsapp = await db.whatsapp_records.count_documents({"tenant_id": tenant_id, "status": {"$in": ["delivered", "read"]}})
+    read_whatsapp = await db.whatsapp_records.count_documents({"tenant_id": tenant_id, "status": "read"})
     
     # Get campaign stats
     total_campaigns = await db.campaigns.count_documents({"tenant_id": tenant_id})
@@ -5592,6 +11961,11 @@ async def get_communications_analytics(
     ).sort("created_at", -1).to_list(5)
     
     recent_sms = await db.sms_records.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5)
+
+    recent_whatsapp = await db.whatsapp_records.find(
         {"tenant_id": tenant_id},
         {"_id": 0}
     ).sort("created_at", -1).to_list(5)
@@ -5617,6 +11991,13 @@ async def get_communications_analytics(
             "delivered": delivered_sms,
             "delivery_rate": round((delivered_sms / total_sms * 100) if total_sms > 0 else 0, 1)
         },
+        "whatsapp": {
+            "total": total_whatsapp,
+            "delivered": delivered_whatsapp,
+            "read": read_whatsapp,
+            "delivery_rate": round((delivered_whatsapp / total_whatsapp * 100) if total_whatsapp > 0 else 0, 1),
+            "read_rate": round((read_whatsapp / total_whatsapp * 100) if total_whatsapp > 0 else 0, 1)
+        },
         "emails": {
             "total": total_emails,
             "sent": sent_emails,
@@ -5628,6 +12009,7 @@ async def get_communications_analytics(
         },
         "recent_calls": [serialize_doc(c) for c in recent_calls],
         "recent_sms": [serialize_doc(s) for s in recent_sms],
+        "recent_whatsapp": [serialize_doc(w) for w in recent_whatsapp],
         "recent_emails": [serialize_doc(e) for e in recent_emails]
     }
 
@@ -8246,6 +14628,67 @@ async def get_production_readiness(current_user: dict = Depends(get_current_user
 
 
 # ==================== WEBHOOKS ====================
+
+@api_router.post("/webhooks/twilio/messaging-status")
+async def twilio_messaging_status_webhook(
+    MessageSid: str = Form(...),
+    MessageStatus: str = Form(...),
+    To: Optional[str] = Form(None),
+    From: Optional[str] = Form(None),
+):
+    """
+    Webhook de Twilio para actualizar estados de SMS y WhatsApp.
+    Puede configurarse desde Twilio Console o enviarse vía status_callback.
+    """
+    status_map_sms = {
+        "queued": SMSStatus.QUEUED.value,
+        "accepted": SMSStatus.QUEUED.value,
+        "sending": SMSStatus.SENT.value,
+        "sent": SMSStatus.SENT.value,
+        "delivered": SMSStatus.DELIVERED.value,
+        "undelivered": SMSStatus.UNDELIVERED.value,
+        "failed": SMSStatus.FAILED.value,
+    }
+    status_map_whatsapp = {
+        "queued": WhatsAppStatus.QUEUED.value,
+        "accepted": WhatsAppStatus.QUEUED.value,
+        "sending": WhatsAppStatus.SENT.value,
+        "sent": WhatsAppStatus.SENT.value,
+        "delivered": WhatsAppStatus.DELIVERED.value,
+        "undelivered": WhatsAppStatus.UNDELIVERED.value,
+        "failed": WhatsAppStatus.FAILED.value,
+        "read": WhatsAppStatus.READ.value,
+    }
+
+    timestamp = datetime.now(timezone.utc)
+    update_fields = {"updated_at": timestamp}
+    is_whatsapp = str(To or "").startswith("whatsapp:") or str(From or "").startswith("whatsapp:")
+
+    if is_whatsapp:
+        mapped_status = status_map_whatsapp.get(MessageStatus, WhatsAppStatus.SENT.value)
+        update_fields["status"] = mapped_status
+        if mapped_status == WhatsAppStatus.DELIVERED.value:
+            update_fields["delivered_at"] = timestamp
+        if mapped_status == WhatsAppStatus.READ.value:
+            update_fields["read_at"] = timestamp
+
+        await db.whatsapp_records.update_one(
+            {"twilio_sid": MessageSid},
+            {"$set": update_fields}
+        )
+    else:
+        mapped_status = status_map_sms.get(MessageStatus, SMSStatus.SENT.value)
+        update_fields["status"] = mapped_status
+        if mapped_status == SMSStatus.DELIVERED.value:
+            update_fields["delivered_at"] = timestamp
+
+        await db.sms_records.update_one(
+            {"twilio_sid": MessageSid},
+            {"$set": update_fields}
+        )
+
+    logger.info(f"Twilio messaging status updated sid={MessageSid} status={MessageStatus} whatsapp={is_whatsapp}")
+    return {"status": "ok"}
 
 @api_router.post("/webhooks/sendgrid")
 async def sendgrid_webhook(request: Request):

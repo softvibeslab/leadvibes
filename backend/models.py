@@ -51,11 +51,16 @@ class UserCreate(BaseModel):
     name: str
     role: str = "broker"
     phone: Optional[str] = None
-    account_type: str = "individual"  # individual, agency
+    account_type: str = "individual"  # individual, agency, copim, copim_member
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class OnboardingCompletionRequest(BaseModel):
+    context: Optional[str] = None
+    metadata: Dict[str, Any] = {}
 
 
 class BrokerCreate(BaseModel):
@@ -80,7 +85,8 @@ class User(UserBase):
     onboarding_completed: bool = False
     tenant_id: str = ""
     personal_tenant_id: Optional[str] = None
-    account_type: str = "individual"  # individual, agency
+    account_type: str = "individual"  # individual, agency, copim, copim_member
+    linked_copim_association_id: Optional[str] = None
     ai_profile: Optional['AIProfile'] = None  # Perfil personalizado para el asistente IA (forward reference)
 
 class UserResponse(BaseModel):
@@ -94,6 +100,7 @@ class UserResponse(BaseModel):
     onboarding_completed: bool
     personal_tenant_id: Optional[str] = None
     account_type: str = "individual"
+    linked_copim_association_id: Optional[str] = None
     ai_profile: Optional['AIProfile'] = None  # Forward reference
 
 
@@ -112,6 +119,9 @@ class AuthWorkspaceSummary(BaseModel):
 class TenantType(str, Enum):
     INDIVIDUAL = "individual"
     AGENCY = "agency"
+    COPIM = "copim"
+    ASSOCIATION = "association"
+    COUNCIL = "council"
 
 
 class MembershipRole(str, Enum):
@@ -119,6 +129,9 @@ class MembershipRole(str, Enum):
     ADMIN = "admin"
     MANAGER = "manager"
     BROKER = "broker"
+    COPIM_ADMIN = "copim_admin"
+    COPIM_OPERATOR = "copim_operator"
+    COPIM_MEMBER = "copim_member"
 
 
 class MembershipStatus(str, Enum):
@@ -268,6 +281,11 @@ class LeadCreate(BaseModel):
     interest_source: Optional[str] = None
     interested_product_ids: List[str] = []
     interested_products_snapshot: List[Dict[str, Any]] = []
+    tags: List[str] = []
+    email_opt_out: bool = False
+    sms_opt_out: bool = False
+    whatsapp_opt_out: bool = False
+    call_opt_out: bool = False
     custom_fields_data: Dict[str, Any] = {}
     notes: Optional[str] = None
     assigned_broker_id: Optional[str] = None
@@ -285,6 +303,11 @@ class LeadUpdate(BaseModel):
     interest_source: Optional[str] = None
     interested_product_ids: Optional[List[str]] = None
     interested_products_snapshot: Optional[List[Dict[str, Any]]] = None
+    tags: Optional[List[str]] = None
+    email_opt_out: Optional[bool] = None
+    sms_opt_out: Optional[bool] = None
+    whatsapp_opt_out: Optional[bool] = None
+    call_opt_out: Optional[bool] = None
     custom_fields_data: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
     assigned_broker_id: Optional[str] = None
@@ -307,6 +330,11 @@ class Lead(BaseModel):
     interest_source: Optional[str] = None
     interested_product_ids: List[str] = []
     interested_products_snapshot: List[Dict[str, Any]] = []
+    tags: List[str] = []
+    email_opt_out: bool = False
+    sms_opt_out: bool = False
+    whatsapp_opt_out: bool = False
+    call_opt_out: bool = False
     custom_fields_data: Dict[str, Any] = {}
     location_preference: Optional[str] = None
     notes: Optional[str] = None
@@ -442,6 +470,384 @@ class RefreshTokenRequest(BaseModel):
 class SwitchWorkspaceRequest(BaseModel):
     tenant_id: str
 
+# COPIM Management Models
+class CopimAssociationCreate(BaseModel):
+    name: str
+    state: str
+    city: Optional[str] = None
+    tagline: Optional[str] = None
+    logo_url: Optional[str] = None
+    bio: Optional[str] = None
+    mission: Optional[str] = None
+    vision: Optional[str] = None
+    president_name: Optional[str] = None
+    president_email: Optional[EmailStr] = None
+    admin_name: Optional[str] = None
+    admin_email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    status: str = "active"  # active, onboarding, inactive
+    member_goal: int = 0
+    national_score: int = 0
+    national_badge: Optional[str] = None
+    annual_events_count: int = 0
+    active_courses_count: int = 0
+    achievements: List[Dict[str, Any]] = Field(default_factory=list)
+    leadership_team: List[Dict[str, Any]] = Field(default_factory=list)
+    coverage_zone: Optional[str] = None
+    website: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CopimAssociationUpdate(BaseModel):
+    name: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    tagline: Optional[str] = None
+    logo_url: Optional[str] = None
+    bio: Optional[str] = None
+    mission: Optional[str] = None
+    vision: Optional[str] = None
+    president_name: Optional[str] = None
+    president_email: Optional[EmailStr] = None
+    admin_name: Optional[str] = None
+    admin_email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    status: Optional[str] = None
+    member_goal: Optional[int] = None
+    national_score: Optional[int] = None
+    national_badge: Optional[str] = None
+    annual_events_count: Optional[int] = None
+    active_courses_count: Optional[int] = None
+    achievements: Optional[List[Dict[str, Any]]] = None
+    leadership_team: Optional[List[Dict[str, Any]]] = None
+    coverage_zone: Optional[str] = None
+    website: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CopimCommunityPostCreate(BaseModel):
+    channel_id: str
+    content: str
+
+
+class CopimCommunityCommentCreate(BaseModel):
+    content: str
+
+
+class CopimMemberCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    association_id: Optional[str] = None
+    title: Optional[str] = None
+    city: Optional[str] = None
+    specialty: Optional[str] = None
+    company_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    certifications: List[str] = Field(default_factory=list)
+    join_date: Optional[datetime] = None
+    member_status: str = "pending"  # pending, active, suspended
+    review_state: str = "submitted"  # submitted, awaiting_info, approved, rejected
+    membership_tier: str = "base"
+    credential_status: str = "pending"  # pending, issued, blocked
+    credential_id: Optional[str] = None
+    directory_visible: bool = True
+    amount_due: float = 0.0
+    validation_checklist: Dict[str, bool] = Field(default_factory=dict)
+    validation_notes: Optional[str] = None
+    requested_information: Optional[str] = None
+    linked_user_id: Optional[str] = None
+    portal_access_enabled: bool = False
+    notes: Optional[str] = None
+
+
+class CopimMemberUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    association_id: Optional[str] = None
+    title: Optional[str] = None
+    city: Optional[str] = None
+    specialty: Optional[str] = None
+    company_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    certifications: Optional[List[str]] = None
+    join_date: Optional[datetime] = None
+    member_status: Optional[str] = None
+    review_state: Optional[str] = None
+    membership_tier: Optional[str] = None
+    credential_status: Optional[str] = None
+    credential_id: Optional[str] = None
+    directory_visible: Optional[bool] = None
+    amount_due: Optional[float] = None
+    validation_checklist: Optional[Dict[str, bool]] = None
+    validation_notes: Optional[str] = None
+    requested_information: Optional[str] = None
+    linked_user_id: Optional[str] = None
+    portal_access_enabled: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+class CopimMemberReviewUpdate(BaseModel):
+    validation_checklist: Optional[Dict[str, bool]] = None
+    validation_notes: Optional[str] = None
+    requested_information: Optional[str] = None
+
+
+class CopimMemberPortalProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    title: Optional[str] = None
+    city: Optional[str] = None
+    specialty: Optional[str] = None
+    company_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    certifications: Optional[List[str]] = None
+    directory_visible: Optional[bool] = None
+
+
+class CopimMembershipCreate(BaseModel):
+    member_id: str
+    association_id: Optional[str] = None
+    plan_name: str
+    plan_price: float
+    billing_period: str = "annual"  # monthly, quarterly, annual
+    renewal_date: datetime
+    payment_status: str = "due"  # active, due, overdue, cancelled
+    balance_due: float = 0.0
+    auto_renew: bool = False
+    reminder_enabled: bool = True
+    payment_method: Optional[str] = None
+    invoice_status: str = "not_requested"  # not_requested, pending, issued
+    paid_at: Optional[datetime] = None
+    benefits_summary: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CopimMembershipUpdate(BaseModel):
+    member_id: Optional[str] = None
+    association_id: Optional[str] = None
+    plan_name: Optional[str] = None
+    plan_price: Optional[float] = None
+    billing_period: Optional[str] = None
+    renewal_date: Optional[datetime] = None
+    payment_status: Optional[str] = None
+    balance_due: Optional[float] = None
+    auto_renew: Optional[bool] = None
+    reminder_enabled: Optional[bool] = None
+    payment_method: Optional[str] = None
+    invoice_status: Optional[str] = None
+    paid_at: Optional[datetime] = None
+    benefits_summary: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CopimInvoiceCreate(BaseModel):
+    membership_id: Optional[str] = None
+    member_id: str
+    association_id: Optional[str] = None
+    invoice_number: str
+    concept: str
+    subtotal: float
+    tax_amount: float = 0.0
+    total_amount: float
+    balance_due: float
+    currency: str = "MXN"
+    issue_date: datetime
+    due_date: datetime
+    invoice_status: str = "draft"  # draft, issued, sent, paid, cancelled
+    payment_status: str = "pending"  # pending, paid, overdue, cancelled
+    recipient_name: Optional[str] = None
+    recipient_rfc: Optional[str] = None
+    recipient_email: Optional[EmailStr] = None
+    cfdi_use: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    paid_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class CopimInvoiceUpdate(BaseModel):
+    membership_id: Optional[str] = None
+    member_id: Optional[str] = None
+    association_id: Optional[str] = None
+    invoice_number: Optional[str] = None
+    concept: Optional[str] = None
+    subtotal: Optional[float] = None
+    tax_amount: Optional[float] = None
+    total_amount: Optional[float] = None
+    balance_due: Optional[float] = None
+    currency: Optional[str] = None
+    issue_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    invoice_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    recipient_name: Optional[str] = None
+    recipient_rfc: Optional[str] = None
+    recipient_email: Optional[EmailStr] = None
+    cfdi_use: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    paid_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class CopimEventCreate(BaseModel):
+    title: str
+    association_id: Optional[str] = None
+    event_type: str = "networking"  # networking, capacitacion, certificacion, asamblea, webinar
+    event_format: str = "presencial"  # presencial, virtual, hibrido
+    venue: Optional[str] = None
+    visibility: str = "members"  # members, association, public
+    status: str = "published"  # draft, published, completed, cancelled
+    registration_open: bool = True
+    speaker_name: Optional[str] = None
+    start_at: datetime
+    end_at: Optional[datetime] = None
+    capacity: int = 0
+    registered_count: int = 0
+    checked_in_count: int = 0
+    description: Optional[str] = None
+
+
+class CopimEventUpdate(BaseModel):
+    title: Optional[str] = None
+    association_id: Optional[str] = None
+    event_type: Optional[str] = None
+    event_format: Optional[str] = None
+    venue: Optional[str] = None
+    visibility: Optional[str] = None
+    status: Optional[str] = None
+    registration_open: Optional[bool] = None
+    speaker_name: Optional[str] = None
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
+    capacity: Optional[int] = None
+    registered_count: Optional[int] = None
+    checked_in_count: Optional[int] = None
+    description: Optional[str] = None
+
+
+class CopimCourseInstructorInput(BaseModel):
+    id: Optional[str] = None
+    name: str
+    role: Optional[str] = None
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class CopimCourseMaterialInput(BaseModel):
+    id: Optional[str] = None
+    title: str
+    material_type: str = "file"  # file, video, pdf, slide, link, transcript
+    source_name: Optional[str] = None
+    content_type: Optional[str] = None
+    url: Optional[str] = None
+    summary: Optional[str] = None
+    size_label: Optional[str] = None
+    is_downloadable: bool = True
+
+
+class CopimCourseLessonInput(BaseModel):
+    id: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    duration_minutes: int = 10
+    lesson_type: str = "video"  # video, document, live, quiz
+    video_source: Optional[str] = None  # youtube, upload, external
+    video_url: Optional[str] = None
+    transcript: Optional[str] = None
+    subtitle_text: Optional[str] = None
+    notes: Optional[str] = None
+    is_preview: bool = False
+    resources: List[CopimCourseMaterialInput] = Field(default_factory=list)
+
+
+class CopimCourseModuleInput(BaseModel):
+    id: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    lessons: List[CopimCourseLessonInput] = Field(default_factory=list)
+
+
+class CopimCourseCreate(BaseModel):
+    association_id: Optional[str] = None
+    scope: str = "national"  # national, association
+    title: str
+    subtitle: Optional[str] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    category: str = "Capacitacion"
+    modality: str = "Video on demand"  # video, live, hybrid
+    audience: str = "socios"  # socios, staff, public
+    visibility: str = "members"  # members, association, public
+    status: str = "draft"  # draft, published, archived
+    cover_image_url: Optional[str] = None
+    hero_image_url: Optional[str] = None
+    pricing_type: str = "free"  # free, premium
+    price_amount: float = 0.0
+    currency: str = "MXN"
+    marketplace_enabled: bool = False
+    certificate_enabled: bool = False
+    certificate_title: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    learning_objectives: List[str] = Field(default_factory=list)
+    language: str = "es-MX"
+    estimated_minutes: int = 0
+    onboarding_notes: Optional[str] = None
+    instructors: List[CopimCourseInstructorInput] = Field(default_factory=list)
+    modules: List[CopimCourseModuleInput] = Field(default_factory=list)
+    materials: List[CopimCourseMaterialInput] = Field(default_factory=list)
+
+
+class CopimCourseUpdate(BaseModel):
+    association_id: Optional[str] = None
+    scope: Optional[str] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    modality: Optional[str] = None
+    audience: Optional[str] = None
+    visibility: Optional[str] = None
+    status: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    hero_image_url: Optional[str] = None
+    pricing_type: Optional[str] = None
+    price_amount: Optional[float] = None
+    currency: Optional[str] = None
+    marketplace_enabled: Optional[bool] = None
+    certificate_enabled: Optional[bool] = None
+    certificate_title: Optional[str] = None
+    tags: Optional[List[str]] = None
+    learning_objectives: Optional[List[str]] = None
+    language: Optional[str] = None
+    estimated_minutes: Optional[int] = None
+    onboarding_notes: Optional[str] = None
+    instructors: Optional[List[CopimCourseInstructorInput]] = None
+    modules: Optional[List[CopimCourseModuleInput]] = None
+    materials: Optional[List[CopimCourseMaterialInput]] = None
+
+
+class CopimCourseAIDraftRequest(BaseModel):
+    title: str
+    category: Optional[str] = None
+    audience: Optional[str] = None
+    prompt: Optional[str] = None
+    material_titles: List[str] = Field(default_factory=list)
+    material_text: Optional[str] = None
+
+
+class CopimCourseProgressUpdate(BaseModel):
+    lesson_id: str
+    mark_completed: bool = True
+
 # Calendar Event Models
 class CalendarEventCreate(BaseModel):
     title: str
@@ -494,6 +900,7 @@ class IntegrationSettings(BaseModel):
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
     twilio_phone_number: Optional[str] = None
+    twilio_whatsapp_number: Optional[str] = None
     # SendGrid Settings
     sendgrid_api_key: Optional[str] = None
     sendgrid_sender_email: Optional[str] = None
@@ -508,6 +915,7 @@ class IntegrationSettings(BaseModel):
     # Status
     vapi_enabled: bool = False
     twilio_enabled: bool = False
+    twilio_whatsapp_enabled: bool = False
     sendgrid_enabled: bool = False
     google_calendar_enabled: bool = False
     apify_enabled: bool = False
@@ -521,6 +929,7 @@ class IntegrationSettingsUpdate(BaseModel):
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
     twilio_phone_number: Optional[str] = None
+    twilio_whatsapp_number: Optional[str] = None
     sendgrid_api_key: Optional[str] = None
     sendgrid_sender_email: Optional[str] = None
     sendgrid_sender_name: Optional[str] = None
@@ -534,6 +943,7 @@ class CampaignType(str, Enum):
     CALL = "call"
     SMS = "sms"
     EMAIL = "email"
+    WHATSAPP = "whatsapp"
 
 class CampaignStatus(str, Enum):
     DRAFT = "draft"
@@ -550,6 +960,12 @@ class CampaignCreate(BaseModel):
     message_template: Optional[str] = None  # For SMS
     email_subject: Optional[str] = None  # For Email campaigns
     email_template_id: Optional[str] = None  # Use existing email template
+    saved_segment_id: Optional[str] = None
+    ab_test_enabled: bool = False
+    ab_test_name: Optional[str] = None
+    ab_test_split_percentage: int = 50
+    variant_b_message_template: Optional[str] = None
+    variant_b_email_subject: Optional[str] = None
     lead_ids: List[str] = []
     lead_filter: Optional[Dict[str, Any]] = None  # Filter criteria
     scheduled_at: Optional[datetime] = None
@@ -564,6 +980,8 @@ class Campaign(CampaignCreate):
     sent_count: int = 0
     delivered_count: int = 0
     failed_count: int = 0
+    variant_a_sent_count: int = 0
+    variant_b_sent_count: int = 0
     created_at: datetime = Field(default_factory=now_utc)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -634,11 +1052,47 @@ class SMSRecord(BaseModel):
     phone_number: str
     message: str
     campaign_id: Optional[str] = None
+    ab_variant: Optional[str] = None
     twilio_sid: Optional[str] = None
     status: SMSStatus = SMSStatus.QUEUED
     error_message: Optional[str] = None
     sent_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+
+# ==================== WHATSAPP RECORDS ====================
+
+class WhatsAppStatus(str, Enum):
+    QUEUED = "queued"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    UNDELIVERED = "undelivered"
+    READ = "read"
+
+class WhatsAppRecordCreate(BaseModel):
+    lead_id: str
+    phone_number: str
+    message: str
+    campaign_id: Optional[str] = None
+
+class WhatsAppRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    lead_id: str
+    lead_name: Optional[str] = None
+    phone_number: str
+    message: str
+    campaign_id: Optional[str] = None
+    ab_variant: Optional[str] = None
+    twilio_sid: Optional[str] = None
+    status: WhatsAppStatus = WhatsAppStatus.QUEUED
+    error_message: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    read_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
 
 # ==================== CONVERSATION ANALYSIS (DEMO) ====================
@@ -715,6 +1169,7 @@ class EmailRecord(BaseModel):
     subject: str
     html_content: str
     campaign_id: Optional[str] = None
+    ab_variant: Optional[str] = None
     sendgrid_id: Optional[str] = None
     status: EmailStatus = EmailStatus.QUEUED
     error_message: Optional[str] = None
@@ -723,6 +1178,44 @@ class EmailRecord(BaseModel):
     opened_at: Optional[datetime] = None
     clicked_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
+
+
+class CampaignSegmentCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    campaign_type: Optional[CampaignType] = None
+    lead_filter: Dict[str, Any] = {}
+    color: Optional[str] = None
+
+
+class CampaignSegmentUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    campaign_type: Optional[CampaignType] = None
+    lead_filter: Optional[Dict[str, Any]] = None
+    color: Optional[str] = None
+    last_estimated_count: Optional[int] = None
+
+
+class CampaignSegment(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    tenant_id: str
+    name: str
+    description: Optional[str] = None
+    campaign_type: Optional[CampaignType] = None
+    lead_filter: Dict[str, Any] = {}
+    color: Optional[str] = None
+    last_estimated_count: int = 0
+    last_used_at: Optional[datetime] = None
+    campaign_count: int = 0
+    total_sent_count: int = 0
+    total_delivered_count: int = 0
+    total_failed_count: int = 0
+    total_opened_count: int = 0
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 
 # ==================== IMPORT JOBS ====================

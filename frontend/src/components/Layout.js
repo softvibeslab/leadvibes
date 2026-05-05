@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { AIChat } from './AIChat';
-import { Menu, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Menu } from 'lucide-react';
 import { Button } from './ui/button';
 
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { isCopimMode } = useAuth();
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -65,7 +67,7 @@ export const Layout = () => {
       </main>
       
       {/* AI Chat Widget */}
-      <AIChat />
+      {!isCopimMode ? <AIChat /> : null}
     </div>
   );
 };

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Leaf, Eye, EyeOff, Sun, Moon, Loader2, User, Building2 } from 'lucide-react';
+import { Leaf, Eye, EyeOff, Sun, Moon, Loader2, User, Building2, Globe2 } from 'lucide-react';
+import { resolveAuthenticatedHome } from '../lib/copimAccess';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -12,7 +13,7 @@ import { toast } from 'sonner';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, register, setAppMode } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +27,24 @@ export const LoginPage = () => {
   });
   const nextPath = new URLSearchParams(window.location.search).get('next');
   const safeNextPath = nextPath && nextPath.startsWith('/') ? nextPath : null;
+  const isCopimJourney = safeNextPath?.startsWith('/copim') || registerForm.account_type === 'copim';
+  const heroIcon = isCopimJourney ? Globe2 : Leaf;
+  const heroTitle = isCopimJourney ? 'Rovi COPIM' : 'Rovi';
+  const heroSubtitle = isCopimJourney ? 'Operacion institucional' : 'CRM Inmobiliario';
+  const heroImage = isCopimJourney
+    ? "url('https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1400&q=80')"
+    : "url('https://images.unsplash.com/photo-1692726293166-7d1f95a4319d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHx0dWx1bSUyMGx1eHVyeSUyMGp1bmdsZSUyMHJlYWwlMjBlc3RhdGUlMjB2aWxsYXxlbnwwfHx8fDE3NzA5NDM1NTN8MA&ixlib=rb-4.1.0&q=85')";
+  const heroGradient = isCopimJourney
+    ? 'from-[#0f172a]/95 via-[#123b68]/88 to-[#0e7490]/82'
+    : 'from-[#0D9488]/90 to-[#4D7C0F]/80';
+  const heroQuote = isCopimJourney
+    ? '“Centraliza asociaciones, socios, membresias, pagos y eventos en una sola operacion simple y adoptable.”'
+    : '“El CRM que transforma tu gestión de ventas inmobiliarias en una experiencia de lujo.”';
+  const heroStatsLabel = isCopimJourney ? '+4 asociaciones listas para piloto' : '+500 brokers activos en Tulum';
+  const pageTitle = isCopimJourney ? 'Acceso institucional' : 'Bienvenido';
+  const pageDescription = isCopimJourney
+    ? 'Ingresa o crea tu cuenta para operar asociaciones, socios, membresías y eventos.'
+    : 'Inicia sesión o crea tu cuenta para continuar';
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -33,12 +52,16 @@ export const LoginPage = () => {
     try {
       const user = await login(loginForm.email, loginForm.password);
       toast.success(`¡Bienvenido, ${user.name}!`);
+      const authenticatedHome = resolveAuthenticatedHome(user, 'copim');
+      const defaultMode = authenticatedHome.startsWith('/copim') ? 'copim' : 'rovi';
       if (!user.onboarding_completed) {
         navigate('/onboarding');
       } else if (safeNextPath) {
+        setAppMode(safeNextPath.startsWith('/copim') ? 'copim' : defaultMode);
         navigate(safeNextPath);
       } else {
-        navigate('/dashboard');
+        setAppMode(defaultMode);
+        navigate(authenticatedHome);
       }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al iniciar sesión');
@@ -51,11 +74,12 @@ export const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      const registrationRole = registerForm.account_type === 'copim' ? 'copim_admin' : 'broker';
       await register(
         registerForm.name, 
         registerForm.email, 
         registerForm.password, 
-        'broker',
+        registrationRole,
         registerForm.account_type
       );
       toast.success('¡Cuenta creada! Configura tus metas');
@@ -77,32 +101,32 @@ export const LoginPage = () => {
       <div 
         className="hidden lg:flex lg:w-1/2 relative bg-cover bg-center"
         style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1692726293166-7d1f95a4319d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHx0dWx1bSUyMGx1eHVyeSUyMGp1bmdsZSUyMHJlYWwlMjBlc3RhdGUlMjB2aWxsYXxlbnwwfHx8fDE3NzA5NDM1NTN8MA&ixlib=rb-4.1.0&q=85')`
+          backgroundImage: heroImage
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0D9488]/90 to-[#4D7C0F]/80" />
+        <div className={`absolute inset-0 bg-gradient-to-br ${heroGradient}`} />
         <div className="relative z-10 p-12 flex flex-col justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
-              <Leaf className="w-7 h-7 text-white" />
+              {React.createElement(heroIcon, { className: 'w-7 h-7 text-white' })}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white font-['Outfit']">Rovi</h1>
-              <p className="text-sm text-white/80">CRM Inmobiliario</p>
+              <h1 className="text-2xl font-bold text-white font-['Outfit']">{heroTitle}</h1>
+              <p className="text-sm text-white/80">{heroSubtitle}</p>
             </div>
           </div>
           
           <div className="space-y-6">
             <blockquote className="text-2xl font-light text-white leading-relaxed">
-              "El CRM que transforma tu gestión de ventas inmobiliarias en una experiencia de lujo."
+              {heroQuote}
             </blockquote>
             <div className="flex items-center gap-4">
               <div className="flex -space-x-3">
                 {[1,2,3].map(i => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white/30 bg-[#0D9488]" />
+                  <div key={i} className={`w-10 h-10 rounded-full border-2 border-white/30 ${isCopimJourney ? 'bg-cyan-500/80' : 'bg-[#0D9488]'}`} />
                 ))}
               </div>
-              <p className="text-white/80 text-sm">+500 brokers activos en Tulum</p>
+              <p className="text-white/80 text-sm">{heroStatsLabel}</p>
             </div>
           </div>
         </div>
@@ -121,19 +145,19 @@ export const LoginPage = () => {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-              <Leaf className="w-7 h-7 text-primary-foreground" />
+              {isCopimJourney ? <Globe2 className="w-7 h-7 text-primary-foreground" /> : <Leaf className="w-7 h-7 text-primary-foreground" />}
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-['Outfit']">Rovi</h1>
-              <p className="text-sm text-muted-foreground">CRM</p>
+              <h1 className="text-2xl font-bold font-['Outfit']">{heroTitle}</h1>
+              <p className="text-sm text-muted-foreground">{isCopimJourney ? 'Operacion institucional' : 'CRM'}</p>
             </div>
           </div>
 
           <Card className="border-0 shadow-xl">
             <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-2xl font-['Outfit']">Bienvenido</CardTitle>
+              <CardTitle className="text-2xl font-['Outfit']">{pageTitle}</CardTitle>
               <CardDescription>
-                Inicia sesión o crea tu cuenta para continuar
+                {pageDescription}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -220,6 +244,20 @@ export const LoginPage = () => {
                           <Building2 className={`w-6 h-6 mb-2 ${registerForm.account_type === 'agency' ? 'text-primary' : 'text-muted-foreground'}`} />
                           <p className="font-medium text-sm">Inmobiliaria</p>
                           <p className="text-xs text-muted-foreground">Gestiona tu equipo de ventas</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegisterForm({ ...registerForm, account_type: 'copim' })}
+                          className={`p-4 rounded-xl border-2 transition-all text-left col-span-2 ${
+                            registerForm.account_type === 'copim'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          data-testid="account-type-copim"
+                        >
+                          <Globe2 className={`w-6 h-6 mb-2 ${registerForm.account_type === 'copim' ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <p className="font-medium text-sm">COPIM Institucional</p>
+                          <p className="text-xs text-muted-foreground">Administra asociaciones, socios, eventos y membresias</p>
                         </button>
                       </div>
                     </div>

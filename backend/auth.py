@@ -12,7 +12,15 @@ load_dotenv()
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "selvavibes_secret_key")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
-JWT_EXPIRATION_MINUTES = int(os.environ.get("JWT_EXPIRATION_MINUTES", "15"))  # Access token: 15 min
+
+def _resolve_access_token_minutes() -> int:
+    """Resolve access token lifetime with 24h-friendly defaults."""
+    hours_value = os.environ.get("JWT_EXPIRATION_HOURS")
+    if hours_value not in (None, ""):
+        return max(1, int(float(hours_value) * 60))
+    return int(os.environ.get("JWT_EXPIRATION_MINUTES", "1440"))  # 24h default
+
+JWT_EXPIRATION_MINUTES = _resolve_access_token_minutes()  # Access token: 24h by default
 REFRESH_TOKEN_DAYS = int(os.environ.get("REFRESH_TOKEN_DAYS", "7"))  # Refresh token: 7 days
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -25,7 +33,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create short-lived access token (15 minutes by default)"""
+    """Create access token (24 hours by default unless overridden by env)."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta

@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import {
+  getAccountTypeLabel,
+  getEffectiveRole,
+  getRoleLabel,
+  getVisibleWorkspaces,
+  getWorkspaceTypeLabel,
+  isCopimLocalAssociationUser,
+  isCopimMemberUser,
+  resolveAuthenticatedHome,
+} from '../lib/copimAccess';
 import {
   LayoutDashboard,
   Users,
@@ -21,7 +31,14 @@ import {
   Zap,
   Database,
   Search,
-  Package
+  Package,
+  Building2,
+  WalletCards,
+  Bot,
+  MessageSquareShare,
+  CreditCard,
+  IdCard,
+  FolderKanban
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -63,10 +80,53 @@ const agencyNavItems = [
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
+const copimNationalNavItems = [
+  { to: '/copim/dashboard', icon: LayoutDashboard, label: 'Resumen' },
+  { to: '/copim/associations', icon: Building2, label: 'Asociaciones' },
+  { to: '/copim/members', icon: Users, label: 'Socios' },
+  { to: '/copim/memberships', icon: WalletCards, label: 'Membresias' },
+  { to: '/copim/invoices', icon: FileText, label: 'Facturacion' },
+  { to: '/copim/events', icon: CalendarDays, label: 'Eventos' },
+  { to: '/copim/courses', icon: Trophy, label: 'Cursos' },
+  { to: '/copim/community', icon: MessageSquareShare, label: 'Comunidad' },
+  { to: '/copim/intelligence', icon: Bot, label: 'Inteligencia' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const copimLocalAssociationNavItems = [
+  { to: '/copim/association/profile', icon: Building2, label: 'Mi asociacion' },
+  { to: '/copim/members', icon: Users, label: 'Socios' },
+  { to: '/copim/memberships', icon: WalletCards, label: 'Membresias' },
+  { to: '/copim/invoices', icon: FileText, label: 'Cobranza' },
+  { to: '/copim/events', icon: CalendarDays, label: 'Eventos' },
+  { to: '/copim/association/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/copim/association/properties', icon: Package, label: 'Inventario' },
+  { to: '/copim/association/courses', icon: Trophy, label: 'Cursos' },
+  { to: '/copim/association/community', icon: MessageSquareShare, label: 'Comunidad' },
+  { to: '/copim/association/modules', icon: Bot, label: 'Revenue share' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const copimMemberNavItems = [
+  { to: '/copim/member', icon: LayoutDashboard, label: 'Mi portal' },
+  { to: '/copim/member/profile', icon: UserCircle, label: 'Mi perfil' },
+  { to: '/copim/member/campaigns', icon: Radio, label: 'Mis campanas' },
+  { to: '/copim/member/properties', icon: Package, label: 'Mi inventario' },
+  { to: '/copim/member/courses', icon: Trophy, label: 'Mis cursos' },
+  { to: '/copim/member/membership', icon: WalletCards, label: 'Mi membresia' },
+  { to: '/copim/member/payments', icon: CreditCard, label: 'Pagos y facturas' },
+  { to: '/copim/member/credential', icon: IdCard, label: 'Mi credencial' },
+  { to: '/copim/member/events', icon: CalendarDays, label: 'Eventos' },
+  { to: '/copim/member/community', icon: MessageSquareShare, label: 'Comunidad' },
+  { to: '/copim/member/modules', icon: Bot, label: 'Mis modulos' },
+  { to: '/copim/member/directory', icon: FolderKanban, label: 'Directorio' },
+];
+
 export const Sidebar = ({ onClose }) => {
-  const { user, logout, isIndividual, switchWorkspace } = useAuth();
+  const { user, logout, isIndividual, switchWorkspace, appMode, setAppMode, hasCopimAccess } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
 
   const handleLogout = () => {
@@ -74,22 +134,45 @@ export const Sidebar = ({ onClose }) => {
     navigate('/login');
   };
 
-  const workspaces = (user?.available_workspaces || []).filter((workspace) => workspace?.status === 'active');
+  const workspaces = getVisibleWorkspaces(user).filter((workspace) => workspace?.status === 'active');
   const activeWorkspace = user?.active_workspace;
+  const isMemberPortal = isCopimMemberUser(user);
+  const isLocalAssociationWorkspace = isCopimLocalAssociationUser(user);
 
   const handleWorkspaceChange = async (tenantId) => {
     if (!tenantId || tenantId === activeWorkspace?.tenant_id) return;
     setSwitchingWorkspace(true);
     try {
       await switchWorkspace(tenantId);
-      navigate('/dashboard');
+      const targetWorkspace = workspaces.find((workspace) => workspace?.tenant_id === tenantId);
+      const targetRole = targetWorkspace?.role || getEffectiveRole(user);
+      const nextCopimPath = targetRole === 'copim_member'
+        ? '/copim/member'
+        : targetRole === 'copim_operator'
+          ? '/copim/association/profile'
+          : '/copim/dashboard';
+      navigate(location.pathname.startsWith('/copim') ? nextCopimPath : '/dashboard');
     } finally {
       setSwitchingWorkspace(false);
     }
   };
 
+  const handleAppModeChange = (mode) => {
+    const requestedMode = mode === 'copim' ? 'copim' : 'rovi';
+    setAppMode(requestedMode);
+    const nextMode = requestedMode === 'copim' && hasCopimAccess ? 'copim' : 'rovi';
+    navigate(nextMode === 'copim' ? resolveAuthenticatedHome(user, nextMode) : '/dashboard');
+  };
+
   // Choose nav items based on account type
-  const navItems = isIndividual ? individualNavItems : agencyNavItems;
+  const currentModeValue = location.pathname.startsWith('/copim') ? 'copim' : appMode;
+  const navItems = currentModeValue === 'copim'
+    ? (isMemberPortal ? copimMemberNavItems : (isLocalAssociationWorkspace ? copimLocalAssociationNavItems : copimNationalNavItems))
+    : isIndividual
+      ? individualNavItems
+      : agencyNavItems;
+  const accountLabel = getAccountTypeLabel(user?.account_type, currentModeValue);
+  const activeRoleLabel = getRoleLabel(getEffectiveRole(user));
 
   return (
     <div className="flex flex-col h-full w-64 bg-card border-r border-border">
@@ -102,7 +185,7 @@ export const Sidebar = ({ onClose }) => {
           <div>
             <h1 className="font-bold text-lg font-['Outfit'] text-foreground">Rovi</h1>
             <p className="text-xs text-muted-foreground">
-              {isIndividual ? 'Broker' : 'Inmobiliaria'}
+              {accountLabel}
             </p>
           </div>
         </div>
@@ -121,6 +204,46 @@ export const Sidebar = ({ onClose }) => {
       </div>
       
       <Separator />
+
+      {hasCopimAccess && !isMemberPortal && (
+        <div className="px-4 pt-4">
+        <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Perfil Activo
+          </p>
+          <Select value={currentModeValue} onValueChange={handleAppModeChange}>
+            <SelectTrigger className="h-auto min-h-11 rounded-xl border-border/70 bg-background/80 px-3 py-2 text-left">
+              <SelectValue placeholder="Selecciona un perfil" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rovi">ROVI CRM</SelectItem>
+              <SelectItem value="copim">COPIM Institucional</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {currentModeValue === 'copim'
+              ? (isLocalAssociationWorkspace
+                ? 'Workspace operativo del capitulo para padrón, cobranza, agenda y activación.'
+                : 'Vista institucional nacional para asociaciones, socios y membresias.')
+              : 'Vista comercial para brokers e inmobiliarias.'}
+          </p>
+        </div>
+        </div>
+      )}
+
+      {isMemberPortal && (
+        <div className="px-4 pt-4">
+          <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Portal Activo
+            </p>
+            <p className="text-sm font-medium text-foreground">Asociado COPIM</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Vista ligera de autoservicio para membresía, pagos, eventos y credencial.
+            </p>
+          </div>
+        </div>
+      )}
       
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
@@ -147,7 +270,7 @@ export const Sidebar = ({ onClose }) => {
       
       {/* Footer */}
       <div className="p-4 border-t border-border">
-        {workspaces.length > 1 && (
+        {workspaces.length > 1 && !isMemberPortal && (
           <div className="mb-3 rounded-xl border border-border/70 bg-muted/30 p-3">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
               Workspace Activo
@@ -169,7 +292,7 @@ export const Sidebar = ({ onClose }) => {
               </SelectContent>
             </Select>
             <p className="mt-2 text-xs text-muted-foreground">
-              {activeWorkspace?.tenant_type === 'agency' ? 'Inmobiliaria' : 'Personal'} · Rol {activeWorkspace?.role || 'broker'}
+              {getWorkspaceTypeLabel(activeWorkspace?.tenant_type)} · Rol {getRoleLabel(activeWorkspace?.role || 'broker')}
             </p>
           </div>
         )}
@@ -181,7 +304,7 @@ export const Sidebar = ({ onClose }) => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate text-foreground">{user?.name || 'Usuario'}</p>
-            <p className="text-xs text-muted-foreground truncate capitalize">{user?.role || 'broker'}</p>
+            <p className="text-xs text-muted-foreground truncate">{activeRoleLabel}</p>
           </div>
         </div>
         

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Leaf, Target, TrendingUp, Users, DollarSign, CheckCircle, Loader2, Sparkles } from 'lucide-react';
+import { resolveAuthenticatedHome } from '../lib/copimAccess';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -13,7 +14,8 @@ import { toast } from 'sonner';
 
 export const OnboardingPage = () => {
   const navigate = useNavigate();
-  const { api, updateUser, user } = useAuth();
+  const { api, updateUser, user, setAppMode } = useAuth();
+  const isCopim = user?.account_type === 'copim';
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [goals, setGoals] = useState({
@@ -31,8 +33,16 @@ export const OnboardingPage = () => {
     focus_zones: '',
     goals: ''
   });
+  const [institutionalProfile, setInstitutionalProfile] = useState({
+    institution_name: user?.name || 'COPIM',
+    coverage_scope: 'nacional',
+    target_associations: 4,
+    active_members_goal: 250,
+    primary_focus: 'membresias, eventos y directorio',
+    success_metric: 'renovacion y activacion institucional'
+  });
 
-  const totalSteps = 4;
+  const totalSteps = isCopim ? 3 : 4;
   const progress = (step / totalSteps) * 100;
 
   const handleNext = () => {
@@ -50,26 +60,37 @@ export const OnboardingPage = () => {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // Save goals
-      await api.post('/goals', goals);
-
-      // Save AI profile
-      if (aiProfile.experience || aiProfile.style) {
-        await api.post('/user/ai-profile', {
-          experience: aiProfile.experience || 'Broker inmobiliario',
-          style: aiProfile.style || 'Profesional y amigable',
-          property_types: aiProfile.property_types ? aiProfile.property_types.split(',').map(s => s.trim()) : ['Lotes', 'Casas'],
-          focus_zones: aiProfile.focus_zones ? aiProfile.focus_zones.split(',').map(s => s.trim()) : ['Tulum'],
-          goals: aiProfile.goals || `${goals.ventas_mes} ventas mensuales de $${(goals.ingresos_objetivo / 1000000).toFixed(1)}M MXN`
+      if (isCopim) {
+        await api.post('/auth/complete-onboarding', {
+          context: 'copim_institucional',
+          metadata: institutionalProfile
         });
+      } else {
+        // Save goals
+        await api.post('/goals', goals);
+
+        // Save AI profile
+        if (aiProfile.experience || aiProfile.style) {
+          await api.post('/user/ai-profile', {
+            experience: aiProfile.experience || 'Broker inmobiliario',
+            style: aiProfile.style || 'Profesional y amigable',
+            property_types: aiProfile.property_types ? aiProfile.property_types.split(',').map(s => s.trim()) : ['Lotes', 'Casas'],
+            focus_zones: aiProfile.focus_zones ? aiProfile.focus_zones.split(',').map(s => s.trim()) : ['Tulum'],
+            goals: aiProfile.goals || `${goals.ventas_mes} ventas mensuales de $${(goals.ingresos_objetivo / 1000000).toFixed(1)}M MXN`
+          });
+        }
+
+        // Seed demo data
+        await api.post('/seed');
       }
 
-      // Seed demo data
-      await api.post('/seed');
-
-      toast.success('¡Configuración completada! Tu asistente IA está personalizado.');
-      updateUser({ ...user, onboarding_completed: true });
-      navigate('/dashboard');
+      toast.success(isCopim
+        ? 'COPIM institucional activado dentro de ROVI.'
+        : '¡Configuración completada! Tu asistente IA está personalizado.');
+      const nextUser = { ...user, onboarding_completed: true };
+      updateUser(nextUser);
+      setAppMode(nextUser.account_type === 'copim' ? 'copim' : 'rovi');
+      navigate(resolveAuthenticatedHome(nextUser, nextUser.account_type === 'copim' ? 'copim' : 'rovi'));
     } catch (error) {
       toast.error('Error al guardar configuración');
       console.error(error);
@@ -89,7 +110,11 @@ export const OnboardingPage = () => {
             </div>
             <h1 className="text-3xl font-bold font-['Outfit']">Rovi CRM</h1>
           </div>
-          <p className="text-muted-foreground">Configuremos tus metas para maximizar tu éxito</p>
+          <p className="text-muted-foreground">
+            {isCopim
+              ? 'Configuremos tu workspace institucional para operar COPIM dentro de ROVI.'
+              : 'Configuremos tus metas para maximizar tu éxito'}
+          </p>
         </div>
 
         {/* Progress */}
@@ -103,7 +128,64 @@ export const OnboardingPage = () => {
 
         {/* Steps */}
         <Card className="shadow-xl">
-          {step === 1 && (
+          {step === 1 && isCopim && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Configuración Institucional</CardTitle>
+                    <CardDescription>Define el alcance inicial del módulo COPIM</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Nombre institucional</Label>
+                  <Input
+                    value={institutionalProfile.institution_name}
+                    onChange={(e) => setInstitutionalProfile({ ...institutionalProfile, institution_name: e.target.value })}
+                    data-testid="copim-institution-name"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Alcance operativo</Label>
+                    <Select
+                      value={institutionalProfile.coverage_scope}
+                      onValueChange={(value) => setInstitutionalProfile({ ...institutionalProfile, coverage_scope: value })}
+                    >
+                      <SelectTrigger data-testid="copim-coverage-scope">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nacional">Nacional</SelectItem>
+                        <SelectItem value="regional">Regional</SelectItem>
+                        <SelectItem value="asociacion">Asociación</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Asociaciones objetivo</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={institutionalProfile.target_associations}
+                      onChange={(e) => setInstitutionalProfile({
+                        ...institutionalProfile,
+                        target_associations: parseInt(e.target.value, 10) || 1
+                      })}
+                      data-testid="copim-target-associations"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {step === 1 && !isCopim && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -160,7 +242,59 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 2 && (
+          {step === 2 && isCopim && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <CardTitle>Prioridades del Piloto</CardTitle>
+                    <CardDescription>Enfoca la operación que Mario necesita ver primero</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Meta de socios activos</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={institutionalProfile.active_members_goal}
+                      onChange={(e) => setInstitutionalProfile({
+                        ...institutionalProfile,
+                        active_members_goal: parseInt(e.target.value, 10) || 1
+                      })}
+                      data-testid="copim-active-members-goal"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Métrica de éxito principal</Label>
+                    <Input
+                      value={institutionalProfile.success_metric}
+                      onChange={(e) => setInstitutionalProfile({ ...institutionalProfile, success_metric: e.target.value })}
+                      data-testid="copim-success-metric"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Foco inicial del módulo</Label>
+                  <Input
+                    value={institutionalProfile.primary_focus}
+                    onChange={(e) => setInstitutionalProfile({ ...institutionalProfile, primary_focus: e.target.value })}
+                    data-testid="copim-primary-focus"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ejemplo: membresías, eventos, directorio, renovaciones y comunidad.
+                  </p>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {step === 2 && !isCopim && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -204,7 +338,54 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 3 && (
+          {step === 3 && isCopim && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-secondary" />
+                  </div>
+                  <div>
+                    <CardTitle>Resumen del Workspace COPIM</CardTitle>
+                    <CardDescription>Confirma la base institucional que quedará activa</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-primary" />
+                    Resumen de activación
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Institución</p>
+                      <p className="font-medium">{institutionalProfile.institution_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Cobertura</p>
+                      <p className="font-medium">{institutionalProfile.coverage_scope}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Asociaciones objetivo</p>
+                      <p className="font-medium">{institutionalProfile.target_associations}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Socios activos meta</p>
+                      <p className="font-medium">{institutionalProfile.active_members_goal}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                  <p className="text-sm text-primary">
+                    Este perfil entrará directo al módulo COPIM con foco en asociaciones, socios, membresías, eventos y comunidad.
+                  </p>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {step === 3 && !isCopim && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -261,7 +442,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 4 && (
+          {step === 4 && !isCopim && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -347,7 +528,7 @@ export const OnboardingPage = () => {
                 data-testid="onboarding-finish"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Comenzar
+                {isCopim ? 'Activar modulo COPIM' : 'Comenzar'}
               </Button>
             )}
           </div>
