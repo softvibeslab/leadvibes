@@ -3,6 +3,8 @@ Dashboard Enhancements - ROVI CRM
 Métricas avanzadas, tendencias y analytics del dashboard
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Any
 import logging

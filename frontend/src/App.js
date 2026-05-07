@@ -19,6 +19,7 @@ import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
 import { DatabaseChatPage } from './pages/DatabaseChatPage';
 import { ProductsPage } from './pages/ProductsPage';
+import { MarketplacePage } from './pages/MarketplacePage';
 import { EncuentraLeadsPage } from './pages/EncuentraLeadsPage';
 import { ModuleTrackerPage } from './pages/ModuleTrackerPage';
 import { LandingPage } from './pages/LandingPage';
@@ -281,6 +282,7 @@ function AppRoutes() {
         <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/encuentra-leads" element={<EncuentraLeadsPage />} />
         <Route path="/products" element={<ProductsPage />} />
+        <Route path="/marketplace" element={<MarketplacePage />} />
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/database-chat" element={<DatabaseChatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
@@ -416,6 +418,16 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/copim/marketplace"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <MarketplacePage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
           path="/copim/community"
           element={
             <CopimModuleRoute>
@@ -541,6 +553,16 @@ function AppRoutes() {
             <CopimModuleRoute>
               <CopimMemberPortalRoute>
                 <CopimMemberModulesPage />
+              </CopimMemberPortalRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/member/marketplace"
+          element={
+            <CopimModuleRoute>
+              <CopimMemberPortalRoute>
+                <MarketplacePage />
               </CopimMemberPortalRoute>
             </CopimModuleRoute>
           }

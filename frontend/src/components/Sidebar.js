@@ -38,7 +38,8 @@ import {
   MessageSquareShare,
   CreditCard,
   IdCard,
-  FolderKanban
+  FolderKanban,
+  Store
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -51,6 +52,7 @@ const individualNavItems = [
   { to: '/import', icon: Upload, label: 'Importador' },
   { to: '/encuentra-leads', icon: Search, label: 'Encuentra Leads' },
   { to: '/products', icon: Package, label: 'Productos' },
+  { to: '/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
@@ -68,6 +70,7 @@ const agencyNavItems = [
   { to: '/import', icon: Upload, label: 'Importador' },
   { to: '/encuentra-leads', icon: Search, label: 'Encuentra Leads' },
   { to: '/products', icon: Package, label: 'Productos' },
+  { to: '/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
@@ -88,6 +91,7 @@ const copimNationalNavItems = [
   { to: '/copim/invoices', icon: FileText, label: 'Facturacion' },
   { to: '/copim/events', icon: CalendarDays, label: 'Eventos' },
   { to: '/copim/courses', icon: Trophy, label: 'Cursos' },
+  { to: '/copim/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/copim/community', icon: MessageSquareShare, label: 'Comunidad' },
   { to: '/copim/intelligence', icon: Bot, label: 'Inteligencia' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
@@ -102,6 +106,7 @@ const copimLocalAssociationNavItems = [
   { to: '/copim/association/campaigns', icon: Radio, label: 'Campanas' },
   { to: '/copim/association/properties', icon: Package, label: 'Inventario' },
   { to: '/copim/association/courses', icon: Trophy, label: 'Cursos' },
+  { to: '/copim/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/copim/association/community', icon: MessageSquareShare, label: 'Comunidad' },
   { to: '/copim/association/modules', icon: Bot, label: 'Revenue share' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
@@ -113,6 +118,7 @@ const copimMemberNavItems = [
   { to: '/copim/member/campaigns', icon: Radio, label: 'Mis campanas' },
   { to: '/copim/member/properties', icon: Package, label: 'Mi inventario' },
   { to: '/copim/member/courses', icon: Trophy, label: 'Mis cursos' },
+  { to: '/copim/member/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/copim/member/membership', icon: WalletCards, label: 'Mi membresia' },
   { to: '/copim/member/payments', icon: CreditCard, label: 'Pagos y facturas' },
   { to: '/copim/member/credential', icon: IdCard, label: 'Mi credencial' },

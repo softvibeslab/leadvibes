@@ -844,6 +844,207 @@ class CopimCourseAIDraftRequest(BaseModel):
     material_text: Optional[str] = None
 
 
+# ROVI Marketplace Models
+class MarketplaceTierCode(str, Enum):
+    BASIC = "basic"
+    PRO = "pro"
+    PREMIUM = "premium"
+    PARTNER = "partner"
+
+
+class MarketplaceListingType(str, Enum):
+    DIGITAL_ARTIFACT = "digital_artifact"
+    PROFESSIONAL_SERVICE = "professional_service"
+    AGENT_SKILL = "agent_skill"
+    INTEGRATION = "integration"
+
+
+class MarketplaceListingStatus(str, Enum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    PAUSED = "paused"
+    ARCHIVED = "archived"
+
+
+class MarketplaceTransactionStatus(str, Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    IN_ESCROW = "in_escrow"
+    DELIVERED = "delivered"
+    COMPLETED = "completed"
+    REFUNDED = "refunded"
+    CANCELLED = "cancelled"
+
+
+class MarketplaceTierCreate(BaseModel):
+    code: MarketplaceTierCode
+    name: str
+    description: Optional[str] = None
+    monthly_price_mxn: float = 0.0
+    can_buy: bool = True
+    can_sell: bool = False
+    max_active_digital_artifacts: int = 0
+    max_active_services: int = 0
+    max_active_agent_skills: int = 0
+    inherited_tiers: List[MarketplaceTierCode] = Field(default_factory=list)
+    platform_commission_rate: float = 0.15
+    association_commission_rate: float = 0.10
+    creator_commission_rate: float = 0.75
+    features: List[str] = Field(default_factory=list)
+    is_active: bool = True
+
+
+class MarketplaceTier(MarketplaceTierCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str = ""
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class DigitalArtifactPayload(BaseModel):
+    artifact_type: str = "template"  # template, course, contract, social_asset, script, guide
+    file_urls: List[str] = Field(default_factory=list)
+    preview_url: Optional[str] = None
+    license_terms: str = "single_tenant_use"
+    version: str = "1.0.0"
+    estimated_minutes: Optional[int] = None
+
+
+class ProfessionalServicePackage(BaseModel):
+    name: str = "Base"
+    price_mxn: float
+    delivery_days: int
+    revisions: int = 1
+    deliverables: List[str] = Field(default_factory=list)
+
+
+class ProfessionalServicePayload(BaseModel):
+    service_category: str = "marketing"  # landing_page, funnel, ads, design, legal, valuation
+    packages: List[ProfessionalServicePackage] = Field(default_factory=list)
+    requirements_prompt: Optional[str] = None
+    escrow_required: bool = True
+
+
+class AgentSkillPayload(BaseModel):
+    skill_slug: str
+    skill_version: str = "1.0.0"
+    skill_markdown: Optional[str] = None
+    skill_file_url: Optional[str] = None
+    install_mode: str = "tenant_agent"  # tenant_agent, broker_agent, copim_agent
+    compatible_agents: List[str] = Field(default_factory=lambda: ["commercial_diagnosis_agent"])
+    required_mcp_tools: List[str] = Field(default_factory=list)
+    token_budget_hint: int = 500
+
+
+class MarketplaceListingCreate(BaseModel):
+    listing_type: MarketplaceListingType
+    title: str
+    subtitle: Optional[str] = None
+    description: str
+    category: str
+    tags: List[str] = Field(default_factory=list)
+    price_mxn: float = 0.0
+    currency: str = "MXN"
+    cover_image_url: Optional[str] = None
+    gallery_urls: List[str] = Field(default_factory=list)
+    target_roles: List[str] = Field(default_factory=list)
+    minimum_tier: MarketplaceTierCode = MarketplaceTierCode.BASIC
+    association_id: Optional[str] = None
+    digital_artifact: Optional[DigitalArtifactPayload] = None
+    professional_service: Optional[ProfessionalServicePayload] = None
+    agent_skill: Optional[AgentSkillPayload] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MarketplaceListingUpdate(BaseModel):
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    price_mxn: Optional[float] = None
+    cover_image_url: Optional[str] = None
+    gallery_urls: Optional[List[str]] = None
+    target_roles: Optional[List[str]] = None
+    minimum_tier: Optional[MarketplaceTierCode] = None
+    status: Optional[MarketplaceListingStatus] = None
+    digital_artifact: Optional[DigitalArtifactPayload] = None
+    professional_service: Optional[ProfessionalServicePayload] = None
+    agent_skill: Optional[AgentSkillPayload] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class MarketplaceListing(MarketplaceListingCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str = ""
+    creator_user_id: str
+    status: MarketplaceListingStatus = MarketplaceListingStatus.DRAFT
+    sales_count: int = 0
+    rating_average: float = 0.0
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class MarketplacePurchaseRequest(BaseModel):
+    listing_id: str
+    package_name: Optional[str] = None
+    buyer_notes: Optional[str] = None
+    payment_provider: str = "manual"
+    payment_reference: Optional[str] = None
+
+
+class MarketplaceCommissionSplit(BaseModel):
+    recipient_type: str  # creator, association, platform
+    recipient_id: Optional[str] = None
+    amount_mxn: float
+    rate: float
+    status: str = "pending"
+
+
+class MarketplaceTransaction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    listing_id: str
+    listing_type: MarketplaceListingType
+    buyer_user_id: str
+    creator_user_id: str
+    association_id: Optional[str] = None
+    package_name: Optional[str] = None
+    gross_amount_mxn: float
+    currency: str = "MXN"
+    status: MarketplaceTransactionStatus = MarketplaceTransactionStatus.PENDING
+    payment_provider: str = "manual"
+    payment_reference: Optional[str] = None
+    commission_splits: List[MarketplaceCommissionSplit] = Field(default_factory=list)
+    buyer_notes: Optional[str] = None
+    delivery_due_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class AgentSkillInstallation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    user_id: str
+    listing_id: str
+    skill_slug: str
+    skill_version: str
+    status: str = "active"
+    installed_at: datetime = Field(default_factory=now_utc)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MCPJsonRpcRequest(BaseModel):
+    jsonrpc: str = "2.0"
+    id: Optional[Any] = None
+    method: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
 class CopimCourseProgressUpdate(BaseModel):
     lesson_id: str
     mark_completed: bool = True

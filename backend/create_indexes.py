@@ -212,6 +212,37 @@ async def create_indexes():
     await db.activities.create_index([("tenant_id", 1), ("created_at", -1)])
     print("  ✅ (tenant_id, created_at) - Sort optimization")
 
+    # MARKETPLACE COLLECTIONS
+    print("\n🛒 Índices para ROVI Marketplace:")
+
+    await db.marketplace_tiers.create_index([("tenant_id", 1), ("code", 1)], unique=True)
+    print("  ✅ marketplace_tiers (tenant_id, code) - Tier lookup")
+
+    await db.marketplace_subscriptions.create_index([("tenant_id", 1), ("user_id", 1), ("status", 1)])
+    print("  ✅ marketplace_subscriptions (tenant_id, user_id, status) - Active tier lookup")
+
+    await db.marketplace_listings.create_index([("tenant_id", 1), ("status", 1), ("listing_type", 1)])
+    print("  ✅ marketplace_listings (tenant_id, status, listing_type) - Catalog filters")
+
+    await db.marketplace_listings.create_index([("tenant_id", 1), ("creator_user_id", 1), ("listing_type", 1), ("status", 1)])
+    print("  ✅ marketplace_listings creator limits")
+
+    await db.marketplace_listings.create_index([
+        ("title", "text"),
+        ("description", "text"),
+        ("category", "text"),
+        ("tags", "text"),
+    ])
+    print("  ✅ marketplace_listings text search")
+
+    await db.marketplace_transactions.create_index([("tenant_id", 1), ("buyer_user_id", 1), ("created_at", -1)])
+    await db.marketplace_transactions.create_index([("tenant_id", 1), ("creator_user_id", 1), ("created_at", -1)])
+    await db.marketplace_transactions.create_index([("tenant_id", 1), ("listing_id", 1), ("status", 1)])
+    print("  ✅ marketplace_transactions buyer/seller/status indexes")
+
+    await db.agent_skill_installations.create_index([("tenant_id", 1), ("user_id", 1), ("listing_id", 1)], unique=True)
+    print("  ✅ agent_skill_installations unique user install")
+
     print("\n✅ Índices creados exitosamente!")
     print("\n📊 Resumen de índices:")
 
@@ -228,6 +259,11 @@ async def create_indexes():
         "email_templates",
         "calendar_events",
         "activities",
+        "marketplace_tiers",
+        "marketplace_subscriptions",
+        "marketplace_listings",
+        "marketplace_transactions",
+        "agent_skill_installations",
     ]
 
     for collection_name in collections:

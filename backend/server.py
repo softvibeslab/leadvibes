@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect, Form
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -94,6 +96,7 @@ from dashboard_enhancements import (
 )
 from duplicate_detection import find_potential_duplicates, get_duplicate_suggestions
 from import_optimization import execute_import_optimized, execute_import_with_advanced_duplicates
+from marketplace import create_marketplace_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -14992,6 +14995,7 @@ async def receive_external_lead_webhook(
 
 
 # Include the router in the main app
+api_router.include_router(create_marketplace_router(db, analyze_lead))
 app.include_router(api_router)
 
 app.add_middleware(
