@@ -59,7 +59,7 @@ export const LiveChatWidget = () => {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-primary to-teal-600 text-white p-4 rounded-full shadow-2xl hover:shadow-xl transition"
+          className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-primary to-secondary text-white p-4 rounded-full shadow-2xl hover:shadow-xl transition"
         >
           <MessageCircle className="w-6 h-6" />
           <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-2 py-0.5 animate-pulse">
@@ -78,7 +78,7 @@ export const LiveChatWidget = () => {
             className="fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-3rem)] bg-card rounded-3xl shadow-2xl border border-border overflow-hidden"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-primary to-teal-600 p-4 text-white">
+            <div className="bg-gradient-to-r from-primary to-secondary p-4 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-3">
@@ -121,13 +121,13 @@ export const LiveChatWidget = () => {
                       className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {msg.from === 'bot' && (
-                        <div className="w-8 h-8 bg-gradient-to-r from-primary to-teal-600 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">
+                        <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">
                           <MessageCircle className="w-4 h-4" />
                         </div>
                       )}
                       <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                         msg.from === 'user'
-                          ? 'bg-gradient-to-r from-primary to-teal-600 text-white'
+                          ? 'bg-gradient-to-r from-primary to-secondary text-white'
                           : 'bg-white text-foreground border border-border'
                       }`}>
                         <p className="text-sm">{msg.text}</p>
@@ -178,7 +178,7 @@ export const LiveChatWidget = () => {
                     <button
                       type="submit"
                       disabled={!inputValue.trim()}
-                      className="bg-gradient-to-r from-primary to-teal-600 text-white p-2 rounded-full hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-gradient-to-r from-primary to-secondary text-white p-2 rounded-full hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-4 h-4" />
                     </button>

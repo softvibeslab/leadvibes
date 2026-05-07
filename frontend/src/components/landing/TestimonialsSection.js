@@ -8,22 +8,22 @@ export const TestimonialsSection = () => {
       icon: Building2,
       title: "Expertos en Real Estate",
       description: "Conocemos profundamente el mercado inmobiliario de alto valor en México. Desarrollamos Rovi entendiendo los desafíos reales de brokers y agencias.",
-      color: "from-blue-500/20 to-cyan-500/20",
-      borderColor: "border-blue-500/30"
+      color: "from-primary/10 to-accent/20",
+      borderColor: "border-primary/20"
     },
     {
       icon: Target,
       title: "Problemas Reales, Soluciones Reales",
       description: "Cada funcionalidad está diseñada para resolver dolores específicos: seguimiento de leads, gestión del pipeline, automatización de comunicaciones y más.",
-      color: "from-emerald-500/20 to-teal-500/20",
-      borderColor: "border-emerald-500/30"
+      color: "from-secondary/20 to-accent/20",
+      borderColor: "border-secondary/30"
     },
     {
       icon: TrendingUp,
       title: "Tecnología que Escala Contigo",
       description: "Desde brokers independientes hasta grandes inmobiliarias con múltiples equipos. Rovi se adapta a tu crecimiento sin complicaciones.",
-      color: "from-purple-500/20 to-pink-500/20",
-      borderColor: "border-purple-500/30"
+      color: "from-accent/20 to-secondary/20",
+      borderColor: "border-accent/30"
     }
   ];
 
@@ -135,7 +135,7 @@ export const TestimonialsSection = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="bg-gradient-to-r from-primary/10 via-teal-600/10 to-emerald-600/10 rounded-2xl p-8 border border-primary/20"
+          className="bg-gradient-to-r from-primary/10 via-secondary/10 to-secondary-dark/10 rounded-2xl p-8 border border-primary/20"
         >
           <div className="grid md:grid-cols-4 gap-8 text-center">
             <div>
@@ -169,7 +169,7 @@ export const TestimonialsSection = () => {
           </p>
           <a
             href="#demo-request"
-            className="inline-flex items-center bg-gradient-to-r from-primary to-teal-600 text-white px-8 py-4 rounded-full font-semibold text-lg hover:shadow-xl transition transform hover:scale-105"
+            className="inline-flex items-center bg-gradient-to-r from-primary to-secondary text-white px-8 py-4 rounded-full font-semibold text-lg hover:shadow-xl transition transform hover:scale-105"
           >
             Solicita tu Demo Gratis
           </a>

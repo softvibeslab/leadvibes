@@ -12,7 +12,7 @@ export const FeaturesSection = () => {
       title: 'Gestión de Leads',
       description: 'Captura, califica y convierte más leads con herramientas inteligentes',
       icon: Target,
-      color: 'from-teal-500 to-teal-600',
+      color: 'from-secondary to-accent',
       features: [
         { icon: MessageSquare, title: 'Omnicanalidad', desc: 'WhatsApp, Email, SMS y Llamadas en un solo lugar' },
         { icon: Bot, title: 'IA Calificadora', desc: 'Analiza intención de compra automáticamente' },
@@ -24,7 +24,7 @@ export const FeaturesSection = () => {
       title: 'Automatización de Ventas',
       description: 'Deja que la IA trabaje por ti mientras cierras más ventas',
       icon: Bot,
-      color: 'from-amber-500 to-amber-600',
+      color: 'from-accent to-secondary',
       features: [
         { icon: Phone, title: 'Llamadas IA', desc: 'VAPI integra llamadas automáticas con IA' },
         { icon: Mail, title: 'Email Marketing', desc: 'Campañas personalizadas con SendGrid' },
@@ -36,7 +36,7 @@ export const FeaturesSection = () => {
       title: 'Gamificación & Equipos',
       description: 'Motiva a tu equipo y mejora el rendimiento con competencia sana',
       icon: Trophy,
-      color: 'from-emerald-500 to-emerald-600',
+      color: 'from-secondary to-secondary-dark',
       features: [
         { icon: Trophy, title: 'Leaderboards', desc: 'Rankings mensuales por broker y equipo' },
         { icon: Target, title: 'Metas Claras', desc: 'Define y trackea objetivos de venta' },
@@ -48,7 +48,7 @@ export const FeaturesSection = () => {
       title: 'Analítica & Insights',
       description: 'Toma decisiones basadas en datos con dashboards en tiempo real',
       icon: BarChart3,
-      color: 'from-purple-500 to-purple-600',
+      color: 'from-accent to-secondary',
       features: [
         { icon: BarChart3, title: 'KPIs en Vivo', desc: 'Ventas, conversión y tickets promedio' },
         { icon: Target, title: 'Predicción de Ventas', desc: 'IA que estima probabilidad de cierre' },

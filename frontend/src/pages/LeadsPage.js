@@ -18,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Search, Plus, Phone, MessageCircle, Mail, Video, MapPin,
   Sparkles, Loader2, DollarSign, TrendingUp, GripVertical,
-  LayoutGrid, Table2, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, Settings2, Edit, Trash2
+  LayoutGrid, Table2, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, Settings2, Edit, Trash2, Tag
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -101,6 +101,15 @@ const prettifyLeadCustomFieldValue = (value) => {
   if (typeof value === 'boolean') return value ? 'Sí' : 'No';
   return value || 'Sin valor';
 };
+
+const normalizeLeadTagsInput = (value) => Array.from(
+  new Set(
+    String(value || '')
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+  )
+);
 
 const matchesLeadCustomFieldFilter = (field, leadValue, filterValue) => {
   if (filterValue === undefined || filterValue === null || filterValue === '') {
@@ -225,6 +234,15 @@ const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort
                       <div>
                         <p className="font-medium text-sm">{lead.name}</p>
                         <p className="text-xs text-muted-foreground">{lead.email}</p>
+                        {Array.isArray(lead.tags) && lead.tags.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {lead.tags.slice(0, 2).map((tag) => (
+                              <Badge key={tag} variant="secondary" className="text-[10px]">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </TableCell>
@@ -357,6 +375,15 @@ const SortableLeadCard = ({ lead, onClick }) => {
             <MapPin className="w-3 h-3" />
             <span className="truncate">{lead.property_interest || 'Sin especificar'}</span>
           </div>
+          {Array.isArray(lead.tags) && lead.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {lead.tags.slice(0, 3).map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-[10px]">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between" onClick={() => onClick(lead)}>
@@ -442,6 +469,7 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api, customFields = 
   const [activeTab, setActiveTab] = useState('info');
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingScript, setGeneratingScript] = useState(false);
+  const [savingTags, setSavingTags] = useState(false);
   const [script, setScript] = useState('');
   const [activities, setActivities] = useState([]);
   const [products, setProducts] = useState([]);
@@ -457,12 +485,14 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api, customFields = 
     priority: 'media',
     notes: '',
   });
+  const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
     if (lead && isOpen) {
       loadActivities();
       loadProducts();
       loadInterests();
+      setTagInput(Array.isArray(lead.tags) ? lead.tags.join(', ') : '');
     }
   }, [lead, isOpen]);
 
@@ -615,6 +645,29 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api, customFields = 
     }
   };
 
+  const handleSaveTags = async () => {
+    setSavingTags(true);
+    try {
+      await api.put(`/leads/${lead.id}`, { tags: normalizeLeadTagsInput(tagInput) });
+      await refreshLeadDetails();
+      toast.success('Tags actualizados');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudieron actualizar los tags');
+    } finally {
+      setSavingTags(false);
+    }
+  };
+
+  const handleTogglePreference = async (field, value) => {
+    try {
+      await api.put(`/leads/${lead.id}`, { [field]: value });
+      await refreshLeadDetails();
+      toast.success('Preferencia de contacto actualizada');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo actualizar la preferencia');
+    }
+  };
+
   if (!lead) return null;
 
   const status = statusConfig[lead.status];
@@ -682,6 +735,52 @@ const LeadDetailModal = ({ lead, isOpen, onClose, onUpdate, api, customFields = 
                   <Label>Interés en propiedad</Label>
                   <div className="p-3 bg-muted/50 rounded-lg">
                     <span>{lead.property_interest || 'Sin especificar'}</span>
+                  </div>
+                </div>
+                <div className="space-y-3 col-span-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Tags del lead</Label>
+                    <Button size="sm" variant="outline" className="rounded-full" onClick={handleSaveTags} disabled={savingTags}>
+                      {savingTags ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Tag className="w-4 h-4 mr-2" />}
+                      Guardar tags
+                    </Button>
+                  </div>
+                  <Input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    placeholder="Ej: inversionista, open house, seguimiento caliente"
+                  />
+                  {Array.isArray(lead.tags) && lead.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {lead.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary">{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Separa múltiples tags con comas. Los podrás usar después para segmentar campañas.
+                  </p>
+                </div>
+                <div className="space-y-3 col-span-2">
+                  <Label>Preferencias de contacto</Label>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {[
+                      { key: 'email_opt_out', label: 'Bloquear email' },
+                      { key: 'sms_opt_out', label: 'Bloquear SMS' },
+                      { key: 'whatsapp_opt_out', label: 'Bloquear WhatsApp' },
+                      { key: 'call_opt_out', label: 'Bloquear llamadas' },
+                    ].map((preference) => (
+                      <div key={preference.key} className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium">{preference.label}</p>
+                          <p className="text-xs text-muted-foreground">Excluir este canal del envío de campañas</p>
+                        </div>
+                        <Switch
+                          checked={Boolean(lead[preference.key])}
+                          onCheckedChange={(checked) => handleTogglePreference(preference.key, checked)}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div className="space-y-3 col-span-2">
@@ -1071,6 +1170,7 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
   const [loading, setLoading] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [leadDataToCheck, setLeadDataToCheck] = useState(null);
+  const [tagInput, setTagInput] = useState('');
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -1078,6 +1178,11 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
     source: 'web',
     budget_mxn: 0,
     property_interest: '',
+    tags: [],
+    email_opt_out: false,
+    sms_opt_out: false,
+    whatsapp_opt_out: false,
+    call_opt_out: false,
     notes: '',
     custom_fields_data: {},
   });
@@ -1136,9 +1241,15 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
       source: 'web',
       budget_mxn: 0,
       property_interest: '',
+      tags: [],
+      email_opt_out: false,
+      sms_opt_out: false,
+      whatsapp_opt_out: false,
+      call_opt_out: false,
       notes: '',
       custom_fields_data: {},
     });
+    setTagInput('');
   };
 
   return (
@@ -1224,6 +1335,42 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="Notas adicionales..."
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <Input
+                value={tagInput}
+                onChange={(e) => {
+                  setTagInput(e.target.value);
+                  setForm((prev) => ({ ...prev, tags: normalizeLeadTagsInput(e.target.value) }));
+                }}
+                placeholder="Ej: inversionista, open house, seguimiento"
+              />
+              <p className="text-xs text-muted-foreground">
+                Separa tags con comas para poder segmentar campañas después.
+              </p>
+            </div>
+            <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+              <div>
+                <h4 className="font-medium">Preferencias de contacto</h4>
+                <p className="text-sm text-muted-foreground">Marca solo los canales que este lead no desea recibir.</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {[
+                  { key: 'email_opt_out', label: 'No email' },
+                  { key: 'sms_opt_out', label: 'No SMS' },
+                  { key: 'whatsapp_opt_out', label: 'No WhatsApp' },
+                  { key: 'call_opt_out', label: 'No llamadas' },
+                ].map((preference) => (
+                  <div key={preference.key} className="flex items-center justify-between rounded-lg border border-border/70 bg-background/70 px-3 py-2">
+                    <span className="text-sm">{preference.label}</span>
+                    <Switch
+                      checked={Boolean(form[preference.key])}
+                      onCheckedChange={(checked) => setForm((prev) => ({ ...prev, [preference.key]: checked }))}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
             {customFields.length > 0 && (
               <div className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-4">
@@ -1386,7 +1533,7 @@ export const LeadsPage = () => {
 
   const loadLeads = async () => {
     try {
-      const res = await api.get('/leads');
+      const res = await api.get('/leads?page_size=1000');
       setLeads(Array.isArray(res.data) ? res.data : (res.data?.leads || []));
     } catch (error) {
       console.error('Error loading leads:', error);

@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard de Leads - Agencias Inmobiliarias México</title>
+  <style>
+    :root {
+      --bg: #06131f;
+      --bg-soft: #0d1d2d;
+      --panel: rgba(8, 20, 33, 0.86);
+      --card: rgba(14, 31, 49, 0.88);
+      --border: rgba(167, 188, 210, 0.14);
+      --text: #eef7ff;
+      --muted: #97abc0;
+      --accent: #00c6a7;
+      --accent-2: #ffb84d;
+      --danger: #ff7777;
+      --shadow: 0 24px 64px rgba(0, 0, 0, 0.26);
+      --radius-lg: 26px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --font: "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(0, 198, 167, 0.16), transparent 24rem),
+        radial-gradient(circle at top right, rgba(255, 184, 77, 0.14), transparent 22rem),
+        linear-gradient(180deg, #06131f 0%, #030b12 100%);
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    body { padding: 18px; }
+
+    a { color: #7ce8d5; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .shell {
+      width: min(1680px, 100%);
+      margin: 0 auto;
+    }
+
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      top: -60px;
+      width: 240px;
+      height: 240px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(0, 198, 167, 0.18), transparent 72%);
+      pointer-events: none;
+    }
+
+    .eyebrow, .chip, .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+      background: rgba(0, 198, 167, 0.08);
+      border-color: rgba(0, 198, 167, 0.18);
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(34px, 4vw, 54px);
+      line-height: 1.03;
+      letter-spacing: -0.05em;
+    }
+
+    .hero p, .subtle {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .metric {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 30px;
+      letter-spacing: -0.05em;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .panel { padding: 22px; }
+
+    .panel h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .filters {
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      outline: none;
+    }
+
+    input::placeholder { color: #85a0bb; }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .chip button {
+      all: unset;
+      cursor: pointer;
+    }
+
+    .kpi-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .mini {
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+
+    .mini strong {
+      display: block;
+      font-size: 21px;
+      margin-bottom: 4px;
+    }
+
+    .list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .lead-card {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: grid;
+      gap: 12px;
+    }
+
+    .lead-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .lead-head h3 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .lead-head p, .muted {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .info {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .info strong {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .tag {
+      background: rgba(0, 198, 167, 0.08);
+      border-color: rgba(0, 198, 167, 0.12);
+      color: #d6fff6;
+      font-size: 11px;
+      margin: 0 8px 8px 0;
+    }
+
+    .tag.warn {
+      background: rgba(255, 184, 77, 0.09);
+      border-color: rgba(255, 184, 77, 0.16);
+      color: #ffe3ae;
+    }
+
+    .empty {
+      padding: 28px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 119, 119, 0.08);
+      border: 1px solid rgba(255, 119, 119, 0.18);
+      color: #ffd1d1;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      background: rgba(255, 255, 255, 0.09);
+    }
+
+    @media (max-width: 1180px) {
+      .layout, .metrics, .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <span class="eyebrow">Lead Intelligence Dashboard</span>
+      <h1>Agencias inmobiliarias México: vista exploratoria del CSV completo</h1>
+      <p>
+        Tablero local para revisar todos los leads del archivo de agencias inmobiliarias. Incluye búsqueda,
+        filtros por empresa, ciudad, país y estado del correo profesional, además de fichas detalladas por contacto.
+      </p>
+      <div class="subtle" id="sourceMeta">Cargando dataset...</div>
+
+      <div class="metrics">
+        <div class="metric"><strong id="metricLeads">0</strong><span>Leads cargados</span></div>
+        <div class="metric"><strong id="metricCompanies">0</strong><span>Empresas únicas</span></div>
+        <div class="metric"><strong id="metricCities">0</strong><span>Ciudades únicas</span></div>
+        <div class="metric"><strong id="metricCountries">0</strong><span>Países únicos</span></div>
+        <div class="metric"><strong id="metricValid">0</strong><span>Correos profesionales válidos</span></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="panel">
+        <h2>Filtros</h2>
+        <p class="subtle">Úsalos para reducir la lista y encontrar perfiles de interés rápidamente.</p>
+        <div class="filters">
+          <div>
+            <label for="searchInput">Buscar</label>
+            <input id="searchInput" type="text" placeholder="Nombre, cargo, email, empresa, ciudad, skill">
+          </div>
+          <div>
+            <label for="companySelect">Empresa</label>
+            <select id="companySelect">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div>
+            <label for="citySelect">Ciudad</label>
+            <select id="citySelect">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div>
+            <label for="countrySelect">País</label>
+            <select id="countrySelect">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div>
+            <label for="emailStatusSelect">Estado del email profesional</label>
+            <select id="emailStatusSelect">
+              <option value="">Todos</option>
+              <option value="valid">Valid</option>
+              <option value="invalid">Invalid</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toolbar-actions" style="margin-top:14px;">
+          <button class="button" id="resetFilters">Limpiar filtros</button>
+        </div>
+
+        <div class="kpi-box">
+          <div class="mini">
+            <strong id="filteredCount">0</strong>
+            <span class="muted">Resultados visibles</span>
+          </div>
+          <div class="mini">
+            <strong id="topCompany">-</strong>
+            <span class="muted">Empresa más repetida en la vista actual</span>
+          </div>
+          <div class="mini">
+            <strong id="topCity">-</strong>
+            <span class="muted">Ciudad más repetida en la vista actual</span>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <label>Empresas visibles</label>
+          <div class="chips" id="companyChips"></div>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="toolbar">
+          <div>
+            <h2>Leads</h2>
+            <p class="subtle" id="resultsSummary">Preparando listado...</p>
+          </div>
+          <div class="toolbar-actions">
+            <a class="button" href="/data/agencias_inmobiliarias_mexico_100_leads_20260418085515_full.json" target="_blank" rel="noreferrer">Ver JSON</a>
+            <a class="button" href="/plantilla_leads.csv" target="_blank" rel="noreferrer">Plantilla CSV</a>
+          </div>
+        </div>
+        <div class="list" id="leadsContainer"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      payload: null,
+      leads: [],
+      filtered: [],
+    };
+
+    const elements = {
+      sourceMeta: document.getElementById('sourceMeta'),
+      searchInput: document.getElementById('searchInput'),
+      companySelect: document.getElementById('companySelect'),
+      citySelect: document.getElementById('citySelect'),
+      countrySelect: document.getElementById('countrySelect'),
+      emailStatusSelect: document.getElementById('emailStatusSelect'),
+      resetFilters: document.getElementById('resetFilters'),
+      leadsContainer: document.getElementById('leadsContainer'),
+      resultsSummary: document.getElementById('resultsSummary'),
+      filteredCount: document.getElementById('filteredCount'),
+      topCompany: document.getElementById('topCompany'),
+      topCity: document.getElementById('topCity'),
+      companyChips: document.getElementById('companyChips'),
+      metricLeads: document.getElementById('metricLeads'),
+      metricCompanies: document.getElementById('metricCompanies'),
+      metricCities: document.getElementById('metricCities'),
+      metricCountries: document.getElementById('metricCountries'),
+      metricValid: document.getElementById('metricValid'),
+    };
+
+    function normalize(value) {
+      return (value || '').toString().trim().toLowerCase();
+    }
+
+    function parseDomain(url) {
+      if (!url) return '';
+      const normalized = url.startsWith('http') ? url : `https://${url}`;
+      try {
+        return new URL(normalized).hostname.replace(/^www\./, '');
+      } catch {
+        return url;
+      }
+    }
+
+    function textIncludes(haystack, needle) {
+      return normalize(haystack).includes(normalize(needle));
+    }
+
+    function countTop(items, key) {
+      const counts = new Map();
+      items.forEach(item => {
+        const value = item[key];
+        if (!value) return;
+        counts.set(value, (counts.get(value) || 0) + 1);
+      });
+      let top = ['-', 0];
+      counts.forEach((count, value) => {
+        if (count > top[1]) top = [value, count];
+      });
+      return top[0] === '-' ? '-' : `${top[0]} (${top[1]})`;
+    }
+
+    function uniqueSorted(items, key) {
+      return [...new Set(items.map(item => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    }
+
+    function fillSelect(select, values) {
+      values.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    function renderCompanyChips(leads) {
+      elements.companyChips.innerHTML = '';
+      uniqueSorted(leads, 'company_name').slice(0, 18).forEach(company => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.innerHTML = `<button type="button">${company}</button>`;
+        chip.querySelector('button').addEventListener('click', () => {
+          elements.companySelect.value = company;
+          applyFilters();
+        });
+        elements.companyChips.appendChild(chip);
+      });
+    }
+
+    function renderMetrics(payload) {
+      elements.metricLeads.textContent = payload.totals.lead_count;
+      elements.metricCompanies.textContent = payload.totals.company_count;
+      elements.metricCities.textContent = payload.totals.city_count;
+      elements.metricCountries.textContent = payload.totals.country_count;
+      elements.metricValid.textContent = payload.totals.valid_professional_email_count;
+      elements.sourceMeta.textContent = `Fuente: ${payload.source_csv} | Dataset generado: ${payload.generated_at}`;
+    }
+
+    function renderLeadCard(lead) {
+      const emailChips = (lead.contact_emails || []).map(email => {
+        const type = email.type || 'sin_tipo';
+        return `<span class="tag ${type === 'current_professional' ? '' : 'warn'}">${email.address} · ${type}</span>`;
+      }).join('');
+
+      const skillChips = (lead.skills || []).slice(0, 10).map(skill => `<span class="tag">${skill}</span>`).join('');
+      const experienceItems = (lead.experience || []).slice(0, 6).map(item => `<span class="tag warn">${item}</span>`).join('');
+      const seniority = (lead.job_seniority_level || []).join(', ') || 'No especificado';
+      const regionText = [lead.city, lead.region, lead.country].filter(Boolean).join(', ') || 'No especificado';
+      const websiteDomain = parseDomain(lead.company_website);
+
+      return `
+        <article class="lead-card">
+          <div class="lead-head">
+            <div>
+              <h3>${lead.full_name}</h3>
+              <p>${lead.job_title || 'Cargo no especificado'}</p>
+            </div>
+            <span class="tag ${lead.professional_email_status === 'valid' ? '' : 'warn'}">
+              email ${lead.professional_email_status || 'unknown'}
+            </span>
+          </div>
+
+          <div class="grid">
+            <div class="info">
+              <strong>Empresa</strong>
+              <div>${lead.company_name || 'Sin empresa'}</div>
+              ${lead.company_website ? `<div class="muted"><a href="https://${websiteDomain}" target="_blank" rel="noreferrer">${websiteDomain}</a></div>` : ''}
+            </div>
+            <div class="info">
+              <strong>Ubicación</strong>
+              <div>${regionText}</div>
+            </div>
+            <div class="info">
+              <strong>Email profesional</strong>
+              <div>${lead.professional_email || 'No disponible'}</div>
+            </div>
+            <div class="info">
+              <strong>Senioridad / departamento</strong>
+              <div>${seniority}</div>
+              <div class="muted">${lead.job_department || 'Sin departamento'}</div>
+            </div>
+          </div>
+
+          <div>
+            <strong class="muted">Contactos detectados</strong>
+            <div style="margin-top:8px;">${emailChips || '<span class="tag warn">Sin correos adicionales</span>'}</div>
+          </div>
+
+          <div>
+            <strong class="muted">Skills</strong>
+            <div style="margin-top:8px;">${skillChips || '<span class="tag warn">Sin skills</span>'}</div>
+          </div>
+
+          <div>
+            <strong class="muted">Experiencia reciente</strong>
+            <div style="margin-top:8px;">${experienceItems || '<span class="tag warn">Sin experiencia detallada</span>'}</div>
+          </div>
+
+          <div class="grid">
+            <div class="info">
+              <strong>LinkedIn</strong>
+              <div>${lead.linkedin ? `<a href="https://${lead.linkedin}" target="_blank" rel="noreferrer">${lead.linkedin}</a>` : 'No disponible'}</div>
+            </div>
+            <div class="info">
+              <strong>IDs / fecha</strong>
+              <div>Row ${lead.row_num} · ${lead.created_at_display}</div>
+              <div class="muted">business_id: ${lead.business_id || 'n/a'}</div>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderLeads(leads) {
+      elements.leadsContainer.innerHTML = '';
+      if (!leads.length) {
+        elements.leadsContainer.innerHTML = '<div class="empty">No hay leads que coincidan con los filtros actuales.</div>';
+        return;
+      }
+
+      elements.leadsContainer.innerHTML = leads.map(renderLeadCard).join('');
+    }
+
+    function applyFilters() {
+      const term = elements.searchInput.value.trim();
+      const company = elements.companySelect.value;
+      const city = elements.citySelect.value;
+      const country = elements.countrySelect.value;
+      const emailStatus = elements.emailStatusSelect.value;
+
+      state.filtered = state.leads.filter(lead => {
+        const matchesText = !term || [
+          lead.full_name,
+          lead.job_title,
+          lead.professional_email,
+          lead.company_name,
+          lead.city,
+          lead.country,
+          lead.region,
+          ...(lead.skills || []),
+          ...(lead.experience || []),
+          ...(lead.interests || []),
+        ].some(value => textIncludes(value, term));
+
+        const matchesCompany = !company || lead.company_name === company;
+        const matchesCity = !city || lead.city === city;
+        const matchesCountry = !country || lead.country === country;
+        const matchesEmailStatus = !emailStatus || normalize(lead.professional_email_status) === normalize(emailStatus);
+
+        return matchesText && matchesCompany && matchesCity && matchesCountry && matchesEmailStatus;
+      });
+
+      elements.filteredCount.textContent = state.filtered.length;
+      elements.topCompany.textContent = countTop(state.filtered, 'company_name');
+      elements.topCity.textContent = countTop(state.filtered, 'city');
+      elements.resultsSummary.textContent = `${state.filtered.length} leads visibles de ${state.leads.length} cargados.`;
+      renderCompanyChips(state.filtered.length ? state.filtered : state.leads);
+      renderLeads(state.filtered);
+    }
+
+    async function boot() {
+      const response = await fetch('/data/agencias_inmobiliarias_mexico_100_leads_20260418085515_full.json');
+      if (!response.ok) {
+        throw new Error('No se pudo cargar el dataset JSON');
+      }
+
+      state.payload = await response.json();
+      state.leads = state.payload.leads || [];
+      renderMetrics(state.payload);
+      fillSelect(elements.companySelect, uniqueSorted(state.leads, 'company_name'));
+      fillSelect(elements.citySelect, uniqueSorted(state.leads, 'city'));
+      fillSelect(elements.countrySelect, uniqueSorted(state.leads, 'country'));
+      applyFilters();
+    }
+
+    [
+      elements.searchInput,
+      elements.companySelect,
+      elements.citySelect,
+      elements.countrySelect,
+      elements.emailStatusSelect,
+    ].forEach(element => element.addEventListener('input', applyFilters));
+
+    elements.resetFilters.addEventListener('click', () => {
+      elements.searchInput.value = '';
+      elements.companySelect.value = '';
+      elements.citySelect.value = '';
+      elements.countrySelect.value = '';
+      elements.emailStatusSelect.value = '';
+      applyFilters();
+    });
+
+    boot().catch(error => {
+      elements.leadsContainer.innerHTML = `<div class="empty">${error.message}</div>`;
+      elements.resultsSummary.textContent = 'Error al cargar datos.';
+      console.error(error);
+    });
+  </script>
+</body>
+</html>

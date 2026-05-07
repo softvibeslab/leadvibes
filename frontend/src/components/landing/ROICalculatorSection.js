@@ -59,7 +59,7 @@ export const ROICalculatorSection = () => {
             className="bg-card rounded-3xl p-8 border border-border"
           >
             <div className="flex items-center mb-8">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary to-teal-600 rounded-xl flex items-center justify-center mr-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center mr-4">
                 <Calculator className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -173,7 +173,7 @@ export const ROICalculatorSection = () => {
             className="space-y-6"
           >
             {/* Main Result Card */}
-            <div className="bg-gradient-to-br from-primary/20 to-teal-600/20 rounded-3xl p-8 border-2 border-primary/30">
+            <div className="bg-gradient-to-br from-primary/20 to-secondary/20 rounded-3xl p-8 border-2 border-primary/30">
               <div className="text-center mb-6">
                 <div className="text-sm text-muted-foreground mb-2">Ingresos Adicionales Proyectados</div>
                 <motion.div
@@ -189,11 +189,11 @@ export const ROICalculatorSection = () => {
 
               <div className="grid grid-cols-2 gap-4 mt-6">
                 <div className="bg-background rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-emerald-500">{formatNumber(additionalSales)}</div>
+                  <div className="text-2xl font-bold text-secondary">{formatNumber(additionalSales)}</div>
                   <div className="text-xs text-muted-foreground">Ventas adicionales/mes</div>
                 </div>
                 <div className="bg-background rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-emerald-500">{formatNumber(additionalSales * 12)}</div>
+                  <div className="text-2xl font-bold text-secondary">{formatNumber(additionalSales * 12)}</div>
                   <div className="text-xs text-muted-foreground">Ventas adicionales/ao</div>
                 </div>
               </div>
@@ -226,7 +226,7 @@ export const ROICalculatorSection = () => {
                       whileInView={{ width: '67.5%' }}
                       viewport={{ once: true }}
                       transition={{ delay: 0.5, duration: 1 }}
-                      className="h-full bg-gradient-to-r from-primary to-teal-600 rounded-full"
+                      className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
                     />
                   </div>
                 </div>
@@ -255,7 +255,7 @@ export const ROICalculatorSection = () => {
             {/* CTA */}
             <a
               href="#demo-request"
-              className="block bg-gradient-to-r from-primary to-teal-600 text-white text-center py-4 rounded-2xl font-semibold text-lg hover:shadow-xl transition transform hover:scale-105"
+              className="block bg-gradient-to-r from-primary to-secondary text-white text-center py-4 rounded-2xl font-semibold text-lg hover:shadow-xl transition transform hover:scale-105"
             >
               Logra Estos Resultados
             </a>

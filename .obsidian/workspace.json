@@ -1,0 +1,204 @@
+{
+  "main": {
+    "id": "5d8496d0f38cf7c9",
+    "type": "split",
+    "children": [
+      {
+        "id": "7161e3b3d21655c4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e358bbe89b479d16",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Vista gráfica"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "b4f65a9b00124f63",
+    "type": "split",
+    "children": [
+      {
+        "id": "c730cca1290404e7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8a8c02eb4fd6056b",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de archivos"
+            }
+          },
+          {
+            "id": "e9ad6befdf669351",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Buscar"
+            }
+          },
+          {
+            "id": "550eb00e55fcdc15",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "1cc4f318dbb84ec8",
+    "type": "split",
+    "children": [
+      {
+        "id": "371c7b6d155cf396",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "be27c7e4c34803fb",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "docs/ESTRATEGIA_CONTENIDO_ROVI.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Enlaces entrantes de ESTRATEGIA_CONTENIDO_ROVI"
+            }
+          },
+          {
+            "id": "71b5aa7fa4916484",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "docs/ESTRATEGIA_CONTENIDO_ROVI.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Enlaces salientes de ESTRATEGIA_CONTENIDO_ROVI"
+            }
+          },
+          {
+            "id": "6af8ace8790e2a1a",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "82fc26bb8202f3f2",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas las propiedades"
+            }
+          },
+          {
+            "id": "996e5bfaa49d9235",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "docs/ESTRATEGIA_CONTENIDO_ROVI.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Esquema de ESTRATEGIA_CONTENIDO_ROVI"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir selector rápido": false,
+      "graph:Abrir vista gráfica": false,
+      "canvas:Crear nuevo lienzo": false,
+      "daily-notes:Abrir la nota de hoy": false,
+      "templates:Insertar plantilla": false,
+      "command-palette:Abrir paleta de comandos": false,
+      "bases:Crear nueva base": false
+    }
+  },
+  "active": "e358bbe89b479d16",
+  "lastOpenFiles": [
+    "Sin título 1.canvas",
+    "Sin título.base",
+    "Sin título.canvas",
+    "frontend/Sin título.canvas",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/packages/ssl_match_hostname/_implementation.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/packages/ssl_match_hostname/__init__.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/packages/backports/makefile.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/packages/backports/__init__.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/contrib/_securetransport/low_level.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/contrib/_securetransport/bindings.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/contrib/_securetransport/__init__.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/util/wait.py",
+    "deploy/backend 1/venv/lib/python3.9/site-packages/pip/_vendor/urllib3/util/url.py",
+    "deploy/backend 1/SERVER_PATCH.md",
+    "deploy/backend 1/SEMANA_2_PATCH.md",
+    "deploy/backend 1/ENDPOINTS_DOCUMENTATION.md",
+    "docs/ESTRATEGIA_CONTENIDO_ROVI.md",
+    "docs/PRODUCTION_READINESS_DASHBOARD.md",
+    "CLAUDE.md"
+  ]
+}

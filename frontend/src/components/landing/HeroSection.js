@@ -34,19 +34,19 @@ export const HeroSection = () => {
       <motion.div
         animate={{ y: [0, -20, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-20 right-10 w-72 h-72 bg-[#00D9FF]/20 rounded-full blur-3xl"
+        className="absolute top-20 right-10 w-72 h-72 bg-surface-arena-light/20 rounded-full blur-3xl"
       />
       <motion.div
         animate={{ y: [0, 20, 0] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-20 left-10 w-96 h-96 bg-[#7C3AED]/20 rounded-full blur-3xl"
+        className="absolute bottom-20 left-10 w-96 h-96 bg-accent/20 rounded-full blur-3xl"
       />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
         {/* Navigation */}
         <nav className="flex items-center justify-between mb-16">
           <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#00D9FF] to-[#0A4DAF] rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-surface-arena-light to-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">R</span>
             </div>
             <span className="text-2xl font-bold text-white">Rovi CRM</span>
@@ -62,7 +62,7 @@ export const HeroSection = () => {
               href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20solicitar%20una%20demo%20de%20Rovi%20CRM"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-[#00D9FF] hover:bg-[#33E1FF] text-[#062B5F] px-6 py-2.5 rounded-full font-semibold transition transform hover:scale-105 shadow-glow-accent"
+              className="bg-accent hover:bg-surface-arena-light text-primary px-6 py-2.5 rounded-full font-semibold transition transform hover:scale-105 shadow-glow-accent"
             >
               Solicitar Demo
             </a>
@@ -77,13 +77,13 @@ export const HeroSection = () => {
             transition={{ duration: 0.8 }}
           >
             <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-              <span className="bg-[#7C3AED] text-white text-xs font-bold px-2 py-1 rounded-full mr-2">NUEVO</span>
+              <span className="bg-accent text-white text-xs font-bold px-2 py-1 rounded-full mr-2">NUEVO</span>
               <span className="text-white/90 text-sm">IA integrada para maximizar tus ventas</span>
             </div>
 
             <h1 className="text-5xl lg:text-7xl font-bold text-white mb-6 leading-tight">
               El CRM que
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00D9FF] to-[#7C3AED]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-surface-arena-light to-accent">
                 {' '}
                 revoluciona
               </span>
@@ -99,7 +99,7 @@ export const HeroSection = () => {
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
               <Link
                 to="/demo-request"
-                className="group bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105 flex items-center justify-center"
+                className="group bg-gradient-to-r from-accent to-secondary hover:from-surface-arena-light hover:to-accent text-primary px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105 flex items-center justify-center"
               >
                 Comenzar Gratis
                 <ArrowRight className="ml-2 group-hover:translate-x-1 transition" />
@@ -126,7 +126,7 @@ export const HeroSection = () => {
                   transition={{ delay: 0.2 + i * 0.1 }}
                   className="text-center"
                 >
-                  <stat.icon className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+                  <stat.icon className="w-8 h-8 text-surface-arena-light mx-auto mb-2" />
                   <div className="text-2xl font-bold text-white">{stat.label}</div>
                   <div className="text-sm text-white/60">{stat.sublabel}</div>
                 </motion.div>
@@ -189,7 +189,7 @@ export const HeroSection = () => {
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: (stage.length + j) * 0.1 }}
-                                className="h-6 bg-gradient-to-r from-teal-500/30 to-emerald-500/30 rounded"
+                                className="h-6 bg-gradient-to-r from-accent/30 to-secondary/30 rounded"
                               />
                             ))}
                           </div>
@@ -199,13 +199,13 @@ export const HeroSection = () => {
                   </div>
 
                   {/* AI Chat Preview */}
-                  <div className="mt-4 bg-gradient-to-r from-amber-500/20 to-amber-600/20 rounded-xl p-4 border border-amber-500/30">
+                  <div className="mt-4 bg-gradient-to-r from-accent/20 to-surface-arena-light/20 rounded-xl p-4 border border-accent/30">
                     <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-white text-sm">AI</span>
                       </div>
                       <div>
-                        <div className="text-sm text-amber-400 font-semibold mb-1">Asistente Rovi</div>
+                        <div className="text-sm text-surface-arena-light font-semibold mb-1">Asistente Rovi</div>
                         <div className="text-sm text-white/80">Tienes 3 leads calificados que requieren seguimiento hoy. ¿Quieres que prepare los scripts de llamada?</div>
                       </div>
                     </div>
@@ -218,7 +218,7 @@ export const HeroSection = () => {
             <motion.div
               animate={{ y: [0, -15, 0] }}
               transition={{ duration: 4, repeat: Infinity }}
-              className="absolute -top-4 -right-4 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl p-4 shadow-xl"
+              className="absolute -top-4 -right-4 bg-gradient-to-br from-secondary to-secondary-dark rounded-2xl p-4 shadow-xl"
             >
               <div className="text-white">
                 <div className="text-2xl font-bold">+127%</div>
@@ -229,7 +229,7 @@ export const HeroSection = () => {
             <motion.div
               animate={{ y: [0, 15, 0] }}
               transition={{ duration: 5, repeat: Infinity }}
-              className="absolute -bottom-4 -left-4 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl p-4 shadow-xl"
+              className="absolute -bottom-4 -left-4 bg-gradient-to-br from-accent to-secondary rounded-2xl p-4 shadow-xl"
             >
               <div className="text-white">
                 <div className="text-2xl font-bold">3.5h</div>
@@ -246,7 +246,7 @@ export const HeroSection = () => {
           className="mt-20 text-center"
         >
           <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-6 py-3">
-            <Zap className="w-5 h-5 text-[#00D9FF] mr-2" />
+            <Zap className="w-5 h-5 text-surface-arena-light mr-2" />
             <span className="text-white/90 text-sm font-medium">
               Desarrollado por expertos en tecnología e inmobiliario
             </span>
@@ -268,7 +268,7 @@ export const HeroSection = () => {
             {/* Close Button */}
             <button
               onClick={handleCloseVideo}
-              className="absolute -top-12 right-0 text-white hover:text-[#00D9FF] transition z-10"
+              className="absolute -top-12 right-0 text-white hover:text-surface-arena-light transition z-10"
               aria-label="Cerrar video"
             >
               <X className="w-8 h-8" />
@@ -277,12 +277,12 @@ export const HeroSection = () => {
             {/* Video Container - Loom Embed */}
             <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl">
               {/* Subtitles Hint */}
-              <div className="bg-gradient-to-r from-[#00D9FF]/10 to-[#7C3AED]/10 border-b border-white/10 px-4 py-2 flex items-center justify-center">
+              <div className="bg-gradient-to-r from-surface-arena-light/10 to-accent/10 border-b border-white/10 px-4 py-2 flex items-center justify-center">
                 <div className="flex items-center text-white/80 text-sm">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                   </svg>
-                  <span>Activa los subtítulos con el botón <strong className="text-[#00D9FF]">CC</strong> en el reproductor</span>
+                  <span>Activa los subtítulos con el botón <strong className="text-surface-arena-light">CC</strong> en el reproductor</span>
                 </div>
               </div>
 
@@ -300,13 +300,13 @@ export const HeroSection = () => {
             {/* CTA Section */}
             <div className="mt-6 text-center">
               <p className="text-white/80 text-lg mb-4">
-                ¿Te gusta lo que ves? <span className="text-[#00D9FF] font-semibold">Comienza gratis hoy</span>
+                ¿Te gusta lo que ves? <span className="text-surface-arena-light font-semibold">Comienza gratis hoy</span>
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   to="/demo-request"
                   onClick={handleCloseVideo}
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
+                  className="bg-gradient-to-r from-accent to-secondary hover:from-surface-arena-light hover:to-accent text-primary px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
                 >
                   Solicitar Demo Gratuita
                 </Link>
@@ -315,7 +315,7 @@ export const HeroSection = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleCloseVideo}
-                  className="bg-[#00D9FF] hover:bg-[#33E1FF] text-[#062B5F] px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
+                  className="bg-accent hover:bg-surface-arena-light text-primary px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
                 >
                   Contactar por WhatsApp
                 </a>

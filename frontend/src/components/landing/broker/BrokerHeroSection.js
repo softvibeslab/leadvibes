@@ -16,7 +16,7 @@ export const BrokerHeroSection = () => {
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300D9FF' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2350F4E2' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }} />
       </div>
 
@@ -24,23 +24,23 @@ export const BrokerHeroSection = () => {
       <motion.div
         animate={{ y: [0, -20, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-20 right-10 w-48 h-48 sm:w-72 sm:h-72 bg-[#00D9FF]/20 rounded-full blur-3xl"
+        className="absolute top-20 right-10 w-48 h-48 sm:w-72 sm:h-72 bg-surface-arena-light/20 rounded-full blur-3xl"
       />
       <motion.div
         animate={{ y: [0, 20, 0] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-20 left-10 w-64 h-64 sm:w-96 sm:h-96 bg-[#7C3AED]/20 rounded-full blur-3xl"
+        className="absolute bottom-20 left-10 w-64 h-64 sm:w-96 sm:h-96 bg-accent/20 rounded-full blur-3xl"
       />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-16 sm:pb-32">
         {/* Navigation */}
         <nav className="flex items-center justify-between mb-16">
           <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#00D9FF] to-[#0A4DAF] rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-surface-arena-light to-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">R</span>
             </div>
             <span className="text-2xl font-bold text-white">Rovi CRM</span>
-            <span className="ml-2 bg-[#00D9FF] text-[#0F172A] text-xs font-bold px-3 py-1 rounded-full">
+            <span className="ml-2 bg-accent text-primary text-xs font-bold px-3 py-1 rounded-full">
               PARA BROKERS
             </span>
           </div>
@@ -56,7 +56,7 @@ export const BrokerHeroSection = () => {
             </Link>
             <a
               href="#registro"
-              className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2.5 rounded-full font-semibold transition transform hover:scale-105"
+              className="bg-accent hover:bg-surface-arena-light text-primary px-6 py-2.5 rounded-full font-semibold transition transform hover:scale-105"
             >
               Registrarse
             </a>
@@ -71,7 +71,7 @@ export const BrokerHeroSection = () => {
             transition={{ duration: 0.8 }}
           >
             <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-              <span className="bg-[#00D9FF] text-[#0F172A] text-xs font-bold px-2 py-1 rounded-full mr-2">LANZAMIENTO</span>
+              <span className="bg-accent text-primary text-xs font-bold px-2 py-1 rounded-full mr-2">LANZAMIENTO</span>
               <span className="text-white/90 text-sm">Regístrate antes del lanzamiento oficial</span>
             </div>
 
@@ -80,7 +80,7 @@ export const BrokerHeroSection = () => {
               <motion.span
                 animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
                 transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
-                className="text-transparent bg-clip-text bg-gradient-to-r from-[#00D9FF] via-[#7C3AED] to-[#00D9FF] block mt-2"
+                className="text-transparent bg-clip-text bg-gradient-to-r from-surface-arena-light via-accent to-surface-arena-light block mt-2"
                 style={{ backgroundSize: '200% auto' }}
               >
                 para brokers independientes
@@ -95,12 +95,12 @@ export const BrokerHeroSection = () => {
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
               <a
                 href="#registro"
-                className="group relative hover-accent bg-[#00D9FF] text-[#0F172A] px-8 py-4 rounded-full font-semibold text-lg transition-all flex items-center justify-center"
+                className="group relative hover-accent bg-accent text-primary px-8 py-4 rounded-full font-semibold text-lg transition-all flex items-center justify-center"
               >
                 Registrarme Gratis
                 <ArrowRight className="ml-2 group-hover:translate-x-1 transition" />
               </a>
-              <button className="group relative flex items-center justify-center px-8 py-4 rounded-full font-semibold text-lg text-white border-2 border-white/30 hover:border-[#00D9FF] hover:bg-white/10 hover:shadow-glow-accent transition-all">
+              <button className="group relative flex items-center justify-center px-8 py-4 rounded-full font-semibold text-lg text-white border-2 border-white/30 hover:border-surface-arena-light hover:bg-white/10 hover:shadow-glow-accent transition-all">
                 <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition" />
                 Ver cómo funciona
               </button>
@@ -121,7 +121,7 @@ export const BrokerHeroSection = () => {
                   transition={{ delay: 0.3 + i * 0.1 }}
                   className="flex items-start p-3 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10"
                 >
-                  <benefit.icon className="w-6 h-6 text-[#00D9FF] mr-3 flex-shrink-0 mt-1" />
+                  <benefit.icon className="w-6 h-6 text-surface-arena-light mr-3 flex-shrink-0 mt-1" />
                   <div>
                     <div className="text-white font-semibold">{benefit.label}</div>
                     <div className="text-white/60 text-sm">{benefit.desc}</div>
@@ -170,7 +170,7 @@ export const BrokerHeroSection = () => {
                         transition={{ delay: i * 0.2, duration: 2, repeat: Infinity }}
                         className="bg-slate-700/30 rounded-xl p-3 border border-slate-600/30"
                       >
-                        <stat.icon className="w-4 h-4 text-[#00D9FF] mb-2" />
+                        <stat.icon className="w-4 h-4 text-surface-arena-light mb-2" />
                         <div className="text-xs text-slate-400">{stat.label}</div>
                         <div className="text-base font-bold text-white">{stat.value}</div>
                       </motion.div>
@@ -181,7 +181,7 @@ export const BrokerHeroSection = () => {
                   <div className="bg-slate-700/20 rounded-xl p-4 border border-slate-600/30 mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-sm font-semibold text-white">Leads Prioritarios</div>
-                      <div className="bg-[#00D9FF] text-[#0F172A] text-xs px-2 py-1 rounded-full">3 urgentes</div>
+                      <div className="bg-accent text-primary text-xs px-2 py-1 rounded-full">3 urgentes</div>
                     </div>
                     <div className="space-y-2">
                       {[
@@ -191,7 +191,7 @@ export const BrokerHeroSection = () => {
                       ].map((lead, i) => (
                         <div key={i} className="flex items-center justify-between p-2 bg-slate-700/30 rounded-lg">
                           <div className="flex items-center">
-                            <div className="w-8 h-8 bg-gradient-to-br from-[#00D9FF] to-[#0A4DAF] rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-surface-arena-light to-primary rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
                               {lead.name.split(' ').map(n => n[0]).join('')}
                             </div>
                             <div>
@@ -199,20 +199,20 @@ export const BrokerHeroSection = () => {
                               <div className="text-xs text-slate-400">{lead.status}</div>
                             </div>
                           </div>
-                          <div className="text-xs text-[#00D9FF]">{lead.action}</div>
+                          <div className="text-xs text-surface-arena-light">{lead.action}</div>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* AI Assistant */}
-                  <div className="bg-gradient-to-r from-[#7C3AED]/20 to-[#00D9FF]/20 rounded-xl p-4 border border-[#00D9FF]/30">
+                  <div className="bg-gradient-to-r from-accent/20 to-surface-arena-light/20 rounded-xl p-4 border border-surface-arena-light/30">
                     <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 bg-[#00D9FF] rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-[#0F172A] text-sm font-bold">AI</span>
+                      <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary text-sm font-bold">AI</span>
                       </div>
                       <div>
-                        <div className="text-sm text-[#00D9FF] font-semibold mb-1">Asistente Rovi</div>
+                        <div className="text-sm text-surface-arena-light font-semibold mb-1">Asistente Rovi</div>
                         <div className="text-sm text-white/80">
                           Tienes 5 leads calificados listos para cerrar esta semana. He preparado los scripts de llamada para cada uno. ¿Empezamos?
                         </div>
@@ -227,7 +227,7 @@ export const BrokerHeroSection = () => {
             <motion.div
               animate={{ y: [0, -15, 0] }}
               transition={{ duration: 4, repeat: Infinity }}
-              className="absolute -top-4 -right-4 bg-gradient-to-br from-[#10B981] to-[#059669] rounded-2xl p-4 shadow-xl"
+              className="absolute -top-4 -right-4 bg-gradient-to-br from-secondary to-secondary-dark rounded-2xl p-4 shadow-xl"
             >
               <div className="text-white">
                 <div className="text-2xl font-bold">+450%</div>
@@ -238,7 +238,7 @@ export const BrokerHeroSection = () => {
             <motion.div
               animate={{ y: [0, 15, 0] }}
               transition={{ duration: 5, repeat: Infinity }}
-              className="absolute -bottom-4 -left-4 bg-gradient-to-br from-[#00D9FF] to-[#0A4DAF] rounded-2xl p-4 shadow-xl"
+              className="absolute -bottom-4 -left-4 bg-gradient-to-br from-accent to-primary rounded-2xl p-4 shadow-xl"
             >
               <div className="text-white">
                 <div className="text-2xl font-bold">10min</div>
@@ -268,12 +268,12 @@ export const BrokerHeroSection = () => {
               { name: 'Sofía L.', role: 'Consultora inmobiliaria', result: '3x más conversiones' },
             ].map((broker, i) => (
               <div key={i} className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#00D9FF] to-[#0A4DAF] rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-xl">
+                <div className="w-16 h-16 bg-gradient-to-br from-surface-arena-light to-primary rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-xl">
                   {broker.name.split(' ').map(n => n[0]).join('')}
                 </div>
                 <div className="text-white font-semibold">{broker.name}</div>
                 <div className="text-white/60 text-sm mb-1">{broker.role}</div>
-                <div className="text-[#00D9FF] text-sm font-semibold">{broker.result}</div>
+                <div className="text-surface-arena-light text-sm font-semibold">{broker.result}</div>
               </div>
             ))}
           </div>

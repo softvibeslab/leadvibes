@@ -1,0 +1,278 @@
+{
+  "webhook_lead_schema": {
+    "version": "1.0",
+    "description": "Esquema JSON para recibir webhooks de leads con información para email, llamadas telefónicas y análisis de perfil",
+    "lead_data": {
+      "id": "string",
+      "source": "string",
+      "timestamp": "string",
+      "status": "new|contacted|qualified|converted|lost",
+      "personal_info": {
+        "first_name": "string",
+        "last_name": "string",
+        "full_name": "string",
+        "company": "string",
+        "title": "string",
+        "notes": "string"
+      },
+      "contact_info": {
+        "primary_phone": {
+          "number": "string",
+          "type": "mobile|landline|whatsapp",
+          "country_code": "string",
+          "verified": "boolean",
+          "preferred": "boolean"
+        },
+        "secondary_phone": {
+          "number": "string",
+          "type": "mobile|landline|whatsapp",
+          "country_code": "string",
+          "verified": "boolean",
+          "preferred": "boolean"
+        },
+        "email": {
+          "address": "string",
+          "verified": "boolean",
+          "preferred": "boolean"
+        },
+        "whatsapp": {
+          "number": "string",
+          "waid": "string",
+          "business_description": "string",
+          "business_name": "string"
+        }
+      },
+      "location": {
+        "country": "string",
+        "state": "string",
+        "city": "string",
+        "address": "string",
+        "zip_code": "string",
+        "coordinates": {
+          "latitude": "number",
+          "longitude": "number"
+        }
+      },
+      "preferences": {
+        "contact_method": "email|phone|whatsapp|any",
+        "contact_time": "morning|afternoon|evening|any",
+        "language": "es|en|fr|de|pt",
+        "timezone": "string"
+      },
+      "profile_analysis": {
+        "lead_score": "number",
+        "interest_level": "low|medium|high|very_high",
+        "budget_range": {
+          "min": "number",
+          "max": "number",
+          "currency": "string"
+        },
+        "property_preferences": {
+          "type": "apartment|house|condo|land|commercial",
+          "bedrooms": "number",
+          "bathrooms": "number",
+          "area_min": "number",
+          "area_max": "number",
+          "features": ["string"]
+        },
+        "location_preferences": {
+          "preferred_areas": ["string"],
+          "avoid_areas": ["string"],
+          "proximity_to": {
+            "beach": "number",
+            "schools": "number",
+            "shopping": "number",
+            "airport": "number",
+            "hospital": "number"
+          }
+        },
+        "timeline": "immediate|1-3_months|3-6_months|6-12_months|12+_months",
+        "financing": "cash|mortgage|owner_financing|undecided",
+        "investment_type": "primary_residence|vacation_home|rental_investment|flip|development"
+      },
+      "communication_history": [
+        {
+          "date": "string",
+          "type": "email|phone|whatsapp|sms|meeting",
+          "direction": "inbound|outbound",
+          "subject": "string",
+          "content": "string",
+          "status": "sent|delivered|opened|clicked|replied|failed",
+          "duration": "number",
+          "notes": "string"
+        }
+      ],
+      "documents": {
+        "profile_photo": "string",
+        "id_document": "string",
+        "proof_of_income": "string",
+        "pre_approval_letter": "string",
+        "additional_files": ["string"]
+      },
+      "metadata": {
+        "utm_source": "string",
+        "utm_medium": "string",
+        "utm_campaign": "string",
+        "referral_source": "string",
+        "ip_address": "string",
+        "user_agent": "string",
+        "landing_page": "string",
+        "form_id": "string"
+      }
+    },
+    "email_campaign_config": {
+      "sendgrid_template_id": "string",
+      "sender_info": {
+        "email": "noreply@rovirealestate.com",
+        "name": "Rovi Real Estate"
+      },
+      "personalization": {
+        "subject": "string",
+        "recipient_email": "string",
+        "recipient_name": "string",
+        "template_data": {
+          "nombre": "string",
+          "apellidos": "string",
+          "empresa": "string",
+          "telefono": "string",
+          "email": "string",
+          "propiedades_recomendadas": [
+            {
+              "id": "string",
+              "titulo": "string",
+              "precio": "string",
+              "ubicacion": "string",
+              "descripcion": "string",
+              "imagen_url": "string",
+              "link_propiedad": "string"
+            }
+          ],
+          "contenido_personalizado": {
+            "saludo": "string",
+            "mensaje_principal": "string",
+            "llamada_accion": "string",
+            "firma": "string"
+          }
+        }
+      },
+      "campaign_settings": {
+        "send_at": "string",
+        "category": "lead_nurturing|property_showcase|follow_up|newsletter",
+        "tracking": {
+          "open_tracking": "boolean",
+          "click_tracking": "boolean",
+          "ganalytics_tracking": "boolean"
+        },
+        "unsubscribe_group": "number"
+      }
+    },
+    "phone_call_config": {
+      "call_details": {
+        "phone_number": "string",
+        "country_code": "string",
+        "call_type": "voice|whatsapp|sms",
+        "priority": "low|medium|high|urgent",
+        "scheduled_time": "string",
+        "duration_estimate": "number"
+      },
+      "agent_assignment": {
+        "agent_id": "string",
+        "agent_name": "string",
+        "agent_phone": "string",
+        "specialization": "string"
+      },
+      "script_template": {
+        "greeting": "string",
+        "qualification_questions": [
+          {
+            "question": "string",
+            "type": "open|multiple_choice|yes_no",
+            "options": ["string"]
+          }
+        ],
+        "property_presentation": "string",
+        "call_to_action": "string",
+        "closing": "string"
+      },
+      "call_settings": {
+        "record_call": "boolean",
+        "transcribe_call": "boolean",
+        "send_sms_reminder": "boolean",
+        "follow_up_email": "boolean",
+        "voicemail_message": "string"
+      }
+    },
+    "profile_analysis_config": {
+      "scoring_criteria": {
+        "demographic_score": "number",
+        "behavioral_score": "number",
+        "engagement_score": "number",
+        "financial_score": "number",
+        "timing_score": "number"
+      },
+      "segmentation": {
+        "segment": "hot|warm|cold|vip",
+        "tags": ["string"],
+        "persona_type": "first_time_buyer|investor|vacation_home|relocating|downsizing"
+      },
+      "ai_analysis": {
+        "sentiment_analysis": "positive|neutral|negative",
+        "communication_style": "formal|casual|direct|indirect",
+        "response_probability": "number",
+        "best_contact_time": "string",
+        "recommended_properties": ["string"],
+        "next_action": "call|email|sms|wait|assign_agent"
+      },
+      "enrichment_data": {
+        "social_profiles": {
+          "linkedin": "string",
+          "facebook": "string",
+          "instagram": "string",
+          "twitter": "string"
+        },
+        "professional_info": {
+          "industry": "string",
+          "company_size": "string",
+          "job_level": "string",
+          "estimated_income": "string"
+        },
+        "behavioral_data": {
+          "website_visits": "number",
+          "property_views": "number",
+          "search_history": ["string"],
+          "email_engagement": "number",
+          "response_time_avg": "number"
+        }
+      }
+    },
+    "webhook_processing": {
+      "event_type": "lead_created|lead_updated|lead_qualified|lead_converted",
+      "processing_rules": {
+        "auto_responder": "boolean",
+        "lead_assignment": "boolean",
+        "duplicate_check": "boolean",
+        "validation_required": "boolean"
+      },
+      "actions_triggered": [
+        {
+          "action": "send_email|schedule_call|create_task|update_crm|notify_agent",
+          "priority": "low|medium|high",
+          "delay": "number",
+          "conditions": ["string"]
+        }
+      ],
+      "error_handling": {
+        "retry_policy": {
+          "max_retries": "number",
+          "retry_delay": "number",
+          "backoff_multiplier": "number"
+        },
+        "notification_settings": {
+          "notify_on_error": "boolean",
+          "notification_email": "string",
+          "slack_webhook": "string"
+        }
+      }
+    }
+  }
+}

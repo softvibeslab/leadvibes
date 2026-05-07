@@ -79,15 +79,15 @@ ${formData.message || 'Sin mensaje adicional'}
 
   if (isSuccess) {
     return (
-      <section id="demo-request" className="py-24 bg-gradient-to-br from-primary/10 via-teal-600/10 to-emerald-600/10">
+      <section id="demo-request" className="py-24 bg-gradient-to-br from-primary/10 via-secondary/10 to-secondary-dark/10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-card rounded-3xl p-12 border border-border"
           >
-            <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+            <div className="w-20 h-20 rounded-full bg-secondary/20 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10 text-secondary" />
             </div>
             <h2 className="text-3xl font-bold mb-4">¡WhatsApp Abierto!</h2>
             <p className="text-xl text-muted-foreground mb-8">
@@ -124,7 +124,7 @@ ${formData.message || 'Sin mensaje adicional'}
   }
 
   return (
-    <section id="demo-request" className="py-24 bg-gradient-to-br from-primary/10 via-teal-600/10 to-emerald-600/10">
+    <section id="demo-request" className="py-24 bg-gradient-to-br from-primary/10 via-secondary/10 to-secondary-dark/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Side - Info */}
@@ -138,7 +138,7 @@ ${formData.message || 'Sin mensaje adicional'}
             </span>
             <h2 className="text-4xl lg:text-5xl font-bold mb-6">
               Contáctanos por{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-teal-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
                 WhatsApp
               </span>
             </h2>
@@ -288,7 +288,7 @@ ${formData.message || 'Sin mensaje adicional'}
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-primary to-teal-600 hover:from-primary/90 hover:to-teal-600/90 text-white py-4 rounded-xl font-semibold text-lg transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+                  className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white py-4 rounded-xl font-semibold text-lg transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
                 >
                   {isSubmitting ? (
                     'Abriendo WhatsApp...'

@@ -1,0 +1,174 @@
+{
+  "config": {
+    "configFile": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/playwright.config.js",
+    "rootDir": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report",
+          "open": "never"
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": {
+      "command": "docker compose ps frontend | grep -q \"Up\" || docker compose up -d frontend",
+      "url": "http://localhost:13000",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "03-leads.spec.js",
+      "file": "03-leads.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Leads",
+          "file": "03-leads.spec.js",
+          "line": 9,
+          "column": 6,
+          "specs": [
+            {
+              "title": "debería mostrar lista de leads en tabla",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 7725,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-testid=\"leads-page\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-testid=\"leads-page\"]')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-testid=\"leads-page\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-testid=\"leads-page\"]')\u001b[22m\n\n    at /Users/rogergv/Documents/GitHub/leadvibes/frontend/e2e/03-leads.spec.js:27:62",
+                        "location": {
+                          "file": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/e2e/03-leads.spec.js",
+                          "column": 62,
+                          "line": 27
+                        },
+                        "snippet": "  25 |\n  26 |     // Verify the page is visible and at least one of the supported views renders\n> 27 |     await expect(page.locator('[data-testid=\"leads-page\"]')).toBeVisible({ timeout: 5000 });\n     |                                                              ^\n  28 |\n  29 |     const table = page.locator('table, [role=\"table\"]').first();\n  30 |     const kanbanCard = page.locator('[data-testid^=\"lead-card-\"]').first();"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/e2e/03-leads.spec.js",
+                            "column": 62,
+                            "line": 27
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-testid=\"leads-page\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-testid=\"leads-page\"]')\u001b[22m\n\n\n  25 |\n  26 |     // Verify the page is visible and at least one of the supported views renders\n> 27 |     await expect(page.locator('[data-testid=\"leads-page\"]')).toBeVisible({ timeout: 5000 });\n     |                                                              ^\n  28 |\n  29 |     const table = page.locator('table, [role=\"table\"]').first();\n  30 |     const kanbanCard = page.locator('[data-testid^=\"lead-card-\"]').first();\n    at /Users/rogergv/Documents/GitHub/leadvibes/frontend/e2e/03-leads.spec.js:27:62"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-30T08:20:26.922Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/test-results/03-leads-Leads-debería-mostrar-lista-de-leads-en-tabla-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/test-results/03-leads-Leads-debería-mostrar-lista-de-leads-en-tabla-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/test-results/03-leads-Leads-debería-mostrar-lista-de-leads-en-tabla-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/rogergv/Documents/GitHub/leadvibes/frontend/e2e/03-leads.spec.js",
+                        "column": 62,
+                        "line": 27
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "782789ea0a39036fa4f9-614b914f00e2ca4cbb6a",
+              "file": "03-leads.spec.js",
+              "line": 22,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-04-30T08:20:26.697Z",
+    "duration": 8160.487,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

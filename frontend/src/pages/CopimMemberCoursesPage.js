@@ -431,16 +431,16 @@ export const CopimMemberCoursesPage = () => {
       </Tabs>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-h-[92vh] w-[min(1180px,96vw)] overflow-hidden rounded-[28px] border-border/70 bg-card p-0">
-          <DialogHeader className="border-b border-border/70 px-6 py-5">
+        <DialogContent className="flex h-[min(94vh,940px)] w-[min(1380px,calc(100vw-2rem))] max-w-none flex-col overflow-hidden rounded-[28px] border-border/70 bg-card p-0">
+          <DialogHeader className="shrink-0 border-b border-border/70 px-5 py-5 sm:px-6">
             <DialogTitle>{selectedCourse?.title || 'Curso COPIM'}</DialogTitle>
             <DialogDescription>{selectedCourse?.summary || 'Ruta formativa dentro de COPIM.'}</DialogDescription>
           </DialogHeader>
 
           {selectedCourse ? (
-            <ScrollArea className="h-[78vh] px-6 py-5">
-              <div className="space-y-6 pr-4">
-                <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+            <ScrollArea className="min-h-0 flex-1 px-5 py-5 sm:px-6">
+              <div className="space-y-5 pb-6 pr-2 sm:pr-4">
+                <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.18fr)_360px]">
                   <div className="space-y-4">
                     {canConsumeSelectedCourse && selectedLesson?.video_url ? (
                       embedUrl ? (
@@ -458,7 +458,7 @@ export const CopimMemberCoursesPage = () => {
                       )
                     ) : (
                       <div
-                        className="flex aspect-video items-end rounded-[28px] border border-white/10 bg-cover bg-center p-6 text-white"
+                        className="flex aspect-video items-end rounded-[28px] border border-white/10 bg-cover bg-center p-5 text-white sm:p-6"
                         style={{
                           backgroundImage: `linear-gradient(135deg, rgba(15, 23, 42, 0.84), rgba(8, 145, 178, 0.52)), url(${selectedCourse.hero_image_url || selectedCourse.cover_image_url})`,
                         }}
@@ -467,13 +467,13 @@ export const CopimMemberCoursesPage = () => {
                           <Badge className={`rounded-full ${pricingTone[selectedCourse.pricing_type] || 'bg-white/10 text-white'}`}>
                             {selectedCourse.pricing_type === 'premium' ? 'Premium' : 'Gratis'}
                           </Badge>
-                          <h3 className="mt-4 text-3xl font-semibold">{selectedCourse.title}</h3>
+                          <h3 className="mt-4 text-3xl font-semibold sm:text-4xl">{selectedCourse.title}</h3>
                           <p className="mt-3 max-w-2xl text-sm leading-7 text-white/78">{selectedCourse.description || selectedCourse.summary}</p>
                         </div>
                       </div>
                     )}
 
-                    <div className="rounded-[28px] border border-border/70 bg-card/95 p-5">
+                    <div className="rounded-[28px] border border-border/70 bg-card/95 p-5 sm:p-6">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className={`rounded-full capitalize ${statusTone[selectedCourse.status] || 'bg-slate-200 text-slate-900'}`}>
                           {selectedCourse.status}
@@ -519,7 +519,7 @@ export const CopimMemberCoursesPage = () => {
                     </div>
 
                     <Tabs defaultValue="transcript" className="space-y-4">
-                      <TabsList>
+                      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 rounded-2xl bg-muted/30 p-1">
                         <TabsTrigger value="transcript">Transcript</TabsTrigger>
                         <TabsTrigger value="captions">Subtítulos</TabsTrigger>
                         <TabsTrigger value="resources">Recursos</TabsTrigger>
@@ -585,7 +585,7 @@ export const CopimMemberCoursesPage = () => {
                             {selectedCourse.modules_completed || 0} de {selectedCourse.modules_total || 0} lecciones cerradas
                           </p>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-1">
                           <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
                             <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Duración</p>
                             <p className="mt-2 text-xl font-semibold">{selectedCourse.estimated_minutes || 0} min</p>
@@ -600,49 +600,76 @@ export const CopimMemberCoursesPage = () => {
 
                     <Card className="border-border/70 bg-card/95">
                       <CardHeader>
-                        <CardTitle>Módulos y lecciones</CardTitle>
+                        <CardTitle>Contexto del curso</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {(selectedCourse.modules || []).map((module) => (
-                          <div key={module.id} className="rounded-3xl border border-border/70 bg-muted/20 p-4">
-                            <p className="font-semibold">{module.title}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{module.description}</p>
-                            <div className="mt-4 space-y-2">
-                              {(module.lessons || []).map((lesson) => {
-                                const isActive = selectedLessonId === lesson.id;
-                                const isDone = Boolean(selectedCourse.completed_lesson_ids?.includes(lesson.id));
-                                return (
-                                  <button
-                                    key={lesson.id}
-                                    type="button"
-                                    className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-                                      isActive
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-border/70 bg-background/80 hover:bg-muted'
-                                    }`}
-                                    onClick={() => setSelectedLessonId(lesson.id)}
-                                  >
-                                    <div className="flex items-center justify-between gap-3">
-                                      <div>
-                                        <p className="font-medium">{lesson.title}</p>
-                                        <p className="mt-1 text-xs text-muted-foreground">{lesson.duration_minutes || 0} min · {lesson.lesson_type}</p>
-                                      </div>
-                                      {isDone ? (
-                                        <Badge className="rounded-full bg-emerald-100 text-emerald-900">OK</Badge>
-                                      ) : lesson.is_preview ? (
-                                        <Badge className="rounded-full bg-primary/10 text-primary">Preview</Badge>
-                                      ) : null}
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
+                        <div className="rounded-3xl border border-border/70 bg-muted/20 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Modalidad</p>
+                          <p className="mt-2 text-base font-semibold">{selectedCourse.delivery_mode || 'Video on demand'}</p>
+                        </div>
+                        <div className="rounded-3xl border border-border/70 bg-muted/20 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Audiencia</p>
+                          <p className="mt-2 text-base font-semibold">{selectedCourse.audience || 'Socios activos COPIM'}</p>
+                        </div>
+                        <div className="rounded-3xl border border-border/70 bg-muted/20 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Certificación</p>
+                          <p className="mt-2 text-base font-semibold">{selectedCourse.certificate_title || 'Constancia institucional COPIM'}</p>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
                 </div>
+
+                <Card className="border-border/70 bg-card/95">
+                  <CardHeader>
+                    <CardTitle>Módulos y lecciones</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {(selectedCourse.modules || []).map((module) => (
+                      <div key={module.id} className="rounded-3xl border border-border/70 bg-muted/20 p-4 sm:p-5">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="font-semibold">{module.title}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{module.description}</p>
+                          </div>
+                          <Badge className="w-fit rounded-full bg-background/80 text-foreground">
+                            {(module.lessons || []).length} lecciones
+                          </Badge>
+                        </div>
+                        <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                          {(module.lessons || []).map((lesson) => {
+                            const isActive = selectedLessonId === lesson.id;
+                            const isDone = Boolean(selectedCourse.completed_lesson_ids?.includes(lesson.id));
+                            return (
+                              <button
+                                key={lesson.id}
+                                type="button"
+                                className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                                  isActive
+                                    ? 'border-primary bg-primary/5 shadow-[0_0_0_1px_hsl(var(--primary))]'
+                                    : 'border-border/70 bg-background/80 hover:bg-muted'
+                                }`}
+                                onClick={() => setSelectedLessonId(lesson.id)}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="font-medium">{lesson.title}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{lesson.duration_minutes || 0} min · {lesson.lesson_type}</p>
+                                  </div>
+                                  {isDone ? (
+                                    <Badge className="rounded-full bg-emerald-100 text-emerald-900">OK</Badge>
+                                  ) : lesson.is_preview ? (
+                                    <Badge className="rounded-full bg-primary/10 text-primary">Preview</Badge>
+                                  ) : null}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
               </div>
             </ScrollArea>
           ) : null}

@@ -11,14 +11,14 @@ export const IntegrationsSection = () => {
       icon: '📅',
       desc: 'Sincronización OAuth2 bidireccional',
       features: ['Agenda en tiempo real', 'Eventos sincronizados', 'Invitaciones automáticas'],
-      color: 'from-blue-500 to-blue-600'
+      color: 'from-primary to-primary-dark'
     },
     {
       name: 'SendGrid',
       icon: '📧',
       desc: 'Email marketing con plantillas',
       features: ['Campañas masivas', 'Editor drag & drop', 'Tracking de aperturas'],
-      color: 'from-teal-500 to-teal-600'
+      color: 'from-secondary to-accent'
     },
     {
       name: 'Twilio',
@@ -32,28 +32,28 @@ export const IntegrationsSection = () => {
       icon: '🤖',
       desc: 'Llamadas IA con transcripción',
       features: ['Llamadas automáticas', 'Transcripción en vivo', 'Análisis de sentimiento'],
-      color: 'from-purple-500 to-purple-600'
+      color: 'from-accent to-secondary'
     },
     {
       name: 'WhatsApp',
       icon: '📱',
       desc: 'Conexión directa con clientes',
       features: ['Enlaces directos', 'Plantillas de mensaje', 'Seguimiento automático'],
-      color: 'from-green-500 to-green-600'
+      color: 'from-secondary to-secondary-dark'
     },
     {
       name: 'OpenAI',
       icon: '🧠',
       desc: 'IA para análisis de leads',
       features: ['Score de intención', 'Sentimiento', 'Recomendaciones'],
-      color: 'from-amber-500 to-amber-600'
+      color: 'from-accent to-secondary'
     },
     {
       name: 'n8n',
       icon: '⚡',
       desc: 'Automatización de workflows',
       features: ['Workflows visuales', 'Conectores ilimitados', 'Ejecución programada'],
-      color: 'from-orange-500 to-orange-600'
+      color: 'from-accent to-secondary'
     },
     {
       name: 'Meta Ads',
@@ -115,7 +115,7 @@ export const IntegrationsSection = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-gradient-to-br from-primary/10 via-teal-600/10 to-emerald-600/10 rounded-3xl p-8 md:p-12 border border-primary/20"
+          className="bg-gradient-to-br from-primary/10 via-secondary/10 to-secondary-dark/10 rounded-3xl p-8 md:p-12 border border-primary/20"
         >
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
@@ -146,7 +146,7 @@ export const IntegrationsSection = () => {
             </div>
             <div className="bg-card rounded-2xl p-6 border border-border">
               <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center text-2xl mr-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-accent to-secondary rounded-xl flex items-center justify-center text-2xl mr-3">
                   🤖
                 </div>
                 <div>
@@ -157,7 +157,7 @@ export const IntegrationsSection = () => {
               {/* Simulated Call Interface */}
               <div className="bg-muted rounded-xl p-4 space-y-3">
                 <div className="flex items-start">
-                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">AI</div>
+                  <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">AI</div>
                   <div className="bg-card rounded-lg p-3 text-sm flex-1">
                     <p>"Hola, te llamo de Tulum Premier sobre la propiedad que viste..."</p>
                   </div>
@@ -166,15 +166,15 @@ export const IntegrationsSection = () => {
                   Transcribiendo...
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="bg-emerald-500/20 text-emerald-500 rounded-lg p-2">
+                  <div className="bg-secondary/20 text-secondary rounded-lg p-2">
                     <div className="font-bold">Sentimiento</div>
                     <div>Positivo</div>
                   </div>
-                  <div className="bg-blue-500/20 text-blue-500 rounded-lg p-2">
+                  <div className="bg-primary/10 text-primary rounded-lg p-2">
                     <div className="font-bold">Interés</div>
                     <div>Alto (85%)</div>
                   </div>
-                  <div className="bg-amber-500/20 text-amber-500 rounded-lg p-2">
+                  <div className="bg-accent/20 text-accent rounded-lg p-2">
                     <div className="font-bold">Acción</div>
                     <div>Agendar visita</div>
                   </div>

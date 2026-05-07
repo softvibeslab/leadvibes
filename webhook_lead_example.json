@@ -1,0 +1,285 @@
+{
+  "webhook_lead_data": {
+    "version": "1.0",
+    "event_type": "lead_created",
+    "timestamp": "2025-01-18T10:30:00Z",
+    "lead_data": {
+      "id": "lead_20250118_001",
+      "source": "whatsapp_business",
+      "status": "new",
+      "personal_info": {
+        "first_name": "Adriana",
+        "last_name": "Avalos",
+        "full_name": "Adriana Avalos",
+        "company": "September 4",
+        "title": "",
+        "notes": "Contacto inicial vía WhatsApp, interesada en propiedades en Playa del Carmen"
+      },
+      "contact_info": {
+        "primary_phone": {
+          "number": "+529841154923",
+          "type": "mobile",
+          "country_code": "+52",
+          "verified": true,
+          "preferred": true
+        },
+        "email": {
+          "address": "adriana.seaview@gmail.com",
+          "verified": false,
+          "preferred": true
+        }
+      },
+      "location": {
+        "country": "Mexico",
+        "state": "Quintana Roo",
+        "city": "Playa del Carmen",
+        "address": "",
+        "zip_code": "",
+        "coordinates": {
+          "latitude": 20.6296,
+          "longitude": -87.0739
+        }
+      },
+      "preferences": {
+        "contact_method": "whatsapp",
+        "contact_time": "afternoon",
+        "language": "es",
+        "timezone": "America/Cancun"
+      },
+      "profile_analysis": {
+        "lead_score": 75,
+        "interest_level": "high",
+        "budget_range": {
+          "min": 200000,
+          "max": 400000,
+          "currency": "USD"
+        },
+        "property_preferences": {
+          "type": "condo",
+          "bedrooms": 2,
+          "bathrooms": 2,
+          "area_min": 80,
+          "area_max": 150,
+          "features": ["beach_access", "pool", "gym", "security"]
+        },
+        "location_preferences": {
+          "preferred_areas": ["Playacar", "Centro", "Gonzalo Guerrero"],
+          "avoid_areas": [],
+          "proximity_to": {
+            "beach": 0.5,
+            "schools": 2.0,
+            "shopping": 1.0,
+            "airport": 15.0,
+            "hospital": 3.0
+          }
+        },
+        "timeline": "3-6_months",
+        "financing": "mortgage",
+        "investment_type": "vacation_home"
+      },
+      "communication_history": [],
+      "documents": {
+        "profile_photo": "",
+        "id_document": "",
+        "proof_of_income": "",
+        "pre_approval_letter": "",
+        "additional_files": []
+      },
+      "metadata": {
+        "utm_source": "whatsapp",
+        "utm_medium": "business_api",
+        "utm_campaign": "winter_promotion",
+        "referral_source": "direct_message",
+        "ip_address": "189.203.45.67",
+        "user_agent": "WhatsApp/2.23.4.78",
+        "landing_page": "https://rovirealestate.com/properties/playa-del-carmen",
+        "form_id": "whatsapp_lead_form"
+      }
+    },
+    "email_campaign_config": {
+      "sendgrid_template_id": "d-1234567890abcdef1234567890abcdef",
+      "sender_info": {
+        "email": "noreply@rovirealestate.com",
+        "name": "Rovi Real Estate"
+      },
+      "personalization": {
+        "subject": "Propiedades exclusivas en Playa del Carmen para Adriana",
+        "recipient_email": "adriana.seaview@gmail.com",
+        "recipient_name": "Adriana Avalos",
+        "template_data": {
+          "nombre": "Adriana",
+          "apellidos": "Avalos",
+          "empresa": "September 4",
+          "telefono": "+52 984 115 4923",
+          "email": "adriana.seaview@gmail.com",
+          "propiedades_recomendadas": [
+            {
+              "id": "PROP-001",
+              "titulo": "Condo de 2 recámaras en Playacar",
+              "precio": "$350,000 USD",
+              "ubicacion": "Playacar Phase II",
+              "descripcion": "Hermoso condominio con vista al mar, amenities completas",
+              "imagen_url": "https://rovirealestate.com/images/prop1.jpg",
+              "link_propiedad": "https://rovirealestate.com/properties/prop-001"
+            },
+            {
+              "id": "PROP-002",
+              "titulo": "Apartamento en Centro Playa del Carmen",
+              "precio": "$285,000 USD",
+              "ubicacion": "Centro - 5ta Avenida",
+              "descripcion": "Moderno apartamento cerca de todo, excelente inversión",
+              "imagen_url": "https://rovirealestate.com/images/prop2.jpg",
+              "link_propiedad": "https://rovirealestate.com/properties/prop-002"
+            }
+          ],
+          "contenido_personalizado": {
+            "saludo": "¡Hola Adriana!",
+            "mensaje_principal": "Basado en tu interés en propiedades en Playa del Carmen, he seleccionado estas opciones exclusivas que coinciden perfectamente con tus preferencias.",
+            "llamada_accion": "¿Te gustaría programar una visita virtual esta semana?",
+            "firma": "El equipo de Rovi Real Estate"
+          }
+        }
+      },
+      "campaign_settings": {
+        "send_at": "2025-01-18T14:00:00Z",
+        "category": "lead_nurturing",
+        "tracking": {
+          "open_tracking": true,
+          "click_tracking": true,
+          "ganalytics_tracking": true
+        },
+        "unsubscribe_group": 12345
+      }
+    },
+    "phone_call_config": {
+      "call_details": {
+        "phone_number": "+529841154923",
+        "country_code": "+52",
+        "call_type": "whatsapp",
+        "priority": "medium",
+        "scheduled_time": "2025-01-18T16:00:00Z",
+        "duration_estimate": 15
+      },
+      "agent_assignment": {
+        "agent_id": "agent_001",
+        "agent_name": "Carlos Rodríguez",
+        "agent_phone": "+529841234567",
+        "specialization": "Playa del Carmen properties"
+      },
+      "script_template": {
+        "greeting": "Hola Adriana, soy Carlos Rodríguez de Rovi Real Estate. Vi tu interés en propiedades en Playa del Carmen.",
+        "qualification_questions": [
+          {
+            "question": "¿Cuál es tu presupuesto aproximado?",
+            "type": "open",
+            "options": []
+          },
+          {
+            "question": "¿Buscas para inversión o para uso personal?",
+            "type": "multiple_choice",
+            "options": ["Inversión", "Uso personal", "Ambas"]
+          },
+          {
+            "question": "¿Tienes un timeframe específico para comprar?",
+            "type": "open",
+            "options": []
+          }
+        ],
+        "property_presentation": "Tengo excelentes opciones que coinciden con lo que buscas, especialmente condos en Playacar con acceso a playa.",
+        "call_to_action": "¿Te gustaría que te envíe el catálogo completo o prefieres agendar una visita presencial?",
+        "closing": "Gracias por tu tiempo Adriana. Estoy a tu disposición para cualquier duda."
+      },
+      "call_settings": {
+        "record_call": true,
+        "transcribe_call": true,
+        "send_sms_reminder": true,
+        "follow_up_email": true,
+        "voicemail_message": "Hola Adriana, soy Carlos Rodríguez de Rovi Real Estate. Te llamo respecto a tu interés en propiedades en Playa del Carmen. Por favor devuélveme la llamada cuando tengas un momento. Gracias!"
+      }
+    },
+    "profile_analysis_config": {
+      "scoring_criteria": {
+        "demographic_score": 80,
+        "behavioral_score": 75,
+        "engagement_score": 70,
+        "financial_score": 75,
+        "timing_score": 75
+      },
+      "segmentation": {
+        "segment": "warm",
+        "tags": ["playa_del_carmen", "vacation_home", "condo", "whatsapp_lead"],
+        "persona_type": "vacation_home"
+      },
+      "ai_analysis": {
+        "sentiment_analysis": "positive",
+        "communication_style": "casual",
+        "response_probability": 85,
+        "best_contact_time": "afternoon",
+        "recommended_properties": ["PROP-001", "PROP-002", "PROP-005"],
+        "next_action": "send_email"
+      },
+      "enrichment_data": {
+        "social_profiles": {
+          "linkedin": "",
+          "facebook": "",
+          "instagram": "",
+          "twitter": ""
+        },
+        "professional_info": {
+          "industry": "Unknown",
+          "company_size": "Small",
+          "job_level": "Unknown",
+          "estimated_income": "Medium"
+        },
+        "behavioral_data": {
+          "website_visits": 3,
+          "property_views": 7,
+          "search_history": ["condos playa del carmen", "playacar properties", "beachfront real estate"],
+          "email_engagement": 0,
+          "response_time_avg": 120
+        }
+      }
+    },
+    "webhook_processing": {
+      "event_type": "lead_created",
+      "processing_rules": {
+        "auto_responder": true,
+        "lead_assignment": true,
+        "duplicate_check": true,
+        "validation_required": false
+      },
+      "actions_triggered": [
+        {
+          "action": "send_email",
+          "priority": "high",
+          "delay": 0,
+          "conditions": ["email_verified"]
+        },
+        {
+          "action": "schedule_call",
+          "priority": "medium",
+          "delay": 3600,
+          "conditions": ["phone_verified"]
+        },
+        {
+          "action": "create_task",
+          "priority": "medium",
+          "delay": 0,
+          "conditions": ["always"]
+        }
+      ],
+      "error_handling": {
+        "retry_policy": {
+          "max_retries": 3,
+          "retry_delay": 300,
+          "backoff_multiplier": 2
+        },
+        "notification_settings": {
+          "notify_on_error": true,
+          "notification_email": "alerts@rovirealestate.com",
+          "slack_webhook": "SLACK_WEBHOOK_URL_PLACEHOLDER"
+        }
+      }
+    }
+  }
+}

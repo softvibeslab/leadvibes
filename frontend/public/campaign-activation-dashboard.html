@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rovi · Dashboard de Activación de Campañas</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: rgba(30, 41, 59, 0.88);
+        --panel-strong: #111b34;
+        --border: rgba(148, 163, 184, 0.16);
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --primary: #2563eb;
+        --primary-soft: rgba(37, 99, 235, 0.12);
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --shadow: 0 24px 80px rgba(2, 6, 23, 0.45);
+        --radius-xl: 24px;
+        --radius-lg: 18px;
+        --radius-md: 14px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 26%),
+          radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 22%),
+          linear-gradient(180deg, #0b1224 0%, #101a33 55%, #0f172a 100%);
+        min-height: 100vh;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .shell {
+        width: min(1380px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      .hero,
+      .panel,
+      .step-card,
+      .stat-card {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        border-radius: 28px;
+        padding: 28px;
+        display: grid;
+        grid-template-columns: 1.45fr 0.95fr;
+        gap: 24px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.66);
+        color: #bfdbfe;
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      h1 {
+        margin: 18px 0 10px;
+        font-size: clamp(2rem, 3vw, 3.4rem);
+        line-height: 1.04;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.7;
+      }
+
+      .hero-actions,
+      .inline-actions,
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .hero-actions {
+        margin-top: 22px;
+      }
+
+      .button,
+      .ghost-button,
+      .copy-button {
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .button {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+      }
+
+      .ghost-button,
+      .copy-button {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+      }
+
+      .button:hover,
+      .ghost-button:hover,
+      .copy-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .check-banner {
+        border-radius: var(--radius-xl);
+        padding: 22px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.72));
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        display: grid;
+        gap: 16px;
+      }
+
+      .check-banner h2,
+      .step-card h3,
+      .panel h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .progress-line {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #2563eb, #22c55e);
+        transition: width 0.25s ease;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 22px;
+      }
+
+      .providers-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 22px;
+      }
+
+      .provider-card {
+        border-radius: 24px;
+        padding: 22px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.72);
+        box-shadow: var(--shadow);
+      }
+
+      .provider-card h3 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+      }
+
+      .provider-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+        font-size: 0.94rem;
+      }
+
+      .provider-card ol {
+        margin: 16px 0 0;
+        padding-left: 18px;
+        color: var(--text);
+        display: grid;
+        gap: 10px;
+        line-height: 1.6;
+      }
+
+      .provider-card li {
+        padding-left: 2px;
+      }
+
+      .provider-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .doc-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(37, 99, 235, 0.08);
+        color: #bfdbfe;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .stat-card {
+        border-radius: 20px;
+        padding: 18px;
+      }
+
+      .stat-label {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-top: 8px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 22px;
+        margin-top: 22px;
+      }
+
+      .panel {
+        border-radius: var(--radius-xl);
+        padding: 20px;
+      }
+
+      .sticky {
+        position: sticky;
+        top: 20px;
+      }
+
+      .nav-list,
+      .checklist,
+      .channel-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .nav-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: var(--muted);
+        background: rgba(15, 23, 42, 0.45);
+      }
+
+      .nav-link strong {
+        color: var(--text);
+        display: block;
+        font-size: 0.93rem;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 72px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
+      .badge.pending {
+        background: rgba(245, 158, 11, 0.14);
+        color: #fbbf24;
+      }
+
+      .badge.done {
+        background: rgba(34, 197, 94, 0.16);
+        color: #4ade80;
+      }
+
+      .next-step {
+        margin-top: 18px;
+        padding: 16px;
+        border-radius: 18px;
+        background: rgba(37, 99, 235, 0.12);
+        border: 1px solid rgba(37, 99, 235, 0.18);
+      }
+
+      .next-step p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+
+      .steps {
+        display: grid;
+        gap: 18px;
+      }
+
+      .step-card {
+        border-radius: 26px;
+        padding: 22px;
+      }
+
+      .step-card header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .step-number {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        background: var(--primary-soft);
+        color: #bfdbfe;
+      }
+
+      .step-subtitle,
+      .meta-note,
+      .channel-meta,
+      .step-card p,
+      .checklist label small {
+        color: var(--muted);
+      }
+
+      .step-subtitle {
+        margin-top: 6px;
+        line-height: 1.6;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 12px;
+      }
+
+      .check-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.44);
+      }
+
+      .check-item input[type="checkbox"] {
+        margin-top: 3px;
+        width: 18px;
+        height: 18px;
+        accent-color: #2563eb;
+        cursor: pointer;
+      }
+
+      .check-item label {
+        display: grid;
+        gap: 4px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .check-item label small {
+        font-weight: 500;
+        line-height: 1.55;
+        font-size: 0.88rem;
+      }
+
+      .resource-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .resource-card {
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.48);
+      }
+
+      .resource-card strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .resource-card p {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.55;
+      }
+
+      .code-block {
+        position: relative;
+        margin-top: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: #091122;
+        overflow: hidden;
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 18px;
+        white-space: pre-wrap;
+        font-size: 0.9rem;
+        color: #dbeafe;
+        line-height: 1.6;
+      }
+
+      .code-block .copy-button {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+      }
+
+      .notes {
+        margin-top: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .notes textarea {
+        width: 100%;
+        min-height: 96px;
+        resize: vertical;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.55);
+        color: var(--text);
+        padding: 14px 16px;
+        font: inherit;
+      }
+
+      .callout {
+        margin-top: 18px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.18);
+      }
+
+      .callout strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .channel-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .channel-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(15, 23, 42, 0.44);
+      }
+
+      .channel-list strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .footer {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      @media (max-width: 1120px) {
+        .hero,
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .sticky {
+          position: static;
+        }
+      }
+
+      @media (max-width: 820px) {
+        .summary-grid,
+        .resource-grid,
+        .providers-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          width: min(100% - 20px, 100%);
+          padding-top: 16px;
+        }
+
+        .hero,
+        .panel,
+        .step-card,
+        .stat-card {
+          border-radius: 22px;
+        }
+
+        .summary-grid,
+        .resource-grid,
+        .providers-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero,
+        .step-card,
+        .panel {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Guía interactiva · Campaign Activation</span>
+          <h1>Activa SendGrid, SMS, WhatsApp y campañas masivas sin perderte.</h1>
+          <p>
+            Este dashboard te guía paso a paso para dejar listo el módulo de campañas de Rovi.
+            Marca tu progreso, abre las pantallas correctas y valida cada canal antes de escalar a producción.
+          </p>
+
+          <div class="hero-actions">
+            <button class="button" data-open="/settings?tab=integrations">Abrir Integraciones</button>
+            <button class="ghost-button" data-open="/campaigns">Abrir Campañas</button>
+            <button class="ghost-button" data-open="/leads">Abrir Leads</button>
+          </div>
+
+          <div class="callout" style="margin-top: 18px; background: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.18);">
+            <strong>Cómo abrir esta guía</strong>
+            <div class="meta-note">
+              Si la abres como archivo local <code>file://</code>, los accesos rápidos usarán por defecto <code>http://localhost:13000</code>.
+              Lo ideal es abrirla servida desde <code>http://localhost:13000/campaign-activation-dashboard.html</code>.
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <article class="stat-card">
+              <div class="stat-label">Avance total</div>
+              <div class="stat-value" id="progressPercent">0%</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-label">Checks completados</div>
+              <div class="stat-value" id="completedCount">0</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-label">Checks pendientes</div>
+              <div class="stat-value" id="pendingCount">0</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-label">Paso recomendado</div>
+              <div class="stat-value" id="stepCounter">1</div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="check-banner">
+          <div>
+            <h2>Tu siguiente movimiento</h2>
+            <p id="nextActionText">Empieza por verificar el workspace e ir a Integraciones.</p>
+          </div>
+          <div class="progress-line">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="toolbar">
+            <button class="ghost-button" id="resetChecklist">Reiniciar checklist</button>
+            <button class="ghost-button" id="copySummary">Copiar resumen</button>
+          </div>
+          <p class="meta-note">
+            Esta guía guarda tu progreso en este navegador para que puedas volver después sin perder el estado.
+          </p>
+        </aside>
+      </section>
+
+      <section class="providers-grid">
+        <article class="provider-card">
+          <h3>SendGrid · API key + remitente</h3>
+          <p>Usa SendGrid para email masivo. La documentación oficial indica que debes autenticar con API key y verificar tu identidad de remitente antes de enviar.</p>
+          <ol>
+            <li>Entra a <strong>SendGrid Console → Settings → API Keys</strong> y crea una API key de envío.</li>
+            <li>Para pruebas rápidas, ve a <strong>Settings → Sender Authentication → Verify a Single Sender</strong> y verifica un solo email.</li>
+            <li>Para producción, usa <strong>Domain Authentication</strong> y configura los DNS que SendGrid te entregue.</li>
+            <li>En Rovi pega la API key, el email remitente verificado y el nombre remitente.</li>
+          </ol>
+          <div class="provider-links">
+            <a class="doc-link" href="https://www.twilio.com/docs/sendgrid/for-developers/sending-email/api-getting-started" target="_blank" rel="noreferrer">API key y envío</a>
+            <a class="doc-link" href="https://www.twilio.com/docs/sendgrid/ui/sending-email/sender-verification" target="_blank" rel="noreferrer">Single Sender</a>
+            <a class="doc-link" href="https://www.twilio.com/docs/sendgrid/ui/account-and-settings/how-to-set-up-domain-authentication" target="_blank" rel="noreferrer">Domain Authentication</a>
+            <a class="doc-link" href="https://app.sendgrid.com/settings/api_keys" target="_blank" rel="noreferrer">Abrir API Keys</a>
+          </div>
+        </article>
+
+        <article class="provider-card">
+          <h3>Twilio · Account SID, Auth Token y número SMS</h3>
+          <p>Twilio usa Account SID y Auth Token para autenticar requests. Para SMS necesitas además un número con capacidad de mensajería.</p>
+          <ol>
+            <li>Entra a <strong>Twilio Console</strong>. En la primera pantalla, bajo <strong>Account Info</strong>, copia tu <strong>Account SID</strong> y <strong>Auth Token</strong>.</li>
+            <li>Abre <strong>Phone Numbers</strong> y compra o selecciona un número con capacidad SMS.</li>
+            <li>Si tu país o tipo de número exige requisitos regulatorios, complétalos antes de enviar.</li>
+            <li>En Rovi pega SID, token y número en formato internacional.</li>
+          </ol>
+          <div class="provider-links">
+            <a class="doc-link" href="https://www.twilio.com/docs/twilio-cli/general-usage/profiles" target="_blank" rel="noreferrer">Dónde ver SID y Token</a>
+            <a class="doc-link" href="https://www.twilio.com/docs/phone-numbers" target="_blank" rel="noreferrer">Phone Numbers</a>
+            <a class="doc-link" href="https://console.twilio.com" target="_blank" rel="noreferrer">Abrir Twilio Console</a>
+          </div>
+        </article>
+
+        <article class="provider-card">
+          <h3>Twilio WhatsApp · Sandbox o sender productivo</h3>
+          <p>Twilio recomienda dos caminos: Sandbox para pruebas rápidas y Self Sign-up para un sender real vinculado a tu negocio y Meta.</p>
+          <ol>
+            <li>Para prueba rápida, activa <strong>Twilio Sandbox for WhatsApp</strong> y haz que cada destinatario mande <strong>join &lt;código&gt;</strong> al número del sandbox o escanee el QR.</li>
+            <li>Para producción, entra a <strong>Messaging → Senders → WhatsApp Senders → Create new sender</strong> y completa el <strong>Self Sign-up</strong> con Meta.</li>
+            <li>Si registras un número Twilio, copia el número desde la consola y úsalo durante el flujo de alta del sender.</li>
+            <li>En Rovi pega el sender final como <strong>whatsapp:+1415...</strong> o solo <strong>+1415...</strong>.</li>
+          </ol>
+          <div class="provider-links">
+            <a class="doc-link" href="https://www.twilio.com/docs/whatsapp/sandbox" target="_blank" rel="noreferrer">Sandbox</a>
+            <a class="doc-link" href="https://www.twilio.com/docs/whatsapp/self-sign-up" target="_blank" rel="noreferrer">Self Sign-up</a>
+            <a class="doc-link" href="https://www.twilio.com/docs/whatsapp/quickstart" target="_blank" rel="noreferrer">Quickstart WhatsApp</a>
+          </div>
+        </article>
+
+        <article class="provider-card">
+          <h3>Vapi · API key, Assistant ID y Phone Number ID</h3>
+          <p>Vapi requiere tres datos en Rovi: tu API key, el Assistant ID y el Phone Number ID con el que hará o recibirá llamadas.</p>
+          <ol>
+            <li>Entra a <strong>dashboard.vapi.ai</strong> y desde tu perfil abre <strong>Vapi API Keys</strong> para copiar tu Private API Key.</li>
+            <li>Ve a <strong>Assistants</strong>, crea o abre un asistente, publícalo y copia el <strong>Assistant ID</strong> desde la URL o el detalle.</li>
+            <li>Ve a <strong>Phone Numbers</strong>, crea un número gratis en EE. UU. o importa uno desde Twilio, y copia el <strong>Phone Number ID</strong>.</li>
+            <li>Pega esos tres valores en Rovi y usa “Probar Conexión”.</li>
+          </ol>
+          <div class="provider-links">
+            <a class="doc-link" href="https://docs.vapi.ai/chat/quickstart" target="_blank" rel="noreferrer">API key</a>
+            <a class="doc-link" href="https://docs.vapi.ai/assistants/quickstart" target="_blank" rel="noreferrer">Assistants quickstart</a>
+            <a class="doc-link" href="https://docs.vapi.ai/phone-calling" target="_blank" rel="noreferrer">Phone Calling</a>
+            <a class="doc-link" href="https://dashboard.vapi.ai" target="_blank" rel="noreferrer">Abrir Vapi Dashboard</a>
+          </div>
+        </article>
+      </section>
+
+      <section class="layout">
+        <aside class="panel sticky">
+          <h3>Ruta sugerida</h3>
+          <p class="meta-note">Avanza en este orden para evitar falsos errores de envío o tracking.</p>
+          <nav>
+            <ol class="nav-list" id="stepNav">
+              <li><a class="nav-link" href="#step-1"><span><strong>1. Workspace y stack</strong>Confirma que estás en el espacio correcto</span><span class="badge pending" data-step-badge="step-1">Pendiente</span></a></li>
+              <li><a class="nav-link" href="#step-2"><span><strong>2. SendGrid</strong>Habilita email y prueba conexión</span><span class="badge pending" data-step-badge="step-2">Pendiente</span></a></li>
+              <li><a class="nav-link" href="#step-3"><span><strong>3. Twilio SMS</strong>Activa SMS y valida tu número</span><span class="badge pending" data-step-badge="step-3">Pendiente</span></a></li>
+              <li><a class="nav-link" href="#step-4"><span><strong>4. Twilio WhatsApp</strong>Configura sender y sandbox o número aprobado</span><span class="badge pending" data-step-badge="step-4">Pendiente</span></a></li>
+              <li><a class="nav-link" href="#step-5"><span><strong>5. Leads de prueba</strong>Crea tags, segmento y audiencia</span><span class="badge pending" data-step-badge="step-5">Pendiente</span></a></li>
+              <li><a class="nav-link" href="#step-6"><span><strong>6. Pruebas de campañas</strong>Envía 1 lead por canal antes de escalar</span><span class="badge pending" data-step-badge="step-6">Pendiente</span></a></li>
+              <li><a class="nav-link" href="#step-7"><span><strong>7. Webhooks y tracking</strong>Prepara URL pública para estados reales</span><span class="badge pending" data-step-badge="step-7">Pendiente</span></a></li>
+              <li><a class="nav-link" href="#step-8"><span><strong>8. Cierre operativo</strong>Checklist final antes de producción</span><span class="badge pending" data-step-badge="step-8">Pendiente</span></a></li>
+            </ol>
+          </nav>
+
+          <div class="next-step">
+            <strong>Recomendación inteligente</strong>
+            <p id="nextStepCard">Abre Integraciones y completa primero SendGrid.</p>
+          </div>
+
+          <ul class="channel-list">
+            <li>
+              <div>
+                <strong>Email</strong>
+                <div class="channel-meta">Requiere API key + sender validado</div>
+              </div>
+              <span class="badge pending">SendGrid</span>
+            </li>
+            <li>
+              <div>
+                <strong>SMS</strong>
+                <div class="channel-meta">Twilio SID, token y número SMS</div>
+              </div>
+              <span class="badge pending">Twilio</span>
+            </li>
+            <li>
+              <div>
+                <strong>WhatsApp</strong>
+                <div class="channel-meta">Twilio sender aprobado o sandbox</div>
+              </div>
+              <span class="badge pending">Twilio WA</span>
+            </li>
+            <li>
+              <div>
+                <strong>Llamadas IA</strong>
+                <div class="channel-meta">Opcional para esta fase</div>
+              </div>
+              <span class="badge pending">VAPI</span>
+            </li>
+          </ul>
+        </aside>
+
+        <section class="steps">
+          <article class="step-card" id="step-1" data-step-title="Workspace y stack">
+            <header>
+              <div>
+                <div class="step-number">1</div>
+                <h3>Workspace correcto y entorno levantado</h3>
+                <p class="step-subtitle">Antes de tocar integraciones, confirma que estás en la inmobiliaria adecuada y que frontend/backend responden.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-1">Pendiente</span>
+            </header>
+
+            <div class="inline-actions">
+              <button class="button" data-open="/settings?tab=integrations">Ir a Integraciones</button>
+            </div>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="stack-1" data-step="step-1" />
+                <label for="stack-1">
+                  Confirmé el workspace activo en el sidebar
+                  <small>Las credenciales y campañas se guardan por workspace. Si estás en el espacio equivocado, las pruebas pueden parecer fallidas.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="stack-2" data-step="step-1" />
+                <label for="stack-2">
+                  Abrí el frontend en <code>http://localhost:13000</code>
+                  <small>Ese es el frontend local que está respondiendo en este entorno.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="stack-3" data-step="step-1" />
+                <label for="stack-3">
+                  Verifiqué que backend responde en <code>http://localhost:18080/api/health</code>
+                  <small>Si backend no responde, las pruebas de integración siempre fallarán aunque la UI se vea bien.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="stack-4" data-step="step-1" />
+                <label for="stack-4">
+                  Reconstruí con Docker si hice cambios recientes de código
+                  <small>Hazlo si editaste frontend, backend o variables de compose.</small>
+                </label>
+              </li>
+            </ul>
+
+            <div class="code-block">
+              <button class="copy-button" data-copy-target="build-command">Copiar</button>
+              <pre id="build-command">docker compose up -d --build frontend backend</pre>
+            </div>
+          </article>
+
+          <article class="step-card" id="step-2" data-step-title="SendGrid">
+            <header>
+              <div>
+                <div class="step-number">2</div>
+                <h3>Activa SendGrid para email masivo</h3>
+                <p class="step-subtitle">Configura credenciales válidas y prueba primero un envío controlado antes de lanzar una campaña.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-2">Pendiente</span>
+            </header>
+
+            <div class="resource-grid">
+              <div class="resource-card">
+                <strong>Campos requeridos</strong>
+                <p><code>sendgrid_api_key</code>, <code>sendgrid_sender_email</code> y <code>sendgrid_sender_name</code>.</p>
+              </div>
+              <div class="resource-card">
+                <strong>Dónde configurarlo</strong>
+                <p>Configuración → Integraciones → tarjeta SendGrid.</p>
+              </div>
+            </div>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="sendgrid-1" data-step="step-2" />
+                <label for="sendgrid-1">
+                  Pegué una API key activa de SendGrid
+                  <small>Debe tener permisos de envío. Si usas una key limitada, la conexión puede pasar pero el envío fallar.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="sendgrid-2" data-step="step-2" />
+                <label for="sendgrid-2">
+                  Configuré un sender email validado
+                  <small>Idealmente con dominio autenticado. Un remitente no validado suele terminar en rechazos o spam.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="sendgrid-3" data-step="step-2" />
+                <label for="sendgrid-3">
+                  Guardé integraciones y usé “Probar SendGrid”
+                  <small>Debes ver el estado activo en la UI antes de intentar campañas por email.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="sendgrid-4" data-step="step-2" />
+                <label for="sendgrid-4">
+                  Preparé un lead de prueba con email real mío
+                  <small>Haz una prueba contigo mismo antes de usar listas amplias.</small>
+                </label>
+              </li>
+            </ul>
+          </article>
+
+          <article class="step-card" id="step-3" data-step-title="Twilio SMS">
+            <header>
+              <div>
+                <div class="step-number">3</div>
+                <h3>Configura Twilio para SMS</h3>
+                <p class="step-subtitle">Este canal necesita SID, token y un número SMS habilitado. Sin eso el botón de prueba no sirve de mucho.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-3">Pendiente</span>
+            </header>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="twilio-1" data-step="step-3" />
+                <label for="twilio-1">
+                  Capturé <code>twilio_account_sid</code> y <code>twilio_auth_token</code>
+                  <small>Usa las credenciales del proyecto que realmente enviará SMS.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="twilio-2" data-step="step-3" />
+                <label for="twilio-2">
+                  Pegué <code>twilio_phone_number</code> con formato internacional
+                  <small>Ejemplo: <code>+5215512345678</code>. Evita números locales sin prefijo.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="twilio-3" data-step="step-3" />
+                <label for="twilio-3">
+                  Guardé y ejecuté “Probar Twilio”
+                  <small>Si falla aquí, no avances a campañas SMS todavía.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="twilio-4" data-step="step-3" />
+                <label for="twilio-4">
+                  Tengo al menos un lead con teléfono real y SMS permitido
+                  <small>Revisa en el detalle del lead que no esté activado “No SMS”.</small>
+                </label>
+              </li>
+            </ul>
+          </article>
+
+          <article class="step-card" id="step-4" data-step-title="Twilio WhatsApp">
+            <header>
+              <div>
+                <div class="step-number">4</div>
+                <h3>Configura WhatsApp con Twilio</h3>
+                <p class="step-subtitle">Para desarrollo te sirve Sandbox; para operación real usa un sender aprobado. La UI ya acepta el número con o sin <code>whatsapp:</code>.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-4">Pendiente</span>
+            </header>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="wa-1" data-step="step-4" />
+                <label for="wa-1">
+                  Definí si usaré Sandbox o sender productivo
+                  <small>Sandbox acelera pruebas; productivo es obligatorio para operación real.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="wa-2" data-step="step-4" />
+                <label for="wa-2">
+                  Pegué <code>twilio_whatsapp_number</code> correcto
+                  <small>Ejemplo válido: <code>whatsapp:+14155238886</code> o <code>+14155238886</code>.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="wa-3" data-step="step-4" />
+                <label for="wa-3">
+                  El teléfono destinatario ya está autorizado en Sandbox o aprobado para recibir mensajes
+                  <small>Si esto no se cumple, el envío parece “salir” pero Twilio lo rechazará.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="wa-4" data-step="step-4" />
+                <label for="wa-4">
+                  Guardé integraciones y usé “Probar WhatsApp”
+                  <small>Esto confirma credenciales y sender, no necesariamente entrega al usuario final.</small>
+                </label>
+              </li>
+            </ul>
+          </article>
+
+          <article class="step-card" id="step-5" data-step-title="Leads y segmentos">
+            <header>
+              <div>
+                <div class="step-number">5</div>
+                <h3>Crea una base de prueba limpia</h3>
+                <p class="step-subtitle">Antes de enviar masivamente, usa 2 o 3 leads de QA con tags claros para no mezclar pruebas con producción.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-5">Pendiente</span>
+            </header>
+
+            <div class="inline-actions">
+              <button class="button" data-open="/leads">Ir a Leads</button>
+              <button class="ghost-button" data-open="/campaigns">Ir a Campañas</button>
+            </div>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="leads-1" data-step="step-5" />
+                <label for="leads-1">
+                  Creé 2 o 3 leads de prueba
+                  <small>Usa tu propio email y teléfono para validar cada canal contigo mismo.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="leads-2" data-step="step-5" />
+                <label for="leads-2">
+                  Les asigné tags como <code>prueba-campana</code> o <code>qa</code>
+                  <small>Eso te permite filtrar sin tocar leads reales.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="leads-3" data-step="step-5" />
+                <label for="leads-3">
+                  Verifiqué que no tengan opt-out en email, SMS o WhatsApp
+                  <small>Si un lead está bloqueado por canal, la audiencia se reducirá y puede parecer un bug.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="leads-4" data-step="step-5" />
+                <label for="leads-4">
+                  Guardé un segmento reutilizable con esos tags
+                  <small>Así podrás repetir pruebas sin rearmar filtros cada vez.</small>
+                </label>
+              </li>
+            </ul>
+          </article>
+
+          <article class="step-card" id="step-6" data-step-title="Pruebas de campañas">
+            <header>
+              <div>
+                <div class="step-number">6</div>
+                <h3>Prueba cada canal con 1 lead primero</h3>
+                <p class="step-subtitle">La mejor práctica es validar primero una audiencia mínima y luego crecer a 2 o 3 contactos.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-6">Pendiente</span>
+            </header>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="campaigns-1" data-step="step-6" />
+                <label for="campaigns-1">
+                  Envié una campaña de Email a 1 lead
+                  <small>Valida que llegue al inbox y también que se registre en Historial de Emails.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="campaigns-2" data-step="step-6" />
+                <label for="campaigns-2">
+                  Envié una campaña de SMS a 1 lead
+                  <small>Después revisa el historial SMS en el mismo módulo.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="campaigns-3" data-step="step-6" />
+                <label for="campaigns-3">
+                  Envié una campaña de WhatsApp a 1 lead
+                  <small>Valida el mensaje recibido y su registro en historial WhatsApp.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="campaigns-4" data-step="step-6" />
+                <label for="campaigns-4">
+                  Repetí la prueba con 2 o 3 leads usando el segmento guardado
+                  <small>Ese es el mejor punto para validar que filtros, tags y opt-outs sí están funcionando.</small>
+                </label>
+              </li>
+            </ul>
+          </article>
+
+          <article class="step-card" id="step-7" data-step-title="Webhooks y URL pública">
+            <header>
+              <div>
+                <div class="step-number">7</div>
+                <h3>Activa tracking real de entregas, lecturas y aperturas</h3>
+                <p class="step-subtitle">En local puedes enviar, pero Twilio y SendGrid no pueden reportar de vuelta a <code>localhost</code>. Para tracking real necesitas URL pública.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-7">Pendiente</span>
+            </header>
+
+            <div class="callout">
+              <strong>Ojo importante</strong>
+              <div class="meta-note">
+                Localhost te sirve para probar envíos, pero no para recibir callbacks desde internet.
+                Si quieres ver estados <em>delivered</em>, <em>read</em>, <em>open</em> o <em>click</em>, debes montar una URL pública.
+              </div>
+            </div>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="webhook-1" data-step="step-7" />
+                <label for="webhook-1">
+                  Definí <code>PUBLIC_API_BASE_URL</code> con una URL pública HTTPS
+                  <small>Ejemplo: <code>https://api.midominio.com</code>. Esto alimenta el callback de Twilio.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="webhook-2" data-step="step-7" />
+                <label for="webhook-2">
+                  Reinicié backend después de cambiar la URL pública
+                  <small>Sin rebuild/restart, el callback puede seguir apuntando al valor viejo.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="webhook-3" data-step="step-7" />
+                <label for="webhook-3">
+                  Configuré Twilio para usar <code>/api/webhooks/twilio/messaging-status</code>
+                  <small>Ese endpoint ya existe en el backend y actualiza estados SMS/WhatsApp.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="webhook-4" data-step="step-7" />
+                <label for="webhook-4">
+                  Configuré el Event Webhook de SendGrid hacia <code>/api/webhooks/sendgrid</code>
+                  <small>Eso es lo que te permitirá ver aperturas y clics reales en email.</small>
+                </label>
+              </li>
+            </ul>
+
+            <div class="code-block">
+              <button class="copy-button" data-copy-target="webhook-snippet">Copiar</button>
+              <pre id="webhook-snippet">PUBLIC_API_BASE_URL=https://api.tu-dominio.com
+
+# luego reconstruye o reinicia backend
+docker compose up -d --build backend</pre>
+            </div>
+          </article>
+
+          <article class="step-card" id="step-8" data-step-title="Checklist final">
+            <header>
+              <div>
+                <div class="step-number">8</div>
+                <h3>Cierre antes de usarlo con leads reales</h3>
+                <p class="step-subtitle">Cuando completes este bloque, ya tienes una base seria para empezar a operar campañas con menos riesgo.</p>
+              </div>
+              <span class="badge pending" data-step-badge-inline="step-8">Pendiente</span>
+            </header>
+
+            <ul class="checklist">
+              <li class="check-item">
+                <input type="checkbox" id="final-1" data-step="step-8" />
+                <label for="final-1">
+                  Confirmé que los historiales muestran mis envíos
+                  <small>Revisa tabs de Emails, SMS y WhatsApp dentro del módulo de Campañas.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="final-2" data-step="step-8" />
+                <label for="final-2">
+                  Verifiqué segmentos guardados, tags y opt-outs
+                  <small>Así evitas campañas que se mandan a la audiencia equivocada.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="final-3" data-step="step-8" />
+                <label for="final-3">
+                  Documenté qué credenciales y números quedaron activos
+                  <small>Especialmente útil si trabajas con más de un workspace o con staging y producción.</small>
+                </label>
+              </li>
+              <li class="check-item">
+                <input type="checkbox" id="final-4" data-step="step-8" />
+                <label for="final-4">
+                  Estoy listo para probar con una audiencia pequeña real
+                  <small>No saltes directo a cientos de leads; sube el volumen por etapas.</small>
+                </label>
+              </li>
+            </ul>
+
+            <div class="notes">
+              <label for="operatorNotes"><strong>Notas operativas</strong></label>
+              <textarea id="operatorNotes" placeholder="Apunta aquí qué sender quedó activo, qué número de Twilio estás usando, qué segmento funcionó mejor, etc."></textarea>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <p class="footer">
+        Archivo estático para uso operativo local. Si quieres, después lo integramos como módulo nativo dentro de Rovi con lectura real del estado de integraciones, campañas y webhooks.
+      </p>
+    </main>
+
+    <script>
+      const STORAGE_KEY = 'rovi-campaign-activation-dashboard-v1';
+      const NOTES_KEY = 'rovi-campaign-activation-dashboard-notes-v1';
+
+      const stepTitles = {
+        'step-1': 'Workspace y stack',
+        'step-2': 'SendGrid',
+        'step-3': 'Twilio SMS',
+        'step-4': 'Twilio WhatsApp',
+        'step-5': 'Leads y segmentos',
+        'step-6': 'Pruebas de campañas',
+        'step-7': 'Webhooks y URL pública',
+        'step-8': 'Checklist final',
+      };
+
+      const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"][data-step]'));
+      const progressFill = document.getElementById('progressFill');
+      const progressPercent = document.getElementById('progressPercent');
+      const completedCount = document.getElementById('completedCount');
+      const pendingCount = document.getElementById('pendingCount');
+      const stepCounter = document.getElementById('stepCounter');
+      const nextActionText = document.getElementById('nextActionText');
+      const nextStepCard = document.getElementById('nextStepCard');
+      const notes = document.getElementById('operatorNotes');
+
+      function resolveAppBase() {
+        if (window.location.protocol === 'file:') {
+          return 'http://localhost:13000';
+        }
+
+        if (window.location.origin && window.location.origin !== 'null') {
+          return window.location.origin;
+        }
+
+        return 'http://localhost:13000';
+      }
+
+      function resolveAppUrl(target) {
+        if (!target) return resolveAppBase();
+        if (/^https?:\/\//i.test(target)) return target;
+        return new URL(target, resolveAppBase()).toString();
+      }
+
+      function loadState() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function saveState(state) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function getStepCompletion(stepId) {
+        const stepChecks = checkboxes.filter((checkbox) => checkbox.dataset.step === stepId);
+        const done = stepChecks.filter((checkbox) => checkbox.checked).length;
+        return {
+          done,
+          total: stepChecks.length,
+          complete: stepChecks.length > 0 && done === stepChecks.length,
+        };
+      }
+
+      function updateStepBadges() {
+        Object.keys(stepTitles).forEach((stepId) => {
+          const { complete } = getStepCompletion(stepId);
+          const labels = [
+            document.querySelector(`[data-step-badge="${stepId}"]`),
+            document.querySelector(`[data-step-badge-inline="${stepId}"]`)
+          ].filter(Boolean);
+
+          labels.forEach((badge) => {
+            badge.textContent = complete ? 'Listo' : 'Pendiente';
+            badge.classList.toggle('done', complete);
+            badge.classList.toggle('pending', !complete);
+          });
+        });
+      }
+
+      function updateDashboard() {
+        const total = checkboxes.length;
+        const done = checkboxes.filter((checkbox) => checkbox.checked).length;
+        const pending = total - done;
+        const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+        progressFill.style.width = `${percent}%`;
+        progressPercent.textContent = `${percent}%`;
+        completedCount.textContent = String(done);
+        pendingCount.textContent = String(pending);
+
+        updateStepBadges();
+
+        const nextUnchecked = checkboxes.find((checkbox) => !checkbox.checked);
+        if (nextUnchecked) {
+          const stepId = nextUnchecked.dataset.step;
+          const label = document.querySelector(`label[for="${nextUnchecked.id}"]`);
+          const task = label ? label.childNodes[0].textContent.trim() : 'Completa el siguiente paso';
+          const stepTitle = stepTitles[stepId] || 'Siguiente paso';
+          const stepNumber = stepId.replace('step-', '');
+
+          stepCounter.textContent = stepNumber;
+          nextActionText.textContent = `${stepTitle}: ${task}`;
+          nextStepCard.textContent = `Ve a “${stepTitle}” y completa: ${task}`;
+        } else {
+          stepCounter.textContent = '✓';
+          nextActionText.textContent = 'Checklist completo. Ya tienes una base sólida para operar campañas.';
+          nextStepCard.textContent = 'Todo está marcado. Si los envíos ya llegaron y los historiales están correctos, el módulo está listo para pruebas más amplias.';
+        }
+      }
+
+      function hydrate() {
+        const state = loadState();
+        checkboxes.forEach((checkbox) => {
+          checkbox.checked = Boolean(state[checkbox.id]);
+        });
+        notes.value = localStorage.getItem(NOTES_KEY) || '';
+        updateDashboard();
+      }
+
+      checkboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+          const state = loadState();
+          state[checkbox.id] = checkbox.checked;
+          saveState(state);
+          updateDashboard();
+        });
+      });
+
+      notes.addEventListener('input', () => {
+        localStorage.setItem(NOTES_KEY, notes.value);
+      });
+
+      document.getElementById('resetChecklist').addEventListener('click', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(NOTES_KEY);
+        hydrate();
+      });
+
+      document.getElementById('copySummary').addEventListener('click', async () => {
+        const lines = checkboxes.map((checkbox) => {
+          const label = document.querySelector(`label[for="${checkbox.id}"]`);
+          const text = label ? label.childNodes[0].textContent.trim() : checkbox.id;
+          return `${checkbox.checked ? '✅' : '⬜'} ${text}`;
+        });
+        const summary = [
+          'Resumen de activación de campañas Rovi',
+          `Avance: ${progressPercent.textContent}`,
+          '',
+          ...lines,
+          '',
+          notes.value ? `Notas:\n${notes.value}` : 'Notas: —'
+        ].join('\n');
+
+        await navigator.clipboard.writeText(summary);
+        alert('Resumen copiado al portapapeles.');
+      });
+
+      document.querySelectorAll('[data-open]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const target = button.getAttribute('data-open');
+          window.open(resolveAppUrl(target), '_blank', 'noopener,noreferrer');
+        });
+      });
+
+      document.querySelectorAll('[data-copy-target]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const targetId = button.getAttribute('data-copy-target');
+          const source = document.getElementById(targetId);
+          if (!source) return;
+          await navigator.clipboard.writeText(source.textContent);
+          button.textContent = 'Copiado';
+          setTimeout(() => {
+            button.textContent = 'Copiar';
+          }, 1200);
+        });
+      });
+
+      hydrate();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+
+
+
+# Semana 2: Duplicate Detection
+fuzzywuzzy==0.18.0
+phonenumbers==9.0.29

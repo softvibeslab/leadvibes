@@ -10,7 +10,7 @@ export const UseCasesSection = () => {
       subtitle: 'Para agentes independientes',
       icon: User,
       color: 'gradient-neural',
-      bgPattern: 'bg-[#00D9FF]/10',
+      bgPattern: 'bg-[#50F4E2]/10',
       quote: 'Antes perdía el 40% de mis leads por no dar seguimiento. Ahora Rovi lo hace por mí.',
       author: 'Carlos Mendoza',
       role: 'Broker Independiente, Tulum',
@@ -33,7 +33,7 @@ export const UseCasesSection = () => {
       subtitle: 'Para equipos de ventas',
       icon: Building2,
       color: 'gradient-growth',
-      bgPattern: 'bg-[#10B981]/10',
+      bgPattern: 'bg-[#0D9488]/10',
       quote: 'Nuestra productividad aumentó 127% en el primer trimestre. Los brokers aman la gamificación.',
       author: 'María González',
       role: 'Directora de Ventas, Caribe Realty',
@@ -57,7 +57,7 @@ export const UseCasesSection = () => {
       subtitle: 'Para proyectos con ventas internas',
       icon: Building2,
       color: 'gradient-gold',
-      bgPattern: 'bg-[#F59E0B]/10',
+      bgPattern: 'bg-[#14B8A6]/10',
       quote: 'Rovi nos ayudó a vender el 80% de Phase 1 en 4 meses. La integración de IA es increíble.',
       author: 'Roberto Hernández',
       role: 'Director Comercial, Mayan Developments',
@@ -111,7 +111,7 @@ export const UseCasesSection = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <span className="inline-block bg-[#7C3AED]/10 text-[#7C3AED] px-4 py-2 rounded-full text-sm font-semibold mb-4">
+          <span className="inline-block bg-[#14B8A6]/10 text-[#14B8A6] px-4 py-2 rounded-full text-sm font-semibold mb-4">
             CASOS DE USO
           </span>
           <h2 className="text-4xl lg:text-5xl font-bold mb-6">
@@ -151,8 +151,8 @@ export const UseCasesSection = () => {
                       <ArrowRight className="w-6 h-6 text-muted-foreground" />
                     </div>
 
-                    <div className="p-3 bg-[#10B981]/10 border border-[#10B981]/20 rounded-lg">
-                      <div className="text-xs text-[#10B981] font-semibold mb-1">CON ROVI</div>
+                    <div className="p-3 bg-[#0D9488]/10 border border-[#0D9488]/20 rounded-lg">
+                      <div className="text-xs text-[#0D9488] font-semibold mb-1">CON ROVI</div>
                       <p className="text-sm text-muted-foreground">{scenario.after}</p>
                     </div>
                   </div>
@@ -171,7 +171,7 @@ export const UseCasesSection = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="gradient-velocity rounded-3xl p-8 md:p-16 text-center border border-[#0A4DAF]/30 shadow-glow-primary-strong"
+          className="gradient-velocity rounded-3xl p-8 md:p-16 text-center border border-[#0F172A]/30 shadow-glow-primary-strong"
         >
           {/* Badge */}
           <div className="inline-block bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full text-sm font-semibold mb-6">
@@ -213,7 +213,7 @@ export const UseCasesSection = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/demo-request"
-              className="inline-flex items-center justify-center bg-white text-[#0A4DAF] px-8 py-4 rounded-full font-bold text-lg hover:bg-white/90 transition shadow-xl hover:shadow-2xl transform hover:scale-105"
+              className="inline-flex items-center justify-center bg-white text-[#0F172A] px-8 py-4 rounded-full font-bold text-lg hover:bg-white/90 transition shadow-xl hover:shadow-2xl transform hover:scale-105"
             >
               Solicitar Cotización Personalizada
               <ArrowRight className="w-5 h-5 ml-2" />

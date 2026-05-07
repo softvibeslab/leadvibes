@@ -1,0 +1,2 @@
+SKU,Titulo,Descripcion,TipoProducto,Nicho,PrecioMXN,Alias,Keywords,Activo
+CODX-TEST-001,Producto Codex Test,Producto para validar import,service,Consultoría,1500,Servicio Test|Codex Servicio,qa|codex|import,true

@@ -52,6 +52,8 @@ services:
       # Environment
       ENVIRONMENT: ${ENVIRONMENT_STAGING:-staging}
       DEBUG: ${DEBUG_STAGING:-true}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL_STAGING:-http://localhost:1607}
+      FRONTEND_URL: ${FRONTEND_URL_STAGING:-http://localhost:2403}
 
       # SendGrid
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}

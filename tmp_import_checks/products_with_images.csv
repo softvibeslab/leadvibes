@@ -1,0 +1,2 @@
+SKU,Titulo,Descripcion,TipoProducto,Nicho,PrecioMXN,ImageURLs,Alias,Keywords,Activo
+IMG-IMPORT-001,Producto Importado con Imagen,Probando import de imagenes,service,Consultoría,4200,https://images.unsplash.com/photo-1494526585095-c41746248156?w=1200|https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200,Import Demo,import|imagenes,true

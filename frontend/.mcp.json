@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "node",
+      "args": [
+        "/Users/rogergv/.claude/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js"
+      ],
+      "disabled": false
+    }
+  }
+}

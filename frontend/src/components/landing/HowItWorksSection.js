@@ -11,7 +11,7 @@ export const HowItWorksSection = () => {
       detail: 'Importa desde Facebook Ads, Google Ads, Instagram, o cualquier otro CRM en segundos.',
       icon: '📥',
       time: '2 min',
-      color: 'from-blue-500 to-cyan-500'
+      color: 'from-primary to-accent'
     },
     {
       step: 2,
@@ -20,7 +20,7 @@ export const HowItWorksSection = () => {
       detail: 'Nuestra IA analiza cada lead y te dice exactamente quién priorizar, cuándo contactar y qué decir.',
       icon: '🧠',
       time: 'Automático',
-      color: 'from-purple-500 to-pink-500'
+      color: 'from-accent to-secondary'
     },
     {
       step: 3,
@@ -29,7 +29,7 @@ export const HowItWorksSection = () => {
       detail: 'Configura secuencias automáticas que nunca pierden un lead. El sistema trabaja 24/7 por ti.',
       icon: '⚡',
       time: 'Configura 1 vez',
-      color: 'from-amber-500 to-orange-500'
+      color: 'from-accent to-secondary'
     },
     {
       step: 4,
@@ -38,7 +38,7 @@ export const HowItWorksSection = () => {
       detail: 'Motiva a tu equipo con leaderboards, usa scripts de ventas validados y cierra más rápido.',
       icon: '🏆',
       time: 'Desde el primer día',
-      color: 'from-emerald-500 to-teal-500'
+      color: 'from-secondary to-secondary-dark'
     }
   ];
 
@@ -67,7 +67,7 @@ export const HowItWorksSection = () => {
         {/* Steps */}
         <div className="relative">
           {/* Connection Line */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 via-amber-500 to-emerald-500 transform -translate-y-1/2 z-0" />
+          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent via-secondary to-secondary-dark transform -translate-y-1/2 z-0" />
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
             {steps.map((step, index) => (
@@ -124,7 +124,7 @@ export const HowItWorksSection = () => {
           className="mt-20 grid md:grid-cols-3 gap-8"
         >
           <div className="bg-card rounded-2xl p-6 border border-border text-center">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-7 h-7 text-white" />
             </div>
             <h4 className="font-bold mb-2">Configuración en 30 min</h4>
@@ -132,7 +132,7 @@ export const HowItWorksSection = () => {
           </div>
 
           <div className="bg-card rounded-2xl p-6 border border-border text-center">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-accent to-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Sparkles className="w-7 h-7 text-white" />
             </div>
             <h4 className="font-bold mb-2">IA ya entrenada</h4>
@@ -140,7 +140,7 @@ export const HowItWorksSection = () => {
           </div>
 
           <div className="bg-card rounded-2xl p-6 border border-border text-center">
-            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-secondary to-secondary-dark rounded-2xl flex items-center justify-center mx-auto mb-4">
               <TrendingUp className="w-7 h-7 text-white" />
             </div>
             <h4 className="font-bold mb-2">Resultados desde el día 1</h4>
@@ -157,7 +157,7 @@ export const HowItWorksSection = () => {
         >
           <a
             href="#demo-request"
-            className="inline-flex items-center bg-gradient-to-r from-primary to-teal-600 text-white px-8 py-4 rounded-full font-semibold text-lg hover:shadow-xl transition transform hover:scale-105"
+            className="inline-flex items-center bg-gradient-to-r from-primary to-accent text-white px-8 py-4 rounded-full font-semibold text-lg hover:shadow-xl transition transform hover:scale-105"
           >
             Comenzar Ahora - Es Gratis
           </a>

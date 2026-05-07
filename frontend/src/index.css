@@ -13,7 +13,7 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', sans-serif;
-    letter-spacing: -0.025em; /* Equivalente a tracking-tight */
+    letter-spacing: 0;
 }
 
 code {
@@ -22,69 +22,81 @@ code {
 
 @layer base {
     :root {
-        /* Rovi AI Tech Palette - Light Mode */
-        --background: 210 40% 98%; /* #F8FAFC Arctic Surface */
-        --foreground: 215 25% 27%; /* #1E293B Charcoal Ink */
+        /* Rovi Landing Palette - Light Mode */
+        --background: 34 28% 95%; /* #F6F3EF Arena Premium */
+        --foreground: 210 56% 15%; /* #11263B Tinta Principal */
         --card: 0 0% 100%;
-        --card-foreground: 215 25% 27%;
+        --card-foreground: 210 56% 15%;
         --popover: 0 0% 100%;
-        --popover-foreground: 215 25% 27%;
-        --primary: 217 89% 36%; /* #0A4DAF Deep Velocity Blue */
+        --popover-foreground: 210 56% 15%;
+        --primary: 222 47% 11%; /* #0F172A Turquesa Principal */
         --primary-foreground: 0 0% 100%;
-        --primary-dark: 217 89% 20%; /* #062B5F Midnight Forge */
-        --secondary: 262 75% 50%; /* #7C3AED Neural Violet */
+        --primary-dark: 217 33% 18%; /* #1E293B Turquesa Oscuro */
+        --secondary: 175 84% 32%; /* #0D9488 Verde Jungla */
         --secondary-foreground: 0 0% 100%;
-        --muted: 210 40% 96%;
-        --muted-foreground: 215 20% 65%; /* #64748B Slate Gray */
-        --accent: 187 100% 50%; /* #00D9FF Electric Cyan */
+        --secondary-dark: 84 61% 20%; /* #365314 Verde Oscuro */
+        --muted: 30 9% 83%; /* #D7D3CF Borde Calido */
+        --muted-foreground: 207 17% 36%; /* #4C5D6B Tinta Secundaria */
+        --accent: 173 80% 40%; /* #14B8A6 Dorado/Acento */
         --accent-foreground: 222 47% 11%;
+        --accent-dark: 34 28% 95%; /* #F6F3EF Dorado Oscuro */
+        --surface-arena: 173 73% 56%; /* #3CE0CE Arena */
+        --surface-arena-light: 173 89% 64%; /* #50F4E2 Arena Claro */
+        --surface-success-soft: 175 75% 65%; /* #62E9DD Fondo Exito Suave */
+        --surface-accent-soft: 175 100% 69%; /* #5FFFF1 Fondo Acento Suave */
         --destructive: 0 84% 60%; /* #EF4444 Crimson Edge */
         --destructive-foreground: 0 0% 100%;
-        --success: 160 84% 39%; /* #10B981 Growth Mint */
+        --success: 175 84% 32%; /* #0D9488 Verde Jungla */
         --success-foreground: 0 0% 100%;
-        --warning: 38 92% 50%; /* #F59E0B Solar Amber */
-        --warning-foreground: 0 0% 100%;
-        --border: 217 89% 90%;
-        --input: 217 89% 90%;
-        --ring: 217 89% 36%;
-        --chart-1: 217 89% 36%;
-        --chart-2: 262 75% 50%;
-        --chart-3: 187 100% 50%;
-        --chart-4: 160 84% 39%;
+        --warning: 173 80% 40%; /* #14B8A6 Acento */
+        --warning-foreground: 222 47% 11%;
+        --border: 30 9% 83%;
+        --input: 30 9% 83%;
+        --ring: 173 80% 40%;
+        --chart-1: 222 47% 11%;
+        --chart-2: 175 84% 32%;
+        --chart-3: 173 80% 40%;
+        --chart-4: 84 61% 20%;
         --chart-5: 0 84% 60%;
         --radius: 0.75rem;
     }
 
     .dark {
-        /* Rovi AI Tech Palette - Dark Mode */
-        --background: 222 47% 11%; /* #0F172A Obsidian Base */
-        --foreground: 210 40% 98%; /* #F8FAFC Arctic Surface */
-        --card: 217 20% 17%;
-        --card-foreground: 210 40% 98%;
-        --popover: 217 20% 17%;
-        --popover-foreground: 210 40% 98%;
-        --primary: 217 89% 36%; /* #0A4DAF Deep Velocity Blue */
+        /* Rovi Landing Palette - Dark Mode */
+        --background: 222 47% 11%; /* #0F172A Turquesa Principal */
+        --foreground: 34 28% 95%; /* #F6F3EF Arena Premium */
+        --card: 217 33% 18%;
+        --card-foreground: 34 28% 95%;
+        --popover: 217 33% 18%;
+        --popover-foreground: 34 28% 95%;
+        --primary: 173 80% 40%; /* #14B8A6 Dorado/Acento */
         --primary-foreground: 0 0% 100%;
-        --primary-dark: 217 89% 20%; /* #062B5F Midnight Forge */
-        --secondary: 262 75% 50%; /* #7C3AED Neural Violet */
+        --primary-dark: 175 84% 32%; /* #0D9488 Verde Jungla */
+        --secondary: 175 84% 32%; /* #0D9488 Verde Jungla */
         --secondary-foreground: 0 0% 100%;
-        --muted: 217 20% 25%;
-        --muted-foreground: 215 20% 65%;
-        --accent: 187 100% 50%; /* #00D9FF Electric Cyan */
+        --secondary-dark: 84 61% 20%; /* #365314 Verde Oscuro */
+        --muted: 217 33% 18%;
+        --muted-foreground: 30 9% 83%;
+        --accent: 173 89% 64%; /* #50F4E2 Arena Claro */
         --accent-foreground: 222 47% 11%;
+        --accent-dark: 34 28% 95%;
+        --surface-arena: 173 73% 56%;
+        --surface-arena-light: 173 89% 64%;
+        --surface-success-soft: 175 75% 65%;
+        --surface-accent-soft: 175 100% 69%;
         --destructive: 0 84% 50%;
         --destructive-foreground: 0 0% 100%;
-        --success: 160 84% 39%;
+        --success: 175 84% 32%;
         --success-foreground: 0 0% 100%;
-        --warning: 38 92% 50%;
-        --warning-foreground: 0 0% 100%;
-        --border: 217 20% 25%;
-        --input: 217 20% 25%;
-        --ring: 187 100% 50%;
-        --chart-1: 217 89% 40%;
-        --chart-2: 262 75% 55%;
-        --chart-3: 187 100% 55%;
-        --chart-4: 160 84% 45%;
+        --warning: 173 80% 40%;
+        --warning-foreground: 222 47% 11%;
+        --border: 217 33% 24%;
+        --input: 217 33% 24%;
+        --ring: 173 89% 64%;
+        --chart-1: 173 89% 64%;
+        --chart-2: 173 80% 40%;
+        --chart-3: 175 84% 32%;
+        --chart-4: 34 28% 95%;
         --chart-5: 0 84% 55%;
     }
 }
@@ -112,64 +124,64 @@ code {
     }
     
     .shadow-glow-primary {
-        box-shadow: 0 0 20px rgba(10, 77, 175, 0.4);
+        box-shadow: 0 0 20px rgba(20, 184, 166, 0.35);
     }
 
     .shadow-glow-primary-strong {
-        box-shadow: 0 0 40px rgba(10, 77, 175, 0.6);
+        box-shadow: 0 0 40px rgba(20, 184, 166, 0.5);
     }
 
     .shadow-glow-accent {
-        box-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
+        box-shadow: 0 0 30px rgba(80, 244, 226, 0.45);
     }
 
     .shadow-glow-accent-strong {
-        box-shadow: 0 0 40px rgba(0, 217, 255, 0.7);
+        box-shadow: 0 0 40px rgba(80, 244, 226, 0.6);
     }
 
     .shadow-glow-violet {
-        box-shadow: 0 0 30px rgba(124, 58, 237, 0.4);
+        box-shadow: 0 0 30px rgba(13, 148, 136, 0.35);
     }
 
-    /* Rovi AI Tech Gradients */
+    /* Rovi Landing Gradients */
     .gradient-velocity {
-        background: linear-gradient(135deg, #0F172A 0%, #062B5F 40%, #0A4DAF 100%);
+        background: linear-gradient(135deg, #0B2740 0%, #0D5E78 38%, #0F172A 70%, #0D9488 100%);
     }
 
     .gradient-neural {
-        background: linear-gradient(135deg, #7C3AED 0%, #00D9FF 100%);
+        background: linear-gradient(135deg, #14B8A6 0%, #F6F3EF 100%);
     }
 
     .gradient-primary {
-        background: linear-gradient(135deg, #0A4DAF 0%, #062B5F 100%);
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
     }
 
     .gradient-growth {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        background: linear-gradient(135deg, #0D9488 0%, #365314 100%);
     }
 
     .gradient-gold {
-        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        background: linear-gradient(135deg, #14B8A6 0%, #F6F3EF 100%);
     }
 
     .text-gradient-velocity {
         @apply bg-clip-text text-transparent;
-        background-image: linear-gradient(135deg, #0A4DAF 0%, #00D9FF 100%);
+        background-image: linear-gradient(135deg, #50F4E2 0%, #14B8A6 100%);
     }
 
     .text-gradient-primary {
         @apply bg-clip-text text-transparent;
-        background-image: linear-gradient(135deg, #0A4DAF 0%, #00D9FF 100%);
+        background-image: linear-gradient(135deg, #0F172A 0%, #14B8A6 100%);
     }
 
     .text-gradient-neural {
         @apply bg-clip-text text-transparent;
-        background-image: linear-gradient(135deg, #7C3AED 0%, #00D9FF 100%);
+        background-image: linear-gradient(135deg, #14B8A6 0%, #50F4E2 100%);
     }
 
     .text-gradient-gold {
         @apply bg-clip-text text-transparent;
-        background-image: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        background-image: linear-gradient(135deg, #14B8A6 0%, #F6F3EF 100%);
     }
 
     /* Hover Effects */
@@ -178,8 +190,8 @@ code {
     }
 
     .hover-primary:hover {
-        background: linear-gradient(135deg, #0D5FD4 0%, #08367A 100%);
-        box-shadow: 0 12px 32px rgba(10, 77, 175, 0.4);
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
         transform: translateY(-2px);
     }
 
@@ -188,8 +200,8 @@ code {
     }
 
     .hover-accent:hover {
-        background: #33E1FF;
-        box-shadow: 0 12px 32px rgba(0, 217, 255, 0.6);
+        background: #50F4E2;
+        box-shadow: 0 12px 32px rgba(80, 244, 226, 0.45);
         transform: translateY(-2px);
     }
 
@@ -198,8 +210,8 @@ code {
     }
 
     .hover-neural:hover {
-        background: linear-gradient(135deg, #8B5CF6 0%, #00D9FF 100%);
-        box-shadow: 0 12px 32px rgba(124, 58, 237, 0.4);
+        background: linear-gradient(135deg, #14B8A6 0%, #50F4E2 100%);
+        box-shadow: 0 12px 32px rgba(20, 184, 166, 0.35);
         transform: translateY(-2px);
     }
 }

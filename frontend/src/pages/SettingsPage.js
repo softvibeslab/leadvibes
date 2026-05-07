@@ -17,6 +17,35 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 
+const integrationDocs = {
+  twilioConsole: 'https://console.twilio.com',
+  twilioCredentials: 'https://www.twilio.com/docs/twilio-cli/general-usage/profiles',
+  twilioPhoneNumbers: 'https://www.twilio.com/docs/phone-numbers',
+  twilioWhatsappSandbox: 'https://www.twilio.com/docs/whatsapp/sandbox',
+  twilioWhatsappSelfSignup: 'https://www.twilio.com/docs/whatsapp/self-sign-up',
+  sendgridApi: 'https://www.twilio.com/docs/sendgrid/for-developers/sending-email/api-getting-started',
+  sendgridSingleSender: 'https://www.twilio.com/docs/sendgrid/ui/sending-email/sender-verification',
+  sendgridDomainAuth: 'https://www.twilio.com/docs/sendgrid/ui/account-and-settings/how-to-set-up-domain-authentication',
+  sendgridConsoleApiKeys: 'https://app.sendgrid.com/settings/api_keys',
+  sendgridConsoleSenderAuth: 'https://app.sendgrid.com/settings/sender_auth',
+  vapiDashboard: 'https://dashboard.vapi.ai',
+  vapiApiKey: 'https://docs.vapi.ai/chat/quickstart',
+  vapiAssistants: 'https://docs.vapi.ai/assistants/quickstart',
+  vapiPhoneNumbers: 'https://docs.vapi.ai/phone-calling',
+};
+
+const DocLink = ({ href, children }) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noreferrer"
+    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+  >
+    {children}
+    <ExternalLink className="w-3 h-3" />
+  </a>
+);
+
 export const SettingsPage = () => {
   const { api, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -24,12 +53,14 @@ export const SettingsPage = () => {
   const [loading, setLoading] = useState(false);
   const [testingVapi, setTestingVapi] = useState(false);
   const [testingTwilio, setTestingTwilio] = useState(false);
+  const [testingWhatsApp, setTestingWhatsApp] = useState(false);
   const [testingSendgrid, setTestingSendgrid] = useState(false);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [showVapiKey, setShowVapiKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
   const [showSendgridKey, setShowSendgridKey] = useState(false);
   const [showGoogleSecret, setShowGoogleSecret] = useState(false);
+  const [activeTab, setActiveTab] = useState('general');
   
   const [goals, setGoals] = useState({
     ventas_mes: 5,
@@ -47,6 +78,7 @@ export const SettingsPage = () => {
     twilio_account_sid: '',
     twilio_auth_token: '',
     twilio_phone_number: '',
+    twilio_whatsapp_number: '',
     sendgrid_api_key: '',
     sendgrid_sender_email: '',
     sendgrid_sender_name: '',
@@ -55,6 +87,7 @@ export const SettingsPage = () => {
     google_calendar_email: null,
     vapi_enabled: false,
     twilio_enabled: false,
+    twilio_whatsapp_enabled: false,
     sendgrid_enabled: false,
     google_calendar_enabled: false
   });
@@ -62,6 +95,10 @@ export const SettingsPage = () => {
   useEffect(() => {
     loadGoals();
     loadIntegrations();
+    const requestedTab = searchParams.get('tab');
+    if (requestedTab === 'integrations') {
+      setActiveTab('integrations');
+    }
     
     // Check for Google OAuth callback
     const googleConnected = searchParams.get('google_connected');
@@ -116,6 +153,7 @@ export const SettingsPage = () => {
         ...prev,
         vapi_enabled: res.data.vapi_enabled,
         twilio_enabled: res.data.twilio_enabled,
+        twilio_whatsapp_enabled: res.data.twilio_whatsapp_enabled,
         sendgrid_enabled: res.data.sendgrid_enabled
       }));
       loadIntegrations();
@@ -147,6 +185,18 @@ export const SettingsPage = () => {
       toast.error(error.response?.data?.detail || 'Error de conexión Twilio');
     } finally {
       setTestingTwilio(false);
+    }
+  };
+
+  const handleTestWhatsApp = async () => {
+    setTestingWhatsApp(true);
+    try {
+      const res = await api.post('/settings/integrations/test-whatsapp');
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error de conexión WhatsApp');
+    } finally {
+      setTestingWhatsApp(false);
     }
   };
 
@@ -195,6 +245,10 @@ export const SettingsPage = () => {
     }
   };
 
+  const openCampaignActivationGuide = () => {
+    window.open('/campaign-activation-dashboard.html', '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6" data-testid="settings-page">
       {/* Header */}
@@ -203,7 +257,7 @@ export const SettingsPage = () => {
         <p className="text-sm sm:text-base text-muted-foreground">Personaliza tu experiencia e integraciones</p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
           <TabsTrigger value="general" className="gap-2">
             <Settings className="w-4 h-4" />
@@ -354,6 +408,21 @@ export const SettingsPage = () => {
 
         {/* Integrations */}
         <TabsContent value="integrations" className="space-y-4 sm:space-y-6">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 sm:p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium">Guía interactiva de activación de campañas</p>
+                <p className="text-sm text-muted-foreground">
+                  Abre el dashboard HTML con checklist, comandos y paso a paso para dejar SendGrid, Twilio y WhatsApp listos.
+                </p>
+              </div>
+              <Button variant="outline" onClick={openCampaignActivationGuide} className="rounded-full w-full sm:w-auto">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Abrir guía
+              </Button>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* VAPI */}
             <Card>
@@ -378,6 +447,24 @@ export const SettingsPage = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                <div className="rounded-2xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                  <p className="text-sm font-medium">Dónde sacar estos datos</p>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p>
+                      <strong>API Key:</strong> entra a <DocLink href={integrationDocs.vapiDashboard}>dashboard.vapi.ai</DocLink>, abre tu perfil y entra a
+                      {' '}<span className="font-medium text-foreground">Vapi API Keys</span>. La guía oficial lo muestra aquí:{' '}
+                      <DocLink href={integrationDocs.vapiApiKey}>API key en quickstart</DocLink>.
+                    </p>
+                    <p>
+                      <strong>Assistant ID:</strong> crea o abre tu asistente en <DocLink href={integrationDocs.vapiAssistants}>Assistants quickstart</DocLink>,
+                      publícalo y copia el ID desde el detalle o la URL del asistente.
+                    </p>
+                    <p>
+                      <strong>Phone Number ID:</strong> en <DocLink href={integrationDocs.vapiPhoneNumbers}>Phone Calling</DocLink> crea un número gratis en EE. UU.
+                      o importa uno desde Twilio y copia el ID del número en su detalle.
+                    </p>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label className="text-sm">API Key</Label>
                   <div className="relative">
@@ -437,19 +524,48 @@ export const SettingsPage = () => {
                     </div>
                     <div>
                       <CardTitle className="text-base sm:text-lg">Twilio</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">SMS Masivos</CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">SMS + WhatsApp</CardDescription>
                     </div>
                   </div>
-                  <Badge variant={integrations.twilio_enabled ? "default" : "secondary"}>
-                    {integrations.twilio_enabled ? (
-                      <><CheckCircle className="w-3 h-3 mr-1" /> Activo</>
-                    ) : (
-                      <><XCircle className="w-3 h-3 mr-1" /> Inactivo</>
-                    )}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={integrations.twilio_enabled ? "default" : "secondary"}>
+                      {integrations.twilio_enabled ? (
+                        <><CheckCircle className="w-3 h-3 mr-1" /> SMS</>
+                      ) : (
+                        <><XCircle className="w-3 h-3 mr-1" /> SMS</>
+                      )}
+                    </Badge>
+                    <Badge variant={integrations.twilio_whatsapp_enabled ? "default" : "secondary"}>
+                      {integrations.twilio_whatsapp_enabled ? (
+                        <><CheckCircle className="w-3 h-3 mr-1" /> WhatsApp</>
+                      ) : (
+                        <><XCircle className="w-3 h-3 mr-1" /> WhatsApp</>
+                      )}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                <div className="rounded-2xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                  <p className="text-sm font-medium">Dónde sacar estos datos</p>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p>
+                      <strong>Account SID y Auth Token:</strong> están en la primera pantalla de <DocLink href={integrationDocs.twilioConsole}>Twilio Console</DocLink>,
+                      dentro de <span className="font-medium text-foreground">Account Info</span>. Referencia oficial:{' '}
+                      <DocLink href={integrationDocs.twilioCredentials}>Account SID / Auth Token</DocLink>.
+                    </p>
+                    <p>
+                      <strong>Número SMS:</strong> consíguelo comprando o administrando un número con capacidad SMS desde la consola. Guía oficial:{' '}
+                      <DocLink href={integrationDocs.twilioPhoneNumbers}>Phone Numbers</DocLink>.
+                    </p>
+                    <p>
+                      <strong>Número WhatsApp:</strong> para pruebas rápidas usa el Sandbox; para producción registra un sender propio con Self Sign-up.
+                      {' '}<DocLink href={integrationDocs.twilioWhatsappSandbox}>Sandbox</DocLink>
+                      {' · '}
+                      <DocLink href={integrationDocs.twilioWhatsappSelfSignup}>Self Sign-up</DocLink>
+                    </p>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label className="text-sm">Account SID</Label>
                   <Input
@@ -457,6 +573,9 @@ export const SettingsPage = () => {
                     onChange={(e) => setIntegrations({ ...integrations, twilio_account_sid: e.target.value })}
                     placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Debe empezar con <code>AC</code>. Si empieza con <code>SK</code>, eso es una API Key SID y no va en este campo.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm">Auth Token</Label>
@@ -477,6 +596,9 @@ export const SettingsPage = () => {
                       {showTwilioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Usa el <strong>Auth Token</strong> del proyecto en Twilio Console. No pegues aquí una API Key SID.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm">Número de Teléfono</Label>
@@ -485,17 +607,43 @@ export const SettingsPage = () => {
                     onChange={(e) => setIntegrations({ ...integrations, twilio_phone_number: e.target.value })}
                     placeholder="+1234567890"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Usa un número Twilio con capacidad SMS. Si tu país exige verificación o bundle regulatorio, complétalo antes de enviar.
+                  </p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleTestTwilio}
-                  disabled={testingTwilio || !integrations.twilio_account_sid}
-                  className="w-full"
-                >
-                  {testingTwilio ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TestTube className="w-4 h-4 mr-2" />}
-                  Probar Conexión
-                </Button>
+                <div className="space-y-2">
+                  <Label className="text-sm">Número de WhatsApp en Twilio</Label>
+                  <Input
+                    value={integrations.twilio_whatsapp_number}
+                    onChange={(e) => setIntegrations({ ...integrations, twilio_whatsapp_number: e.target.value })}
+                    placeholder="whatsapp:+14155238886 o +521..."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Usa el sender aprobado por Twilio para WhatsApp. Puedes pegarlo con o sin prefijo <code>whatsapp:</code>.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleTestTwilio}
+                    disabled={testingTwilio || !integrations.twilio_account_sid}
+                    className="w-full"
+                  >
+                    {testingTwilio ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TestTube className="w-4 h-4 mr-2" />}
+                    Probar SMS/Twilio
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleTestWhatsApp}
+                    disabled={testingWhatsApp || !integrations.twilio_account_sid || !integrations.twilio_whatsapp_number}
+                    className="w-full"
+                  >
+                    {testingWhatsApp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MessageSquare className="w-4 h-4 mr-2" />}
+                    Probar WhatsApp
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -522,6 +670,28 @@ export const SettingsPage = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="rounded-2xl border border-border/60 bg-muted/20 p-3 space-y-2 mb-4">
+                  <p className="text-sm font-medium">Dónde sacar estos datos</p>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p>
+                      <strong>API Key:</strong> en el panel de SendGrid entra a <span className="font-medium text-foreground">Settings → API Keys</span> y crea una key de envío.
+                      Guía oficial:{' '}
+                      <DocLink href={integrationDocs.sendgridApi}>API getting started</DocLink>
+                      {' · '}
+                      <DocLink href={integrationDocs.sendgridConsoleApiKeys}>Abrir API Keys</DocLink>
+                    </p>
+                    <p>
+                      <strong>Email remitente:</strong> para pruebas usa Single Sender Verification; para producción conviene Domain Authentication.
+                      {' '}<DocLink href={integrationDocs.sendgridSingleSender}>Single Sender</DocLink>
+                      {' · '}
+                      <DocLink href={integrationDocs.sendgridDomainAuth}>Domain Authentication</DocLink>
+                    </p>
+                    <p>
+                      <strong>Nombre remitente:</strong> es el nombre visible para el destinatario. Usa tu marca o equipo comercial.
+                      {' '}<DocLink href={integrationDocs.sendgridConsoleSenderAuth}>Sender Authentication</DocLink>
+                    </p>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm">API Key</Label>
