@@ -24,15 +24,15 @@ export const BenefitsSection = () => {
       title: 'Acelera tu Ciclo de Venta',
       description: 'Reduce el tiempo de primer contacto de horas a segundos con automatización inteligente.',
       icon: '⚡',
-      color: 'from-accent/20 to-accent-dark/40',
-      borderColor: 'border-accent/30',
+      color: 'from-amber-500/20 to-orange-500/20',
+      borderColor: 'border-amber-500/30',
       insights: ['Respuesta en < 5 minutos', '2x más reuniones agendadas', '35% más cierres']
     },
     {
       title: 'Nunca Pierdas un Lead',
       description: 'Seguimiento automático por WhatsApp, Email y SMS hasta que el cliente responda.',
       icon: '🎯',
-      color: 'from-accent/20 to-secondary/20',
+      color: 'from-teal-500/20 to-emerald-500/20',
       borderColor: 'border-teal-500/30',
       insights: ['100% de leads contactados', 'Alertas de leads fríos', 'Reactivación automática']
     },
@@ -40,16 +40,16 @@ export const BenefitsSection = () => {
       title: 'CIerra con Datos, no con Suerte',
       description: 'La IA analiza cada lead y te dice exactamente qué decir y cuándo contactarlo.',
       icon: '🧠',
-      color: 'from-accent/20 to-secondary/20',
-      borderColor: 'border-accent/30',
+      color: 'from-purple-500/20 to-pink-500/20',
+      borderColor: 'border-purple-500/30',
       insights: ['Score de intención 95% preciso', 'Scripts personalizados', 'Mejor momento de contacto']
     },
     {
       title: 'Motiva a tu Equipo',
       description: 'Gamificación que funciona: leaderboards, puntos y recompensas en tiempo real.',
       icon: '🏆',
-      color: 'from-secondary/20 to-secondary-dark/20',
-      borderColor: 'border-secondary/30',
+      color: 'from-emerald-500/20 to-green-500/20',
+      borderColor: 'border-emerald-500/30',
       insights: ['3x más actividad', '+127% produtividad', 'Competencia sana']
     },
   ];
@@ -141,7 +141,7 @@ export const BenefitsSection = () => {
                 <tr className="border-b border-border">
                   <th className="text-left py-4 px-6 font-semibold">Característica</th>
                   <th className="py-4 px-6 text-center">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary text-white font-bold">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-teal-600 text-white font-bold">
                       R
                     </div>
                   </th>
@@ -163,14 +163,14 @@ export const BenefitsSection = () => {
                     <td className="py-4 px-6 font-medium">{feature}</td>
                     <td className="py-4 px-6 text-center">
                       {hasRovi ? (
-                        <span className="text-secondary text-xl">✓</span>
+                        <span className="text-emerald-500 text-xl">✓</span>
                       ) : (
                         <span className="text-red-500 text-xl">✗</span>
                       )}
                     </td>
                     <td className="py-4 px-6 text-center">
                       {hasOther ? (
-                        <span className="text-secondary text-xl">✓</span>
+                        <span className="text-emerald-500 text-xl">✓</span>
                       ) : (
                         <span className="text-muted-foreground text-xl">—</span>
                       )}

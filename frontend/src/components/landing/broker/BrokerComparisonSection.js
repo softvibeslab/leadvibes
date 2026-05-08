@@ -108,7 +108,7 @@ export const BrokerComparisonSection = () => {
             >
               <div className="mb-6">
                 <h3 className="text-2xl font-bold text-center mb-2">{comparison.category}</h3>
-                <div className="w-24 h-1 bg-gradient-to-r from-primary to-secondary mx-auto rounded-full" />
+                <div className="w-24 h-1 bg-gradient-to-r from-primary to-teal-600 mx-auto rounded-full" />
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -131,18 +131,18 @@ export const BrokerComparisonSection = () => {
                 </div>
 
                 {/* After */}
-                <div className="bg-[#0D9488]/10 dark:bg-[#0D9488]/20 rounded-2xl p-6 border-2 border-[#0D9488]/30 dark:border-[#0D9488]/50">
+                <div className="bg-[#10B981]/10 dark:bg-[#10B981]/20 rounded-2xl p-6 border-2 border-[#10B981]/30 dark:border-[#10B981]/50">
                   <div className="flex items-center mb-4">
-                    <div className="w-10 h-10 rounded-full bg-[#0D9488] flex items-center justify-center mr-3">
+                    <div className="w-10 h-10 rounded-full bg-[#10B981] flex items-center justify-center mr-3">
                       <Check className="w-6 h-6 text-white" />
                     </div>
-                    <h4 className="text-xl font-bold text-secondary dark:text-surface-arena-light">Con Rovi</h4>
+                    <h4 className="text-xl font-bold text-emerald-700 dark:text-emerald-400">Con Rovi</h4>
                   </div>
                   <ul className="space-y-3">
                     {comparison.after.map((item, itemIndex) => (
                       <li key={itemIndex} className="flex items-start">
-                        <Check className="w-5 h-5 text-secondary mr-2 flex-shrink-0 mt-0.5" />
-                        <span className="text-[#365314] dark:text-[#0D9488]">{item}</span>
+                        <Check className="w-5 h-5 text-emerald-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <span className="text-[#059669] dark:text-[#10B981]">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -159,7 +159,7 @@ export const BrokerComparisonSection = () => {
           viewport={{ once: true }}
           className="mt-16"
         >
-          <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-secondary-dark/10 rounded-3xl p-8 border border-primary/20">
+          <div className="bg-gradient-to-r from-primary/10 via-teal-600/10 to-emerald-600/10 rounded-3xl p-8 border border-primary/20">
             <div className="grid md:grid-cols-2 gap-8 items-center">
               <div>
                 <h3 className="text-2xl font-bold mb-4">
@@ -202,7 +202,7 @@ export const BrokerComparisonSection = () => {
         >
           <a
             href="#registro"
-            className="inline-flex items-center bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105"
+            className="inline-flex items-center bg-gradient-to-r from-primary to-teal-600 hover:from-primary/90 hover:to-teal-600/90 text-white px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105"
           >
             Quiero estos resultados
             <ArrowRight className="w-5 h-5 ml-2" />

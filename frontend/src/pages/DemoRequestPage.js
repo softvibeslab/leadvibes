@@ -12,7 +12,7 @@ export const DemoRequestPage = ({ enterprise = false }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-accent to-secondary rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-xl">R</span>
               </div>
               <span className="text-2xl font-bold">Rovi CRM</span>
@@ -34,7 +34,7 @@ export const DemoRequestPage = ({ enterprise = false }) => {
           <>
             <h1 className="text-4xl lg:text-5xl font-bold mb-4">
               Contacta con{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-teal-600">
                 Ventas Enterprise
               </span>
             </h1>
@@ -46,7 +46,7 @@ export const DemoRequestPage = ({ enterprise = false }) => {
           <>
             <h1 className="text-4xl lg:text-5xl font-bold mb-4">
               Solicita tu{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-teal-600">
                 Demo Gratis
               </span>
             </h1>
@@ -63,7 +63,7 @@ export const DemoRequestPage = ({ enterprise = false }) => {
       {/* Additional Info for Enterprise */}
       {enterprise && (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-3xl p-8 border border-primary/20">
+          <div className="bg-gradient-to-br from-primary/10 to-teal-600/10 rounded-3xl p-8 border border-primary/20">
             <h2 className="text-2xl font-bold mb-6">¿Por qué elegir Enterprise?</h2>
             <div className="grid md:grid-cols-2 gap-6">
               {[

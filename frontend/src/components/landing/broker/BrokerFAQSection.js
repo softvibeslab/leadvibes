@@ -135,7 +135,7 @@ export const BrokerFAQSection = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href="mailto:hola@rovicrm.com"
-                className="inline-flex items-center justify-center bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white px-6 py-3 rounded-full font-semibold transition"
+                className="inline-flex items-center justify-center bg-gradient-to-r from-primary to-teal-600 hover:from-primary/90 hover:to-teal-600/90 text-white px-6 py-3 rounded-full font-semibold transition"
               >
                 Envíanos un correo
               </a>

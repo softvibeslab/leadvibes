@@ -9,7 +9,7 @@ export const BrokerTestimonialsSection = () => {
       role: 'Broker Independiente',
       location: 'Tulum, Quintana Roo',
       image: 'CM',
-      color: 'from-[#50F4E2] to-[#0F172A]',
+      color: 'from-[#00D9FF] to-[#0A4DAF]',
       rating: 5,
       text: 'Antes usaba Excel y WhatsApp para todo. Perdí muchos leads por falta de organización. Con Rovi, ahora tengo todo en un solo lugar. La IA me ayuda a calificar y la verdad es que cierro 3 veces más que antes. Lo mejor: los scripts de venta que sí funcionan.',
       results: ['+300% en cierres', '15 horas ahorradas/semana', '200+ leads organizados']
@@ -19,7 +19,7 @@ export const BrokerTestimonialsSection = () => {
       role: 'Agente Inmobiliario',
       location: 'Playa del Carmen',
       image: 'LP',
-      color: 'from-[#50F4E2] to-[#14B8A6]',
+      color: 'from-[#00D9FF] to-[#7C3AED]',
       rating: 5,
       text: 'Como broker independiente, pensaba que un CRM era muy complicado para mí. Rovi es diferente: está hecho para gente como yo. La configuración fue súper fácil y en menos de una semana ya tenía todo mi pipeline organizado. Los scripts de venta me han ayudado mucho.',
       results: ['Setup en 1 semana', '+45% tasa de conversión', 'Pipeline organizado']
@@ -29,7 +29,7 @@ export const BrokerTestimonialsSection = () => {
       role: 'Consultor Inmobiliario',
       location: 'Cancún',
       image: 'MR',
-      color: 'from-[#14B8A6] to-[#0F172A]',
+      color: 'from-[#7C3AED] to-[#0A4DAF]',
       rating: 5,
       text: 'Lo que más me gusta es el inbox omnicanal. Antes tenía conversaciones por todos lados. Ahora todo está en un solo lugar y el sistema me avisa cuáles chats necesitan respuesta. La IA que me dice a quién llamar primero es increíble.',
       results: ['Respuestas 5x más rápidas', 'Nunca olvida un seguimiento', 'Leads priorizados']
@@ -39,7 +39,7 @@ export const BrokerTestimonialsSection = () => {
       role: 'Broker Independiente',
       location: 'Mérida',
       image: 'SL',
-      color: 'from-[#0D9488] to-[#365314]',
+      color: 'from-[#10B981] to-[#059669]',
       rating: 5,
       text: 'El inventario de propiedades con SKU y geolocalización lo cambió todo para mí. Ahora puedo compartir múltiples propiedades con un diseño profesional en segundos. Mis clientes quedan impresionados. El módulo de campañas automatizadas también es excelente.',
       results: ['Presentaciones profesionales', 'Campañas automatizadas', '+40% más citas']
@@ -84,7 +84,7 @@ export const BrokerTestimonialsSection = () => {
               {/* Rating */}
               <div className="flex items-center mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-accent fill-accent" />
+                  <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />
                 ))}
               </div>
 
@@ -130,7 +130,7 @@ export const BrokerTestimonialsSection = () => {
           viewport={{ once: true }}
           className="mt-16"
         >
-          <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-secondary-dark/10 rounded-3xl p-8 border border-primary/20">
+          <div className="bg-gradient-to-r from-primary/10 via-teal-600/10 to-emerald-600/10 rounded-3xl p-8 border border-primary/20">
             <div className="grid md:grid-cols-4 gap-8 text-center">
               {[
                 { value: '150+', label: 'Brokers activos' },

@@ -27,12 +27,10 @@ module.exports = {
   				DEFAULT: 'hsl(var(--primary))',
   				foreground: 'hsl(var(--primary-foreground))'
   			},
-  			'primary-dark': 'hsl(var(--primary-dark))',
   			secondary: {
   				DEFAULT: 'hsl(var(--secondary))',
   				foreground: 'hsl(var(--secondary-foreground))'
   			},
-  			'secondary-dark': 'hsl(var(--secondary-dark))',
   			muted: {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
@@ -40,13 +38,6 @@ module.exports = {
   			accent: {
   				DEFAULT: 'hsl(var(--accent))',
   				foreground: 'hsl(var(--accent-foreground))'
-  			},
-  			'accent-dark': 'hsl(var(--accent-dark))',
-  			surface: {
-  				arena: 'hsl(var(--surface-arena))',
-  				'arena-light': 'hsl(var(--surface-arena-light))',
-  				'success-soft': 'hsl(var(--surface-success-soft))',
-  				'accent-soft': 'hsl(var(--surface-accent-soft))'
   			},
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',

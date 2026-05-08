@@ -72,15 +72,15 @@ export const BrokerLaunchForm = () => {
 
   if (isSuccess) {
     return (
-      <section id="registro" className="py-24 bg-gradient-to-br from-primary/10 via-[#50F4E2]/10 to-[#14B8A6]/10">
+      <section id="registro" className="py-24 bg-gradient-to-br from-primary/10 via-[#00D9FF]/10 to-[#7C3AED]/10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-card rounded-3xl p-12 border border-border"
           >
-            <div className="w-20 h-20 rounded-full bg-[#0D9488]/20 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-10 h-10 text-secondary" />
+            <div className="w-20 h-20 rounded-full bg-[#10B981]/20 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
             </div>
             <h2 className="text-3xl font-bold mb-4">¡Registro Exitoso!</h2>
             <p className="text-xl text-muted-foreground mb-8">
@@ -108,7 +108,7 @@ export const BrokerLaunchForm = () => {
   }
 
   return (
-    <section id="registro" className="py-24 bg-gradient-to-br from-primary/10 via-[#50F4E2]/10 to-[#14B8A6]/10">
+    <section id="registro" className="py-24 bg-gradient-to-br from-primary/10 via-[#00D9FF]/10 to-[#7C3AED]/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           {/* Left Side - Info */}
@@ -147,14 +147,14 @@ export const BrokerLaunchForm = () => {
               ))}
             </div>
 
-            <div className="bg-gradient-to-br from-[#50F4E2]/20 to-[#14B8A6]/20 rounded-xl p-6 border border-[#50F4E2]/30">
+            <div className="bg-gradient-to-br from-[#00D9FF]/20 to-[#7C3AED]/20 rounded-xl p-6 border border-[#00D9FF]/30">
               <div className="flex items-start mb-3">
-                <TrendingUp className="w-6 h-6 text-accent mr-3 flex-shrink-0" />
+                <TrendingUp className="w-6 h-6 text-amber-500 mr-3 flex-shrink-0" />
                 <div>
-                  <h4 className="font-bold text-secondary dark:text-surface-arena-light mb-2">
+                  <h4 className="font-bold text-amber-700 dark:text-amber-400 mb-2">
                     ¿Por qué registrarte ahora?
                   </h4>
-                  <p className="text-sm text-secondary dark:text-surface-arena-light leading-relaxed">
+                  <p className="text-sm text-amber-600 dark:text-amber-300 leading-relaxed">
                     Los primeros 100 brokers registrados obtendrán acceso prioritario,
                     precios especiales y configuración personalizada incluida. Después del lanzamiento,
                     el precio será mayor y estos beneficios ya no estarán disponibles.
@@ -267,7 +267,7 @@ export const BrokerLaunchForm = () => {
                       type="button"
                       onClick={nextStep}
                       disabled={!formData.name || !formData.email || !formData.phone || !formData.location}
-                      className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary/90 hover:to-secondary/90 text-white py-4 rounded-xl font-semibold text-lg transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+                      className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary/90 hover:to-teal-600/90 text-white py-4 rounded-xl font-semibold text-lg transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
                     >
                       Continuar
                       <ArrowRight className="w-5 h-5 ml-2" />
@@ -354,7 +354,7 @@ export const BrokerLaunchForm = () => {
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="flex-1 bg-gradient-to-r from-primary to-primary-dark hover:from-primary/90 hover:to-secondary/90 text-white py-4 rounded-xl font-semibold transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+                        className="flex-1 bg-gradient-to-r from-primary to-primary-dark hover:from-primary/90 hover:to-teal-600/90 text-white py-4 rounded-xl font-semibold transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
                       >
                         {isSubmitting ? (
                           'Enviando...'

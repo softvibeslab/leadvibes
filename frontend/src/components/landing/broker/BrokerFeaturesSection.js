@@ -12,7 +12,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Onboarding Inteligente',
       description: 'Configuración personalizada que entiende tu negocio',
       icon: Settings,
-      color: 'from-[#0F172A] to-[#1E293B]',
+      color: 'from-[#0A4DAF] to-[#062B5F]',
       features: [
         'Perfilado profundo: ventas, apartados, ingresos objetivos',
         'KPIs flexibles y 100% personalizables',
@@ -25,7 +25,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Dashboard del Día a Día',
       description: 'Lo que necesitas ver, cuando lo necesitas',
       icon: BarChart3,
-      color: 'from-[#50F4E2] to-[#0F172A]',
+      color: 'from-[#00D9FF] to-[#0A4DAF]',
       features: [
         'Visibilidad operativa de tus leads y actividades',
         'Calendario integrado con prioridades del día',
@@ -38,7 +38,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Pipeline de Leads',
       description: 'Gestión visual con inteligencia artificial',
       icon: Target,
-      color: 'from-[#0D9488] to-[#365314]',
+      color: 'from-[#10B981] to-[#059669]',
       features: [
         'Vista Kanban con arrastrar y soltar',
         'Datos modificables por IA y manualmente',
@@ -51,7 +51,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Inventario de Propiedades',
       description: 'Tu catálogo de inmuebles siempre organizado',
       icon: Home,
-      color: 'from-[#14B8A6] to-[#0D9488]',
+      color: 'from-[#7C3AED] to-[#6D28D9]',
       features: [
         'Clasificación: venta, renta, subarrendamiento',
         'SKU único para cada propiedad',
@@ -65,7 +65,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Campañas y Automatizaciones',
       description: 'Marketing automatizado que funciona',
       icon: Megaphone,
-      color: 'from-[#0F172A] to-[#1E293B]',
+      color: 'from-[#0A4DAF] to-[#062B5F]',
       features: [
         'Llamadas masivas con IA (VAPI)',
         'SMS masivos (Twilio)',
@@ -79,7 +79,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Inbox Omnicanal',
       description: 'Todas tus conversaciones en un solo lugar',
       icon: Inbox,
-      color: 'from-[#50F4E2] to-[#14B8A6]',
+      color: 'from-[#00D9FF] to-[#7C3AED]',
       features: [
         'WhatsApp, correo, Telegram unificados',
         'Panel de IA con recomendaciones',
@@ -92,7 +92,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Analíticas Integradas',
       description: 'Conecta y mide todo en un solo dashboard',
       icon: BarChart3,
-      color: 'from-[#14B8A6] to-[#0F172A]',
+      color: 'from-[#7C3AED] to-[#0A4DAF]',
       features: [
         'Google Ads, Facebook, etc.',
         'Reportes de rendimiento por campaña',
@@ -104,7 +104,7 @@ export const BrokerFeaturesSection = () => {
       title: 'Scripts de Venta',
       description: 'Plantillas probadas que funcionan',
       icon: FileText,
-      color: 'from-[#14B8A6] to-[#14B8A6]',
+      color: 'from-[#F59E0B] to-[#D97706]',
       features: [
         'Scripts de apertura, seguimiento, presentación',
         'Editor de diseño de correos',
@@ -191,7 +191,7 @@ export const BrokerFeaturesSection = () => {
           viewport={{ once: true }}
           className="mt-16 text-center"
         >
-          <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-secondary-dark/10 rounded-3xl p-8 border border-primary/20">
+          <div className="bg-gradient-to-r from-primary/10 via-teal-600/10 to-emerald-600/10 rounded-3xl p-8 border border-primary/20">
             <h3 className="text-2xl font-bold mb-4">
               ¿Listo para transformar tu proceso de ventas?
             </h3>
@@ -201,7 +201,7 @@ export const BrokerFeaturesSection = () => {
             </p>
             <a
               href="#registro"
-              className="inline-block bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
+              className="inline-block bg-gradient-to-r from-primary to-teal-600 hover:from-primary/90 hover:to-teal-600/90 text-white px-8 py-3 rounded-full font-semibold transition transform hover:scale-105"
             >
               Registrarme Ahora
             </a>

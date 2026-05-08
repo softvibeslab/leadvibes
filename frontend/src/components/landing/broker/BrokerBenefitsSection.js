@@ -196,7 +196,7 @@ export const BrokerBenefitsSection = () => {
         >
           <a
             href="#registro"
-            className="inline-flex items-center hover-accent bg-accent text-primary px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105"
+            className="inline-flex items-center hover-accent bg-[#00D9FF] text-[#0F172A] px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105"
           >
             Quiero estos beneficios
             <ArrowRight className="w-5 h-5 ml-2" />

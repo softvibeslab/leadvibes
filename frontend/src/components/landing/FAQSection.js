@@ -84,7 +84,7 @@ export const FAQSection = () => {
                 onClick={() => setOpenIndex(openIndex === index ? -1 : index)}
                 className={`w-full text-left p-6 rounded-2xl transition-all duration-300 ${
                   openIndex === index
-                    ? 'bg-gradient-to-r from-primary/10 to-secondary/10 border-2 border-primary/30'
+                    ? 'bg-gradient-to-r from-primary/10 to-teal-600/10 border-2 border-primary/30'
                     : 'bg-card border-2 border-border hover:border-primary/30'
                 }`}
               >
@@ -133,7 +133,7 @@ export const FAQSection = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mt-16 text-center bg-gradient-to-br from-primary/10 to-secondary/10 rounded-3xl p-8 border border-primary/20"
+          className="mt-16 text-center bg-gradient-to-br from-primary/10 to-teal-600/10 rounded-3xl p-8 border border-primary/20"
         >
           <h3 className="text-2xl font-bold mb-4">¿An tienes preguntas?</h3>
           <p className="text-muted-foreground mb-6">
@@ -142,7 +142,7 @@ export const FAQSection = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="mailto:hola@rovicrm.com"
-              className="inline-flex items-center justify-center bg-gradient-to-r from-primary to-secondary text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition"
+              className="inline-flex items-center justify-center bg-gradient-to-r from-primary to-teal-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition"
             >
               Enviar Email
             </a>

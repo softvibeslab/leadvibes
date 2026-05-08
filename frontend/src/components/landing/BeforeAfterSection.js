@@ -39,7 +39,7 @@ export const BeforeAfterSection = () => {
         )
       },
       after: {
-        icon: <Check className="w-6 h-6 text-secondary" />,
+        icon: <Check className="w-6 h-6 text-emerald-500" />,
         title: 'Pipeline Visual',
         description: 'Kanban con arrastrar y soltar, estados claros, seguimiento automático.',
         benefits: [
@@ -49,14 +49,14 @@ export const BeforeAfterSection = () => {
           'Próxima acción clara'
         ],
         visual: (
-          <div className="bg-secondary/10 rounded-xl p-6 border-2 border-secondary/30">
+          <div className="bg-emerald-500/10 rounded-xl p-6 border-2 border-emerald-500/30">
             <div className="grid grid-cols-4 gap-2">
               {['Nuevo', 'Contactado', 'Calificado', 'Cerrado'].map((stage, i) => (
                 <div key={stage} className="text-center">
                   <div className="text-xs font-semibold mb-2">{stage}</div>
                   <div className="space-y-1">
                     {[1, 2].map((j) => (
-                      <div key={j} className="h-8 bg-gradient-to-r from-secondary/40 to-accent/40 rounded flex items-center justify-center text-xs">
+                      <div key={j} className="h-8 bg-gradient-to-r from-emerald-500/40 to-teal-500/40 rounded flex items-center justify-center text-xs">
                         🏠
                       </div>
                     ))}
@@ -92,7 +92,7 @@ export const BeforeAfterSection = () => {
         )
       },
       after: {
-        icon: <Check className="w-6 h-6 text-secondary" />,
+        icon: <Check className="w-6 h-6 text-emerald-500" />,
         title: 'Automatizado 24/7',
         description: 'WhatsApp, Email y SMS automáticos. IA llama y agenda citas.',
         benefits: [
@@ -102,19 +102,19 @@ export const BeforeAfterSection = () => {
           'Nunca olvidas un lead'
         ],
         visual: (
-          <div className="bg-secondary/10 rounded-xl p-6 border-2 border-secondary/30">
+          <div className="bg-emerald-500/10 rounded-xl p-6 border-2 border-emerald-500/30">
             <div className="space-y-2">
-              <div className="flex items-center justify-center text-sm text-secondary">
+              <div className="flex items-center justify-center text-sm text-emerald-600">
                 <Phone className="w-4 h-4 mr-2" />
                 Llamada IA automtica
               </div>
-              <div className="flex items-center justify-center text-sm text-secondary">
+              <div className="flex items-center justify-center text-sm text-emerald-600">
                 💬 WhatsApp automtico
               </div>
-              <div className="flex items-center justify-center text-sm text-secondary">
+              <div className="flex items-center justify-center text-sm text-emerald-600">
                 📧 Email secuencial
               </div>
-              <div className="text-center text-sm font-semibold text-secondary mt-3">
+              <div className="text-center text-sm font-semibold text-emerald-600 mt-3">
                 +300% contactos efectivos
               </div>
             </div>
@@ -158,7 +158,7 @@ export const BeforeAfterSection = () => {
         )
       },
       after: {
-        icon: <Check className="w-6 h-6 text-secondary" />,
+        icon: <Check className="w-6 h-6 text-emerald-500" />,
         title: 'Gamificado y Motivado',
         description: 'Leaderboards, puntos, medallas. Tu equipo compite por ser #1.',
         benefits: [
@@ -168,9 +168,9 @@ export const BeforeAfterSection = () => {
           'Fcil de gestionar'
         ],
         visual: (
-          <div className="bg-secondary/10 rounded-xl p-6 border-2 border-secondary/30">
+          <div className="bg-emerald-500/10 rounded-xl p-6 border-2 border-emerald-500/30">
             <div className="text-center space-y-3">
-              <div className="text-secondary font-bold">Leaderboard Activo</div>
+              <div className="text-emerald-600 font-bold">Leaderboard Activo</div>
               <div className="flex justify-center gap-4">
                 <div className="text-center">
                   <div className="text-2xl">🥇</div>
@@ -185,7 +185,7 @@ export const BeforeAfterSection = () => {
                   <div className="text-xs font-bold">320 pts</div>
                 </div>
               </div>
-              <TrendingUp className="w-5 h-5 text-secondary mx-auto" />
+              <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto" />
             </div>
           </div>
         )
@@ -228,7 +228,7 @@ export const BeforeAfterSection = () => {
               onClick={() => setActiveTab(scenario.id)}
               className={`px-6 py-3 rounded-full font-semibold transition-all ${
                 activeTab === scenario.id
-                  ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg'
+                  ? 'bg-gradient-to-r from-primary to-teal-600 text-white shadow-lg'
                   : 'bg-card text-muted-foreground hover:bg-muted'
               }`}
             >
@@ -280,11 +280,11 @@ export const BeforeAfterSection = () => {
                     whileHover={{ scale: 1.02 }}
                     className="relative"
                   >
-                    <div className="absolute top-4 right-4 bg-secondary text-white text-xs font-bold px-3 py-1 rounded-full flex items-center">
+                    <div className="absolute top-4 right-4 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center">
                       <TrendingUp className="w-3 h-3 mr-1" />
                       CON ROVI
                     </div>
-                    <div className="bg-card rounded-3xl p-8 border-2 border-secondary/30 h-full">
+                    <div className="bg-card rounded-3xl p-8 border-2 border-emerald-500/30 h-full">
                       <div className="flex items-center mb-4">
                         {scenario.after.icon}
                         <h3 className="text-2xl font-bold ml-3">{scenario.after.title}</h3>
@@ -293,7 +293,7 @@ export const BeforeAfterSection = () => {
                       {scenario.after.visual}
                       <ul className="mt-6 space-y-2">
                         {scenario.after.benefits.map((benefit, i) => (
-                          <li key={i} className="flex items-center text-sm text-secondary">
+                          <li key={i} className="flex items-center text-sm text-emerald-600">
                             <Check className="w-4 h-4 mr-2" />
                             {benefit}
                           </li>
@@ -314,8 +314,8 @@ export const BeforeAfterSection = () => {
           viewport={{ once: true }}
           className="mt-12 text-center"
         >
-          <div className="inline-flex items-center bg-gradient-to-r from-secondary/20 to-accent/20 border-2 border-secondary/30 rounded-full px-8 py-4">
-            <TrendingUp className="w-6 h-6 text-secondary mr-3" />
+          <div className="inline-flex items-center bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-2 border-emerald-500/30 rounded-full px-8 py-4">
+            <TrendingUp className="w-6 h-6 text-emerald-500 mr-3" />
             <span className="text-lg font-bold">
               {activeTab === 'pipeline' && '+200% organizacin'}
               {activeTab === 'followup' && '+300% ms contactos'}

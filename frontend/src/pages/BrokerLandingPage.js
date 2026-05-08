@@ -128,7 +128,7 @@ export const BrokerLandingPage = () => {
       <BrokerFAQSection />
 
       {/* Final CTA */}
-      <section className="py-20 bg-gradient-to-br from-primary/20 via-secondary/20 to-secondary-dark/20">
+      <section className="py-20 bg-gradient-to-br from-primary/20 via-teal-600/20 to-emerald-600/20">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl lg:text-4xl font-bold mb-6">
             Únete al lanzamiento oficial de Rovi CRM
@@ -138,7 +138,7 @@ export const BrokerLandingPage = () => {
           </p>
           <a
             href="#registro"
-            className="inline-block bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105"
+            className="inline-block bg-gradient-to-r from-primary to-teal-600 hover:from-primary/90 hover:to-teal-600/90 text-white px-8 py-4 rounded-full font-semibold text-lg transition transform hover:scale-105"
           >
             Registrarme Ahora - Es Gratis
           </a>
