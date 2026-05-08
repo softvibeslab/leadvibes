@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apk add --no-cache yarn
 
 COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile --network-timeout 600000
 
 COPY . .
 
