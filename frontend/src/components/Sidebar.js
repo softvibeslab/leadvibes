@@ -10,6 +10,7 @@ import {
   getWorkspaceTypeLabel,
   isCopimLocalAssociationUser,
   isCopimMemberUser,
+  isRoviInternalUser,
   resolveAuthenticatedHome,
 } from '../lib/copimAccess';
 import {
@@ -39,7 +40,8 @@ import {
   CreditCard,
   IdCard,
   FolderKanban,
-  Store
+  Store,
+  Handshake
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -60,6 +62,7 @@ const individualNavItems = [
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/module-tracker', icon: BarChart3, label: 'Tracker' },
+  { to: '/negotiation-strategies', icon: Handshake, label: 'Negociacion' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
@@ -80,6 +83,18 @@ const agencyNavItems = [
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/module-tracker', icon: BarChart3, label: 'Tracker' },
+  { to: '/negotiation-strategies', icon: Handshake, label: 'Negociacion' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const roviInternalNavItems = [
+  { to: '/rovi/dashboard', icon: LayoutDashboard, label: 'Revenue HQ' },
+  { to: '/rovi/prospects', icon: Users, label: 'Prospectos SaaS' },
+  { to: '/rovi/service-plans', icon: Package, label: 'Planes ROVI' },
+  { to: '/rovi/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/rovi/analytics', icon: BarChart3, label: 'Revenue Analytics' },
+  { to: '/rovi/team', icon: UserCircle, label: 'Equipo Interno' },
+  { to: '/rovi/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
@@ -144,6 +159,7 @@ export const Sidebar = ({ onClose }) => {
   const activeWorkspace = user?.active_workspace;
   const isMemberPortal = isCopimMemberUser(user);
   const isLocalAssociationWorkspace = isCopimLocalAssociationUser(user);
+  const isRoviInternalWorkspace = isRoviInternalUser(user);
 
   const handleWorkspaceChange = async (tenantId) => {
     if (!tenantId || tenantId === activeWorkspace?.tenant_id) return;
@@ -152,12 +168,16 @@ export const Sidebar = ({ onClose }) => {
       await switchWorkspace(tenantId);
       const targetWorkspace = workspaces.find((workspace) => workspace?.tenant_id === tenantId);
       const targetRole = targetWorkspace?.role || getEffectiveRole(user);
-      const nextCopimPath = targetRole === 'copim_member'
+      const nextPath = targetWorkspace?.tenant_type === 'rovi_internal' || String(targetRole).startsWith('rovi_')
+        ? '/rovi/dashboard'
+        : targetRole === 'copim_member'
         ? '/copim/member'
         : targetRole === 'copim_operator'
           ? '/copim/association/profile'
-          : '/copim/dashboard';
-      navigate(location.pathname.startsWith('/copim') ? nextCopimPath : '/dashboard');
+          : targetWorkspace?.tenant_type === 'copim' || String(targetRole).startsWith('copim_')
+            ? '/copim/dashboard'
+            : '/dashboard';
+      navigate(nextPath);
     } finally {
       setSwitchingWorkspace(false);
     }
@@ -172,7 +192,9 @@ export const Sidebar = ({ onClose }) => {
 
   // Choose nav items based on account type
   const currentModeValue = location.pathname.startsWith('/copim') ? 'copim' : appMode;
-  const navItems = currentModeValue === 'copim'
+  const navItems = isRoviInternalWorkspace || location.pathname.startsWith('/rovi')
+    ? roviInternalNavItems
+    : currentModeValue === 'copim'
     ? (isMemberPortal ? copimMemberNavItems : (isLocalAssociationWorkspace ? copimLocalAssociationNavItems : copimNationalNavItems))
     : isIndividual
       ? individualNavItems

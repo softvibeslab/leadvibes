@@ -1,10 +1,13 @@
 const COPIM_TENANT_TYPES = new Set(['copim', 'council', 'association']);
 const COPIM_ASSOCIATION_ROLES = new Set(['copim_admin', 'copim_operator']);
 const COPIM_NATIONAL_ROLES = new Set(['copim_admin']);
+const ROVI_INTERNAL_ROLES = new Set(['rovi_admin', 'rovi_sales', 'rovi_marketing', 'rovi_customer_success', 'rovi_ops']);
 
 export const isCopimRole = (role) => (
   typeof role === 'string' && role.startsWith('copim')
 );
+
+export const isRoviInternalRole = (role) => ROVI_INTERNAL_ROLES.has(role);
 
 export const getEffectiveRole = (user) => (
   user?.active_workspace?.role || user?.role || 'broker'
@@ -17,6 +20,11 @@ export const isCopimAccount = (user) => (
 export const isCopimMemberUser = (user) => getEffectiveRole(user) === 'copim_member';
 export const isCopimNationalUser = (user) => COPIM_NATIONAL_ROLES.has(getEffectiveRole(user));
 export const isCopimLocalAssociationUser = (user) => getEffectiveRole(user) === 'copim_operator';
+export const isRoviInternalUser = (user) => (
+  user?.account_type === 'rovi_internal' ||
+  user?.active_workspace?.tenant_type === 'rovi_internal' ||
+  isRoviInternalRole(getEffectiveRole(user))
+);
 
 export const canManageCopimWorkspace = (user) => COPIM_ASSOCIATION_ROLES.has(getEffectiveRole(user));
 
@@ -42,6 +50,10 @@ export const resolveAppModeForUser = (user, preferredMode = 'rovi') => {
 };
 
 export const resolveAuthenticatedHome = (user, preferredMode = 'rovi') => {
+  if (isRoviInternalUser(user)) {
+    return '/rovi/dashboard';
+  }
+
   if (isCopimMemberUser(user)) {
     return '/copim/member';
   }
@@ -58,6 +70,9 @@ export const resolveAuthenticatedHome = (user, preferredMode = 'rovi') => {
 };
 
 export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
+  if (accountType === 'rovi_internal') {
+    return 'ROVI Internal';
+  }
   if (accountType === 'copim_member') {
     return 'Portal del asociado';
   }
@@ -71,6 +86,9 @@ export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
 };
 
 export const getWorkspaceTypeLabel = (tenantType) => {
+  if (tenantType === 'rovi_internal') {
+    return 'ROVI Internal';
+  }
   if (tenantType === 'copim') {
     return 'COPIM';
   }
@@ -99,6 +117,11 @@ export const getRoleLabel = (role) => {
     copim_admin: 'COPIM Nacional',
     copim_operator: 'Asociacion local',
     copim_member: 'Asociado',
+    rovi_admin: 'ROVI Admin',
+    rovi_sales: 'ROVI Sales',
+    rovi_marketing: 'ROVI Marketing',
+    rovi_customer_success: 'Customer Success',
+    rovi_ops: 'ROVI Ops',
   };
 
   return labels[role] || role.replaceAll('_', ' ');

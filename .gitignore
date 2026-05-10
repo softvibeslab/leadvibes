@@ -83,6 +83,10 @@ frontend/node_modules/.cache/default-development/6.pack
 # Environment files
 *.env
 *.env.*
+
+# Generated knowledge graphs
+graphify-out/
+**/graphify-out/
 -e 
 # Environment files
 *.env

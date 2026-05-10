@@ -189,6 +189,7 @@ export const useWebSocketEvent = (eventType, callback) => {
 export const useDashboardRealTime = () => {
   const [stats, setStats] = useState(null);
   const [leaderboard, setLeaderboard] = useState(null);
+  const [lastEvent, setLastEvent] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
 
   // Escuchar actualizaciones de métricas
@@ -196,6 +197,7 @@ export const useDashboardRealTime = () => {
     if (message.data) {
       console.log('📊 Metrics updated:', message.data);
       setStats(message.data);
+      setLastEvent(message);
       setLastUpdate(new Date());
     }
   });
@@ -205,6 +207,7 @@ export const useDashboardRealTime = () => {
     if (message.data) {
       console.log('🏆 Leaderboard changed:', message.data);
       setLeaderboard(message.data);
+      setLastEvent(message);
       setLastUpdate(new Date());
     }
   });
@@ -212,13 +215,50 @@ export const useDashboardRealTime = () => {
   // Escuchar nuevos leads
   useWebSocketEvent('lead_created', (message) => {
     console.log('👤 New lead created:', message.data);
-    // Podríamos refrescar stats automáticamente
+    setLastEvent(message);
+    setLastUpdate(new Date());
+  });
+
+  useWebSocketEvent('lead_updated', (message) => {
+    console.log('✏️ Lead updated:', message.data);
+    setLastEvent(message);
+    setLastUpdate(new Date());
+  });
+
+  useWebSocketEvent('lead_deleted', (message) => {
+    console.log('🗑️ Lead deleted:', message.data);
+    setLastEvent(message);
+    setLastUpdate(new Date());
+  });
+
+  useWebSocketEvent('leads_bulk_updated', (message) => {
+    console.log('✏️ Leads bulk updated:', message.data);
+    setLastEvent(message);
+    setLastUpdate(new Date());
+  });
+
+  useWebSocketEvent('leads_bulk_deleted', (message) => {
+    console.log('🗑️ Leads bulk deleted:', message.data);
+    setLastEvent(message);
+    setLastUpdate(new Date());
+  });
+
+  useWebSocketEvent('import_completed', (message) => {
+    console.log('📥 Import completed:', message.data);
+    setLastEvent(message);
+    setLastUpdate(new Date());
+  });
+
+  useWebSocketEvent('duplicates_detected', (message) => {
+    console.log('🔎 Duplicates detected:', message.data);
+    setLastEvent(message);
     setLastUpdate(new Date());
   });
 
   return {
     stats,
     leaderboard,
+    lastEvent,
     lastUpdate,
     isRealTime: true
   };
