@@ -21,6 +21,7 @@ import { DatabaseChatPage } from './pages/DatabaseChatPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import { RoviInternalWorkspacePage } from './pages/RoviInternalWorkspacePage';
+import { RoviAIControlTowerPage } from './pages/RoviAIControlTowerPage';
 import { EncuentraLeadsPage } from './pages/EncuentraLeadsPage';
 import { ModuleTrackerPage } from './pages/ModuleTrackerPage';
 import { LandingPage } from './pages/LandingPage';
@@ -354,6 +355,14 @@ function AppRoutes() {
           element={
             <RoviInternalRoute>
               <MarketplacePage />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/ai-control"
+          element={
+            <RoviInternalRoute>
+              <RoviAIControlTowerPage />
             </RoviInternalRoute>
           }
         />

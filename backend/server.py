@@ -107,6 +107,7 @@ from dashboard_enhancements import (
 )
 from duplicate_detection import find_potential_duplicates, get_duplicate_suggestions
 from import_optimization import execute_import_optimized, execute_import_with_advanced_duplicates
+from agent_control import AgentRunRequest, create_agent_control_router, run_agent_turn
 from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
 
@@ -8238,7 +8239,6 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
     """Chat with AI assistant"""
     user_id = current_user["user_id"]
     tenant_id = current_user["tenant_id"]
-    session_id = f"chat-{user_id}"
 
     # Save user message
     user_msg_id = str(uuid.uuid4())
@@ -8252,47 +8252,14 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
     }
     await db.chat_messages.insert_one(user_msg_doc)
 
-    # Get AI profile for personalization
-    ai_profile = await db.ai_profiles.find_one(
-        {"user_id": user_id},
-        {"_id": 0}
+    # Route the floating chat through the new role-aware agent runtime.
+    agent_result = await run_agent_turn(
+        db,
+        AgentRunRequest(message=message.content, include_context=True),
+        current_user,
+        source="floating_chat",
     )
-
-    # Get user name for personalization
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
-    user_name = user["name"] if user else "Broker"
-
-    # Get context for AI
-    goal = await db.goals.find_one({"user_id": user_id}, {"_id": 0})
-
-    # Get dashboard stats for context
-    ventas = await db.leads.count_documents({"tenant_id": tenant_id, "status": "venta"})
-    apartados = await db.leads.count_documents({"tenant_id": tenant_id, "status": "apartado"})
-
-    pipeline = [
-        {"$match": {"tenant_id": tenant_id}},
-        {"$group": {"_id": None, "total": {"$sum": "$points"}}}
-    ]
-    points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
-    total_points = points_result[0]["total"] if points_result else 0
-
-    context = {
-        "user_goals": goal,
-        "stats": {
-            "total_points": total_points,
-            "ventas": ventas,
-            "apartados": apartados
-        }
-    }
-
-    # Get AI response with personalized profile
-    ai_response = await get_ai_response(
-        message.content,
-        session_id,
-        context,
-        ai_profile=serialize_doc(ai_profile) if ai_profile else None,
-        user_name=user_name
-    )
+    ai_response = agent_result.get("response") or "No pude generar una respuesta en este momento."
 
     # Save AI response
     ai_msg_id = str(uuid.uuid4())
@@ -15169,6 +15136,7 @@ async def receive_external_lead_webhook(
 # Include the router in the main app
 api_router.include_router(create_marketplace_router(db, analyze_lead))
 api_router.include_router(create_rovi_internal_router(db))
+api_router.include_router(create_agent_control_router(db))
 app.include_router(api_router)
 
 app.add_middleware(

@@ -95,6 +95,7 @@ const roviInternalNavItems = [
   { to: '/rovi/analytics', icon: BarChart3, label: 'Revenue Analytics' },
   { to: '/rovi/team', icon: UserCircle, label: 'Equipo Interno' },
   { to: '/rovi/marketplace', icon: Store, label: 'Marketplace' },
+  { to: '/rovi/ai-control', icon: Bot, label: 'AI Control' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
