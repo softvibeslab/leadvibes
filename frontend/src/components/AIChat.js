@@ -1,10 +1,220 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Send, MessageCircle, X, Sparkles, Loader2 } from 'lucide-react';
+import { Send, MessageCircle, X, Sparkles, Loader2, BarChart3, Pencil, CalendarPlus, Mail, Phone, Layers } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
+
+const cardToneClasses = {
+  blue: 'border-blue-200 bg-blue-50 text-blue-900',
+  emerald: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  amber: 'border-amber-200 bg-amber-50 text-amber-900',
+  slate: 'border-slate-200 bg-slate-50 text-slate-900',
+  purple: 'border-purple-200 bg-purple-50 text-purple-900',
+};
+
+const extractMetricCards = (content = '') => {
+  const cards = [];
+  const lines = content.split('\n');
+  const metricPattern = /^[\s*\-•]*\**([^:*\n]+?)\**:\s*([0-9][0-9.,]*)\s*(?:leads?)?/i;
+
+  lines.forEach((line) => {
+    const match = line.match(metricPattern);
+    if (!match) return;
+    const label = match[1].replace(/\*/g, '').trim();
+    const value = Number(match[2].replace(/[,.]/g, ''));
+    if (!label || Number.isNaN(value)) return;
+    cards.push({ label, value, tone: cards.length % 2 === 0 ? 'blue' : 'emerald' });
+  });
+
+  return cards.slice(0, 6);
+};
+
+const renderInlineMarkdown = (text = '') => {
+  const parts = String(text).split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^\)]+\))/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-semibold">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={index} className="rounded bg-background/70 px-1 py-0.5 text-[0.8em]">{part.slice(1, -1)}</code>;
+    }
+    const link = part.match(/^\[([^\]]+)\]\(([^\)]+)\)$/);
+    if (link) {
+      return <a key={index} href={link[2]} target="_blank" rel="noreferrer" className="underline underline-offset-2 text-primary">{link[1]}</a>;
+    }
+    return <React.Fragment key={index}>{part}</React.Fragment>;
+  });
+};
+
+const MarkdownText = ({ content = '' }) => {
+  const lines = String(content).split('\n');
+  const blocks = [];
+  let bullets = [];
+
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    blocks.push(
+      <ul key={`ul-${blocks.length}`} className="my-2 ml-4 list-disc space-y-1">
+        {bullets.map((bullet, index) => (
+          <li key={index}>{renderInlineMarkdown(bullet)}</li>
+        ))}
+      </ul>
+    );
+    bullets = [];
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    const bullet = trimmed.match(/^[-*•+]\s+(.+)$/);
+    if (bullet) {
+      bullets.push(bullet[1]);
+      return;
+    }
+
+    flushBullets();
+
+    if (!trimmed) {
+      blocks.push(<div key={`space-${index}`} className="h-2" />);
+      return;
+    }
+
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const sizeClass = heading[1].length === 1 ? 'text-base' : 'text-sm';
+      blocks.push(
+        <p key={index} className={`${sizeClass} font-semibold mt-2`}>
+          {renderInlineMarkdown(heading[2])}
+        </p>
+      );
+      return;
+    }
+
+    blocks.push(
+      <p key={index} className="leading-relaxed">
+        {renderInlineMarkdown(trimmed)}
+      </p>
+    );
+  });
+
+  flushBullets();
+  return <div className="space-y-1">{blocks}</div>;
+};
+
+const LeadInsightCards = ({ cards = [], onCardClick, disabled = false }) => {
+  if (!cards.length) return null;
+
+  return (
+    <div className="grid grid-cols-2 gap-2 mt-2">
+      {cards.map((card, index) => {
+        const query = card.query || `Detalle de leads ${card.label}`;
+        return (
+          <button
+            type="button"
+            key={`${card.label}-${index}`}
+            onClick={() => onCardClick?.(query)}
+            disabled={disabled}
+            title="Ver detalle"
+            className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 ${cardToneClasses[card.tone] || cardToneClasses.blue}`}
+          >
+            <div className="flex items-center gap-2 text-xs font-medium opacity-80">
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{card.label}</span>
+            </div>
+            <div className={`${['lead', 'flow_step', 'flow_artifact', 'pipeline_badge'].includes(card.type) ? 'text-base' : 'text-2xl'} mt-1 font-bold leading-tight`}>
+              {card.value}
+            </div>
+            {card.subtitle && (
+              <div className="mt-1 line-clamp-2 text-[11px] font-medium opacity-80">
+                {card.subtitle}
+              </div>
+            )}
+            {card.meta && (
+              <div className="mt-1 text-[10px] uppercase tracking-wide opacity-60">
+                {card.meta}
+              </div>
+            )}
+            <div className="mt-1 text-[10px] font-medium opacity-70">
+              {card.type === 'flow_step' ? 'Click para ejecutar/ver detalle' : card.type === 'flow_artifact' ? 'Click para abrir detalle' : card.type === 'pipeline_badge' ? 'Click para conectar flujo' : card.type === 'lead' ? 'Click para ficha completa' : 'Click para detalle'}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const actionIconFor = (label = '') => {
+  const normalized = label.toLowerCase();
+  if (normalized.includes('reunión') || normalized.includes('agendar')) return CalendarPlus;
+  if (normalized.includes('email')) return Mail;
+  if (normalized.includes('sms') || normalized.includes('whatsapp')) return MessageCircle;
+  if (normalized.includes('llamada')) return Phone;
+  if (normalized.includes('activo') || normalized.includes('embudo')) return Layers;
+  return Pencil;
+};
+
+const MessageActionTags = ({ actions = [], onActionPrompt, onApiAction, disabled = false }) => {
+  if (!actions.length) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {actions.map((action, index) => {
+        const Icon = actionIconFor(action.label || '');
+        if (action.type === 'whatsapp_link' && action.url) {
+          return (
+            <a
+              key={`${action.label}-${index}`}
+              href={action.url}
+              target="_blank"
+              rel="noreferrer"
+              title="Abrir WhatsApp con mensaje listo"
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {action.label || 'Enviar'}
+            </a>
+          );
+        }
+
+        if (action.type === 'api_post' && action.endpoint) {
+          return (
+            <button
+              type="button"
+              key={`${action.label}-${index}`}
+              onClick={() => onApiAction?.(action)}
+              disabled={disabled}
+              title="Crear acción en Rovi"
+              className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {action.label || 'Crear'}
+            </button>
+          );
+        }
+
+        if (action.type === 'chat_prompt' && action.query) {
+          return (
+            <button
+              type="button"
+              key={`${action.label}-${index}`}
+              onClick={() => onActionPrompt?.(action.query)}
+              disabled={disabled}
+              title="Pedir ajuste al asistente"
+              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {action.label || 'Modificar'}
+            </button>
+          );
+        }
+
+        return null;
+      })}
+    </div>
+  );
+};
 
 export const AIChat = () => {
   const { api } = useAuth();
@@ -13,28 +223,10 @@ export const AIChat = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  const scrollRef = useRef(null);
+  const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    if (isOpen && !historyLoaded) {
-      loadHistory();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       const response = await api.get('/chat/history?limit=30');
       setMessages(response.data);
@@ -42,23 +234,46 @@ export const AIChat = () => {
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
-  };
+  }, [api]);
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
+  useEffect(() => {
+    if (isOpen && !historyLoaded) {
+      loadHistory();
+    }
+  }, [isOpen, historyLoaded, loadHistory]);
 
-    const userMessage = { role: 'user', content: input, id: Date.now() };
+  useEffect(() => {
+    if (!isOpen) return;
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    });
+  }, [messages, loading, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const submitMessage = async (text) => {
+    const content = text?.trim();
+    if (!content || loading) return;
+
+    const userMessage = { role: 'user', content, id: Date.now() };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
     try {
-      const response = await api.post('/chat', { content: input });
+      const response = await api.post('/chat', { content });
       setMessages((prev) => [...prev, { 
         role: 'assistant', 
         content: response.data.content,
-        id: response.data.id 
+        id: response.data.id,
+        cards: response.data.cards || [],
+        lead_summary: response.data.lead_summary,
+        lead_items: response.data.lead_items || [],
+        actions: response.data.actions || [],
       }]);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -70,6 +285,48 @@ export const AIChat = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const runApiAction = async (action) => {
+    if (!action?.endpoint || loading) return;
+    setLoading(true);
+    try {
+      const response = await api.post(action.endpoint, action.payload || {});
+      const data = response.data || {};
+      const createdParts = [
+        data.email_template_id ? `Activo: ${data.email_template_id}` : null,
+        data.campaign_id ? `Campaña: ${data.campaign_id}` : null,
+        data.workflow_id ? `Pipeline: ${data.workflow_id}` : null,
+        data.id ? `ID: ${data.id}` : null,
+      ].filter(Boolean);
+      const stepText = Array.isArray(data.steps) && data.steps.length
+        ? `\n\nSiguiente flujo:\n${data.steps.map((step, idx) => `${idx + 1}. ${step}`).join('\n')}`
+        : '';
+      const detail = createdParts.length ? `\n\n${createdParts.join('\n')}` : '';
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: `${data.message || action.success_message || 'Acción creada correctamente.'}${detail}${stepText}`,
+        id: Date.now(),
+        cards: data.cards || [],
+        actions: data.actions || [],
+      }]);
+    } catch (error) {
+      console.error('Error running action:', error);
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: error.response?.data?.detail || 'No pude crear la acción. Revisa que el módulo esté activo e intenta de nuevo.',
+        id: Date.now(),
+        cards: [],
+        actions: [],
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    submitMessage(input);
   };
 
   const quickPrompts = [
@@ -119,7 +376,7 @@ export const AIChat = () => {
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <ScrollArea className="flex-1 p-4">
             {messages.length === 0 && (
               <div className="text-center py-8">
                 <Sparkles className="w-12 h-12 mx-auto text-primary/50 mb-3" />
@@ -141,7 +398,11 @@ export const AIChat = () => {
             )}
             
             <div className="space-y-4">
-              {messages.map((msg) => (
+              {messages.map((msg) => {
+                const metricCards = msg.role === 'assistant'
+                  ? (msg.cards?.length ? msg.cards : extractMetricCards(msg.content))
+                  : [];
+                return (
                 <div
                   key={msg.id}
                   className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -154,16 +415,26 @@ export const AIChat = () => {
                     </Avatar>
                   )}
                   <div
-                    className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${
+                    className={`max-w-[80%] ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-md'
-                        : 'bg-muted text-foreground rounded-bl-md'
+                        ? 'px-4 py-2.5 rounded-2xl text-sm bg-primary text-primary-foreground rounded-br-md'
+                        : 'space-y-2'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    {msg.role === 'user' ? (
+                      <MarkdownText content={msg.content} />
+                    ) : (
+                      <>
+                        <div className="px-4 py-2.5 rounded-2xl text-sm bg-muted text-foreground rounded-bl-md">
+                          <MarkdownText content={msg.content} />
+                        </div>
+                        <LeadInsightCards cards={metricCards} onCardClick={submitMessage} disabled={loading} />
+                        <MessageActionTags actions={msg.actions || []} onActionPrompt={submitMessage} onApiAction={runApiAction} disabled={loading} />
+                      </>
+                    )}
                   </div>
                 </div>
-              ))}
+              );})}
               {loading && (
                 <div className="flex gap-3 justify-start">
                   <Avatar className="w-8 h-8">
@@ -176,6 +447,7 @@ export const AIChat = () => {
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 

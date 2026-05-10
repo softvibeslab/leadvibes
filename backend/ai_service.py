@@ -21,6 +21,158 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 AIFORDB_API_KEY = os.environ.get("AIFORDB_API_KEY", "")
 AIFORDB_API_URL = "https://app.aifordatabase.com/api/v1/chat"
 
+DEFAULT_AI_PROVIDER = "ollama"
+DEFAULT_AI_FALLBACK_PROVIDER = "openai"
+DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+DEFAULT_OLLAMA_MODEL = "llama3.2:3b"
+DEFAULT_OPENAI_MODEL = "gpt-5.2"
+
+
+def _get_env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip()
+
+
+def _get_primary_provider() -> str:
+    return _get_env("AI_PROVIDER", DEFAULT_AI_PROVIDER).lower()
+
+
+def _get_fallback_provider() -> str:
+    return _get_env("AI_FALLBACK_PROVIDER", DEFAULT_AI_FALLBACK_PROVIDER).lower()
+
+
+def _get_openai_model() -> str:
+    return _get_env("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
+
+
+def _get_ollama_model(task_type: str = "chat") -> str:
+    task_specific = {
+        "chat": "OLLAMA_CHAT_MODEL",
+        "lead_analysis": "OLLAMA_ANALYSIS_MODEL",
+        "sales_script": "OLLAMA_SCRIPT_MODEL",
+        "copim_analysis": "OLLAMA_ANALYSIS_MODEL",
+    }.get(task_type)
+    if task_specific and _get_env(task_specific):
+        return _get_env(task_specific)
+    return _get_env("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
+
+
+async def _call_ollama_chat(*, system_prompt: str, user_message: str, task_type: str = "chat") -> str:
+    """Call local Ollama for normal/low-cost AI tasks."""
+    base_url = _get_env("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL).rstrip("/")
+    model = _get_ollama_model(task_type)
+    timeout = float(_get_env("OLLAMA_TIMEOUT_SECONDS", "120"))
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        "stream": False,
+        "options": {
+            "temperature": float(_get_env("OLLAMA_TEMPERATURE", "0.2")),
+            "num_ctx": int(_get_env("OLLAMA_NUM_CTX", "4096")),
+        },
+    }
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(f"{base_url}/api/chat", json=payload)
+        response.raise_for_status()
+        data = response.json()
+    content = data.get("message", {}).get("content", "")
+    if not content:
+        raise RuntimeError("Ollama returned an empty response")
+    return content
+
+
+async def _call_openai_chat(*, system_prompt: str, user_message: str, session_id: str, task_type: str = "chat") -> str:
+    """Call existing OpenAI/Emergent integration for premium or fallback responses."""
+    if not EMERGENT_AVAILABLE:
+        raise RuntimeError("emergentintegrations package not available")
+    if not EMERGENT_LLM_KEY:
+        raise RuntimeError("EMERGENT_LLM_KEY is not configured")
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=session_id,
+        system_message=system_prompt,
+    ).with_model("openai", _get_openai_model())
+    return await chat.send_message(UserMessage(text=user_message))
+
+
+async def _call_ai_text(*, system_prompt: str, user_message: str, session_id: str, task_type: str = "chat") -> str:
+    """Use local Ollama first by default, then OpenAI as fallback/premium."""
+    primary = _get_primary_provider()
+    fallback = _get_fallback_provider()
+
+    async def call(provider: str) -> str:
+        if provider == "ollama":
+            return await _call_ollama_chat(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                task_type=task_type,
+            )
+        if provider == "openai":
+            return await _call_openai_chat(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                session_id=session_id,
+                task_type=task_type,
+            )
+        raise RuntimeError(f"Unsupported AI provider: {provider}")
+
+    try:
+        return await call(primary)
+    except Exception as primary_error:
+        if not fallback or fallback == primary:
+            raise
+        logger.warning(
+            "Primary AI provider %s failed for %s, falling back to %s: %s",
+            primary,
+            task_type,
+            fallback,
+            primary_error,
+        )
+        return await call(fallback)
+
+
+async def _call_ai_json(*, system_prompt: str, user_message: str, session_id: str, task_type: str) -> Dict[str, Any]:
+    """Call AI and require JSON. Invalid local JSON falls back to OpenAI when configured."""
+    primary = _get_primary_provider()
+    fallback = _get_fallback_provider()
+
+    async def call_and_parse(provider: str) -> Dict[str, Any]:
+        if provider == "ollama":
+            text = await _call_ollama_chat(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                task_type=task_type,
+            )
+        elif provider == "openai":
+            text = await _call_openai_chat(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                session_id=session_id,
+                task_type=task_type,
+            )
+        else:
+            raise RuntimeError(f"Unsupported AI provider: {provider}")
+        parsed = _extract_json_object(text)
+        if parsed is None:
+            raise ValueError(f"AI provider {provider} returned invalid JSON")
+        return parsed
+
+    try:
+        return await call_and_parse(primary)
+    except Exception as primary_error:
+        if not fallback or fallback == primary:
+            raise
+        logger.warning(
+            "Primary AI JSON provider %s failed for %s, falling back to %s: %s",
+            primary,
+            task_type,
+            fallback,
+            primary_error,
+        )
+        return await call_and_parse(fallback)
+
 # Optional import for emergentintegrations
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -51,27 +203,62 @@ Contexto del negocio que debes conocer:
 - Clientes típicos: inversionistas, compradores de segunda vivienda, extranjeros
 - Ciclo de venta: 2-8 semanas desde primer contacto hasta cierre
 
-Siempre responde en español mexicano de forma concisa y accionable."""
+Siempre responde en español mexicano de forma concisa y accionable.
 
-def build_system_prompt(ai_profile: Optional[Dict[str, Any]] = None, user_name: str = "Broker") -> str:
-    """Build a personalized system prompt based on the user's AI profile"""
+Formato de respuesta para chat:
+- Responde corto: máximo 3 bullets o 3 frases.
+- No saludes si la conversación ya empezó; ve directo al dato o acción.
+- Si hay números en el contexto, úsalos exactamente y no inventes métricas.
+- Cierra con una pregunta de seguimiento concreta para trabajar iterativamente.
+- Si hay cards/metricas en el contexto, no repitas listas largas: resume en 1 línea y pregunta qué quiere ver después.
+- Si faltan datos, pide el dato específico en lugar de asumir."""
+
+
+ROLE_PROMPTS = {
+    "broker": """ROL ACTUAL DEL USUARIO: broker
+- Objetivo: ayudar a contactar leads, priorizar oportunidades y cerrar ventas.
+- Responde con acciones listas para copiar/ejecutar: WhatsApp, llamada, siguiente paso o seguimiento.
+- Si el usuario responde 'sí', 'ok', 'dale' o similar después de una pregunta tuya, continúa la acción anterior; no cambies de tema.""",
+    "manager": """ROL ACTUAL DEL USUARIO: manager
+- Objetivo: supervisar equipo, embudo, calidad de seguimiento y prioridades comerciales.
+- Responde con foco en accountability: quién debe hacer qué, con qué lead y en qué momento.
+- Si el usuario responde 'sí', 'ok', 'dale' o similar después de una pregunta tuya, continúa la acción anterior; no cambies de tema.""",
+    "admin": """ROL ACTUAL DEL USUARIO: admin
+- Objetivo: dar visión ejecutiva del CRM, operación, metas, campañas y salud del pipeline.
+- Responde con decisiones operativas, riesgos y próximos pasos claros.
+- Si el usuario responde 'sí', 'ok', 'dale' o similar después de una pregunta tuya, continúa la acción anterior; no cambies de tema.""",
+    "copim_member": """ROL ACTUAL DEL USUARIO: copim_member
+- Objetivo: apoyar operación de asociación/comunidad, miembros, cursos, eventos y beneficios.
+- Responde con enfoque colaborativo y de servicio al miembro.
+- Si el usuario responde 'sí', 'ok', 'dale' o similar después de una pregunta tuya, continúa la acción anterior; no cambies de tema.""",
+}
+
+
+def _role_prompt(user_role: str = "broker") -> str:
+    role = (user_role or "broker").strip().lower()
+    return ROLE_PROMPTS.get(role, ROLE_PROMPTS["broker"] + f"\n- Rol registrado no estándar: {role}.")
+
+def build_system_prompt(
+    ai_profile: Optional[Dict[str, Any]] = None,
+    user_name: str = "Broker",
+    user_role: str = "broker",
+) -> str:
+    """Build a personalized system prompt based on the user's AI profile and role."""
+    role_prompt = _role_prompt(user_role)
 
     if not ai_profile:
-        # Return default prompt if no profile
-        return SYSTEM_PROMPT
+        return SYSTEM_PROMPT + "\n\n" + role_prompt
 
-    # Extract profile data
     experience = ai_profile.get("experience", "broker inmobiliario")
     style = ai_profile.get("style", "profesional y amigable")
     property_types = ai_profile.get("property_types", ["propiedades"])
     focus_zones = ai_profile.get("focus_zones", ["Tulum"])
     goals = ai_profile.get("goals", "cerrar más ventas")
 
-    # Build personalized prompt
     property_types_str = ", ".join(property_types) if property_types else "propiedades"
     focus_zones_str = ", ".join(focus_zones) if focus_zones else "Tulum"
 
-    personalized_prompt = f"""Eres el Asistente IA personal de {user_name}, un broker inmobiliario especializado.
+    return f"""Eres el Asistente IA personal de {user_name}, un broker inmobiliario especializado.
 
 PERFIL DEL BROKER:
 - Experiencia: {experience}
@@ -102,54 +289,90 @@ Contexto del negocio:
 IMPORTANTE:
 - Responde siempre en español mexicano
 - Sé conciso y accionable
+- Responde corto: máximo 3 bullets o 3 frases
+- No saludes si la conversación ya empezó; ve directo al dato o acción
+- Si hay números en el contexto, úsalos exactamente y no inventes métricas
+- Cierra con una pregunta de seguimiento concreta para trabajar iterativamente
+- Si hay cards/metricas en el contexto, no repitas listas largas: resume en 1 línea y pregunta qué quiere ver después
+- Si faltan datos, pide el dato específico en lugar de asumir
 - Adapta tu estilo al del broker: {style}
 - Haz referencias a su experiencia y zonas de trabajo
+
+{role_prompt}
 """
 
-    return personalized_prompt
+
+def build_user_prompt(user_message: str, context: Optional[Dict[str, Any]] = None) -> str:
+    """Build the user prompt with explicit context, recent conversation and intent."""
+    if not context:
+        return user_message
+
+    context_str = "\n\nContexto actual:\n"
+    if context.get("last_intent"):
+        context_str += f"- Intención actual: {context['last_intent']}\n"
+    if context.get("conversation_history"):
+        context_str += "\nConversación reciente:\n"
+        for item in context["conversation_history"][-6:]:
+            role = item.get("role", "mensaje")
+            content = str(item.get("content", "")).strip().replace("\n", " ")
+            if len(content) > 320:
+                content = content[:317] + "..."
+            context_str += f"- {role}: {content}\n"
+    if context.get("user_goals"):
+        goals = context["user_goals"]
+        context_str += f"- Meta de ventas: {goals.get('ventas_mes', 5)} ventas/mes\n"
+        context_str += f"- Meta de ingresos: ${goals.get('ingresos_objetivo', 500000):,.0f} MXN\n"
+    if context.get("stats"):
+        stats = context["stats"]
+        context_str += f"- Puntos actuales: {stats.get('total_points', 0)}\n"
+        context_str += f"- Ventas cerradas: {stats.get('ventas', 0)}\n"
+    if context.get("lead_summary"):
+        lead_summary = context["lead_summary"]
+        context_str += "\nResumen de leads:\n"
+        context_str += f"- Total: {lead_summary.get('total', 0)}\n"
+        context_str += f"- Calientes: {lead_summary.get('hot', 0)}\n"
+        context_str += f"- Tibios: {lead_summary.get('warm', 0)}\n"
+        context_str += f"- Fríos: {lead_summary.get('cold', 0)}\n"
+        if lead_summary.get("by_status"):
+            context_str += "- Por estado: " + ", ".join(
+                f"{status}: {count}" for status, count in lead_summary["by_status"].items()
+            ) + "\n"
+        if lead_summary.get("top_interests"):
+            context_str += "- Intereses principales: " + ", ".join(
+                f"{interest}: {count}" for interest, count in lead_summary["top_interests"].items()
+            ) + "\n"
+    if context.get("lead_info"):
+        lead = context["lead_info"]
+        context_str += f"\nLead actual: {lead.get('name', 'N/A')}\n"
+        context_str += f"- Presupuesto: ${lead.get('budget_mxn', 0):,.0f} MXN\n"
+        context_str += f"- Estado: {lead.get('status', 'nuevo')}\n"
+        context_str += f"- Interés: {lead.get('property_interest', 'N/A')}\n"
+        context_str += f"- Teléfono: {lead.get('phone', 'N/A')}\n"
+        context_str += f"- Email: {lead.get('email', 'N/A')}\n"
+    return context_str + "\n\nPregunta del usuario: " + user_message
 
 async def get_ai_response(
     user_message: str,
     session_id: str,
     context: Optional[Dict[str, Any]] = None,
     ai_profile: Optional[Dict[str, Any]] = None,
-    user_name: str = "Broker"
+    user_name: str = "Broker",
+    user_role: str = "broker",
 ) -> str:
     """Get AI response for chat"""
-    if not AI_AVAILABLE:
-        return "Lo siento, la funcionalidad de IA no está disponible en este entorno. Por favor contacta al administrador."
     try:
         # Build personalized system prompt
-        system_prompt = build_system_prompt(ai_profile, user_name)
+        system_prompt = build_system_prompt(ai_profile, user_name, user_role)
 
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message=system_prompt
-        ).with_model("openai", "gpt-5.2")
-        
         # Build context-aware message
-        full_message = user_message
-        if context:
-            context_str = "\n\nContexto actual:\n"
-            if context.get("user_goals"):
-                goals = context["user_goals"]
-                context_str += f"- Meta de ventas: {goals.get('ventas_mes', 5)} ventas/mes\n"
-                context_str += f"- Meta de ingresos: ${goals.get('ingresos_objetivo', 500000):,.0f} MXN\n"
-            if context.get("stats"):
-                stats = context["stats"]
-                context_str += f"- Puntos actuales: {stats.get('total_points', 0)}\n"
-                context_str += f"- Ventas cerradas: {stats.get('ventas', 0)}\n"
-            if context.get("lead_info"):
-                lead = context["lead_info"]
-                context_str += f"\nLead actual: {lead.get('name', 'N/A')}\n"
-                context_str += f"- Presupuesto: ${lead.get('budget_mxn', 0):,.0f} MXN\n"
-                context_str += f"- Estado: {lead.get('status', 'nuevo')}\n"
-                context_str += f"- Interés: {lead.get('property_interest', 'N/A')}\n"
-            full_message = context_str + "\n\nPregunta del usuario: " + user_message
+        full_message = build_user_prompt(user_message, context)
         
-        message = UserMessage(text=full_message)
-        response = await chat.send_message(message)
+        response = await _call_ai_text(
+            system_prompt=system_prompt,
+            user_message=full_message,
+            session_id=session_id,
+            task_type="chat",
+        )
         return response
         
     except Exception as e:
@@ -158,19 +381,8 @@ async def get_ai_response(
 
 async def analyze_lead(lead_data: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze a lead and provide AI insights"""
-    if not AI_AVAILABLE:
-        return {
-            "intent_score": 50,
-            "sentiment": "neutral",
-            "key_points": ["IA no disponible"],
-            "next_action": "Revisar manualmente",
-            "opening_script": f"Hola {lead_data.get('name', '')}, soy de Rovi Real Estate..."
-        }
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"lead-analysis-{lead_data.get('id', 'unknown')}",
-            system_message="""Eres un experto en análisis de leads inmobiliarios. 
+        system_prompt = """Eres un experto en análisis de leads inmobiliarios. 
 Analiza la información del prospecto y proporciona:
 1. Puntuación de intención de compra (0-100)
 2. Sentimiento general (positivo/neutral/negativo)
@@ -186,8 +398,6 @@ Responde SIEMPRE en formato JSON válido con estas claves exactas:
   "next_action": "descripción de la acción",
   "opening_script": "script personalizado"
 }"""
-        ).with_model("openai", "gpt-5.2")
-        
         lead_info = f"""
 Nombre: {lead_data.get('name', 'N/A')}
 Teléfono: {lead_data.get('phone', 'N/A')}
@@ -199,30 +409,13 @@ Estado actual: {lead_data.get('status', 'nuevo')}
 Notas: {lead_data.get('notes', 'Sin notas')}
 """
         
-        message = UserMessage(text=f"Analiza este lead inmobiliario:\n{lead_info}")
-        response = await chat.send_message(message)
-        
-        # Parse JSON response
-        import json
-        try:
-            # Try to extract JSON from response
-            start_idx = response.find('{')
-            end_idx = response.rfind('}') + 1
-            if start_idx != -1 and end_idx > start_idx:
-                json_str = response[start_idx:end_idx]
-                analysis = json.loads(json_str)
-                return analysis
-        except json.JSONDecodeError:
-            pass
-        
-        # Fallback response
-        return {
-            "intent_score": 50,
-            "sentiment": "neutral",
-            "key_points": ["Requiere más información"],
-            "next_action": "Contactar para calificar interés",
-            "opening_script": f"Hola {lead_data.get('name', '')}, soy de Rovi Real Estate..."
-        }
+        analysis = await _call_ai_json(
+            system_prompt=system_prompt,
+            user_message=f"Analiza este lead inmobiliario:\n{lead_info}",
+            session_id=f"lead-analysis-{lead_data.get('id', 'unknown')}",
+            task_type="lead_analysis",
+        )
+        return analysis
         
     except Exception as e:
         logger.error(f"Lead analysis error: {e}")
@@ -239,13 +432,8 @@ async def generate_sales_script(
     script_type: str = "apertura"
 ) -> str:
     """Generate a personalized sales script for a lead"""
-    if not AI_AVAILABLE:
-        return f"Lo siento, la generación de scripts con IA no está disponible. Por favor crea un script manual para {lead_data.get('name', 'el cliente')}."
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"script-gen-{lead_data.get('id', 'unknown')}",
-            system_message="""Eres un experto en ventas inmobiliarias de alto valor.
+        system_prompt = """Eres un experto en ventas inmobiliarias de alto valor.
 Genera scripts de ventas persuasivos y personalizados para el mercado de Tulum.
 Los scripts deben ser:
 - Naturales y conversacionales
@@ -253,8 +441,6 @@ Los scripts deben ser:
 - Con preguntas de descubrimiento
 - Con propuesta de valor clara
 - Adaptados al perfil del cliente"""
-        ).with_model("openai", "gpt-5.2")
-        
         prompt = f"""Genera un script de {script_type} para este lead:
 Nombre: {lead_data.get('name', 'N/A')}
 Presupuesto: ${lead_data.get('budget_mxn', 0):,.0f} MXN
@@ -270,8 +456,12 @@ El script debe incluir:
 5. Llamada a la acción (agendar visita/zoom)
 """
         
-        message = UserMessage(text=prompt)
-        response = await chat.send_message(message)
+        response = await _call_ai_text(
+            system_prompt=system_prompt,
+            user_message=prompt,
+            session_id=f"script-gen-{lead_data.get('id', 'unknown')}",
+            task_type="sales_script",
+        )
         return response
         
     except Exception as e:
@@ -670,30 +860,19 @@ async def _run_copim_analysis(
     status_label: str,
     fallback: Dict[str, Any]
 ) -> Dict[str, Any]:
-    if not AI_AVAILABLE:
-        return _normalize_copim_analysis(
-            None,
-            entity_type=entity_type,
-            analysis_type=analysis_type,
-            score_label=score_label,
-            status_label=status_label,
-            fallback=fallback,
-        )
-
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message="""Eres un analista de operaciones institucionales para COPIM x ROVI.
+        system_prompt = """Eres un analista de operaciones institucionales para COPIM x ROVI.
 Evalúas asociaciones, socios, membresías, facturas y eventos desde una perspectiva ejecutiva y operativa.
 Responde siempre en español mexicano.
 No uses markdown.
 Devuelve únicamente JSON válido con la estructura solicitada.
-Sé conciso, accionable y orientado a decisiones.""",
-        ).with_model("openai", "gpt-5.2")
-
-        response = await chat.send_message(UserMessage(text=prompt))
-        parsed = _extract_json_object(response)
+Sé conciso, accionable y orientado a decisiones."""
+        parsed = await _call_ai_json(
+            system_prompt=system_prompt,
+            user_message=prompt,
+            session_id=session_id,
+            task_type="copim_analysis",
+        )
         return _normalize_copim_analysis(
             parsed,
             entity_type=entity_type,

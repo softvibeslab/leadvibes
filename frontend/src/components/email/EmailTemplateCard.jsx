@@ -92,6 +92,9 @@ export const EmailTemplateCard = ({ template, onDuplicate, onDelete, onPreview }
     };
   };
 
+  const previewHtml = template.html_content || '';
+  const hasHtmlPreview = previewHtml.trim().length > 0;
+
   return (
     <Card
       className="group cursor-pointer hover:shadow-lg transition-all duration-200 overflow-hidden"
@@ -110,6 +113,15 @@ export const EmailTemplateCard = ({ template, onDuplicate, onDelete, onPreview }
                 alt={template.name}
                 className="w-full h-full object-cover"
               />
+            ) : hasHtmlPreview ? (
+              <div className="relative h-full w-full overflow-hidden rounded bg-white">
+                <iframe
+                  title={`Preview ${template.name}`}
+                  srcDoc={previewHtml}
+                  sandbox=""
+                  className="pointer-events-none absolute left-0 top-0 h-[640px] w-[800px] origin-top-left scale-[0.22] border-0 bg-white"
+                />
+              </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs text-center p-2">
                 <Mail className="w-6 h-6 mx-auto mb-1 opacity-30" />

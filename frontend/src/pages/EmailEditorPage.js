@@ -25,6 +25,7 @@ import {
 } from '../components/ui/select';
 import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
+import { EMAIL_STOCK_IMAGES, EMAIL_STOCK_IMAGE_CATEGORIES, getDefaultStockImage } from '../lib/emailStockImages';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -55,8 +56,8 @@ const DEFAULT_BLOCKS = {
   },
   image: {
     type: 'image',
-    src: '',
-    alt: 'Imagen',
+    src: getDefaultStockImage('property').url,
+    alt: getDefaultStockImage('property').alt,
     style: {
       width: '100%',
       maxWidth: 600,
@@ -96,7 +97,7 @@ const DEFAULT_BLOCKS = {
     propertyTitle: 'Nombre de la Propiedad',
     propertyPrice: '$1,000,000 MXN',
     propertyAddress: 'Dirección de la propiedad',
-    propertyImage: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600',
+    propertyImage: getDefaultStockImage('property').url,
     propertyLink: '#',
     showPrice: true,
     showAddress: true,
@@ -823,6 +824,47 @@ const BlockPreview = ({ block }) => {
   }
 };
 
+const StockImagePicker = ({ value, onSelect }) => {
+  const [category, setCategory] = useState('all');
+  const visibleImages = category === 'all'
+    ? EMAIL_STOCK_IMAGES
+    : EMAIL_STOCK_IMAGES.filter((image) => image.category === category);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-sm">Stock base</Label>
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger className="h-8 w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EMAIL_STOCK_IMAGE_CATEGORIES.map((item) => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {visibleImages.map((image) => (
+          <button
+            key={image.id}
+            type="button"
+            onClick={() => onSelect(image)}
+            className={`group overflow-hidden rounded-lg border text-left transition hover:border-primary ${value === image.url ? 'border-primary ring-2 ring-primary/30' : 'border-border'}`}
+            title={image.label}
+          >
+            <img src={image.url} alt={image.alt} className="h-16 w-full object-cover" loading="lazy" />
+            <div className="truncate px-2 py-1 text-[11px] text-muted-foreground group-hover:text-foreground">
+              {image.label}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Block Settings Component
 const BlockSettings = ({ block, onChange }) => {
   switch (block.type) {
@@ -904,6 +946,10 @@ const BlockSettings = ({ block, onChange }) => {
     case 'image':
       return (
         <div className="space-y-4">
+          <StockImagePicker
+            value={block.src}
+            onSelect={(image) => onChange({ src: image.url, alt: image.alt })}
+          />
           <div className="space-y-2">
             <Label className="text-sm">URL de la imagen</Label>
             <Input
@@ -1128,6 +1174,10 @@ const BlockSettings = ({ block, onChange }) => {
               placeholder="https://..."
             />
           </div>
+          <StockImagePicker
+            value={block.propertyImage}
+            onSelect={(image) => onChange({ propertyImage: image.url })}
+          />
           <div className="space-y-2">
             <Label className="text-sm">Enlace de la propiedad</Label>
             <Input

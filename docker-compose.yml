@@ -39,6 +39,15 @@ services:
       JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
 
       # AI
+      # Normal tasks use local Ollama first; OpenAI remains available as fallback/premium.
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      AI_FALLBACK_PROVIDER: ${AI_FALLBACK_PROVIDER:-openai}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.2:3b}
+      OLLAMA_ANALYSIS_MODEL: ${OLLAMA_ANALYSIS_MODEL:-llama3.2:3b}
+      OLLAMA_SCRIPT_MODEL: ${OLLAMA_SCRIPT_MODEL:-llama3.2:3b}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.2}
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
       AIFORDB_API_KEY: ${AIFORDB_API_KEY}
 
@@ -59,6 +68,8 @@ services:
       - backend_uploads:/app/uploads
     ports:
       - "${BACKEND_HOST_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mongodb:
         condition: service_healthy

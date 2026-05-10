@@ -18,6 +18,8 @@ import math
 import jwt
 import base64
 import json
+import re
+import html
 from urllib.parse import quote, urlparse
 
 from models import (
@@ -8074,6 +8076,1002 @@ async def get_point_ledger(
 
 # ==================== CHAT/AI ROUTES ====================
 
+LEAD_QUERY_TERMS = ("lead", "leads", "prospecto", "prospectos")
+AFFIRMATIVE_FOLLOWUPS = {"si", "sí", "ok", "okay", "dale", "va", "claro", "por favor", "hazlo", "adelante"}
+
+
+def _is_lead_summary_question(text: str) -> bool:
+    normalized = (text or "").lower()
+    return any(term in normalized for term in LEAD_QUERY_TERMS)
+
+
+async def build_lead_summary_for_chat(tenant_id: str) -> dict:
+    """Build a compact, deterministic lead summary for chat context and UI cards."""
+    base_query = {"tenant_id": tenant_id}
+    total = await db.leads.count_documents(base_query)
+    hot = await db.leads.count_documents({**base_query, "priority": {"$in": ["alta", "urgente"]}})
+    warm = await db.leads.count_documents({**base_query, "priority": "media"})
+    cold = await db.leads.count_documents({**base_query, "priority": "baja"})
+
+    async def aggregate_counts(field: str, limit: int = 5) -> dict:
+        pipeline = [
+            {"$match": {**base_query, field: {"$nin": [None, ""]}}},
+            {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": limit},
+        ]
+        rows = await db.leads.aggregate(pipeline).to_list(limit)
+        return {str(row["_id"]): row["count"] for row in rows}
+
+    by_status = await aggregate_counts("status")
+    top_interests = await aggregate_counts("property_interest", 4)
+
+    cards = [
+        {"label": "Total leads", "value": total, "tone": "blue", "query": "Detalle de todos los leads"},
+        {"label": "Calientes", "value": hot, "tone": "emerald", "query": "Detalle de leads calientes"},
+        {"label": "Tibios", "value": warm, "tone": "amber", "query": "Detalle de leads tibios"},
+        {"label": "Fríos", "value": cold, "tone": "slate", "query": "Detalle de leads fríos"},
+    ]
+    cards.extend(
+        {
+            "label": status.replace("_", " ").title(),
+            "value": count,
+            "tone": "purple",
+            "query": f"Detalle de leads con estado {status}",
+        }
+        for status, count in by_status.items()
+    )
+
+    return {
+        "total": total,
+        "hot": hot,
+        "warm": warm,
+        "cold": cold,
+        "by_status": by_status,
+        "top_interests": top_interests,
+        "cards": cards[:8],
+    }
+
+
+def build_lead_summary_message(lead_summary: dict) -> str:
+    top_interest = next(iter(lead_summary.get("top_interests", {}) or {}), None)
+    top_interest_text = f" Interés principal: **{top_interest}**." if top_interest else ""
+    return (
+        f"Tienes **{lead_summary.get('total', 0)} leads**: "
+        f"**{lead_summary.get('hot', 0)}** calientes, "
+        f"**{lead_summary.get('warm', 0)}** tibios y "
+        f"**{lead_summary.get('cold', 0)}** fríos."
+        f"{top_interest_text}\n\n"
+        "Haz click en una card para ver el detalle."
+    )
+
+
+def _normalize_lead_text(text: str) -> str:
+    replacements = str.maketrans("áéíóúüñ", "aeiouun")
+    return (text or "").lower().translate(replacements)
+
+
+def _is_affirmative_followup(text: str) -> bool:
+    normalized = _normalize_lead_text(text).strip(" .!¡?¿")
+    return normalized in {_normalize_lead_text(term) for term in AFFIRMATIVE_FOLLOWUPS}
+
+
+def _normalize_wa_me_phone(phone: str | None) -> str:
+    """Return digits-only phone for WhatsApp click-to-chat wa.me links."""
+    digits = re.sub(r"\D", "", phone or "")
+    return digits if len(digits) >= 10 else ""
+
+
+def _build_whatsapp_click_to_chat_url(phone: str | None, message: str) -> str:
+    """Build official WhatsApp click-to-chat URL: https://wa.me/<phone>?text=<encoded>."""
+    normalized_phone = _normalize_wa_me_phone(phone)
+    if not normalized_phone:
+        return ""
+    return f"https://wa.me/{normalized_phone}?text={quote(message)}"
+
+
+PIPELINE_NEXT_STEPS = {
+    "nuevo": {"next_status": "contactado", "goal": "validar interés y abrir conversación"},
+    "contactado": {"next_status": "calificacion", "goal": "confirmar presupuesto, urgencia y fit"},
+    "calificacion": {"next_status": "presentacion", "goal": "presentar una opción concreta y llevarlo a reunión"},
+    "presentacion": {"next_status": "apartado", "goal": "resolver objeciones y pedir señal/apartado"},
+    "apartado": {"next_status": "venta", "goal": "cerrar documentación, pago y firma"},
+    "venta": {"next_status": "postventa", "goal": "pedir referido, testimonio y recompra"},
+    "perdido": {"next_status": "reactivacion", "goal": "entender objeción y reactivar con alternativa"},
+}
+
+
+def get_pipeline_guidance(lead: dict) -> dict:
+    status = _normalize_lead_text(lead.get("status") or "nuevo").replace(" ", "_")
+    guidance = PIPELINE_NEXT_STEPS.get(status, PIPELINE_NEXT_STEPS["nuevo"])
+    return {"current_status": status, **guidance}
+
+
+def _active_modules_from_settings(settings: dict | None) -> dict:
+    settings = settings or {}
+    return {
+        "google_calendar": True,  # calendario local siempre disponible; Google sync se activa si está conectado
+        "sendgrid": bool(settings.get("sendgrid_enabled")),
+        "twilio": bool(settings.get("twilio_enabled")),
+        "whatsapp": bool(settings.get("twilio_whatsapp_enabled")) or True,
+        "vapi": bool(settings.get("vapi_enabled")),
+    }
+
+
+def _default_meeting_window() -> tuple[str, str]:
+    start = datetime.now(timezone.utc).replace(hour=16, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    end = start + timedelta(minutes=30)
+    return start.isoformat(), end.isoformat()
+
+
+def build_pipeline_action_tags(lead: dict, active_modules: dict | None = None, suggestion_mode: str = "soft") -> list[dict]:
+    modules = {"google_calendar": True, "sendgrid": False, "twilio": False, "whatsapp": True, "vapi": False}
+    modules.update(active_modules or {})
+    name = lead.get("name") or "este lead"
+    interest = lead.get("property_interest") or "su interés inmobiliario"
+    guidance = get_pipeline_guidance(lead)
+    start_time, end_time = _default_meeting_window()
+    actions: list[dict] = []
+
+    if suggestion_mode != "full":
+        # Modo no invasivo: pocas sugerencias, ninguna acción que cree objetos automáticamente.
+        if modules.get("whatsapp") and lead.get("phone"):
+            actions.append({"type": "chat_prompt", "label": "WhatsApp", "query": f"Prepara WhatsApp para {name}"})
+        elif modules.get("sendgrid") and lead.get("email"):
+            actions.append({"type": "chat_prompt", "label": "Email", "query": f"Prepara un email para {name} para avanzar de {guidance['current_status']} a {guidance['next_status']} y agendar reunión"})
+        if modules.get("sendgrid") and lead.get("email") and not any(action.get("label") == "Email" for action in actions):
+            actions.append({"type": "chat_prompt", "label": "Email", "query": f"Prepara un email para {name} para avanzar de {guidance['current_status']} a {guidance['next_status']} y agendar reunión"})
+        actions.append({"type": "chat_prompt", "label": "Activo digital", "query": f"Genera un activo digital para {name} sobre {interest}"})
+        actions.append({"type": "chat_prompt", "label": "Ver embudo", "query": f"Dame ideas de embudo para {name} usando {interest} y llevarlo a reunión"})
+        return actions[:3]
+
+    if modules.get("google_calendar"):
+        actions.append({
+            "type": "api_post",
+            "label": "Agendar reunión",
+            "endpoint": "/calendar/events",
+            "success_message": f"Evento por confirmar creado para {name}.",
+            "payload": {
+                "title": f"Reunión por confirmar con {name}",
+                "description": (
+                    f"Evento por confirmar generado desde IA. Objetivo: llevar de {lead.get('status') or 'nuevo'} "
+                    f"a {guidance['next_status']}. Interés: {interest}."
+                ),
+                "event_type": "seguimiento",
+                "start_time": start_time,
+                "end_time": end_time,
+                "lead_id": lead.get("id"),
+                "reminder_minutes": 30,
+                "color": "#22c55e",
+            },
+        })
+    if modules.get("sendgrid") and lead.get("email"):
+        actions.append({"type": "chat_prompt", "label": "Email", "query": f"Prepara un email para {name} para avanzar de {guidance['current_status']} a {guidance['next_status']} y agendar reunión"})
+    if modules.get("twilio") and lead.get("phone"):
+        actions.append({"type": "chat_prompt", "label": "SMS", "query": f"Prepara un SMS corto para {name} para agendar reunión"})
+    if modules.get("vapi") and lead.get("phone"):
+        actions.append({"type": "chat_prompt", "label": "Llamada IA", "query": f"Prepara guion VAPI para llamar a {name} y agendar reunión"})
+    if modules.get("whatsapp") and lead.get("phone"):
+        actions.append({"type": "chat_prompt", "label": "Enviar WhatsApp", "query": f"Prepara WhatsApp para {name}"})
+
+    actions.extend([
+        {"type": "chat_prompt", "label": "Activo digital", "query": f"Genera un activo digital para {name} sobre {interest}"},
+        {"type": "chat_prompt", "label": "Idea de embudo", "query": f"Dame ideas de embudo para {name} usando {interest} y llevarlo a reunión"},
+    ])
+
+    if lead.get("id"):
+        campaign_channel = "email" if lead.get("email") else "whatsapp"
+        actions.append({
+            "type": "api_post",
+            "label": "Crear activo + campaña",
+            "endpoint": "/ai/actions/create-flow",
+            "success_message": f"Activo digital, campaña y flujo creados para {name}.",
+            "payload": {
+                "lead_id": lead.get("id"),
+                "flow_type": "asset_campaign_pipeline",
+                "asset_title": f"Ficha digital: {interest}",
+                "campaign_channel": campaign_channel,
+            },
+        })
+        actions.append({
+            "type": "api_post",
+            "label": "Crear pipeline temporal",
+            "endpoint": "/ai/actions/create-flow",
+            "success_message": f"Pipeline temporal creado para {name}.",
+            "payload": {
+                "lead_id": lead.get("id"),
+                "flow_type": "dynamic_pipeline",
+                "asset_title": f"Embudo: {interest}",
+                "campaign_channel": campaign_channel,
+            },
+        })
+    return actions
+
+
+def _extract_action_lead_name(text: str) -> str:
+    raw = (text or "").strip()
+    patterns = [
+        r"prepara\s+(?:un\s+)?email\s+para\s+(.+?)\s+para\s+avanzar",
+        r"prepara\s+(?:un\s+)?sms\s+corto\s+para\s+(.+?)\s+para\s+agendar",
+        r"prepara\s+guion\s+vapi\s+para\s+llamar\s+a\s+(.+?)\s+y\s+agendar",
+        r"genera\s+(?:un\s+)?activo\s+digital\s+para\s+(.+?)\s+sobre\s+",
+        r"dame\s+ideas\s+de\s+embudo\s+para\s+(.+?)\s+usando\s+",
+        r"detalle\s+del\s+paso\s+\d+\s+para\s+(.+?)\s*:",
+        r"prepara\s+whatsapp\s+para\s+(.+)$",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, raw, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip(" .:;!?\"'")
+    return ""
+
+
+async def _find_lead_for_action_prompt(tenant_id: str, text: str) -> dict | None:
+    lead_name = _extract_action_lead_name(text)
+    if not lead_name:
+        return None
+    return await db.leads.find_one(
+        {"tenant_id": tenant_id, "name": {"$regex": re.escape(lead_name), "$options": "i"}},
+        {"_id": 0},
+    )
+
+
+def build_quick_pipeline_response(lead: dict, text: str, active_modules: dict | None = None) -> dict | None:
+    normalized = _normalize_lead_text(text)
+    name = lead.get("name") or "prospecto"
+    first_name = name.split()[0] if name else ""
+    interest = lead.get("property_interest") or "la opción que revisamos"
+    budget = f"${lead.get('budget_mxn', 0):,.0f} MXN"
+    guidance = get_pipeline_guidance(lead)
+    steps = _pipeline_steps_for_guidance(guidance)
+    actions = build_pipeline_action_tags(lead, active_modules=active_modules, suggestion_mode="full")
+
+    if "prepara whatsapp" in normalized:
+        return build_lead_whatsapp_followup(lead, active_modules=active_modules)
+
+    step_match = re.search(r"detalle\s+del\s+paso\s+(\d+)\s+para\s+.+?:\s*(.+)$", text or "", flags=re.IGNORECASE)
+    if step_match:
+        step_number = int(step_match.group(1))
+        requested_step = step_match.group(2).strip(" .:;!?\"'")
+        if not requested_step:
+            requested_step = steps[step_number - 1] if 0 < step_number <= len(steps) else "siguiente acción"
+        step_lower = _normalize_lead_text(requested_step)
+        content = (
+            f"**Detalle del paso {step_number}: {requested_step}**\n\n"
+            f"Lead: {name}. Objetivo: mover de {guidance['current_status']} a {guidance['next_status']} para {guidance['goal']}.\n"
+        )
+        if "activo digital" in step_lower:
+            content += (
+                f"Usa la ficha personalizada de {interest}: incluye interés, presupuesto {budget}, beneficios, plan recomendado y CTA para agendar revisión. "
+                "Si aún no existe o quieres regenerarla, usa el tag **Crear activo + campaña**."
+            )
+        elif "propuesta" in step_lower:
+            content += (
+                f"Prepara una propuesta breve con disponibilidad, rango de inversión {budget}, condiciones, vigencia y siguiente paso de apartado. "
+                "Mantén el mensaje directo y pide confirmación de reunión o apartado."
+            )
+        elif "reunion" in step_lower or "reunión" in step_lower or "agendar" in step_lower:
+            content += "Agenda una reunión de 15 minutos y deja el evento ligado al lead para dar seguimiento desde el CRM."
+        elif "whatsapp" in step_lower:
+            content += f"Envía un WhatsApp corto: validar interés en {interest}, recordar presupuesto {budget} y proponer dos horarios concretos."
+        elif "senal" in step_lower or "señal" in step_lower or "apartado" in step_lower:
+            content += "Confirma intención de avanzar, explica el monto/condiciones de apartado y registra el cambio de etapa cuando responda."
+        else:
+            content += "Ejecuta este paso con una acción concreta, registra resultado y define el siguiente movimiento en pipeline."
+        return {"content": content, "lead_items": [lead], "cards": [], "actions": actions}
+
+    if "email" in normalized:
+        content = (
+            f"**Email para {name}**\n\n"
+            f"Asunto: Opciones para avanzar con {interest}\n\n"
+            f"Hola {first_name},\n\nVi tu interés en {interest} con presupuesto aproximado de {budget}. "
+            f"Tengo una propuesta concreta para ayudarte a avanzar de {guidance['current_status']} a {guidance['next_status']}. "
+            "¿Te parece si agendamos una reunión breve para revisar disponibilidad, números y siguientes pasos?"
+        )
+    elif "sms" in normalized:
+        content = (
+            f"**SMS para {name}**\n\n"
+            f"Hola {first_name}, soy de Rovi. Tengo una opción alineada a {interest}. "
+            "¿Agendamos 15 min hoy o mañana para revisarla?"
+        )
+    elif "vapi" in normalized or "llamada ia" in normalized:
+        content = (
+            f"**Guion VAPI para {name}**\n\n"
+            f"1. Confirmar si sigue interesado en {interest}.\n"
+            f"2. Validar presupuesto cercano a {budget} y fecha de decisión.\n"
+            f"3. Proponer reunión: “tengo una opción concreta; ¿te va mejor hoy por la tarde o mañana?”"
+        )
+    elif "activo digital" in normalized:
+        content = (
+            f"**Activo digital para {name}**\n\n"
+            f"Crea una ficha PDF/landing corta de {interest} con: 3 beneficios, mapa o ubicación, rango de inversión {budget}, "
+            "comparativo de plusvalía y CTA directo: “Agenda una revisión de disponibilidad”."
+        )
+    elif "embudo" in normalized:
+        content = (
+            f"**Idea de embudo para {name}**\n\n"
+            f"Embudo sugerido: WhatsApp de apertura → activo digital sobre {interest} → reunión de 15 min → envío de propuesta → apartado. "
+            f"Objetivo inmediato: pasar de {guidance['current_status']} a {guidance['next_status']} con una reunión confirmada."
+        )
+    else:
+        return None
+
+    return {"content": content, "lead_items": [lead], "cards": [], "actions": actions}
+
+
+def build_lead_whatsapp_followup(lead: dict, broker_name: str = "", active_modules: dict | None = None) -> dict:
+    name = lead.get("name", "prospecto")
+    first_name = name.split()[0] if name else ""
+    budget = f"${lead.get('budget_mxn', 0):,.0f} MXN"
+    interest = lead.get("property_interest") or "el lote que revisamos"
+    next_action = lead.get("next_action") or "agendar una llamada o visita"
+    broker_signature = f" {broker_name}" if broker_name and broker_name != "Broker" else ""
+    whatsapp = (
+        f"Hola {first_name}, soy{broker_signature} de Rovi. Vi que estás interesado en {interest} "
+        f"con presupuesto aproximado de {budget}. Tengo una opción que puede encajar muy bien contigo. "
+        f"¿Te parece si coordinamos {next_action.lower()} para revisar disponibilidad y resolver dudas? "
+        f"Siguiente paso sugerido: {next_action}."
+    )
+    send_url = _build_whatsapp_click_to_chat_url(lead.get("phone"), whatsapp)
+    actions = []
+    if send_url:
+        actions.append({
+            "type": "whatsapp_link",
+            "label": "Enviar",
+            "url": send_url,
+            "message": whatsapp,
+        })
+    actions.append({
+        "type": "chat_prompt",
+        "label": "Modificar",
+        "query": f"Ajusta el WhatsApp para {name}",
+    })
+    return {
+        "content": (
+            f"**WhatsApp para {name}**\n\n"
+            f"> {whatsapp}\n\n"
+            "¿Quieres que lo ajuste más cálido, más directo o más premium?"
+        ),
+        "lead_items": [lead],
+        "cards": [],
+        "actions": actions,
+    }
+
+
+async def get_last_single_lead_context(user_id: str, tenant_id: str) -> dict | None:
+    recent = await db.chat_messages.find(
+        {"user_id": user_id, "tenant_id": tenant_id, "role": "assistant", "lead_items": {"$exists": True, "$ne": []}},
+        {"_id": 0, "lead_items": 1, "content": 1, "created_at": 1},
+    ).sort("created_at", -1).limit(5).to_list(5)
+
+    for message in recent:
+        lead_items = message.get("lead_items") or []
+        if len(lead_items) == 1 and "mensaje de WhatsApp" in (message.get("content") or ""):
+            return lead_items[0]
+    return None
+
+
+def _lead_detail_query_from_message(text: str, tenant_id: str, lead_summary: dict) -> tuple[dict, str] | None:
+    normalized = _normalize_lead_text(text)
+    base_query = {"tenant_id": tenant_id}
+
+    single_lead_match = re.search(
+        r"(?:detalle\s+(?:del|de)\s+lead|mas\s+detalle\s+de|más\s+detalle\s+de)\s+(.+)$",
+        (text or "").strip(),
+        flags=re.IGNORECASE,
+    )
+    if single_lead_match:
+        lead_name = single_lead_match.group(1).strip(" .:;!?\"'")
+        if lead_name and _normalize_lead_text(lead_name) not in {"todos", "todos los leads"}:
+            return {**base_query, "name": {"$regex": lead_name, "$options": "i"}}, f"lead {lead_name}"
+
+    if "caliente" in normalized:
+        return {**base_query, "priority": {"$in": ["alta", "urgente"]}}, "leads calientes"
+    if "tibio" in normalized:
+        return {**base_query, "priority": "media"}, "leads tibios"
+    if "frio" in normalized:
+        return {**base_query, "priority": "baja"}, "leads fríos"
+    if "mayor presupuesto" in normalized or "presupuesto" in normalized:
+        return base_query, "leads de mayor presupuesto"
+
+    for status in (lead_summary.get("by_status") or {}).keys():
+        if _normalize_lead_text(status) in normalized:
+            return {**base_query, "status": status}, f"leads en estado {status}"
+
+    if "todos" in normalized or "total" in normalized or "detalle" in normalized:
+        return base_query, "todos los leads"
+
+    return None
+
+
+def _build_lead_cards(lead_items: list[dict]) -> list[dict]:
+    tones = ["blue", "emerald", "amber", "purple", "slate"]
+    cards = []
+    for index, lead in enumerate(lead_items):
+        budget = f"${lead.get('budget_mxn', 0):,.0f} MXN"
+        status = lead.get("status") or "sin estado"
+        priority = lead.get("priority") or "sin prioridad"
+        name = lead.get("name", "Sin nombre")
+        cards.append(
+            {
+                "type": "lead",
+                "label": name,
+                "value": budget,
+                "subtitle": lead.get("property_interest") or "sin interés definido",
+                "meta": f"{status}/{priority}",
+                "tone": tones[index % len(tones)],
+                "query": f"Detalle del lead {name}",
+            }
+        )
+    return cards
+
+
+def _build_single_lead_pipeline_cards(lead: dict, guidance: dict) -> list[dict]:
+    name = lead.get("name") or "este lead"
+    status = lead.get("status") or guidance.get("current_status") or "sin estado"
+    priority = lead.get("priority") or "sin prioridad"
+    interest = lead.get("property_interest") or "sin interés definido"
+    steps = _pipeline_steps_for_guidance(guidance)
+    next_step = lead.get("next_action") or (steps[0] if steps else guidance.get("goal"))
+    return [
+        {
+            "type": "pipeline_badge",
+            "label": "Stage pipeline",
+            "value": status,
+            "subtitle": f"Prioridad: {priority}",
+            "meta": "Etapa actual",
+            "tone": "blue",
+            "query": f"Detalle del lead {name}",
+        },
+        {
+            "type": "pipeline_badge",
+            "label": "Paso siguiente",
+            "value": next_step,
+            "subtitle": f"Meta: {guidance['next_status']}",
+            "meta": guidance["goal"],
+            "tone": "amber",
+            "query": f"Detalle del paso 1 para {name}: {next_step}",
+        },
+        {
+            "type": "flow_artifact",
+            "label": "Embudo opcional",
+            "value": "Ver idea",
+            "subtitle": interest,
+            "meta": f"{guidance['current_status']} → {guidance['next_status']}",
+            "tone": "emerald",
+            "query": f"Dame ideas de embudo para {name} usando {interest} y llevarlo a reunión",
+        },
+    ]
+
+
+async def build_lead_detail_for_chat(tenant_id: str, text: str, lead_summary: dict, active_modules: dict | None = None) -> dict | None:
+    detail = _lead_detail_query_from_message(text, tenant_id, lead_summary)
+    if not detail:
+        return None
+
+    query, title = detail
+    leads = await db.leads.find(query, {"_id": 0}).sort("budget_mxn", -1).limit(5).to_list(5)
+    lead_items = [
+        {
+            "id": lead.get("id"),
+            "name": lead.get("name", "Sin nombre"),
+            "phone": lead.get("phone"),
+            "email": lead.get("email"),
+            "status": lead.get("status"),
+            "priority": lead.get("priority"),
+            "budget_mxn": lead.get("budget_mxn", 0),
+            "property_interest": lead.get("property_interest"),
+            "next_action": lead.get("next_action"),
+        }
+        for lead in leads
+    ]
+
+    if not lead_items:
+        return {"content": f"No encontré {title} para mostrar.", "lead_items": [], "cards": []}
+
+    is_single_lead = "name" in query
+    lines = [f"**Detalle de {title}**", ""]
+    for lead in lead_items:
+        budget = f"${lead.get('budget_mxn', 0):,.0f} MXN"
+        interest = lead.get("property_interest") or "sin interés definido"
+        status = lead.get("status") or "sin estado"
+        priority = lead.get("priority") or "sin prioridad"
+        if is_single_lead:
+            phone = lead.get("phone") or "sin teléfono"
+            email = lead.get("email") or "sin email"
+            next_action = lead.get("next_action") or "sin siguiente acción"
+            guidance = get_pipeline_guidance(lead)
+            lines.extend(
+                [
+                    f"- **{lead['name']}** — {budget}",
+                    f"- Interés: {interest}",
+                    f"- 🏷️ Stage pipeline: {status} · Prioridad: {priority}",
+                    f"- ➜ Paso siguiente: {next_action}",
+                    f"- Siguiente estado sugerido: {guidance['next_status']}",
+                    f"- Objetivo sugerido: {guidance['goal']}",
+                    f"- Contacto: {phone} · {email}",
+                    "- Si quieres, puedo preparar el siguiente mensaje o mostrar una idea de embudo sin crear nada todavía.",
+                ]
+            )
+        else:
+            lines.append(f"- **{lead['name']}** — {budget} — {interest} — {status}/{priority}")
+    lines.append("")
+    if is_single_lead:
+        lines.append("Sugerencias opcionales: elige una solo si quieres avanzar con ese material.")
+    else:
+        lines.append("Haz click en una card para ver más detalle de ese lead.")
+
+    actions = build_pipeline_action_tags(lead_items[0], active_modules=active_modules) if is_single_lead else []
+    single_lead_cards = []
+    if is_single_lead:
+        single_lead_cards = _build_single_lead_pipeline_cards(lead_items[0], get_pipeline_guidance(lead_items[0]))
+    return {
+        "content": "\n".join(lines),
+        "lead_items": lead_items,
+        "cards": single_lead_cards if is_single_lead else _build_lead_cards(lead_items),
+        "actions": actions,
+    }
+
+def _pipeline_steps_for_guidance(guidance: dict) -> list[str]:
+    next_status = guidance.get("next_status")
+    if next_status == "apartado":
+        return [
+            "WhatsApp de apertura",
+            "Enviar activo digital",
+            "Agendar reunión de 15 min",
+            "Enviar propuesta",
+            "Pedir señal/apartado",
+        ]
+    return [
+        "WhatsApp de apertura",
+        "Enviar activo digital",
+        "Agendar reunión de 15 min",
+        f"Mover a {next_status}",
+    ]
+
+
+def _format_mxn(value: Any) -> str:
+    try:
+        amount = float(value or 0)
+    except (TypeError, ValueError):
+        amount = 0
+    return f"${amount:,.0f} MXN" if amount else "Presupuesto por confirmar"
+
+
+EMAIL_STOCK_IMAGES = [
+    {
+        "id": "luxury-home-exterior",
+        "category": "property",
+        "label": "Residencia premium",
+        "alt": "Residencia moderna de lujo con fachada iluminada",
+        "url": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        "keywords": ["casa", "residencia", "villa", "lujo", "premium"],
+    },
+    {
+        "id": "modern-apartment",
+        "category": "property",
+        "label": "Departamento moderno",
+        "alt": "Interior de departamento moderno con sala amplia",
+        "url": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+        "keywords": ["departamento", "depa", "condo", "interior"],
+    },
+    {
+        "id": "beach-lot",
+        "category": "beach",
+        "label": "Terreno de playa",
+        "alt": "Vista aérea de costa tropical para inversión inmobiliaria",
+        "url": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+        "keywords": ["playa", "mar", "costa", "tulum", "caribe", "cenote"],
+    },
+    {
+        "id": "land-development",
+        "category": "land",
+        "label": "Terreno / desarrollo",
+        "alt": "Terreno verde con camino y horizonte abierto",
+        "url": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80",
+        "keywords": ["terreno", "lote", "desarrollo", "land"],
+    },
+    {
+        "id": "city-investment",
+        "category": "investment",
+        "label": "Inversión urbana",
+        "alt": "Edificios urbanos modernos al atardecer",
+        "url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
+        "keywords": ["inversión", "inversion", "oficina", "urbano", "ciudad"],
+    },
+]
+
+
+def _select_email_stock_image(interest: str = "", category: str | None = None) -> dict:
+    text = (interest or "").lower()
+    if category:
+        for image in EMAIL_STOCK_IMAGES:
+            if image.get("category") == category:
+                return image
+    for image in EMAIL_STOCK_IMAGES:
+        if any(keyword in text for keyword in image.get("keywords", [])):
+            return image
+    return EMAIL_STOCK_IMAGES[0]
+
+
+def _email_text_block(content: str, *, font_size: int = 16, color: str = "#334155", text_align: str = "left", font_weight: str = "normal", padding: int = 16) -> dict:
+    return {
+        "type": "text",
+        "content": content,
+        "style": {
+            "fontSize": font_size,
+            "color": color,
+            "textAlign": text_align,
+            "fontWeight": font_weight,
+            "padding": padding,
+        },
+    }
+
+
+def _email_divider_block() -> dict:
+    return {
+        "type": "divider",
+        "style": {"borderColor": "#dbeafe", "borderWidth": 1, "margin": "8px 16px"},
+    }
+
+
+def _email_button_block(text: str, url: str = "#") -> dict:
+    return {
+        "type": "button",
+        "text": text,
+        "url": url,
+        "style": {
+            "backgroundColor": "#0D9488",
+            "color": "#ffffff",
+            "fontSize": 16,
+            "padding": "13px 24px",
+            "borderRadius": 999,
+            "textAlign": "center",
+        },
+    }
+
+
+def _email_property_card_block(lead: dict, interest: str, budget: str) -> dict:
+    location = lead.get("location") or lead.get("property_location") or "Ubicación y disponibilidad por confirmar"
+    stock_image = _select_email_stock_image(interest)
+    return {
+        "type": "propertyCard",
+        "propertyTitle": interest,
+        "propertyPrice": budget,
+        "propertyAddress": location,
+        "propertyImage": lead.get("property_image") or stock_image["url"],
+        "propertyImageAlt": lead.get("property_image_alt") or stock_image["alt"],
+        "propertyLink": "#",
+        "showPrice": True,
+        "showAddress": True,
+        "style": {"backgroundColor": "#f8fafc", "borderRadius": 16, "padding": 16},
+    }
+
+
+def build_digital_asset_json_content(lead: dict, asset_title: str = "", guidance: dict | None = None, steps: list[str] | None = None) -> dict:
+    guidance = guidance or get_pipeline_guidance(lead)
+    steps = steps or _pipeline_steps_for_guidance(guidance)
+    name = html.escape(lead.get("name") or "prospecto")
+    interest = html.escape(lead.get("property_interest") or "la propiedad de interés")
+    budget = html.escape(_format_mxn(lead.get("budget_mxn")))
+    current_status = html.escape(guidance.get("current_status") or "nuevo")
+    next_status = html.escape(guidance.get("next_status") or "contactado")
+    goal = html.escape(guidance.get("goal") or "llevarlo a reunión")
+    title = html.escape(asset_title or f"Ficha digital: {interest}")
+    step_items = "".join(f"<li>{html.escape(step)}</li>" for step in steps)
+
+    blocks = [
+        _email_text_block(
+            f"<p style='margin:0 0 8px;color:#0f766e;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;'>Activo digital personalizado</p>"
+            f"<h1 style='margin:0;color:#0f172a;font-size:30px;line-height:1.15;'>{title}</h1>"
+            f"<p style='margin:14px 0 0;color:#475569;font-size:16px;line-height:1.6;'>Hola {{nombre}}, preparé esta ficha porque estás evaluando <strong>{interest}</strong> y el siguiente paso recomendado es avanzar de <strong>{current_status}</strong> a <strong>{next_status}</strong>.</p>",
+            padding=24,
+        ),
+        _email_property_card_block(lead, interest, budget),
+        _email_text_block(
+            f"<h2 style='margin:0 0 10px;color:#0f172a;font-size:22px;'>Por qué vale la pena revisarlo ahora</h2>"
+            "<ul style='margin:0;padding-left:20px;color:#334155;line-height:1.7;'>"
+            f"<li><strong>Fit de inversión:</strong> rango alineado a {budget}.</li>"
+            f"<li><strong>Interés claro:</strong> la conversación gira alrededor de {interest}.</li>"
+            f"<li><strong>Siguiente movimiento:</strong> {goal}.</li>"
+            "</ul>",
+            padding=20,
+        ),
+        _email_divider_block(),
+        _email_text_block(
+            f"<h2 style='margin:0 0 10px;color:#0f172a;font-size:22px;'>Plan recomendado para {name}</h2>"
+            f"<ol style='margin:0;padding-left:20px;color:#334155;line-height:1.7;'>{step_items}</ol>",
+            padding=20,
+        ),
+        _email_text_block(
+            "<div style='background:#ecfeff;border:1px solid #99f6e4;border-radius:14px;padding:16px;'>"
+            "<strong style='color:#0f766e;'>CTA sugerido:</strong> Agenda una revisión de disponibilidad de 15 minutos para resolver dudas, confirmar disponibilidad y definir si avanzamos al siguiente paso."
+            "</div>",
+            padding=20,
+        ),
+        _email_button_block("Agenda una revisión de disponibilidad"),
+        _email_text_block(
+            "<p style='margin:0;color:#64748b;font-size:13px;line-height:1.5;'>Si quieres, en la reunión podemos comparar disponibilidad, plusvalía estimada y condiciones para separar/apartar.</p>",
+            font_size=13,
+            color="#64748b",
+            padding=18,
+        ),
+    ]
+    return {"blocks": blocks, "backgroundColor": "#f1f5f9", "contentWidth": 640}
+
+
+def _render_email_block_html(block: dict) -> str:
+    block_type = block.get("type")
+    style = block.get("style") or {}
+    if block_type == "text":
+        return f"""
+          <tr>
+            <td style=\"padding:{style.get('padding', 16)}px;font-size:{style.get('fontSize', 16)}px;color:{style.get('color', '#334155')};text-align:{style.get('textAlign', 'left')};font-weight:{style.get('fontWeight', 'normal')};\">
+              {block.get('content', '')}
+            </td>
+          </tr>"""
+    if block_type == "button":
+        return f"""
+          <tr>
+            <td style=\"padding:16px;text-align:{style.get('textAlign', 'center')};\">
+              <a href=\"{html.escape(block.get('url') or '#')}\" style=\"display:inline-block;background-color:{style.get('backgroundColor', '#0D9488')};color:{style.get('color', '#ffffff')};font-size:{style.get('fontSize', 16)}px;padding:{style.get('padding', '12px 24px')};border-radius:{style.get('borderRadius', 8)}px;text-decoration:none;font-weight:700;\">
+                {html.escape(block.get('text') or 'Click aquí')}
+              </a>
+            </td>
+          </tr>"""
+    if block_type == "divider":
+        return f"""
+          <tr>
+            <td style=\"padding:{style.get('margin', '16px 0')};\">
+              <hr style=\"border:0;border-top:{style.get('borderWidth', 1)}px solid {style.get('borderColor', '#e5e7eb')};\" />
+            </td>
+          </tr>"""
+    if block_type == "propertyCard":
+        image_url = block.get("propertyImage") or ""
+        image_alt = html.escape(block.get("propertyImageAlt") or block.get("propertyTitle") or "Imagen de propiedad")
+        image_row = ""
+        if image_url:
+            image_row = f"""
+                <tr>
+                  <td style=\"padding:0;\">
+                    <img src=\"{html.escape(image_url)}\" alt=\"{image_alt}\" style=\"width:100%;display:block;max-height:280px;object-fit:cover;\" />
+                  </td>
+                </tr>"""
+        return f"""
+          <tr>
+            <td style=\"padding:{style.get('padding', 16)}px;\">
+              <table role=\"presentation\" style=\"width:100%;border-collapse:collapse;background-color:{style.get('backgroundColor', '#f8fafc')};border-radius:{style.get('borderRadius', 8)}px;overflow:hidden;border:1px solid #e2e8f0;\">
+                {image_row}
+                <tr>
+                  <td style=\"padding:18px;\">
+                    <h3 style=\"margin:0 0 8px;font-size:20px;color:#0f172a;\">{block.get('propertyTitle', '')}</h3>
+                    <p style=\"margin:0 0 8px;font-size:24px;font-weight:bold;color:#0D9488;\">{block.get('propertyPrice', '')}</p>
+                    <p style=\"margin:0 0 16px;font-size:14px;color:#64748b;\">📍 {block.get('propertyAddress', '')}</p>
+                    <a href=\"{html.escape(block.get('propertyLink') or '#')}\" style=\"display:inline-block;background-color:#0D9488;color:#fff;padding:10px 20px;text-decoration:none;border-radius:999px;font-size:14px;font-weight:700;\">Ver detalle</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>"""
+    return ""
+
+
+def build_digital_asset_html(lead: dict, asset_title: str = "", guidance: dict | None = None, steps: list[str] | None = None) -> str:
+    json_content = build_digital_asset_json_content(lead, asset_title, guidance, steps)
+    subject = html.escape(f"{lead.get('name') or 'Prospecto'}, revisemos {lead.get('property_interest') or 'tu opción'}")
+    blocks_html = "".join(_render_email_block_html(block) for block in json_content["blocks"])
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+  <title>{subject}</title>
+</head>
+<body style=\"margin:0;padding:0;background-color:{json_content['backgroundColor']};\">
+  <table role=\"presentation\" style=\"width:100%;border-collapse:collapse;\">
+    <tr>
+      <td align=\"center\" style=\"padding:20px 0;\">
+        <table role=\"presentation\" style=\"width:{json_content['contentWidth']}px;max-width:100%;border-collapse:collapse;background-color:#ffffff;border-radius:18px;overflow:hidden;\">
+{blocks_html}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
+async def create_agent_recommended_flow(payload: dict, current_user: dict) -> dict:
+    tenant_id = await resolve_active_tenant_id(current_user)
+    lead_id = payload.get("lead_id")
+    flow_type = payload.get("flow_type") or "asset_campaign_pipeline"
+    if not lead_id:
+        raise HTTPException(status_code=400, detail="lead_id es requerido")
+
+    lead = await db.leads.find_one({"id": lead_id, "tenant_id": tenant_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    user_id = current_user["user_id"]
+    name = lead.get("name") or "prospecto"
+    interest = lead.get("property_interest") or "propiedad de interés"
+    guidance = get_pipeline_guidance(lead)
+    steps = _pipeline_steps_for_guidance(guidance)
+    now = datetime.now(timezone.utc)
+
+    template_doc = None
+    campaign_doc = None
+    if flow_type in {"asset_campaign_pipeline", "digital_asset", "dynamic_pipeline"}:
+        template_id = str(uuid.uuid4())
+        asset_title = payload.get("asset_title") or f"Ficha digital: {interest}"
+        json_content = build_digital_asset_json_content(lead, asset_title, guidance, steps)
+        html_content = build_digital_asset_html(lead, asset_title, guidance, steps)
+        cover_image_url = next(
+            (block.get("propertyImage") for block in json_content.get("blocks", []) if block.get("type") == "propertyCard" and block.get("propertyImage")),
+            None,
+        )
+        template_doc = {
+            "id": template_id,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            "name": f"Activo digital - {name}",
+            "category": "property_promo",
+            "subject": f"{name}, revisemos {interest}",
+            "html_content": html_content,
+            "json_content": json_content,
+            "variables": ["nombre"],
+            "thumbnail_url": cover_image_url,
+            "is_default": False,
+            "created_at": now,
+            "updated_at": now,
+            "source": "ai_agent",
+            "lead_id": lead_id,
+        }
+        await db.email_templates.insert_one(template_doc)
+
+    if flow_type in {"asset_campaign_pipeline", "campaign"}:
+        campaign_type = (payload.get("campaign_channel") or "email").lower()
+        if campaign_type not in {"email", "sms", "whatsapp", "call"}:
+            campaign_type = "email"
+        campaign_id = str(uuid.uuid4())
+        campaign_doc = {
+            "id": campaign_id,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            "name": f"Campaña IA - {name} - {interest}",
+            "campaign_type": campaign_type,
+            "message_template": (
+                f"Hola {{nombre}}, preparé una ficha de {interest}. ¿Agendamos 15 min para revisarla?"
+            ),
+            "email_subject": f"{name}, tu ficha de {interest}",
+            "email_template_id": template_doc["id"] if template_doc else None,
+            "saved_segment_id": None,
+            "ab_test_enabled": False,
+            "ab_test_name": None,
+            "ab_test_split_percentage": 50,
+            "variant_b_message_template": None,
+            "variant_b_email_subject": None,
+            "lead_ids": [lead_id],
+            "lead_filter": None,
+            "scheduled_at": None,
+            "status": CampaignStatus.DRAFT.value,
+            "total_recipients": 1,
+            "sent_count": 0,
+            "delivered_count": 0,
+            "failed_count": 0,
+            "variant_a_sent_count": 0,
+            "variant_b_sent_count": 0,
+            "created_at": now,
+            "started_at": None,
+            "completed_at": None,
+            "source": "ai_agent",
+        }
+        await db.campaigns.insert_one(campaign_doc)
+
+    workflow_id = str(uuid.uuid4())
+    workflow_doc = {
+        "id": workflow_id,
+        "tenant_id": tenant_id,
+        "name": f"Pipeline temporal IA - {name}",
+        "description": f"Flujo dinámico sugerido por IA para mover de {guidance['current_status']} a {guidance['next_status']}.",
+        "category": "sales",
+        "n8n_workflow_id": None,
+        "n8n_webhook_url": None,
+        "is_active": True,
+        "is_template": False,
+        "config_schema": None,
+        "config_values": {
+            "lead_id": lead_id,
+            "lead_name": name,
+            "current_status": guidance["current_status"],
+            "next_status": guidance["next_status"],
+            "goal": guidance["goal"],
+            "interest": interest,
+            "campaign_id": campaign_doc["id"] if campaign_doc else None,
+            "email_template_id": template_doc["id"] if template_doc else None,
+            "steps": steps,
+        },
+        "last_run": None,
+        "total_runs": 0,
+        "successful_runs": 0,
+        "failed_runs": 0,
+        "created_by": user_id,
+        "created_at": now,
+        "updated_at": now,
+        "source": "ai_agent",
+    }
+    await db.automation_workflows.insert_one(workflow_doc)
+
+    await db.leads.update_one(
+        {"id": lead_id, "tenant_id": tenant_id},
+        {"$set": {
+            "ai_dynamic_pipeline": workflow_doc["config_values"],
+            "next_action": steps[0],
+            "updated_at": now,
+        }},
+    )
+
+    artifact_cards = []
+    if template_doc:
+        artifact_cards.append({
+            "type": "flow_artifact",
+            "label": "Activo digital",
+            "value": "Creado",
+            "subtitle": template_doc["name"],
+            "meta": template_doc["id"],
+            "tone": "purple",
+            "query": f"Ver activo digital {template_doc['id']}",
+        })
+    if campaign_doc:
+        artifact_cards.append({
+            "type": "flow_artifact",
+            "label": "Campaña",
+            "value": "Draft",
+            "subtitle": campaign_doc["name"],
+            "meta": campaign_doc["id"],
+            "tone": "blue",
+            "query": f"Ver campaña {campaign_doc['id']}",
+        })
+    artifact_cards.append({
+        "type": "flow_artifact",
+        "label": "Pipeline temporal",
+        "value": "Activo",
+        "subtitle": workflow_doc["name"],
+        "meta": workflow_id,
+        "tone": "emerald",
+        "query": f"Ver pipeline temporal {workflow_id}",
+    })
+    step_cards = [
+        {
+            "type": "flow_step",
+            "label": f"Paso {index + 1}",
+            "value": step,
+            "subtitle": f"{guidance['current_status']} → {guidance['next_status']}",
+            "meta": guidance["goal"],
+            "tone": "slate" if index % 2 else "amber",
+            "query": f"Detalle del paso {index + 1} para {name}: {step}",
+        }
+        for index, step in enumerate(steps)
+    ]
+
+    return {
+        "success": True,
+        "message": f"Flujo IA creado para {name}",
+        "lead_id": lead_id,
+        "email_template_id": template_doc["id"] if template_doc else None,
+        "campaign_id": campaign_doc["id"] if campaign_doc else None,
+        "workflow_id": workflow_id,
+        "next_status": guidance["next_status"],
+        "steps": steps,
+        "cards": [*artifact_cards, *step_cards],
+    }
+
+
+@api_router.post("/ai/actions/create-flow")
+async def create_ai_action_flow(payload: dict, current_user: dict = Depends(get_current_user)):
+    return await create_agent_recommended_flow(payload, current_user)
+
+
 @api_router.post("/chat", response_model=dict)
 async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(get_current_user)):
     """Chat with AI assistant"""
@@ -8093,15 +9091,83 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
     }
     await db.chat_messages.insert_one(user_msg_doc)
 
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "role": 1})
+    user_name = user["name"] if user else "Broker"
+    user_role = user.get("role", current_user.get("role", "broker")) if user else current_user.get("role", "broker")
+    integration_settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+    active_modules = _active_modules_from_settings(integration_settings)
+
+    action_lead = await _find_lead_for_action_prompt(tenant_id, message.content)
+    if action_lead:
+        quick_response = build_quick_pipeline_response(action_lead, message.content, active_modules=active_modules)
+        if quick_response:
+            ai_msg_id = str(uuid.uuid4())
+            ai_msg_doc = {
+                "id": ai_msg_id,
+                "user_id": user_id,
+                "tenant_id": tenant_id,
+                "role": "assistant",
+                "content": quick_response["content"],
+                "cards": quick_response.get("cards", []),
+                "actions": quick_response.get("actions", []),
+                "lead_items": quick_response.get("lead_items", []),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.chat_messages.insert_one(ai_msg_doc)
+            return {"id": ai_msg_id, "role": "assistant", **quick_response}
+
+    if _is_affirmative_followup(message.content):
+        last_lead = await get_last_single_lead_context(user_id, tenant_id)
+        if last_lead:
+            followup = build_lead_whatsapp_followup(last_lead, broker_name=user_name, active_modules=active_modules)
+            ai_msg_id = str(uuid.uuid4())
+            ai_msg_doc = {
+                "id": ai_msg_id,
+                "user_id": user_id,
+                "tenant_id": tenant_id,
+                "role": "assistant",
+                "content": followup["content"],
+                "cards": followup["cards"],
+                "actions": followup.get("actions", []),
+                "lead_items": followup["lead_items"],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.chat_messages.insert_one(ai_msg_doc)
+            return {"id": ai_msg_id, "role": "assistant", **followup}
+
+    if _is_lead_summary_question(message.content):
+        lead_summary = await build_lead_summary_for_chat(tenant_id)
+        lead_detail = await build_lead_detail_for_chat(tenant_id, message.content, lead_summary, active_modules=active_modules)
+        ai_response = lead_detail["content"] if lead_detail else build_lead_summary_message(lead_summary)
+        ai_msg_id = str(uuid.uuid4())
+        ai_msg_doc = {
+            "id": ai_msg_id,
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            "role": "assistant",
+            "content": ai_response,
+            "cards": lead_detail.get("cards", []) if lead_detail else lead_summary.get("cards", []),
+            "actions": lead_detail.get("actions", []) if lead_detail else [],
+            "lead_summary": lead_summary,
+            "lead_items": lead_detail.get("lead_items", []) if lead_detail else [],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.chat_messages.insert_one(ai_msg_doc)
+        return {
+            "id": ai_msg_id,
+            "content": ai_response,
+            "role": "assistant",
+            "cards": lead_detail.get("cards", []) if lead_detail else lead_summary.get("cards", []),
+            "actions": lead_detail.get("actions", []) if lead_detail else [],
+            "lead_summary": lead_summary,
+            "lead_items": lead_detail.get("lead_items", []) if lead_detail else [],
+        }
+
     # Get AI profile for personalization
     ai_profile = await db.ai_profiles.find_one(
         {"user_id": user_id},
         {"_id": 0}
     )
-
-    # Get user name for personalization
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
-    user_name = user["name"] if user else "Broker"
 
     # Get context for AI
     goal = await db.goals.find_one({"user_id": user_id}, {"_id": 0})
@@ -8119,21 +9185,40 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
 
     context = {
         "user_goals": goal,
+        "conversation_history": await db.chat_messages.find(
+            {"user_id": user_id, "tenant_id": tenant_id},
+            {"_id": 0, "role": 1, "content": 1, "created_at": 1},
+        ).sort("created_at", -1).limit(6).to_list(6),
         "stats": {
             "total_points": total_points,
             "ventas": ventas,
             "apartados": apartados
         }
     }
+    lead_summary = None
+    if _is_lead_summary_question(message.content):
+        lead_summary = await build_lead_summary_for_chat(tenant_id)
+        context["lead_summary"] = lead_summary
 
     # Get AI response with personalized profile
-    ai_response = await get_ai_response(
-        message.content,
-        session_id,
-        context,
-        ai_profile=serialize_doc(ai_profile) if ai_profile else None,
-        user_name=user_name
-    )
+    try:
+        ai_response = await asyncio.wait_for(
+            get_ai_response(
+                message.content,
+                session_id,
+                context,
+                ai_profile=serialize_doc(ai_profile) if ai_profile else None,
+                user_name=user_name,
+                user_role=user_role,
+            ),
+            timeout=45,
+        )
+    except asyncio.TimeoutError:
+        logging.warning("AI chat timed out for user=%s tenant=%s", user_id, tenant_id)
+        ai_response = (
+            "Estoy tardando más de lo esperado con la IA. Para avanzar rápido: "
+            "pídeme `detalle del lead <nombre>`, usa los tags de acción, o intenta con una instrucción más corta."
+        )
 
     # Save AI response
     ai_msg_id = str(uuid.uuid4())
@@ -8145,13 +9230,20 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
         "content": ai_response,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
+    if lead_summary:
+        ai_msg_doc["cards"] = lead_summary.get("cards", [])
+        ai_msg_doc["lead_summary"] = lead_summary
     await db.chat_messages.insert_one(ai_msg_doc)
 
-    return {
+    response_payload = {
         "id": ai_msg_id,
         "content": ai_response,
         "role": "assistant"
     }
+    if lead_summary:
+        response_payload["cards"] = lead_summary.get("cards", [])
+        response_payload["lead_summary"] = lead_summary
+    return response_payload
 
 @api_router.get("/chat/history", response_model=List[dict])
 async def get_chat_history(limit: int = 50, current_user: dict = Depends(get_current_user)):
@@ -11087,6 +12179,14 @@ async def get_email_templates(current_user: dict = Depends(get_current_user)):
         {"_id": 0}
     ).sort("created_at", -1).to_list(50)
     return [serialize_doc(t) for t in templates]
+
+@api_router.get("/email-templates/stock-images")
+async def get_email_template_stock_images(current_user: dict = Depends(get_current_user)):
+    """Get built-in stock images available for email templates."""
+    return [
+        {key: value for key, value in image.items() if key != "keywords"}
+        for image in EMAIL_STOCK_IMAGES
+    ]
 
 @api_router.post("/email-templates")
 async def create_email_template(

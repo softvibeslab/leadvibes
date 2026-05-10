@@ -172,13 +172,13 @@ export const DatabaseChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    });
+  }, [messages, loading]);
 
   const handleSubmit = async (queryText) => {
     const text = queryText || input;
@@ -332,7 +332,7 @@ Haz clic para ejecutar
               <Separator />
 
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+              <ScrollArea className="flex-1 p-4">
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8">
                     <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl flex items-center justify-center mb-4">
@@ -362,6 +362,7 @@ Haz clic para ejecutar
                         </div>
                       </div>
                     )}
+                    <div ref={messagesEndRef} />
                   </div>
                 )}
               </ScrollArea>
