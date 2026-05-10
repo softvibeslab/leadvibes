@@ -51,7 +51,7 @@ class UserCreate(BaseModel):
     name: str
     role: str = "broker"
     phone: Optional[str] = None
-    account_type: str = "individual"  # individual, agency, copim, copim_member
+    account_type: str = "individual"  # individual, agency, copim, copim_member, rovi_internal
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -85,7 +85,7 @@ class User(UserBase):
     onboarding_completed: bool = False
     tenant_id: str = ""
     personal_tenant_id: Optional[str] = None
-    account_type: str = "individual"  # individual, agency, copim, copim_member
+    account_type: str = "individual"  # individual, agency, copim, copim_member, rovi_internal
     linked_copim_association_id: Optional[str] = None
     ai_profile: Optional['AIProfile'] = None  # Perfil personalizado para el asistente IA (forward reference)
 
@@ -122,6 +122,7 @@ class TenantType(str, Enum):
     COPIM = "copim"
     ASSOCIATION = "association"
     COUNCIL = "council"
+    ROVI_INTERNAL = "rovi_internal"
 
 
 class MembershipRole(str, Enum):
@@ -132,6 +133,11 @@ class MembershipRole(str, Enum):
     COPIM_ADMIN = "copim_admin"
     COPIM_OPERATOR = "copim_operator"
     COPIM_MEMBER = "copim_member"
+    ROVI_ADMIN = "rovi_admin"
+    ROVI_SALES = "rovi_sales"
+    ROVI_MARKETING = "rovi_marketing"
+    ROVI_CUSTOMER_SUCCESS = "rovi_customer_success"
+    ROVI_OPS = "rovi_ops"
 
 
 class MembershipStatus(str, Enum):

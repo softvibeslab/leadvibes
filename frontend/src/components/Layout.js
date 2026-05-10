@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { AIChat } from './AIChat';
+import { RealtimeNotifications } from './RealtimeNotifications';
 import { useAuth } from '../context/AuthContext';
 import { Menu } from 'lucide-react';
 import { Button } from './ui/button';
@@ -27,6 +28,8 @@ export const Layout = () => {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      <RealtimeNotifications />
+
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 

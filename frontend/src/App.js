@@ -20,6 +20,8 @@ import { EmailEditorPage } from './pages/EmailEditorPage';
 import { DatabaseChatPage } from './pages/DatabaseChatPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { MarketplacePage } from './pages/MarketplacePage';
+import { RoviInternalWorkspacePage } from './pages/RoviInternalWorkspacePage';
+import { RoviAIControlTowerPage } from './pages/RoviAIControlTowerPage';
 import { EncuentraLeadsPage } from './pages/EncuentraLeadsPage';
 import { ModuleTrackerPage } from './pages/ModuleTrackerPage';
 import { LandingPage } from './pages/LandingPage';
@@ -55,11 +57,13 @@ import { CopimMemberEventsPage } from './pages/CopimMemberEventsPage';
 import { CopimMemberCommunityPage } from './pages/CopimMemberCommunityPage';
 import { CopimMemberModulesPage } from './pages/CopimMemberModulesPage';
 import { CopimMemberDirectoryPage } from './pages/CopimMemberDirectoryPage';
+import { NegotiationStrategiesPage } from './pages/NegotiationStrategiesPage';
 import {
   canManageCopimWorkspace,
   isCopimLocalAssociationUser,
   isCopimMemberUser,
   isCopimNationalUser,
+  isRoviInternalUser,
   resolveAuthenticatedHome,
 } from './lib/copimAccess';
 import './App.css';
@@ -202,6 +206,16 @@ const CopimMemberPortalRoute = ({ children }) => {
   return children;
 };
 
+const RoviInternalRoute = ({ children }) => {
+  const { user } = useAuth();
+
+  if (!isRoviInternalUser(user)) {
+    return <Navigate to={resolveAuthenticatedHome(user)} replace />;
+  }
+
+  return children;
+};
+
 const CopimHomeRedirect = () => {
   const { user } = useAuth();
   if (isCopimMemberUser(user)) {
@@ -234,6 +248,7 @@ function AppRoutes() {
       {/* Module Tracker - Public */}
       <Route path="/module-tracker" element={<ModuleTrackerPage />} />
       <Route path="/pricing-calculator" element={<PricingCalculatorPage />} />
+      <Route path="/negotiation-strategies" element={<NegotiationStrategiesPage />} />
       <Route path="/copim-presentacion" element={<CopimPresentationPage />} />
       <Route path="/copim-memberships" element={<CopimPresentationPage />} />
       <Route path="/copim-demo" element={<CopimDashboardDemoPage />} />
@@ -286,6 +301,71 @@ function AppRoutes() {
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/database-chat" element={<DatabaseChatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/rovi" element={<Navigate to="/rovi/dashboard" replace />} />
+        <Route
+          path="/rovi/dashboard"
+          element={
+            <RoviInternalRoute>
+              <RoviInternalWorkspacePage view="dashboard" />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/prospects"
+          element={
+            <RoviInternalRoute>
+              <RoviInternalWorkspacePage view="prospects" />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/service-plans"
+          element={
+            <RoviInternalRoute>
+              <RoviInternalWorkspacePage view="plans" />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/campaigns"
+          element={
+            <RoviInternalRoute>
+              <RoviInternalWorkspacePage view="campaigns" />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/analytics"
+          element={
+            <RoviInternalRoute>
+              <RoviInternalWorkspacePage view="analytics" />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/team"
+          element={
+            <RoviInternalRoute>
+              <RoviInternalWorkspacePage view="team" />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/marketplace"
+          element={
+            <RoviInternalRoute>
+              <MarketplacePage />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/ai-control"
+          element={
+            <RoviInternalRoute>
+              <RoviAIControlTowerPage />
+            </RoviInternalRoute>
+          }
+        />
         <Route path="/copim" element={<CopimHomeRedirect />} />
         <Route
           path="/copim/dashboard"

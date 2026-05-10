@@ -164,11 +164,15 @@ class WebSocketEvent:
     LEAD_UPDATED = "lead_updated"
     LEAD_DELETED = "lead_deleted"
     LEAD_STATUS_CHANGED = "lead_status_changed"
+    LEADS_BULK_UPDATED = "leads_bulk_updated"
+    LEADS_BULK_DELETED = "leads_bulk_deleted"
 
     # Dashboard events
     METRICS_UPDATED = "metrics_updated"
     LEADERBOARD_CHANGED = "leaderboard_changed"
     ACTIVITY_FEED_UPDATED = "activity_feed_updated"
+    IMPORT_COMPLETED = "import_completed"
+    DUPLICATES_DETECTED = "duplicates_detected"
 
     # Calendar events
     CALENDAR_EVENT_CREATED = "calendar_event_created"
@@ -216,6 +220,64 @@ async def emit_lead_updated(
     })
 
 
+async def emit_lead_deleted(
+    tenant_id: str,
+    lead_id: str,
+    deleted_by: str
+):
+    """Emit lead_deleted event to tenant"""
+    await manager.broadcast_to_tenant(tenant_id, {
+        "type": WebSocketEvent.LEAD_DELETED,
+        "data": {
+            "lead_id": lead_id
+        },
+        "metadata": {
+            "deleted_by": deleted_by,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    })
+
+
+async def emit_leads_bulk_updated(
+    tenant_id: str,
+    lead_ids: List[str],
+    changes: dict,
+    updated_by: str
+):
+    """Emit leads_bulk_updated event to tenant"""
+    await manager.broadcast_to_tenant(tenant_id, {
+        "type": WebSocketEvent.LEADS_BULK_UPDATED,
+        "data": {
+            "lead_ids": lead_ids,
+            "changes": changes,
+            "count": len(lead_ids)
+        },
+        "metadata": {
+            "updated_by": updated_by,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    })
+
+
+async def emit_leads_bulk_deleted(
+    tenant_id: str,
+    lead_ids: List[str],
+    deleted_by: str
+):
+    """Emit leads_bulk_deleted event to tenant"""
+    await manager.broadcast_to_tenant(tenant_id, {
+        "type": WebSocketEvent.LEADS_BULK_DELETED,
+        "data": {
+            "lead_ids": lead_ids,
+            "count": len(lead_ids)
+        },
+        "metadata": {
+            "deleted_by": deleted_by,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    })
+
+
 async def emit_metrics_updated(
     tenant_id: str,
     stats: dict
@@ -225,6 +287,49 @@ async def emit_metrics_updated(
         "type": WebSocketEvent.METRICS_UPDATED,
         "data": stats,
         "metadata": {
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    })
+
+
+async def emit_import_completed(
+    tenant_id: str,
+    job_id: str,
+    result: dict,
+    completed_by: str
+):
+    """Emit import_completed event to tenant"""
+    await manager.broadcast_to_tenant(tenant_id, {
+        "type": WebSocketEvent.IMPORT_COMPLETED,
+        "data": {
+            "job_id": job_id,
+            **result
+        },
+        "metadata": {
+            "completed_by": completed_by,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    })
+
+
+async def emit_duplicates_detected(
+    tenant_id: str,
+    source: str,
+    duplicates: List[dict],
+    requested_by: str,
+    job_id: Optional[str] = None
+):
+    """Emit duplicates_detected event to tenant"""
+    await manager.broadcast_to_tenant(tenant_id, {
+        "type": WebSocketEvent.DUPLICATES_DETECTED,
+        "data": {
+            "source": source,
+            "job_id": job_id,
+            "duplicates_found": len(duplicates),
+            "duplicates": duplicates[:10]
+        },
+        "metadata": {
+            "requested_by": requested_by,
             "timestamp": datetime.utcnow().isoformat()
         }
     })

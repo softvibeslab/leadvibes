@@ -89,14 +89,27 @@ from seed_data import (
 )
 
 # Semana 2: WebSocket, Dashboard Enhanced, Duplicate Detection, Import Optimization
-from websocket_manager import manager, emit_lead_created, emit_lead_updated, emit_metrics_updated, emit_calendar_event_created
+from websocket_manager import (
+    manager,
+    emit_lead_created,
+    emit_lead_updated,
+    emit_lead_deleted,
+    emit_leads_bulk_updated,
+    emit_leads_bulk_deleted,
+    emit_metrics_updated,
+    emit_import_completed,
+    emit_duplicates_detected,
+    emit_calendar_event_created,
+)
 from dashboard_enhancements import (
     get_dashboard_trends, get_broker_performance, get_dashboard_comparison,
     get_activity_feed_extended, get_top_performing_brokers
 )
 from duplicate_detection import find_potential_duplicates, get_duplicate_suggestions
 from import_optimization import execute_import_optimized, execute_import_with_advanced_duplicates
+from agent_control import AgentRunRequest, create_agent_control_router, run_agent_turn
 from marketplace import create_marketplace_router
+from rovi_internal import create_rovi_internal_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -130,6 +143,26 @@ def serialize_doc(doc: dict) -> dict:
             result[key] = value.isoformat()
     return result
 
+
+def serialize_realtime_payload(value: Any):
+    """Convert API payloads into WebSocket-safe JSON values."""
+    if value is None:
+        return None
+    if hasattr(value, "model_dump"):
+        value = value.model_dump()
+    if isinstance(value, dict):
+        return {
+            key: serialize_realtime_payload(val)
+            for key, val in value.items()
+            if key != "_id"
+        }
+    if isinstance(value, list):
+        return [serialize_realtime_payload(item) for item in value]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
 async def get_or_create_tenant(user_id: str) -> str:
     """Get or create tenant for user"""
     return f"tenant-{user_id[:8]}"
@@ -140,12 +173,15 @@ def resolve_account_tenant_type(account_type: str) -> str:
         return "agency"
     if account_type == "copim":
         return "copim"
+    if account_type == "rovi_internal":
+        return "rovi_internal"
     return "individual"
 
 
 def resolve_user_role(account_type: str, requested_role: str | None) -> str:
     requested_role = requested_role or "broker"
     copim_roles = {"copim_admin", "copim_operator", "copim_member"}
+    rovi_internal_roles = {"rovi_admin", "rovi_sales", "rovi_marketing", "rovi_customer_success", "rovi_ops"}
 
     if account_type == "copim":
         return requested_role if requested_role in copim_roles else "copim_admin"
@@ -156,11 +192,14 @@ def resolve_user_role(account_type: str, requested_role: str | None) -> str:
     if requested_role in copim_roles:
         return "broker"
 
+    if requested_role in rovi_internal_roles and account_type != "rovi_internal":
+        return "broker"
+
     return requested_role
 
 
 def uses_personal_workspace(account_type: str) -> bool:
-    return account_type not in {"individual", "copim_member"}
+    return account_type not in {"individual", "copim_member", "rovi_internal"}
 
 
 def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -> str:
@@ -175,6 +214,8 @@ def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -
         return f"{base_name} Consejo"
     if tenant_type == "copim":
         return f"{base_name} COPIM"
+    if tenant_type == "rovi_internal":
+        return "ROVI Internal"
     return f"{base_name} Workspace"
 
 
@@ -368,6 +409,8 @@ def build_access_token_payload(user: dict, active_workspace: dict | None) -> dic
 
 
 def resolve_auth_workspace_target(user: dict) -> str | None:
+    if user.get("account_type") == "rovi_internal":
+        return user.get("tenant_id")
     if user.get("role") == "copim_member":
         return user.get("linked_copim_tenant_id")
     return user.get("tenant_id")
@@ -6680,23 +6723,22 @@ async def update_ai_profile(profile_data: AIProfileUpdate, current_user: dict = 
 
 # ==================== DASHBOARD ROUTES ====================
 
-@api_router.get("/dashboard/stats", response_model=DashboardStats)
-async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
-    """Get dashboard statistics"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
-    
+async def build_dashboard_stats_for_user(current_user: dict) -> DashboardStats:
+    """Build dashboard stats for the user's active tenant."""
+    tenant_id = current_user.get("tenant_id") or await get_or_create_tenant(current_user["user_id"])
+
     # Get goals
     goal = await db.goals.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     ventas_goal = goal.get("ventas_mes", 5) if goal else 5
     apartados_goal = goal.get("apartados_mes", 10) if goal else 10
-    
+
     # Count stats
     leads_nuevos = await db.leads.count_documents({"tenant_id": tenant_id, "status": "nuevo"})
     ventas = await db.leads.count_documents({"tenant_id": tenant_id, "status": "venta"})
     apartados = await db.leads.count_documents({"tenant_id": tenant_id, "status": "apartado"})
     total_leads = await db.leads.count_documents({"tenant_id": tenant_id})
     brokers_activos = await db.users.count_documents({"tenant_id": tenant_id, "is_active": True, "role": {"$in": ["broker", "manager"]}})
-    
+
     # Calculate total points for user/tenant
     pipeline = [
         {"$match": {"tenant_id": tenant_id}},
@@ -6704,13 +6746,13 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     ]
     points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
     total_points = points_result[0]["total"] if points_result else 0
-    
+
     # Calculate conversion rate
     conversion_rate = (ventas / total_leads * 100) if total_leads > 0 else 0
-    
+
     # Points goal (based on activities)
     points_goal = ventas_goal * 30 + apartados_goal * 15 + 50  # Estimated monthly goal
-    
+
     return DashboardStats(
         total_points=total_points,
         points_goal=points_goal,
@@ -6723,6 +6765,87 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         leads_nuevos=leads_nuevos,
         conversion_rate=round(conversion_rate, 1)
     )
+
+
+async def emit_realtime_dashboard_metrics(current_user: dict) -> None:
+    """Best-effort metrics broadcast after lead mutations."""
+    try:
+        tenant_id = current_user.get("tenant_id") or await get_or_create_tenant(current_user["user_id"])
+        stats = await build_dashboard_stats_for_user(current_user)
+        await emit_metrics_updated(tenant_id, serialize_realtime_payload(stats))
+    except Exception as exc:
+        logger.warning(f"Could not emit realtime dashboard metrics: {exc}")
+
+
+def coerce_import_count(value: Any) -> int:
+    """Normalize import result counters from numeric/string fields."""
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(float(value.strip()))
+        except ValueError:
+            return 0
+    return 0
+
+
+def resolve_import_count(
+    result: dict,
+    primary_keys: list[str],
+    component_keys: list[str] | None = None
+) -> int:
+    for key in primary_keys:
+        if key in result:
+            return coerce_import_count(result.get(key))
+    return sum(coerce_import_count(result.get(key)) for key in (component_keys or []))
+
+
+async def emit_import_realtime_events(
+    current_user: dict,
+    job_id: str,
+    result: dict,
+    *,
+    metrics_on_import: bool = True
+) -> None:
+    """Emit import completion, duplicate and metric events for any import endpoint."""
+    tenant_id = current_user["tenant_id"]
+    user_id = current_user["user_id"]
+    imported_total = resolve_import_count(
+        result,
+        ["imported", "imported_count"],
+        ["products_imported_count", "leads_imported_count"],
+    )
+    skipped_total = resolve_import_count(
+        result,
+        ["skipped", "skipped_count"],
+        ["products_skipped_count", "leads_skipped_count"],
+    )
+
+    await emit_import_completed(tenant_id, job_id, serialize_realtime_payload(result), user_id)
+
+    if skipped_total > 0:
+        await emit_duplicates_detected(
+            tenant_id,
+            "import",
+            [{
+                "job_id": job_id,
+                "reason": "duplicates_skipped",
+                "count": skipped_total,
+            }],
+            user_id,
+            job_id=job_id,
+        )
+
+    if metrics_on_import and imported_total > 0:
+        await emit_realtime_dashboard_metrics(current_user)
+
+
+@api_router.get("/dashboard/stats", response_model=DashboardStats)
+async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
+    """Get dashboard statistics"""
+    return await build_dashboard_stats_for_user(current_user)
 
 @api_router.get("/dashboard/kpi-detail/{kpi_type}")
 async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current_user)):
@@ -7234,6 +7357,12 @@ async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_cu
         }
 
         await db.leads.insert_one(lead_doc)
+        await emit_lead_created(
+            current_user["tenant_id"],
+            serialize_realtime_payload(lead_doc),
+            current_user["user_id"]
+        )
+        await emit_realtime_dashboard_metrics(current_user)
         
         return {
             "message": "Lead creado exitosamente", 
@@ -7321,6 +7450,14 @@ async def update_lead(lead_id: str, lead_data: LeadUpdate, current_user: dict = 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Lead no encontrado")
 
+        await emit_lead_updated(
+            current_user["tenant_id"],
+            lead_id,
+            serialize_realtime_payload(update_dict),
+            current_user["user_id"]
+        )
+        await emit_realtime_dashboard_metrics(current_user)
+
         return {"message": "Lead actualizado exitosamente"}
 
     except HTTPException:
@@ -7338,7 +7475,10 @@ async def delete_lead_endpoint(
     Soft delete de un lead (marca como deleted)
     Previene pérdida de datos accidental
     """
-    return await delete_lead(db, lead_id, current_user)
+    result = await delete_lead(db, lead_id, current_user)
+    await emit_lead_deleted(current_user["tenant_id"], lead_id, current_user["user_id"])
+    await emit_realtime_dashboard_metrics(current_user)
+    return result
 
 
 @api_router.put("/leads/bulk/status")
@@ -7350,7 +7490,15 @@ async def bulk_update_status(
     """
     Actualizar status de múltiples leads (bulk operation)
     """
-    return await bulk_update_leads_status(db, lead_ids, new_status, current_user)
+    result = await bulk_update_leads_status(db, lead_ids, new_status, current_user)
+    await emit_leads_bulk_updated(
+        current_user["tenant_id"],
+        lead_ids,
+        {"status": new_status.value},
+        current_user["user_id"]
+    )
+    await emit_realtime_dashboard_metrics(current_user)
+    return result
 
 
 @api_router.delete("/leads/bulk")
@@ -7361,7 +7509,10 @@ async def bulk_delete_endpoint(
     """
     Soft delete de múltiples leads (bulk operation)
     """
-    return await bulk_delete_leads(db, lead_ids, current_user)
+    result = await bulk_delete_leads(db, lead_ids, current_user)
+    await emit_leads_bulk_deleted(current_user["tenant_id"], lead_ids, current_user["user_id"])
+    await emit_realtime_dashboard_metrics(current_user)
+    return result
 
 # ==================== DUPLICATE DETECTION ROUTES ====================
 
@@ -7383,24 +7534,33 @@ async def check_lead_duplicates(
         threshold=85,
         max_results=10
     )
+    duplicate_payload = [
+        {
+            "lead_id": d["lead"]["id"],
+            "name": d["lead"].get("name"),
+            "email": d["lead"].get("email"),
+            "phone": d["lead"].get("phone"),
+            "reason": d.get("reason"),
+            "reason_display": d.get("reason_display"),
+            "confidence": d["confidence"],
+            "name_similarity": d.get("name_similarity"),
+            "phone_similar": d.get("phone_similar", False),
+            "email_similar": d.get("email_similar", False)
+        }
+        for d in duplicates
+    ]
+
+    if duplicate_payload:
+        await emit_duplicates_detected(
+            tenant_id,
+            "manual_check",
+            duplicate_payload,
+            current_user["user_id"]
+        )
 
     return {
         "duplicates_found": len(duplicates),
-        "duplicates": [
-            {
-                "lead_id": d["lead"]["id"],
-                "name": d["lead"].get("name"),
-                "email": d["lead"].get("email"),
-                "phone": d["lead"].get("phone"),
-                "reason": d.get("reason"),
-                "reason_display": d.get("reason_display"),
-                "confidence": d["confidence"],
-                "name_similarity": d.get("name_similarity"),
-                "phone_similar": d.get("phone_similar", False),
-                "email_similar": d.get("email_similar", False)
-            }
-            for d in duplicates
-        ]
+        "duplicates": duplicate_payload
     }
 
 
@@ -8079,7 +8239,6 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
     """Chat with AI assistant"""
     user_id = current_user["user_id"]
     tenant_id = current_user["tenant_id"]
-    session_id = f"chat-{user_id}"
 
     # Save user message
     user_msg_id = str(uuid.uuid4())
@@ -8093,47 +8252,14 @@ async def chat_with_ai(message: ChatMessageCreate, current_user: dict = Depends(
     }
     await db.chat_messages.insert_one(user_msg_doc)
 
-    # Get AI profile for personalization
-    ai_profile = await db.ai_profiles.find_one(
-        {"user_id": user_id},
-        {"_id": 0}
+    # Route the floating chat through the new role-aware agent runtime.
+    agent_result = await run_agent_turn(
+        db,
+        AgentRunRequest(message=message.content, include_context=True),
+        current_user,
+        source="floating_chat",
     )
-
-    # Get user name for personalization
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
-    user_name = user["name"] if user else "Broker"
-
-    # Get context for AI
-    goal = await db.goals.find_one({"user_id": user_id}, {"_id": 0})
-
-    # Get dashboard stats for context
-    ventas = await db.leads.count_documents({"tenant_id": tenant_id, "status": "venta"})
-    apartados = await db.leads.count_documents({"tenant_id": tenant_id, "status": "apartado"})
-
-    pipeline = [
-        {"$match": {"tenant_id": tenant_id}},
-        {"$group": {"_id": None, "total": {"$sum": "$points"}}}
-    ]
-    points_result = await db.point_ledger.aggregate(pipeline).to_list(1)
-    total_points = points_result[0]["total"] if points_result else 0
-
-    context = {
-        "user_goals": goal,
-        "stats": {
-            "total_points": total_points,
-            "ventas": ventas,
-            "apartados": apartados
-        }
-    }
-
-    # Get AI response with personalized profile
-    ai_response = await get_ai_response(
-        message.content,
-        session_id,
-        context,
-        ai_profile=serialize_doc(ai_profile) if ai_profile else None,
-        user_name=user_name
-    )
+    ai_response = agent_result.get("response") or "No pude generar una respuesta en este momento."
 
     # Save AI response
     ai_msg_id = str(uuid.uuid4())
@@ -12921,7 +13047,7 @@ async def execute_import(
     # Clean up temporary data
     await db.import_data.delete_one({"job_id": request.job_id})
     
-    return {
+    result = {
         "status": final_status,
         "imported": imported,
         "imported_count": imported,
@@ -12935,6 +13061,8 @@ async def execute_import(
         "result_errors": errors_list[:10],
         "message": f"Importación completada: {imported} leads importados, {skipped} duplicados omitidos, {len(errors_list)} errores"
     }
+    await emit_import_realtime_events(current_user, request.job_id, result)
+    return result
 
 
 @api_router.post("/import/products/preview")
@@ -13104,7 +13232,7 @@ async def execute_product_import(
     )
     await db.import_data.delete_one({"job_id": request.job_id})
 
-    return {
+    result = {
         "status": final_status,
         "imported": imported,
         "imported_count": imported,
@@ -13116,6 +13244,8 @@ async def execute_product_import(
         "error_details": errors_list[:10],
         "message": f"Importación de productos completada: {imported} importados, {skipped} omitidos, {len(errors_list)} errores",
     }
+    await emit_import_realtime_events(current_user, request.job_id, result, metrics_on_import=False)
+    return result
 
 
 @api_router.post("/import/combined/preview")
@@ -13447,7 +13577,7 @@ async def execute_combined_import(
     )
     await db.import_data.delete_one({"job_id": request.job_id})
 
-    return {
+    result = {
         "status": final_status,
         "imported_count": total_imported,
         "skipped_count": product_skipped + lead_skipped,
@@ -13463,6 +13593,13 @@ async def execute_combined_import(
         "errors": errors_list,
         "message": f"Importación combinada completada: {product_imported} productos, {lead_imported} leads, {links_created} vinculaciones",
     }
+    await emit_import_realtime_events(
+        current_user,
+        request.job_id,
+        result,
+        metrics_on_import=lead_imported > 0,
+    )
+    return result
 
 @api_router.get("/import/jobs")
 async def get_import_jobs(
@@ -13568,6 +13705,8 @@ async def execute_import_optimized_endpoint(
         result = await execute_import_optimized(
             db, request.job_id, rows, mapping, tenant_id, user_id, request.skip_duplicates
         )
+
+    await emit_import_realtime_events(current_user, request.job_id, result)
 
     return result
 
@@ -14996,6 +15135,8 @@ async def receive_external_lead_webhook(
 
 # Include the router in the main app
 api_router.include_router(create_marketplace_router(db, analyze_lead))
+api_router.include_router(create_rovi_internal_router(db))
+api_router.include_router(create_agent_control_router(db))
 app.include_router(api_router)
 
 app.add_middleware(

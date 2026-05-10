@@ -21,7 +21,7 @@ import {
 } from '../components/ui/dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useWebSocket, useDashboardRealTime } from '../hooks/useWebSocket';
+import { useDashboardRealTime } from '../hooks/useWebSocket';
 import { TrendsChart, ConversionFunnel, LeadsBySource, ComparisonCard, TopBrokersList } from '../components/DashboardEnhanced';
 
 const activityIcons = {
@@ -34,6 +34,15 @@ const activityIcons = {
   venta: ShoppingCart,
   nota: Activity,
 };
+
+const DASHBOARD_RELOAD_EVENTS = new Set([
+  'lead_created',
+  'lead_updated',
+  'lead_deleted',
+  'leads_bulk_updated',
+  'leads_bulk_deleted',
+  'import_completed',
+]);
 
 // Clickable Stat Card
 const StatCard = ({ title, value, goal, icon: Icon, color, progress, onClick, clickable = true }) => (
@@ -452,9 +461,13 @@ export const DashboardPage = () => {
   const [kpiModal, setKpiModal] = useState({ open: false, type: null, data: null });
   const [loadingKpi, setLoadingKpi] = useState(false);
 
-  // NUEVO: WebSocket y Real-time State
-  const { connectionStatus, lastMessage } = useWebSocket();
-  const { stats: realTimeStats, leaderboard: realTimeLeaderboard, lastUpdate } = useDashboardRealTime();
+  // NUEVO: Real-time State
+  const {
+    stats: realTimeStats,
+    leaderboard: realTimeLeaderboard,
+    lastEvent,
+    lastUpdate
+  } = useDashboardRealTime();
 
   // NUEVO: Enhanced Dashboard Data
   const [trendsData, setTrendsData] = useState(null);
@@ -581,19 +594,35 @@ export const DashboardPage = () => {
 
   // NUEVO: Update stats when WebSocket message arrives
   useEffect(() => {
-    if (realTimeStats && lastMessage?.type === 'metrics_updated') {
+    if (realTimeStats && lastEvent?.type === 'metrics_updated') {
       console.log('Stats actualizados via WebSocket:', realTimeStats);
       setStats(realTimeStats);
     }
-  }, [realTimeStats, lastMessage]);
+  }, [realTimeStats, lastEvent]);
 
   // NUEVO: Update leaderboard when WebSocket message arrives
   useEffect(() => {
-    if (realTimeLeaderboard && lastMessage?.type === 'leaderboard_changed') {
+    if (realTimeLeaderboard && lastEvent?.type === 'leaderboard_changed') {
       console.log('Leaderboard actualizado via WebSocket:', realTimeLeaderboard);
       setLeaderboard(realTimeLeaderboard);
     }
-  }, [realTimeLeaderboard, lastMessage]);
+  }, [realTimeLeaderboard, lastEvent]);
+
+  // NUEVO: Refresh related dashboard panels when lead/import events arrive
+  useEffect(() => {
+    if (!lastEvent?.type || !DASHBOARD_RELOAD_EVENTS.has(lastEvent.type)) {
+      return;
+    }
+
+    loadDashboard();
+
+    if (lastEvent.type === 'import_completed') {
+      fetchTrendsData();
+      fetchComparisonData();
+      fetchFunnelData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastEvent]);
 
   const handleKpiClick = async (type) => {
     setLoadingKpi(true);

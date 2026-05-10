@@ -243,6 +243,17 @@ async def create_indexes():
     await db.agent_skill_installations.create_index([("tenant_id", 1), ("user_id", 1), ("listing_id", 1)], unique=True)
     print("  ✅ agent_skill_installations unique user install")
 
+    # ROVI INTERNAL COLLECTIONS
+    print("\n🏢 Índices para ROVI Internal:")
+
+    await db.rovi_prospects.create_index([("tenant_id", 1), ("stage", 1)])
+    await db.rovi_prospects.create_index([("tenant_id", 1), ("score", -1)])
+    await db.rovi_prospects.create_index([("tenant_id", 1), ("source", 1)])
+    print("  ✅ rovi_prospects tenant/stage/score/source indexes")
+
+    await db.rovi_service_plans.create_index([("tenant_id", 1), ("tier", 1)], unique=True)
+    print("  ✅ rovi_service_plans (tenant_id, tier) - Plan lookup")
+
     print("\n✅ Índices creados exitosamente!")
     print("\n📊 Resumen de índices:")
 
@@ -264,6 +275,8 @@ async def create_indexes():
         "marketplace_listings",
         "marketplace_transactions",
         "agent_skill_installations",
+        "rovi_prospects",
+        "rovi_service_plans",
     ]
 
     for collection_name in collections:
