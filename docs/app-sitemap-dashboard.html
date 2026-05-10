@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rovi Sitemap Dashboard</title>
+  <style>
+    :root {
+      --sand: #f4efe7;
+      --stone: #e7e5e4;
+      --ink: #10212b;
+      --muted: #566370;
+      --teal: #0d9488;
+      --teal-deep: #0f766e;
+      --gold: #d97706;
+      --moss: #4d7c0f;
+      --slate: #1f2937;
+      --white: #ffffff;
+      --line: rgba(16, 33, 43, 0.08);
+      --shadow: 0 18px 50px rgba(16, 33, 43, 0.12);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Verdana, Geneva, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(217, 119, 6, 0.18), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(13, 148, 136, 0.18), transparent 26%),
+        linear-gradient(160deg, #f7f2ea 0%, #eef3ee 55%, #edf6f3 100%);
+      min-height: 100vh;
+    }
+
+    .shell {
+      width: min(1400px, calc(100% - 32px));
+      margin: 24px auto 48px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-copy {
+      padding: 34px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-copy::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(13, 148, 136, 0.22), transparent 70%);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(16, 33, 43, 0.06);
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 10px;
+      font-size: clamp(34px, 4vw, 58px);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+    }
+
+    .hero-copy p {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.6;
+      max-width: 62ch;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 16px;
+      border-radius: 18px;
+      background: var(--white);
+      border: 1px solid var(--line);
+    }
+
+    .stat b {
+      display: block;
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .hero-visual {
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-visual img {
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--white);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 14px;
+      padding: 18px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .search,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font: inherit;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .chip {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+      cursor: pointer;
+      border: 1px solid var(--line);
+      transition: 180ms ease;
+      font: inherit;
+    }
+
+    .chip.active,
+    .chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(16, 33, 43, 0.1);
+    }
+
+    .chip[data-category="public"].active { background: rgba(217, 119, 6, 0.14); }
+    .chip[data-category="authenticated"].active { background: rgba(13, 148, 136, 0.14); }
+    .chip[data-category="copim"].active { background: rgba(77, 124, 15, 0.16); }
+    .chip[data-category="api"].active { background: rgba(31, 41, 55, 0.12); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+    }
+
+    .routes {
+      padding: 20px;
+    }
+
+    .routes-header,
+    .insights-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .routes-header h2,
+    .insights-header h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .route-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      max-height: 850px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .route-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      cursor: pointer;
+      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    }
+
+    .route-card:hover,
+    .route-card.active {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 26px rgba(16, 33, 43, 0.12);
+      border-color: rgba(16, 33, 43, 0.16);
+    }
+
+    .route-card header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: start;
+    }
+
+    .route-path {
+      font-weight: 700;
+      font-size: 16px;
+      word-break: break-word;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .tag.public { background: rgba(217, 119, 6, 0.14); color: #9a5c05; }
+    .tag.authenticated { background: rgba(13, 148, 136, 0.14); color: #0f766e; }
+    .tag.copim { background: rgba(77, 124, 15, 0.14); color: #43660d; }
+    .tag.api { background: rgba(31, 41, 55, 0.11); color: #1f2937; }
+
+    .route-card p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .meta span {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #f6f8f9;
+      font-size: 12px;
+      color: #41505d;
+    }
+
+    .insights {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .detail,
+    .distribution,
+    .tree {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--white);
+    }
+
+    .detail h3,
+    .distribution h3,
+    .tree h3 {
+      margin: 0 0 14px;
+      font-size: 20px;
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .detail-item strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .detail-item span {
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .bars {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 96px 1fr 52px;
+      gap: 10px;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .bar-track {
+      height: 12px;
+      border-radius: 999px;
+      background: #edf1f2;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+    }
+
+    .bar-fill.public { background: linear-gradient(90deg, #d97706, #f59e0b); }
+    .bar-fill.authenticated { background: linear-gradient(90deg, #0f766e, #14b8a6); }
+    .bar-fill.copim { background: linear-gradient(90deg, #4d7c0f, #84cc16); }
+    .bar-fill.api { background: linear-gradient(90deg, #1f2937, #475569); }
+
+    .tree ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .tree li {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #f8fafb;
+      border: 1px solid #edf1f2;
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+
+    .tree li:hover {
+      background: #f0f7f6;
+      border-color: rgba(13, 148, 136, 0.2);
+    }
+
+    .tree small {
+      display: block;
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 12px;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(16, 33, 43, 0.92);
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .route-grid {
+        grid-template-columns: 1fr;
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        width: min(100% - 18px, 1400px);
+      }
+
+      .stats,
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-copy,
+      .routes,
+      .insights {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <span class="eyebrow">Mapa de sitio interactivo</span>
+        <h1>Rovi y COPIM en una sola vista.</h1>
+        <p>
+          Dashboard HTML5 para explorar la navegación de la app, separar la capa pública del CRM autenticado
+          y entender el peso funcional de COPIM y la API base. El contenido está construido desde las rutas
+          del frontend y agrupado para análisis de producto.
+        </p>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="panel hero-visual">
+        <img src="./assets/app-sitemap-overview.svg" alt="Vista general del sitemap de Rovi" />
+      </div>
+    </section>
+
+    <section class="panel controls">
+      <input id="searchInput" class="search" type="search" placeholder="Buscar por ruta, pantalla o módulo" />
+      <select id="accessFilter" aria-label="Filtrar por acceso">
+        <option value="all">Todos los accesos</option>
+        <option value="public">Público</option>
+        <option value="authenticated">Autenticado</option>
+        <option value="copim">COPIM</option>
+        <option value="api">API</option>
+      </select>
+      <select id="groupFilter" aria-label="Filtrar por grupo">
+        <option value="all">Todos los grupos</option>
+      </select>
+    </section>
+
+    <div class="chips" id="chips"></div>
+
+    <section class="layout">
+      <div class="panel routes">
+        <div class="routes-header">
+          <div>
+            <h2>Rutas y dominios</h2>
+            <div class="muted" id="resultsLabel"></div>
+          </div>
+        </div>
+        <div class="route-grid" id="routeGrid"></div>
+      </div>
+
+      <aside class="panel insights">
+        <div class="insights-header">
+          <div>
+            <h2>Panel lateral</h2>
+            <div class="muted">Detalle, distribución y navegación rápida</div>
+          </div>
+        </div>
+
+        <section class="detail" id="detailPanel">
+          <h3>Detalle de selección</h3>
+          <div class="detail-list">
+            <div class="detail-item">
+              <strong>Estado</strong>
+              <span>Selecciona una ruta o dominio para ver su contexto.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="distribution">
+          <h3>Distribución por acceso</h3>
+          <div class="bars" id="distributionBars"></div>
+        </section>
+
+        <section class="tree">
+          <h3>Atajos por módulo</h3>
+          <ul id="moduleTree"></ul>
+        </section>
+      </aside>
+    </section>
+
+    <div class="footer-note">
+      Archivo standalone. Abre este HTML directamente en navegador. Fuente operativa: rutas agrupadas desde `frontend/src/App.js` y dominios backend desde `backend/server.py`.
+    </div>
+  </div>
+
+  <script>
+    const entries = [
+      { path: "/", title: "Landing principal", group: "Marketing", access: "public", screen: "LandingPage", description: "Home comercial principal del producto.", module: "Sitio comercial" },
+      { path: "/landing", title: "Alias de landing", group: "Marketing", access: "public", screen: "LandingPage", description: "Ruta secundaria a la home comercial.", module: "Sitio comercial" },
+      { path: "/for-brokers", title: "Landing de brokers", group: "Marketing", access: "public", screen: "BrokerLandingPage", description: "Oferta enfocada a brokers individuales.", module: "Sitio comercial" },
+      { path: "/demo-request", title: "Solicitud de demo", group: "Comercial", access: "public", screen: "DemoRequestPage", description: "Formulario de interés comercial.", module: "Sitio comercial" },
+      { path: "/contact-sales", title: "Ventas enterprise", group: "Comercial", access: "public", screen: "DemoRequestPage", description: "Ruta de contacto comercial enterprise.", module: "Sitio comercial" },
+      { path: "/module-tracker", title: "Module tracker", group: "Producto", access: "public", screen: "ModuleTrackerPage", description: "Vista pública de roadmap o avance funcional.", module: "Sitio comercial" },
+      { path: "/pricing-calculator", title: "Calculadora de pricing", group: "Comercial", access: "public", screen: "PricingCalculatorPage", description: "Calculadora comercial de valor o inversión.", module: "Sitio comercial" },
+      { path: "/copim-presentacion", title: "Presentación COPIM", group: "COPIM público", access: "public", screen: "CopimPresentationPage", description: "Landing de presentación del producto COPIM.", module: "COPIM público" },
+      { path: "/copim-memberships", title: "Alias memberships COPIM", group: "COPIM público", access: "public", screen: "CopimPresentationPage", description: "Alias comercial para la experiencia COPIM.", module: "COPIM público" },
+      { path: "/copim-demo", title: "Demo COPIM", group: "COPIM público", access: "public", screen: "CopimDashboardDemoPage", description: "Demo navegable de la propuesta COPIM.", module: "COPIM público" },
+      { path: "/copim-dashboard-demo", title: "Alias demo COPIM", group: "COPIM público", access: "public", screen: "CopimDashboardDemoPage", description: "Ruta paralela a la demo COPIM.", module: "COPIM público" },
+      { path: "/link-broker", title: "Vinculación broker", group: "Onboarding", access: "public", screen: "BrokerLinkPage", description: "Entrada pública para ligar brokers al workspace.", module: "Acceso" },
+      { path: "/login", title: "Login", group: "Acceso", access: "public", screen: "LoginPage", description: "Acceso principal a la plataforma.", module: "Acceso" },
+      { path: "/lead-search", title: "Lead search", group: "Captación", access: "public", screen: "LeadSearchDashboard", description: "Búsqueda o exploración pública de leads.", module: "Captación" },
+
+      { path: "/onboarding", title: "Onboarding", group: "Acceso", access: "authenticated", screen: "OnboardingPage", description: "Configuración inicial tras autenticación.", module: "Core app" },
+      { path: "/dashboard", title: "Dashboard", group: "Core CRM", access: "authenticated", screen: "DashboardPage", description: "KPIs, estado general y actividad.", module: "Core app" },
+      { path: "/leads", title: "Leads", group: "Core CRM", access: "authenticated", screen: "LeadsPage", description: "Gestión de leads, pipeline y seguimiento.", module: "Core app" },
+      { path: "/brokers", title: "Brokers", group: "Operación", access: "authenticated", screen: "BrokersPage", description: "Gestión de brokers y equipo.", module: "Core app" },
+      { path: "/gamification", title: "Gamificación", group: "Operación", access: "authenticated", screen: "GamificationPage", description: "Reglas, puntos y motivación del equipo.", module: "Core app" },
+      { path: "/calendar", title: "Calendario", group: "Operación", access: "authenticated", screen: "CalendarPage", description: "Agenda y eventos del CRM.", module: "Core app" },
+      { path: "/campaigns", title: "Campañas", group: "Marketing automation", access: "authenticated", screen: "CampaignsPage", description: "Orquestación de campañas multicanal.", module: "Growth" },
+      { path: "/analytics", title: "Analytics", group: "Analítica", access: "authenticated", screen: "AnalyticsPage", description: "Análisis operativo y comercial.", module: "Growth" },
+      { path: "/automations", title: "Automations", group: "Marketing automation", access: "authenticated", screen: "AutomationsPage", description: "Automatizaciones y flujos.", module: "Growth" },
+      { path: "/import", title: "Importación", group: "Captación", access: "authenticated", screen: "ImportLeadsPage", description: "Importador de leads y mapeo de columnas.", module: "Captación" },
+      { path: "/encuentra-leads", title: "Encuentra leads", group: "Captación", access: "authenticated", screen: "EncuentraLeadsPage", description: "Flujo de descubrimiento y scraping.", module: "Captación" },
+      { path: "/products", title: "Productos", group: "Inventario", access: "authenticated", screen: "ProductsPage", description: "Inventario de propiedades o servicios.", module: "Operación comercial" },
+      { path: "/marketplace", title: "Marketplace", group: "Inventario", access: "authenticated", screen: "MarketplacePage", description: "Marketplace compartido.", module: "Operación comercial" },
+      { path: "/scripts", title: "Scripts de venta", group: "IA comercial", access: "authenticated", screen: "ScriptsPage", description: "Biblioteca de scripts y apoyo comercial.", module: "Operación comercial" },
+      { path: "/database-chat", title: "Chat con base de datos", group: "IA comercial", access: "authenticated", screen: "DatabaseChatPage", description: "Interfaz conversacional sobre datos del sistema.", module: "Operación comercial" },
+      { path: "/settings", title: "Configuración", group: "Sistema", access: "authenticated", screen: "SettingsPage", description: "Integraciones, preferencias y configuración.", module: "Core app" },
+      { path: "/email-templates/new", title: "Nuevo email template", group: "Marketing automation", access: "authenticated", screen: "EmailEditorPage", description: "Editor visual fullscreen para templates.", module: "Growth" },
+      { path: "/email-templates/:templateId", title: "Editar email template", group: "Marketing automation", access: "authenticated", screen: "EmailEditorPage", description: "Edición de templates existentes.", module: "Growth" },
+
+      { path: "/copim", title: "Redirector COPIM", group: "COPIM routing", access: "copim", screen: "CopimHomeRedirect", description: "Redirige según rol COPIM.", module: "COPIM Core" },
+      { path: "/copim/dashboard", title: "Dashboard nacional", group: "COPIM nacional", access: "copim", screen: "CopimOverviewPage", description: "Vista principal para operación nacional COPIM.", module: "COPIM Core" },
+      { path: "/copim/associations", title: "Asociaciones", group: "COPIM nacional", access: "copim", screen: "CopimAssociationsPage", description: "Gestión de asociaciones dentro de COPIM.", module: "COPIM Core" },
+      { path: "/copim/courses", title: "Cursos workspace", group: "COPIM nacional", access: "copim", screen: "CopimCoursesWorkspacePage", description: "Gestión académica o contenidos formativos.", module: "COPIM Core" },
+      { path: "/copim/community", title: "Community nacional", group: "COPIM nacional", access: "copim", screen: "CopimDashboardDemoPage", description: "Vista embebida del módulo community.", module: "COPIM Core" },
+      { path: "/copim/intelligence", title: "Intelligence nacional", group: "COPIM nacional", access: "copim", screen: "CopimDashboardDemoPage", description: "Vista embebida del módulo intelligence.", module: "COPIM Core" },
+
+      { path: "/copim/association/profile", title: "Perfil asociación", group: "COPIM asociación", access: "copim", screen: "CopimAssociationProfilePage", description: "Perfil y resumen de asociación local.", module: "COPIM Asociación" },
+      { path: "/copim/association/campaigns", title: "Campañas asociación", group: "COPIM asociación", access: "copim", screen: "CopimAssociationCampaignsPage", description: "Campañas en contexto de asociación.", module: "COPIM Asociación" },
+      { path: "/copim/association/properties", title: "Propiedades asociación", group: "COPIM asociación", access: "copim", screen: "CopimAssociationPropertiesPage", description: "Inventario y propiedades de asociación.", module: "COPIM Asociación" },
+      { path: "/copim/association/courses", title: "Cursos asociación", group: "COPIM asociación", access: "copim", screen: "CopimAssociationCoursesPage", description: "Cursos y formación local.", module: "COPIM Asociación" },
+      { path: "/copim/association/community", title: "Community asociación", group: "COPIM asociación", access: "copim", screen: "CopimAssociationCommunityPage", description: "Comunidad local de asociación.", module: "COPIM Asociación" },
+      { path: "/copim/association/modules", title: "Módulos asociación", group: "COPIM asociación", access: "copim", screen: "CopimAssociationModulesPage", description: "Activación o estado de módulos.", module: "COPIM Asociación" },
+      { path: "/copim/members", title: "Miembros", group: "COPIM operación", access: "copim", screen: "CopimMembersPage", description: "Administración de miembros COPIM.", module: "COPIM Operación" },
+      { path: "/copim/memberships", title: "Memberships", group: "COPIM operación", access: "copim", screen: "CopimMembershipsPage", description: "Gestión de membresías y estado.", module: "COPIM Operación" },
+      { path: "/copim/invoices", title: "Facturas", group: "COPIM operación", access: "copim", screen: "CopimInvoicesPage", description: "Facturación y cobro COPIM.", module: "COPIM Operación" },
+      { path: "/copim/events", title: "Eventos", group: "COPIM operación", access: "copim", screen: "CopimEventsPage", description: "Operación de eventos COPIM.", module: "COPIM Operación" },
+      { path: "/copim/marketplace", title: "Marketplace COPIM", group: "COPIM operación", access: "copim", screen: "MarketplacePage", description: "Marketplace en contexto COPIM asociación.", module: "COPIM Operación" },
+
+      { path: "/copim/member", title: "Home miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberHomePage", description: "Home del portal del miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/profile", title: "Perfil miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberProfilePage", description: "Perfil del miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/campaigns", title: "Campañas miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberCampaignsPage", description: "Campañas disponibles para el miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/properties", title: "Propiedades miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberPropertiesPage", description: "Propiedades o activos visibles al miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/courses", title: "Cursos miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberCoursesPage", description: "Formación y progreso del miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/membership", title: "Membership miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberMembershipPage", description: "Estado de membresía del miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/payments", title: "Pagos miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberPaymentsPage", description: "Pagos, historial y cobros.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/credential", title: "Credencial miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberCredentialPage", description: "Credencial o identificación del miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/events", title: "Eventos miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberEventsPage", description: "Eventos disponibles al miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/community", title: "Community miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberCommunityPage", description: "Espacio de comunidad del miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/modules", title: "Módulos miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberModulesPage", description: "Módulos activos en el portal.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/marketplace", title: "Marketplace miembro", group: "COPIM miembro", access: "copim", screen: "MarketplacePage", description: "Marketplace en contexto de portal miembro.", module: "COPIM Portal Miembro" },
+      { path: "/copim/member/directory", title: "Directorio miembro", group: "COPIM miembro", access: "copim", screen: "CopimMemberDirectoryPage", description: "Directorio interno del ecosistema.", module: "COPIM Portal Miembro" },
+
+      { path: "/api/auth/*", title: "Auth API", group: "API Auth", access: "api", screen: "FastAPI", description: "Registro, login, refresh, logout y cambio de workspace.", module: "API" },
+      { path: "/api/dashboard/*", title: "Dashboard API", group: "API CRM", access: "api", screen: "FastAPI", description: "KPIs, tendencias, leaderboard y actividad.", module: "API" },
+      { path: "/api/leads*", title: "Leads API", group: "API CRM", access: "api", screen: "FastAPI", description: "CRUD, duplicados, análisis y acciones sobre leads.", module: "API" },
+      { path: "/api/brokers*", title: "Brokers API", group: "API CRM", access: "api", screen: "FastAPI", description: "Gestión de brokers y pairing sessions.", module: "API" },
+      { path: "/api/products*", title: "Products API", group: "API Inventario", access: "api", screen: "FastAPI", description: "Inventario, imágenes, intereses y plantillas.", module: "API" },
+      { path: "/api/campaigns*", title: "Campaigns API", group: "API Growth", access: "api", screen: "FastAPI", description: "Campañas, segmentos y activación.", module: "API" },
+      { path: "/api/calendar/*", title: "Calendar API", group: "API Ops", access: "api", screen: "FastAPI", description: "Eventos internos y sincronización base.", module: "API" },
+      { path: "/api/google-calendar/*", title: "Google Calendar API", group: "API Ops", access: "api", screen: "FastAPI", description: "Sincronización Google Calendar y OAuth.", module: "API" },
+      { path: "/api/settings/integrations*", title: "Integrations API", group: "API Ops", access: "api", screen: "FastAPI", description: "Configuración y pruebas de integraciones.", module: "API" },
+      { path: "/api/email-templates*", title: "Email templates API", group: "API Growth", access: "api", screen: "FastAPI", description: "CRUD y preview de plantillas email.", module: "API" },
+      { path: "/api/scraper/*", title: "Scraper API", group: "API Captación", access: "api", screen: "FastAPI", description: "Jobs de scraping y guardado de resultados.", module: "API" },
+      { path: "/api/copim/*", title: "COPIM API", group: "API COPIM", access: "api", screen: "FastAPI", description: "Superficie backend COPIM nacional, asociación y portal.", module: "API" }
+    ];
+
+    const palette = {
+      public: "#d97706",
+      authenticated: "#0d9488",
+      copim: "#4d7c0f",
+      api: "#1f2937"
+    };
+
+    const state = {
+      access: "all",
+      group: "all",
+      search: "",
+      selectedPath: null
+    };
+
+    const statsEl = document.getElementById("stats");
+    const chipsEl = document.getElementById("chips");
+    const routeGridEl = document.getElementById("routeGrid");
+    const detailPanelEl = document.getElementById("detailPanel");
+    const distributionBarsEl = document.getElementById("distributionBars");
+    const moduleTreeEl = document.getElementById("moduleTree");
+    const resultsLabelEl = document.getElementById("resultsLabel");
+    const groupFilterEl = document.getElementById("groupFilter");
+    const accessFilterEl = document.getElementById("accessFilter");
+    const searchInputEl = document.getElementById("searchInput");
+
+    function unique(values) {
+      return [...new Set(values)].sort((a, b) => a.localeCompare(b, "es"));
+    }
+
+    function buildStats() {
+      const cards = [
+        { value: entries.length, label: "entradas mapeadas" },
+        { value: entries.filter((e) => e.access === "public").length, label: "rutas públicas" },
+        { value: entries.filter((e) => e.access === "authenticated").length, label: "rutas autenticadas" },
+        { value: entries.filter((e) => e.access === "copim").length, label: "rutas COPIM" }
+      ];
+
+      statsEl.innerHTML = cards.map((card) => `
+        <div class="stat">
+          <b>${card.value}</b>
+          <span>${card.label}</span>
+        </div>
+      `).join("");
+    }
+
+    function buildChips() {
+      const chips = [
+        { key: "all", label: "Todo" },
+        { key: "public", label: "Público" },
+        { key: "authenticated", label: "Autenticado" },
+        { key: "copim", label: "COPIM" },
+        { key: "api", label: "API" }
+      ];
+
+      chipsEl.innerHTML = chips.map((chip) => `
+        <button class="chip ${state.access === chip.key ? "active" : ""}" data-category="${chip.key}" data-access="${chip.key}">
+          ${chip.label}
+        </button>
+      `).join("");
+
+      chipsEl.querySelectorAll(".chip").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.access = button.dataset.access;
+          accessFilterEl.value = state.access;
+          state.group = "all";
+          rebuildGroupFilter();
+          render();
+        });
+      });
+    }
+
+    function rebuildGroupFilter() {
+      const groups = unique(entries
+        .filter((entry) => state.access === "all" || entry.access === state.access)
+        .map((entry) => entry.group));
+
+      groupFilterEl.innerHTML = `<option value="all">Todos los grupos</option>` +
+        groups.map((group) => `<option value="${group}">${group}</option>`).join("");
+
+      if (!groups.includes(state.group)) {
+        state.group = "all";
+      }
+
+      groupFilterEl.value = state.group;
+    }
+
+    function filteredEntries() {
+      const query = state.search.trim().toLowerCase();
+      return entries.filter((entry) => {
+        const accessMatch = state.access === "all" || entry.access === state.access;
+        const groupMatch = state.group === "all" || entry.group === state.group;
+        const searchMatch = !query || [entry.path, entry.title, entry.group, entry.module, entry.description, entry.screen]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+        return accessMatch && groupMatch && searchMatch;
+      });
+    }
+
+    function renderRoutes() {
+      const items = filteredEntries();
+      resultsLabelEl.textContent = `${items.length} resultados visibles`;
+
+      routeGridEl.innerHTML = items.map((entry) => `
+        <article class="route-card ${state.selectedPath === entry.path ? "active" : ""}" data-path="${entry.path}">
+          <header>
+            <div class="route-path">${entry.path}</div>
+            <span class="tag ${entry.access}">${entry.access}</span>
+          </header>
+          <p>${entry.description}</p>
+          <div class="meta">
+            <span>${entry.title}</span>
+            <span>${entry.group}</span>
+            <span>${entry.module}</span>
+          </div>
+        </article>
+      `).join("");
+
+      routeGridEl.querySelectorAll(".route-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          state.selectedPath = card.dataset.path;
+          render();
+        });
+      });
+
+      if (!items.length) {
+        routeGridEl.innerHTML = `<div class="route-card"><p>No hay resultados con el filtro actual.</p></div>`;
+      }
+    }
+
+    function renderDetail() {
+      const selected = entries.find((entry) => entry.path === state.selectedPath) || filteredEntries()[0];
+
+      if (!selected) {
+        detailPanelEl.innerHTML = `
+          <h3>Detalle de selección</h3>
+          <div class="detail-list">
+            <div class="detail-item">
+              <strong>Estado</strong>
+              <span>No hay datos para mostrar.</span>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      state.selectedPath = selected.path;
+      detailPanelEl.innerHTML = `
+        <h3>Detalle de selección</h3>
+        <div class="detail-list">
+          <div class="detail-item">
+            <strong>Ruta</strong>
+            <span>${selected.path}</span>
+          </div>
+          <div class="detail-item">
+            <strong>Pantalla / origen</strong>
+            <span>${selected.screen}</span>
+          </div>
+          <div class="detail-item">
+            <strong>Grupo</strong>
+            <span>${selected.group}</span>
+          </div>
+          <div class="detail-item">
+            <strong>Módulo</strong>
+            <span>${selected.module}</span>
+          </div>
+          <div class="detail-item">
+            <strong>Descripción</strong>
+            <span>${selected.description}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDistribution() {
+      const counts = ["public", "authenticated", "copim", "api"].map((access) => ({
+        access,
+        count: filteredEntries().filter((entry) => entry.access === access).length
+      }));
+      const max = Math.max(1, ...counts.map((item) => item.count));
+
+      distributionBarsEl.innerHTML = counts.map((item) => `
+        <div class="bar-row">
+          <span>${item.access}</span>
+          <div class="bar-track">
+            <div class="bar-fill ${item.access}" style="width: ${(item.count / max) * 100}%"></div>
+          </div>
+          <strong>${item.count}</strong>
+        </div>
+      `).join("");
+    }
+
+    function renderModuleTree() {
+      const modules = unique(filteredEntries().map((entry) => entry.module));
+      moduleTreeEl.innerHTML = modules.map((module) => {
+        const sample = filteredEntries().find((entry) => entry.module === module);
+        const total = filteredEntries().filter((entry) => entry.module === module).length;
+        return `
+          <li data-module="${module}">
+            <strong>${module}</strong>
+            <small>${total} entradas · ejemplo: ${sample ? sample.path : "-"}</small>
+          </li>
+        `;
+      }).join("");
+
+      moduleTreeEl.querySelectorAll("li").forEach((item) => {
+        item.addEventListener("click", () => {
+          state.search = item.dataset.module;
+          searchInputEl.value = state.search;
+          render();
+        });
+      });
+    }
+
+    function render() {
+      buildChips();
+      renderRoutes();
+      renderDetail();
+      renderDistribution();
+      renderModuleTree();
+    }
+
+    accessFilterEl.addEventListener("change", (event) => {
+      state.access = event.target.value;
+      state.group = "all";
+      rebuildGroupFilter();
+      render();
+    });
+
+    groupFilterEl.addEventListener("change", (event) => {
+      state.group = event.target.value;
+      render();
+    });
+
+    searchInputEl.addEventListener("input", (event) => {
+      state.search = event.target.value;
+      render();
+    });
+
+    buildStats();
+    rebuildGroupFilter();
+    render();
+  </script>
+</body>
+</html>
