@@ -13,6 +13,7 @@ export const useWebSocket = () => {
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const shouldReconnectRef = useRef(true);
+  const intentionalCloseRef = useRef(false);
   const { token } = useAuth();
 
   const connect = useCallback(() => {
@@ -28,6 +29,7 @@ export const useWebSocket = () => {
       }
 
       setConnectionStatus('connecting');
+      intentionalCloseRef.current = false;
 
       // Construir URL WebSocket
       const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
@@ -65,6 +67,10 @@ export const useWebSocket = () => {
       };
 
       ws.onerror = (error) => {
+        if (intentionalCloseRef.current || !shouldReconnectRef.current) {
+          return;
+        }
+
         console.error('❌ WebSocket error:', error);
         setConnectionStatus('error');
       };
@@ -100,6 +106,7 @@ export const useWebSocket = () => {
   const disconnect = useCallback(() => {
     console.log('Disconnecting WebSocket...');
     shouldReconnectRef.current = false;
+    intentionalCloseRef.current = true;
 
     if (socketRef.current) {
       socketRef.current.close();
