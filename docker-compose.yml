@@ -47,6 +47,7 @@ services:
       ROVI_AI_KEY_ENV: ${ROVI_AI_KEY_ENV:-ROVI_AI_API_KEY}
       ROVI_AI_API_KEY: ${ROVI_AI_API_KEY:-}
       ROVI_AI_USD_TO_MXN: ${ROVI_AI_USD_TO_MXN:-18.5}
+      ROVI_WORKSPACE_GRAPH_PATH: ${ROVI_WORKSPACE_GRAPH_PATH:-}
 
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
@@ -63,6 +64,7 @@ services:
       SENDGRID_SENDER_NAME: ${SENDGRID_SENDER_NAME:-Rovi Real Estate}
     volumes:
       - backend_uploads:/app/uploads
+      - ./graphify-out:/app/project-graphify-out:ro
     ports:
       - "${BACKEND_HOST_PORT:-8000}:8000"
     depends_on:

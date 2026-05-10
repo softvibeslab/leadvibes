@@ -4,12 +4,18 @@ import {
   Bot,
   Brain,
   Clock3,
+  Cloud,
+  Cpu,
   Database,
   FileText,
   Gauge,
+  KeyRound,
   Loader2,
+  PlugZap,
   Play,
   Save,
+  Server,
+  SlidersHorizontal,
   Upload,
   WalletCards,
 } from 'lucide-react';
@@ -20,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Slider } from '../components/ui/slider';
 import { Switch } from '../components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -45,6 +52,61 @@ const toolLabels = {
   copim_context: 'COPIM',
   rovi_internal_metrics: 'ROVI',
   write_actions: 'Escritura',
+};
+
+const providerPresets = [
+  {
+    id: 'chat.z',
+    provider: 'chat.z',
+    label: 'Chat.Z / GLM',
+    badge: 'Cloud',
+    icon: Cloud,
+    defaultModel: 'glm-5',
+    baseUrl: 'https://api.z.ai/api/paas/v4',
+    apiKeyEnv: 'ROVI_AI_API_KEY',
+    description: 'Proveedor principal de ROVI para produccion y pruebas con token remoto.',
+    helper: 'Requiere variable ROVI_AI_API_KEY en backend.',
+  },
+  {
+    id: 'ollama',
+    provider: 'ollama',
+    label: 'Ollama local',
+    badge: 'Local',
+    icon: Server,
+    defaultModel: 'qwen2.5:3b',
+    baseUrl: 'http://host.docker.internal:11434',
+    apiKeyEnv: '',
+    description: 'Modelos locales sin costo por token, ideal para desarrollo y datos sensibles.',
+    helper: 'En Docker usa host.docker.internal; sin Docker usa localhost.',
+  },
+  {
+    id: 'openai_compatible',
+    provider: 'openai_compatible',
+    label: 'OpenAI compatible',
+    badge: 'API',
+    icon: PlugZap,
+    defaultModel: 'gpt-4o-mini',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKeyEnv: 'OPENAI_API_KEY',
+    description: 'Cualquier API con formato /chat/completions compatible con OpenAI.',
+    helper: 'Puedes cambiar URL, modelo y variable de key.',
+  },
+];
+
+const modelOptionsByProvider = {
+  'chat.z': ['glm-5', 'glm-4.5', 'glm-4.5-air', 'glm-4-plus'],
+  ollama: ['qwen2.5:3b', 'llama3.2:latest', 'phi3:mini', 'llama3.1:8b', 'mistral:7b'],
+  openai_compatible: ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1'],
+};
+
+const getProviderPreset = (provider) =>
+  providerPresets.find((preset) => preset.provider === provider) || providerPresets[0];
+
+const getModelOptions = (provider) => modelOptionsByProvider[provider] || [];
+
+const keyStatusLabel = (config) => {
+  if (config?.api_key_required === false) return 'local';
+  return config?.api_key_configured ? 'key ok' : 'sin key';
 };
 
 const StatCard = ({ icon: Icon, label, value, helper }) => (
@@ -85,6 +147,7 @@ export const RoviAIControlTowerPage = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [importingGraph, setImportingGraph] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [configs, setConfigs] = useState([]);
   const [roleScopes, setRoleScopes] = useState([]);
@@ -93,6 +156,8 @@ export const RoviAIControlTowerPage = () => {
   const [knowledgeRole, setKnowledgeRole] = useState('global');
   const [knowledgeTitle, setKnowledgeTitle] = useState('');
   const [knowledgeFile, setKnowledgeFile] = useState(null);
+  const [graphImport, setGraphImport] = useState(null);
+  const [activeTab, setActiveTab] = useState('tower');
   const [testMessage, setTestMessage] = useState('Analiza mis prioridades de hoy con el contexto disponible.');
   const [testResponse, setTestResponse] = useState(null);
 
@@ -100,6 +165,8 @@ export const RoviAIControlTowerPage = () => {
     () => configs.find((config) => config.id === selectedConfigId) || configs[0],
     [configs, selectedConfigId]
   );
+  const activeProvider = getProviderPreset(form?.provider);
+  const modelOptions = getModelOptions(form?.provider);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -108,7 +175,8 @@ export const RoviAIControlTowerPage = () => {
       const payload = response.data || {};
       setDashboard(payload);
       setConfigs(payload.configs || []);
-      setRoleScopes(payload.role_scopes || []);
+      setRoleScopes(payload.knowledge_scopes || payload.role_scopes || []);
+      setGraphImport((payload.knowledge_files || []).find((file) => file.source_kind === 'graphify_rovi_workspace') || null);
       if (!selectedConfigId && payload.configs?.length) {
         setSelectedConfigId(payload.configs[0].id);
       }
@@ -155,6 +223,16 @@ export const RoviAIControlTowerPage = () => {
         ...(current?.tools || {}),
         [tool]: checked,
       },
+    }));
+  };
+
+  const applyProviderPreset = (preset) => {
+    setForm((current) => ({
+      ...current,
+      provider: preset.provider,
+      model: preset.defaultModel,
+      base_url: preset.baseUrl,
+      api_key_env: preset.apiKeyEnv,
     }));
   };
 
@@ -207,6 +285,27 @@ export const RoviAIControlTowerPage = () => {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const importRoviWorkspaceGraph = async () => {
+    setImportingGraph(true);
+    try {
+      const response = await api.post('/ai-control/knowledge/rovi-workspace/import');
+      setGraphImport(response.data?.file || null);
+      toast({
+        title: 'Knowledge graph indexado',
+        description: `${response.data?.node_count || 0} nodos y ${response.data?.chunk_count || 0} chunks para ROVI Internal.`,
+      });
+      await loadDashboard();
+    } catch (error) {
+      toast({
+        title: 'No se pudo indexar Graphify',
+        description: error.response?.data?.detail || 'Genera/actualiza graphify-out y vuelve a intentar.',
+        variant: 'destructive',
+      });
+    } finally {
+      setImportingGraph(false);
     }
   };
 
@@ -266,7 +365,7 @@ export const RoviAIControlTowerPage = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="tower" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-lg bg-muted/70 p-1 sm:w-fit">
             <TabsTrigger value="tower" className="gap-2"><Gauge className="h-4 w-4" /> Torre</TabsTrigger>
             <TabsTrigger value="agents" className="gap-2"><Bot className="h-4 w-4" /> Agentes</TabsTrigger>
@@ -358,7 +457,7 @@ export const RoviAIControlTowerPage = () => {
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium">{config.name}</p>
                       <Badge variant={config.api_key_configured ? 'secondary' : 'outline'}>
-                        {config.api_key_configured ? 'key ok' : 'sin key'}
+                        {keyStatusLabel(config)}
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{config.role_scope?.replaceAll('_', ' ')}</p>
@@ -380,52 +479,152 @@ export const RoviAIControlTowerPage = () => {
                     Guardar
                   </Button>
                 </CardHeader>
-                <CardContent className="space-y-5">
-                  <div className="grid gap-4 lg:grid-cols-2">
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(320px,0.55fr)]">
                     <div>
-                      <Label>Nombre</Label>
+                      <Label>Nombre del agente</Label>
                       <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
                     </div>
-                    <div>
-                      <Label>Modelo</Label>
-                      <Input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} />
+                    <div className="rounded-lg border border-border/70 bg-background/45 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">Conexion activa</p>
+                          <p className="truncate text-xs text-muted-foreground">{form.provider} · {form.model}</p>
+                        </div>
+                        <Badge variant={activeProvider.provider === 'ollama' ? 'secondary' : 'outline'}>
+                          {activeProvider.badge}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <Label>Proveedor</Label>
-                      <Input value={form.provider} onChange={(event) => setForm({ ...form, provider: event.target.value })} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <Label>Proveedor de IA</Label>
+                        <p className="mt-1 text-sm text-muted-foreground">Elige un preset y ajusta solo lo necesario.</p>
+                      </div>
                     </div>
-                    <div>
-                      <Label>Variable de API key</Label>
-                      <Input value={form.api_key_env} onChange={(event) => setForm({ ...form, api_key_env: event.target.value })} />
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      {providerPresets.map((preset) => {
+                        const Icon = preset.icon;
+                        const selected = form.provider === preset.provider;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => applyProviderPreset(preset)}
+                            className={`min-h-[172px] rounded-lg border p-4 text-left transition-colors ${
+                              selected
+                                ? 'border-primary bg-primary/10 text-foreground'
+                                : 'border-border/70 bg-background/45 hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                <Icon className="h-5 w-5" />
+                              </span>
+                              <Badge variant={selected ? 'secondary' : 'outline'}>{preset.badge}</Badge>
+                            </div>
+                            <p className="mt-4 font-semibold">{preset.label}</p>
+                            <p className="mt-2 text-sm leading-5 text-muted-foreground">{preset.description}</p>
+                            <p className="mt-3 text-xs text-muted-foreground">{preset.helper}</p>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="lg:col-span-2">
-                      <Label>Base URL</Label>
-                      <Input value={form.base_url} onChange={(event) => setForm({ ...form, base_url: event.target.value })} />
+                  </div>
+
+                  <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(340px,0.65fr)]">
+                    <div className="space-y-4 rounded-lg border border-border/70 bg-background/45 p-4">
+                      <div className="flex items-center gap-2">
+                        <Cpu className="h-4 w-4 text-primary" />
+                        <p className="font-medium">Modelo y conexion</p>
+                      </div>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div>
+                          <Label>Modelo recomendado</Label>
+                          <Select value={modelOptions.includes(form.model) ? form.model : 'custom'} onValueChange={(value) => value !== 'custom' && setForm({ ...form, model: value })}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona modelo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {modelOptions.map((model) => (
+                                <SelectItem key={model} value={model}>{model}</SelectItem>
+                              ))}
+                              <SelectItem value="custom">Personalizado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Modelo final</Label>
+                          <Input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={activeProvider.defaultModel} />
+                        </div>
+                        <div className="lg:col-span-2">
+                          <Label>Base URL</Label>
+                          <Input value={form.base_url} onChange={(event) => setForm({ ...form, base_url: event.target.value })} />
+                          {form.provider === 'ollama' && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Para Docker usa `http://host.docker.internal:11434`; para backend sin Docker usa `http://localhost:11434`.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <Label>Proveedor tecnico</Label>
+                          <Input value={form.provider} onChange={(event) => setForm({ ...form, provider: event.target.value })} />
+                        </div>
+                        <div>
+                          <Label>Variable de API key</Label>
+                          <div className="relative">
+                            <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input className="pl-9" value={form.api_key_env} onChange={(event) => setForm({ ...form, api_key_env: event.target.value })} placeholder={form.provider === 'ollama' ? 'No requerida' : 'ROVI_AI_API_KEY'} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-5 rounded-lg border border-border/70 bg-background/45 p-4">
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal className="h-4 w-4 text-primary" />
+                        <p className="font-medium">Comportamiento</p>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label>Temperatura</Label>
+                          <Badge variant="outline">{Number(form.temperature || 0).toFixed(2)}</Badge>
+                        </div>
+                        <Slider
+                          value={[Number(form.temperature || 0)]}
+                          min={0}
+                          max={1.5}
+                          step={0.05}
+                          onValueChange={([value]) => setForm({ ...form, temperature: value })}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Preciso</span>
+                          <span>Creativo</span>
+                        </div>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                        <div>
+                          <Label>Max output tokens</Label>
+                          <Input type="number" min="128" value={form.max_output_tokens} onChange={(event) => setForm({ ...form, max_output_tokens: event.target.value })} />
+                        </div>
+                        <div>
+                          <Label>Budget mensual MXN</Label>
+                          <Input type="number" min="0" value={form.monthly_budget_mxn} onChange={(event) => setForm({ ...form, monthly_budget_mxn: event.target.value })} />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   <div>
                     <Label>Prompt del sistema</Label>
                     <Textarea
-                      className="min-h-[240px] font-mono text-sm"
+                      className="mt-2 min-h-[240px] font-mono text-sm"
                       value={form.system_prompt}
                       onChange={(event) => setForm({ ...form, system_prompt: event.target.value })}
                     />
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div>
-                      <Label>Temperatura</Label>
-                      <Input type="number" step="0.05" min="0" max="1.5" value={form.temperature} onChange={(event) => setForm({ ...form, temperature: event.target.value })} />
-                    </div>
-                    <div>
-                      <Label>Max output tokens</Label>
-                      <Input type="number" min="128" value={form.max_output_tokens} onChange={(event) => setForm({ ...form, max_output_tokens: event.target.value })} />
-                    </div>
-                    <div>
-                      <Label>Budget mensual MXN</Label>
-                      <Input type="number" min="0" value={form.monthly_budget_mxn} onChange={(event) => setForm({ ...form, monthly_budget_mxn: event.target.value })} />
-                    </div>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -445,42 +644,70 @@ export const RoviAIControlTowerPage = () => {
           </TabsContent>
 
           <TabsContent value="knowledge" className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
-            <Card className="rounded-lg border-border/70 bg-card/85 shadow-sm">
-              <CardHeader>
-                <CardTitle>Subir archivo</CardTitle>
-                <CardDescription>TXT, MD, CSV, JSON y PDF compatible con extractor instalado.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-5" onSubmit={uploadKnowledge}>
-                  <div>
-                    <Label>Rol</Label>
-                    <Select value={knowledgeRole} onValueChange={setKnowledgeRole}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona rol" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="global">Global</SelectItem>
-                        {roleScopes.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            <div className="space-y-5">
+              <Card className="rounded-lg border-border/70 bg-card/85 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Subir archivo</CardTitle>
+                  <CardDescription>TXT, MD, CSV, JSON y PDF compatible con extractor instalado.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form className="space-y-5" onSubmit={uploadKnowledge}>
+                    <div>
+                      <Label>Rol</Label>
+                      <Select value={knowledgeRole} onValueChange={setKnowledgeRole}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona rol" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roleScopes.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Titulo</Label>
+                      <Input value={knowledgeTitle} onChange={(event) => setKnowledgeTitle(event.target.value)} placeholder="Opcional" />
+                    </div>
+                    <div>
+                      <Label>Archivo</Label>
+                      <Input type="file" onChange={(event) => setKnowledgeFile(event.target.files?.[0] || null)} required />
+                    </div>
+                    <Button type="submit" disabled={uploading || !knowledgeFile}>
+                      {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                      Indexar
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-lg border-border/70 bg-card/85 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Knowledge Graph ROVI</CardTitle>
+                  <CardDescription>Indexa Graphify solo para el workspace interno y agentes ROVI.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">Scope</p>
+                      <p className="font-semibold">rovi_internal</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">Chunks</p>
+                      <p className="font-semibold">{number(graphImport?.chunk_count || 0)}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">Nodos</p>
+                      <p className="font-semibold">{number(graphImport?.node_count || 0)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <Label>Titulo</Label>
-                    <Input value={knowledgeTitle} onChange={(event) => setKnowledgeTitle(event.target.value)} placeholder="Opcional" />
-                  </div>
-                  <div>
-                    <Label>Archivo</Label>
-                    <Input type="file" onChange={(event) => setKnowledgeFile(event.target.files?.[0] || null)} required />
-                  </div>
-                  <Button type="submit" disabled={uploading || !knowledgeFile}>
-                    {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    Indexar
+                  <Button type="button" variant="outline" onClick={importRoviWorkspaceGraph} disabled={importingGraph}>
+                    {importingGraph ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
+                    {graphImport ? 'Actualizar grafo ROVI' : 'Indexar grafo ROVI'}
                   </Button>
-                </form>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
 
             <Card className="rounded-lg border-border/70 bg-card/85 shadow-sm">
               <CardHeader>

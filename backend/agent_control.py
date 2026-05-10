@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 import time
 import uuid
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
 import httpx
@@ -21,6 +23,7 @@ DEFAULT_AI_PROVIDER = os.environ.get("ROVI_AI_PROVIDER", "chat.z")
 DEFAULT_AI_MODEL = os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5")
 DEFAULT_AI_KEY_ENV = os.environ.get("ROVI_AI_KEY_ENV", "ROVI_AI_API_KEY")
 USD_TO_MXN = float(os.environ.get("ROVI_AI_USD_TO_MXN", "18.5"))
+ROVI_INTERNAL_KNOWLEDGE_SCOPE = "rovi_internal"
 
 
 ROLE_SCOPES = [
@@ -48,6 +51,56 @@ ROLE_LABELS = {
     "copim_member": "Miembro COPIM",
     "agency_admin": "Inmobiliaria",
     "broker": "Broker",
+}
+
+
+KNOWLEDGE_SCOPE_LABELS = {
+    "global": "Global",
+    ROVI_INTERNAL_KNOWLEDGE_SCOPE: "ROVI Internal Workspace",
+    **ROLE_LABELS,
+}
+
+
+ROVI_WORKSPACE_GRAPH_FILES = [
+    *([Path(os.environ["ROVI_WORKSPACE_GRAPH_PATH"])] if os.environ.get("ROVI_WORKSPACE_GRAPH_PATH") else []),
+    Path("/app/project-graphify-out/rovi-project-with-docs-graph.json"),
+    Path("/app/project-graphify-out/rovi-project-graph.json"),
+    Path(__file__).resolve().parents[1] / "graphify-out" / "rovi-project-with-docs-graph.json",
+    Path(__file__).resolve().parents[1] / "graphify-out" / "rovi-project-graph.json",
+    Path(__file__).resolve().parent / "graphify-out" / "graph.json",
+]
+
+
+ROVI_WORKSPACE_SOURCE_HINTS = {
+    "backend/rovi_internal.py",
+    "backend/agent_control.py",
+    "frontend/src/pages/RoviInternalWorkspacePage.js",
+    "frontend/src/pages/RoviAIControlTowerPage.js",
+    "frontend/src/components/Sidebar.js",
+    "frontend/src/App.js",
+    "docs/AI_AGENT_CONTROL_TOWER.md",
+    "docs/ROVI_OPERATIONS_INDEX.md",
+    "docs/WORKSPACE_STATUS_SUMMARY.md",
+    "docs/WORKSPACE_STATUS_DASHBOARD.html",
+    "docs/ROVI_POCKET_EXECUTION_DASHBOARD.md",
+    "docs/ROVI_POCKET_MASTER_PLAN.md",
+}
+
+
+ROVI_WORKSPACE_TERMS = {
+    "rovi internal",
+    "rovi_internal",
+    "roviinternal",
+    "roviworkspace",
+    "revenue hq",
+    "ai control tower",
+    "ai-control",
+    "agent_control",
+    "roviaicontroltower",
+    "roviinternalworkspace",
+    "rovi_prospects",
+    "rovi_service_plans",
+    "rovi-internal",
 }
 
 
@@ -145,7 +198,9 @@ def estimate_tokens(text: str | None) -> int:
     return max(1, int(len(text) / 4))
 
 
-def estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
+def estimate_cost_usd(model: str, input_tokens: int, output_tokens: int, provider: str | None = None) -> float:
+    if (provider or "").lower() in {"ollama", "ollama_local", "local_ollama"}:
+        return 0
     pricing = MODEL_PRICING_PER_1M_USD.get(model, MODEL_PRICING_PER_1M_USD["glm-5"])
     return round(
         (input_tokens / 1_000_000) * pricing["input"]
@@ -157,7 +212,14 @@ def estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> floa
 def public_config(config: dict) -> dict:
     config = serialize_doc(config) or {}
     config.pop("_id", None)
-    config["api_key_configured"] = bool(os.environ.get(config.get("api_key_env") or DEFAULT_AI_KEY_ENV))
+    provider = (config.get("provider") or DEFAULT_AI_PROVIDER).lower()
+    api_key_required = provider not in {"ollama", "ollama_local", "local_ollama"}
+    config["api_key_required"] = api_key_required
+    config["api_key_configured"] = (
+        True
+        if not api_key_required
+        else bool(os.environ.get(config.get("api_key_env") or DEFAULT_AI_KEY_ENV))
+    )
     return config
 
 
@@ -342,9 +404,12 @@ async def find_relevant_knowledge(
     limit: int = 5,
 ) -> list[dict]:
     query_terms = normalize_terms(message)
+    scope_filter = ["global", role_scope]
+    if role_scope.startswith("rovi_"):
+        scope_filter.append(ROVI_INTERNAL_KNOWLEDGE_SCOPE)
     chunks = await db.agent_knowledge_chunks.find(
         {
-            "role_scope": {"$in": [role_scope, "global"]},
+            "role_scope": {"$in": scope_filter},
             "status": "indexed",
         },
         {"_id": 0},
@@ -389,27 +454,34 @@ Reglas de seguridad:
 
 
 async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
+    provider = (config.get("provider") or DEFAULT_AI_PROVIDER).lower()
     api_key_env = config.get("api_key_env") or DEFAULT_AI_KEY_ENV
     api_key = os.environ.get(api_key_env)
-    if not api_key:
+    api_key_required = provider not in {"ollama", "ollama_local", "local_ollama"}
+    if api_key_required and not api_key:
         raise RuntimeError(f"Falta configurar {api_key_env} en el entorno del backend.")
 
     base_url = (config.get("base_url") or DEFAULT_OPENAI_COMPATIBLE_BASE_URL).rstrip("/")
-    endpoint = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
+    if base_url.endswith("/chat/completions"):
+        endpoint = base_url
+    elif provider in {"ollama", "ollama_local", "local_ollama"} and not base_url.endswith("/v1"):
+        endpoint = f"{base_url}/v1/chat/completions"
+    else:
+        endpoint = f"{base_url}/chat/completions"
     payload = {
         "model": config.get("model") or DEFAULT_AI_MODEL,
         "messages": messages,
         "temperature": float(config.get("temperature", 0.25)),
         "max_tokens": int(config.get("max_output_tokens", 900)),
     }
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
 
     async with httpx.AsyncClient(timeout=45.0) as client:
         response = await client.post(
             endpoint,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             json=payload,
         )
         response.raise_for_status()
@@ -457,7 +529,12 @@ async def record_agent_usage(
     error: Optional[str] = None,
 ) -> dict:
     total_tokens = input_tokens + output_tokens
-    cost_usd = estimate_cost_usd(config.get("model", DEFAULT_AI_MODEL), input_tokens, output_tokens)
+    cost_usd = estimate_cost_usd(
+        config.get("model", DEFAULT_AI_MODEL),
+        input_tokens,
+        output_tokens,
+        config.get("provider", DEFAULT_AI_PROVIDER),
+    )
     event = {
         "id": f"usage-{uuid.uuid4()}",
         "run_id": run_id,
@@ -516,15 +593,27 @@ async def run_agent_turn(
         provider_usage = model_response.get("usage") or {}
     except Exception as exc:  # keep the control tower useful even while provider credentials are being wired.
         success = False
-        error = str(exc)
         provider_response = getattr(exc, "response", None)
         status_code = getattr(provider_response, "status_code", None)
         reason_phrase = getattr(provider_response, "reason_phrase", "")
+        try:
+            provider_body = (provider_response.text or "")[:280] if provider_response else ""
+        except Exception:
+            provider_body = ""
+        error = f"{str(exc)} | {provider_body}" if provider_body else str(exc)
         provider_hint = f" ({status_code} {reason_phrase})" if status_code else ""
-        content = (
-            f"El agente ya esta configurado en ROVI, pero el proveedor de IA no respondio{provider_hint}. "
-            "Revisa cuota, rate limit, token o base URL y vuelve a probar."
-        )
+        provider_name = (config.get("provider") or DEFAULT_AI_PROVIDER).lower()
+        if provider_name in {"ollama", "ollama_local", "local_ollama"} and status_code == 404:
+            content = (
+                f"Ollama respondio 404 para el modelo `{config.get('model')}`. "
+                "Normalmente significa que ese modelo no esta instalado localmente. "
+                "Cambia a un modelo disponible o ejecuta `ollama pull <modelo>` y vuelve a probar."
+            )
+        else:
+            content = (
+                f"El agente ya esta configurado en ROVI, pero el proveedor de IA no respondio{provider_hint}. "
+                "Revisa cuota, rate limit, token, modelo o base URL y vuelve a probar."
+            )
         provider_usage = {}
 
     latency_ms = int((time.perf_counter() - started) * 1000)
@@ -612,6 +701,192 @@ def chunk_text(text: str, max_chars: int = 1400) -> list[str]:
     return chunks
 
 
+def resolve_rovi_workspace_graph_path() -> Path:
+    for path in ROVI_WORKSPACE_GRAPH_FILES:
+        if path.exists():
+            return path
+    raise FileNotFoundError(
+        "No encontre graphify-out/rovi-project-with-docs-graph.json ni grafos Graphify locales."
+    )
+
+
+def normalize_source_path(value: str | None) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    marker = "/leadvibes/"
+    if marker in text:
+        text = text.split(marker, 1)[1]
+    if text.startswith("./"):
+        text = text[2:]
+    if text.startswith("pages/"):
+        text = f"frontend/src/{text}"
+    if text.startswith("components/"):
+        text = f"frontend/src/{text}"
+    if text and "/" not in text and text.endswith(".py"):
+        text = f"backend/{text}"
+    return text
+
+
+def node_matches_rovi_workspace(node: dict) -> bool:
+    source = normalize_source_path(node.get("source_file") or node.get("file") or "")
+    label = str(node.get("label") or "")
+    node_id = str(node.get("id") or "")
+    haystack = f"{source} {label} {node_id}".lower()
+
+    if source in ROVI_WORKSPACE_SOURCE_HINTS:
+        return True
+    if source.startswith("docs/") and (
+        "workspace" in source.lower()
+        or "ai_agent_control_tower" in source.lower()
+        or "operations" in source.lower()
+        or "pocket" in source.lower()
+    ):
+        return True
+    return any(term in haystack for term in ROVI_WORKSPACE_TERMS)
+
+
+def load_rovi_workspace_graph_chunks(max_chunks: int = 80) -> dict:
+    graph_path = resolve_rovi_workspace_graph_path()
+    graph_data = json.loads(graph_path.read_text())
+    nodes = graph_data.get("nodes") or []
+    links = graph_data.get("links") or graph_data.get("edges") or []
+    nodes_by_id = {node.get("id"): node for node in nodes if node.get("id")}
+    base_selected_ids = {node["id"] for node in nodes if node.get("id") and node_matches_rovi_workspace(node)}
+    selected_ids = set(base_selected_ids)
+
+    # Bring direct neighbors without cascading through root/container nodes.
+    for link in links:
+        source = link.get("source")
+        target = link.get("target")
+        source_node = nodes_by_id.get(source)
+        target_node = nodes_by_id.get(target)
+        source_file = normalize_source_path((source_node or {}).get("source_file") or (source_node or {}).get("file") or "")
+        target_file = normalize_source_path((target_node or {}).get("source_file") or (target_node or {}).get("file") or "")
+        if source in base_selected_ids and target_node and source_file == target_file:
+            selected_ids.add(target)
+        if target in base_selected_ids and source_node and source_file == target_file:
+            selected_ids.add(source)
+
+    selected_nodes = [node for node in nodes if node.get("id") in selected_ids]
+    selected_by_file: dict[str, list[dict]] = {}
+    for node in selected_nodes:
+        source = normalize_source_path(node.get("source_file") or node.get("file") or node.get("repo") or "sin_archivo")
+        selected_by_file.setdefault(source or "sin_archivo", []).append(node)
+
+    relevant_links = [
+        link for link in links
+        if link.get("source") in selected_ids and link.get("target") in selected_ids
+    ]
+
+    chunks = []
+    overview_files = sorted(selected_by_file.keys())
+    overview = [
+        "Knowledge Graph tecnico del Workspace interno ROVI.",
+        f"Fuente Graphify: {graph_path}",
+        f"Nodos seleccionados: {len(selected_nodes)}",
+        f"Relaciones seleccionadas: {len(relevant_links)}",
+        "Archivos principales:",
+        *[f"- {file}" for file in overview_files[:40]],
+    ]
+    chunks.append({
+        "title": "ROVI Internal Workspace - mapa tecnico",
+        "content": "\n".join(overview),
+        "source_file": str(graph_path),
+    })
+
+    for source, file_nodes in sorted(selected_by_file.items(), key=lambda item: (-len(item[1]), item[0])):
+        lines = [
+            f"Archivo/modulo: {source}",
+            "Nodos relevantes:",
+        ]
+        for node in sorted(file_nodes, key=lambda item: -(int(item.get("degree") or 0)))[:35]:
+            lines.append(
+                f"- {node.get('label') or node.get('id')} "
+                f"({node.get('file_type') or 'node'}, degree={node.get('degree') or 0})"
+            )
+
+        local_ids = {node.get("id") for node in file_nodes}
+        local_links = [
+            link for link in relevant_links
+            if link.get("source") in local_ids or link.get("target") in local_ids
+        ][:30]
+        if local_links:
+            lines.append("Relaciones cercanas:")
+            for link in local_links:
+                source_node = nodes_by_id.get(link.get("source"), {})
+                target_node = nodes_by_id.get(link.get("target"), {})
+                lines.append(
+                    f"- {source_node.get('label') or link.get('source')} "
+                    f"--{link.get('relation') or 'relacion'}--> "
+                    f"{target_node.get('label') or link.get('target')}"
+                )
+
+        chunks.append({
+            "title": f"ROVI Workspace: {source}",
+            "content": "\n".join(lines),
+            "source_file": source,
+        })
+        if len(chunks) >= max_chunks:
+            break
+
+    return {
+        "graph_path": str(graph_path),
+        "node_count": len(selected_nodes),
+        "link_count": len(relevant_links),
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+    }
+
+
+async def import_rovi_workspace_graph_knowledge(
+    db: AsyncIOMotorDatabase,
+    current_user: dict,
+) -> dict:
+    payload = load_rovi_workspace_graph_chunks()
+    file_id = "knowledge-rovi-internal-graphify"
+    now = now_iso()
+    await db.agent_knowledge_chunks.delete_many({"file_id": file_id})
+    await db.agent_knowledge_files.delete_many({"id": file_id})
+
+    file_doc = {
+        "id": file_id,
+        "role_scope": ROVI_INTERNAL_KNOWLEDGE_SCOPE,
+        "title": "ROVI Internal Workspace Graphify Knowledge",
+        "description": "Knowledge graph tecnico filtrado para el workspace interno de ROVI.",
+        "file_name": payload["graph_path"],
+        "content_type": "application/graphify+json",
+        "size_bytes": 0,
+        "status": "indexed",
+        "chunk_count": payload["chunk_count"],
+        "node_count": payload["node_count"],
+        "link_count": payload["link_count"],
+        "source_kind": "graphify_rovi_workspace",
+        "created_by": current_user.get("user_id"),
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.agent_knowledge_files.insert_one(file_doc)
+    if payload["chunks"]:
+        await db.agent_knowledge_chunks.insert_many([
+            {
+                "id": f"knowledge-chunk-{uuid.uuid4()}",
+                "file_id": file_id,
+                "role_scope": ROVI_INTERNAL_KNOWLEDGE_SCOPE,
+                "title": chunk["title"],
+                "file_name": chunk["source_file"],
+                "chunk_index": index,
+                "content": chunk["content"],
+                "status": "indexed",
+                "source_kind": "graphify_rovi_workspace",
+                "created_at": now,
+            }
+            for index, chunk in enumerate(payload["chunks"])
+        ])
+
+    return {**payload, "file": serialize_doc(file_doc)}
+
+
 async def build_usage_dashboard(db: AsyncIOMotorDatabase) -> dict:
     await ensure_default_agent_configs(db)
     events = serialize_docs(await db.agent_usage_events.find({}, {"_id": 0}).sort("created_at", -1).limit(5000).to_list(5000))
@@ -652,6 +927,10 @@ async def build_usage_dashboard(db: AsyncIOMotorDatabase) -> dict:
         "configs": [public_config(item) for item in configs],
         "knowledge_files": files,
         "role_scopes": [{"value": role, "label": ROLE_LABELS.get(role, role)} for role in ROLE_SCOPES],
+        "knowledge_scopes": [
+            {"value": scope, "label": KNOWLEDGE_SCOPE_LABELS.get(scope, scope)}
+            for scope in ["global", ROVI_INTERNAL_KNOWLEDGE_SCOPE, *ROLE_SCOPES]
+        ],
         "defaults": {
             "provider": DEFAULT_AI_PROVIDER,
             "model": DEFAULT_AI_MODEL,
@@ -740,7 +1019,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
         current_user: dict = Depends(get_current_user),
     ):
         current_user = require_rovi_internal_workspace(current_user)
-        if role_scope != "global" and role_scope not in ROLE_SCOPES:
+        if role_scope not in {"global", ROVI_INTERNAL_KNOWLEDGE_SCOPE, *ROLE_SCOPES}:
             raise HTTPException(status_code=422, detail="Rol de conocimiento invalido.")
 
         raw_bytes, text = await extract_text_from_upload(file)
@@ -778,6 +1057,39 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
                 for index, chunk in enumerate(chunks)
             ])
         return serialize_doc(file_doc)
+
+    @router.get("/ai-control/knowledge/rovi-workspace/preview")
+    async def preview_rovi_workspace_graph(current_user: dict = Depends(get_current_user)):
+        require_rovi_internal_workspace(current_user)
+        try:
+            payload = load_rovi_workspace_graph_chunks(max_chunks=12)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        return {
+            "graph_path": payload["graph_path"],
+            "node_count": payload["node_count"],
+            "link_count": payload["link_count"],
+            "chunk_count": payload["chunk_count"],
+            "sample_chunks": payload["chunks"][:5],
+            "role_scope": ROVI_INTERNAL_KNOWLEDGE_SCOPE,
+        }
+
+    @router.post("/ai-control/knowledge/rovi-workspace/import")
+    async def import_rovi_workspace_graph(current_user: dict = Depends(get_current_user)):
+        current_user = require_rovi_internal_workspace(current_user)
+        try:
+            payload = await import_rovi_workspace_graph_knowledge(db, current_user)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        return {
+            "message": "Knowledge graph de ROVI Internal indexado",
+            "role_scope": ROVI_INTERNAL_KNOWLEDGE_SCOPE,
+            "graph_path": payload["graph_path"],
+            "node_count": payload["node_count"],
+            "link_count": payload["link_count"],
+            "chunk_count": payload["chunk_count"],
+            "file": payload["file"],
+        }
 
     @router.post("/ai-control/test-run")
     async def test_agent(payload: AgentRunRequest, current_user: dict = Depends(get_current_user)):
