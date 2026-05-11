@@ -22,6 +22,10 @@ DEFAULT_OPENAI_COMPATIBLE_BASE_URL = os.environ.get("ROVI_AI_BASE_URL", "https:/
 DEFAULT_AI_PROVIDER = os.environ.get("ROVI_AI_PROVIDER", "chat.z")
 DEFAULT_AI_MODEL = os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5")
 DEFAULT_AI_KEY_ENV = os.environ.get("ROVI_AI_KEY_ENV", "ROVI_AI_API_KEY")
+FALLBACK_AI_KEY_ENV = "EMERGENT_LLM_KEY"
+FALLBACK_OPENAI_KEY_ENV = "OPENAI_API_KEY"
+FALLBACK_OPENAI_BASE_URL = os.environ.get("ROVI_FALLBACK_AI_BASE_URL", "https://api.openai.com/v1")
+FALLBACK_OPENAI_MODEL = os.environ.get("ROVI_FALLBACK_AI_MODEL", "gpt-5.2")
 USD_TO_MXN = float(os.environ.get("ROVI_AI_USD_TO_MXN", "18.5"))
 ROVI_INTERNAL_KNOWLEDGE_SCOPE = "rovi_internal"
 
@@ -37,6 +41,13 @@ ROLE_SCOPES = [
     "copim_member",
     "agency_admin",
     "broker",
+    "vibe_orchestrator",
+    "audience_intel",
+    "offer_architect",
+    "whatsapp_copywriter",
+    "fulfillment_agent",
+    "ab_test_analyst",
+    "risk_guardian",
 ]
 
 
@@ -51,6 +62,13 @@ ROLE_LABELS = {
     "copim_member": "Miembro COPIM",
     "agency_admin": "Inmobiliaria",
     "broker": "Broker",
+    "vibe_orchestrator": "VibeLab Orquestador",
+    "audience_intel": "VibeLab Audience Intel",
+    "offer_architect": "VibeLab Offer Architect",
+    "whatsapp_copywriter": "VibeLab WhatsApp Copywriter",
+    "fulfillment_agent": "VibeLab Fulfillment",
+    "ab_test_analyst": "VibeLab A/B Analyst",
+    "risk_guardian": "VibeLab Risk Guardian",
 }
 
 
@@ -76,8 +94,10 @@ ROVI_WORKSPACE_SOURCE_HINTS = {
     "backend/agent_control.py",
     "frontend/src/pages/RoviInternalWorkspacePage.js",
     "frontend/src/pages/RoviAIControlTowerPage.js",
+    "frontend/src/pages/VibeLabPage.js",
     "frontend/src/components/Sidebar.js",
     "frontend/src/App.js",
+    "backend/vibe_lab.py",
     "docs/AI_AGENT_CONTROL_TOWER.md",
     "docs/ROVI_OPERATIONS_INDEX.md",
     "docs/WORKSPACE_STATUS_SUMMARY.md",
@@ -101,6 +121,11 @@ ROVI_WORKSPACE_TERMS = {
     "rovi_prospects",
     "rovi_service_plans",
     "rovi-internal",
+    "vibe_lab",
+    "vibelab",
+    "mamivibes",
+    "audience_groups",
+    "vibe_experiments",
 }
 
 
@@ -115,6 +140,13 @@ ROLE_PROMPTS = {
     "copim_member": "Actua como asistente de un miembro COPIM. Ayuda con perfil profesional, cursos, eventos, propiedades, marketplace y oportunidades comerciales.",
     "agency_admin": "Actua como director comercial de una inmobiliaria. Ayuda a priorizar brokers, leads, pipeline, campanas, conversion y revenue.",
     "broker": "Actua como coach comercial inmobiliario. Ayuda a calificar leads, preparar seguimientos, scripts, tareas y siguientes acciones concretas.",
+    "vibe_orchestrator": "Actua como orquestador de VibeLab. Convierte contexto, oferta, segmento y metricas en la siguiente accion comercial. Prioriza velocidad, etica, ROI y aprendizaje.",
+    "audience_intel": "Actua como analista de audiencias hiperlocales. Clasifica grupos por intencion, permiso comercial, sensibilidad cultural, riesgo de spam y mejor propuesta de valor.",
+    "offer_architect": "Actua como arquitecto de ofertas digitales. Disena ofertas entregables en menos de 30 minutos con precio, promesa, insumos, margen y flujo de fulfillment.",
+    "whatsapp_copywriter": "Actua como copywriter nativo de WhatsApp. Escribe mensajes cortos por grupo, con tono contextual, CTA claro, sin promesas falsas ni presion abusiva.",
+    "fulfillment_agent": "Actua como operador de fulfillment digital. Transforma datos del comprador en prompt final, activo entregable, mensaje de entrega y solicitud de testimonio.",
+    "ab_test_analyst": "Actua como analista de experimentos A/B. Compara variantes por replies, clicks, pagos y revenue; recomienda ganador y siguiente experimento.",
+    "risk_guardian": "Actua como guardian de riesgo y reputacion. Bloquea scraping, autoposting masivo, claims sensibles y mensajes que violen reglas de comunidad.",
 }
 
 
@@ -124,6 +156,7 @@ DEFAULT_TOOLS = {
     "marketplace_recommendations": True,
     "copim_context": True,
     "rovi_internal_metrics": True,
+    "vibe_lab_context": True,
     "write_actions": False,
 }
 
@@ -174,6 +207,12 @@ class AgentRunRequest(BaseModel):
     include_context: bool = True
 
 
+class StrategyRunRequest(BaseModel):
+    question: str
+    role_scope: Optional[str] = None
+    include_context: bool = True
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -214,11 +253,18 @@ def public_config(config: dict) -> dict:
     config.pop("_id", None)
     provider = (config.get("provider") or DEFAULT_AI_PROVIDER).lower()
     api_key_required = provider not in {"ollama", "ollama_local", "local_ollama"}
+    primary_key_configured = bool(os.environ.get(config.get("api_key_env") or DEFAULT_AI_KEY_ENV))
+    fallback_key_configured = bool(os.environ.get(FALLBACK_AI_KEY_ENV))
     config["api_key_required"] = api_key_required
     config["api_key_configured"] = (
         True
         if not api_key_required
-        else bool(os.environ.get(config.get("api_key_env") or DEFAULT_AI_KEY_ENV))
+        else primary_key_configured or fallback_key_configured
+    )
+    config["api_key_fallback"] = (
+        "emergentintegrations"
+        if api_key_required and not primary_key_configured and fallback_key_configured
+        else None
     )
     return config
 
@@ -376,6 +422,31 @@ async def build_database_context(
             "active_pipeline": active_count,
         }
 
+    if tools.get("vibe_lab_context") and (role_scope.startswith("vibe_") or role_scope in {"audience_intel", "offer_architect", "whatsapp_copywriter", "fulfillment_agent", "ab_test_analyst", "risk_guardian"}):
+        group_counts = await db.vibe_audience_groups.aggregate([
+            {"$match": {"tenant_id": tenant_id, "is_excluded": {"$ne": True}}},
+            {"$group": {"_id": "$segment", "count": {"$sum": 1}, "avg_score": {"$avg": "$score"}}},
+            {"$sort": {"count": -1}},
+        ]).to_list(20)
+        context["metrics"]["vibe_lab_segments"] = [
+            {"segment": item.get("_id") or "other", "count": item.get("count", 0), "avg_score": round(item.get("avg_score") or 0, 1)}
+            for item in group_counts
+        ]
+        context["metrics"]["vibe_lab_experiments"] = await db.vibe_experiments.count_documents({"tenant_id": tenant_id})
+        context["metrics"]["vibe_lab_posts_pending_approval"] = await db.vibe_posts.count_documents({
+            "tenant_id": tenant_id,
+            "status": "draft",
+            "requires_approval": True,
+        })
+        context["records"]["vibe_top_groups"] = serialize_docs(await db.vibe_audience_groups.find(
+            {"tenant_id": tenant_id, "is_excluded": {"$ne": True}},
+            {"_id": 0, "id": 1, "name": 1, "segment": 1, "platform": 1, "score": 1, "proposed_value": 1},
+        ).sort("score", -1).limit(8).to_list(8))
+        context["records"]["vibe_active_offers"] = serialize_docs(await db.vibe_offers.find(
+            {"tenant_id": tenant_id, "is_active": {"$ne": False}},
+            {"_id": 0, "id": 1, "title": 1, "offer_type": 1, "price_mxn": 1, "delivery_minutes": 1, "value_prop": 1},
+        ).sort("created_at", -1).limit(8).to_list(8))
+
     if tools.get("marketplace_recommendations"):
         marketplace_query = {"status": "published"}
         if role_scope.startswith("copim"):
@@ -500,19 +571,123 @@ async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
     }
 
 
+async def call_direct_openai_fallback(messages: list[dict], config: dict | None = None) -> dict:
+    api_key = os.environ.get(FALLBACK_OPENAI_KEY_ENV) or os.environ.get(FALLBACK_AI_KEY_ENV)
+    if not api_key:
+        raise RuntimeError(f"Falta configurar {FALLBACK_OPENAI_KEY_ENV} o {FALLBACK_AI_KEY_ENV}.")
+
+    base_url = FALLBACK_OPENAI_BASE_URL.rstrip("/")
+    endpoint = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
+    payload = {
+        "model": os.environ.get("ROVI_FALLBACK_AI_MODEL") or FALLBACK_OPENAI_MODEL,
+        "messages": messages,
+        "temperature": float((config or {}).get("temperature", 0.25)),
+        "max_tokens": int((config or {}).get("max_output_tokens", 900)),
+    }
+
+    async with httpx.AsyncClient(timeout=45.0) as client:
+        response = await client.post(
+            endpoint,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    usage = data.get("usage") or {}
+    return {
+        "content": content or "El proveedor no devolvio contenido.",
+        "usage": {
+            "input_tokens": usage.get("prompt_tokens"),
+            "output_tokens": usage.get("completion_tokens"),
+            "total_tokens": usage.get("total_tokens"),
+        },
+        "raw_provider": "openai_direct_fallback",
+    }
+
+
+def build_local_agent_response(messages: list[dict], config: dict, error: Exception | None = None) -> dict:
+    role_scope = config.get("role_scope") or "broker"
+    role_label = ROLE_LABELS.get(role_scope, "ROVI")
+    prompt = ROLE_PROMPTS.get(role_scope, ROLE_PROMPTS["broker"])
+    user_message = messages[-1]["content"] if messages else ""
+    visible_question = short_text(user_message.replace("\n", " "), 280)
+    domain_hint = (
+        "socios, asociaciones, cursos, eventos, cobranza y marketplace"
+        if role_scope.startswith("copim")
+        else "leads, pipeline, campanas, scripts, marketplace y prioridades comerciales"
+    )
+    error_hint = f"\n\nDetalle tecnico: {short_text(error, 180)}" if error else ""
+
+    content = (
+        f"Estoy activo como {role_label} en modo local de respaldo. "
+        f"{prompt}\n\n"
+        f"Sobre tu solicitud: {visible_question}\n\n"
+        f"Puedo ayudarte a priorizar {domain_hint} con la informacion disponible del workspace. "
+        "Para una respuesta generativa completa, configura una llave valida de proveedor IA "
+        "(`ROVI_AI_API_KEY` u `OPENAI_API_KEY`) o deja activo el fallback compatible."
+        f"{error_hint}"
+    )
+    return {"content": content, "usage": {}, "raw_provider": "local_fallback"}
+
+
+async def call_emergent_model(messages: list[dict], session_id: str, config: dict | None = None) -> dict:
+    if not os.environ.get(FALLBACK_AI_KEY_ENV) and not os.environ.get(FALLBACK_OPENAI_KEY_ENV):
+        raise RuntimeError(f"Falta configurar {FALLBACK_AI_KEY_ENV} o {FALLBACK_OPENAI_KEY_ENV} en el entorno del backend.")
+
+    system_messages = [
+        item.get("content", "")
+        for item in messages
+        if item.get("role") == "system" and item.get("content")
+    ]
+    user_content = messages[-1]["content"] if messages else ""
+    full_message = user_content
+    if system_messages:
+        full_message = (
+            "Instrucciones del agente:\n"
+            + "\n\n".join(system_messages)
+            + "\n\nMensaje del usuario:\n"
+            + user_content
+        )
+
+    try:
+        return await call_direct_openai_fallback(messages, config)
+    except Exception:
+        pass
+
+    content = await get_ai_response(
+        user_message=full_message,
+        session_id=session_id,
+        context=None,
+        ai_profile={"style": "institucional y accionable", "goals": "resolver preguntas del workspace ROVI/COPIM"},
+        user_name="ROVI",
+    )
+    if "funcionalidad de ia no" in content.lower():
+        raise RuntimeError("emergentintegrations no esta instalado y no hubo fallback directo disponible.")
+    return {"content": content, "usage": {}, "raw_provider": "emergentintegrations"}
+
+
 async def call_model(messages: list[dict], config: dict, session_id: str) -> dict:
     provider = (config.get("provider") or DEFAULT_AI_PROVIDER).lower()
     if provider in {"emergent", "emergentintegrations"}:
-        content = await get_ai_response(
-            user_message=messages[-1]["content"],
-            session_id=session_id,
-            context=None,
-            ai_profile={"style": "estrategico", "goals": "resolver preguntas del CRM"},
-            user_name="ROVI",
-        )
-        return {"content": content, "usage": {}, "raw_provider": "emergentintegrations"}
+        try:
+            return await call_emergent_model(messages, session_id, config)
+        except Exception as exc:
+            return build_local_agent_response(messages, config, exc)
 
-    return await call_openai_compatible(messages, config)
+    try:
+        return await call_openai_compatible(messages, config)
+    except Exception as primary_error:
+        if os.environ.get(FALLBACK_AI_KEY_ENV) or os.environ.get(FALLBACK_OPENAI_KEY_ENV):
+            try:
+                return await call_emergent_model(messages, session_id, config)
+            except Exception as fallback_error:
+                return build_local_agent_response(messages, config, fallback_error)
+        return build_local_agent_response(messages, config, primary_error)
 
 
 async def record_agent_usage(
@@ -670,12 +845,625 @@ async def run_agent_turn(
     }
 
 
+def parse_strategy_json(content: str) -> dict:
+    try:
+        return json.loads(content)
+    except Exception:
+        start = content.find("{")
+        end = content.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                return json.loads(content[start:end + 1])
+            except Exception:
+                return {}
+    return {}
+
+
+def short_text(value: Any, max_chars: int = 220) -> str:
+    text = str(value or "").strip()
+    return text[:max_chars]
+
+
+def grafana_ref_id(index: int) -> str:
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return alphabet[index % len(alphabet)]
+
+
+def grafana_unit_for_format(value_format: str | None) -> str:
+    if value_format == "currency":
+        return "currencyMXN"
+    if value_format == "percent":
+        return "percent"
+    return "short"
+
+
+def grafana_color_for_tone(tone: str | None) -> str:
+    return {
+        "success": "green",
+        "warning": "orange",
+        "danger": "red",
+        "primary": "blue",
+    }.get(tone or "primary", "blue")
+
+
+def build_panel_base(panel_id: int, title: str, panel_type: str, grid_pos: dict, description: str = "") -> dict:
+    return {
+        "id": panel_id,
+        "type": panel_type,
+        "title": short_text(title, 90),
+        "description": short_text(description, 240),
+        "gridPos": grid_pos,
+        "datasource": {"type": "rovi-strategy", "uid": "rovi-ai"},
+        "targets": [{"refId": "A", "queryType": panel_type, "source": "strategy_playground"}],
+        "fieldConfig": {"defaults": {}, "overrides": []},
+        "options": {},
+        "transformations": [],
+        "links": [],
+        "transparent": False,
+    }
+
+
+def build_grafana_strategy_dashboard(question: str, role_scope: str, strategy: dict, metrics: dict, graph: dict) -> dict:
+    """Grafana-inspired dashboard JSON.
+
+    ROVI does not embed Grafana here. The shape mirrors the durable ideas from
+    Grafana dashboards: panels, gridPos, targets, fieldConfig and templating.
+    """
+    panels: list[dict] = []
+    panel_id = 1
+    y = 0
+    kpis = strategy.get("kpis") or metrics.get("kpis", [])
+    charts = metrics.get("charts", [])
+
+    for index, kpi in enumerate(kpis[:4]):
+        panel = build_panel_base(
+            panel_id,
+            kpi.get("label") or f"KPI {index + 1}",
+            "stat",
+            {"x": (index % 4) * 6, "y": y, "w": 6, "h": 4},
+            kpi.get("description", ""),
+        )
+        panel["targets"] = [{
+            "refId": grafana_ref_id(index),
+            "queryType": "kpi",
+            "metric": kpi.get("label"),
+            "source": "strategy_payload",
+        }]
+        panel["fieldConfig"]["defaults"] = {
+            "unit": grafana_unit_for_format(kpi.get("format")),
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                    {"color": grafana_color_for_tone(kpi.get("tone")), "value": None},
+                ],
+            },
+        }
+        panel["options"] = {
+            "orientation": "auto",
+            "textMode": "value_and_name",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+        }
+        panel["data"] = {
+            "value": kpi.get("value", 0),
+            "format": kpi.get("format") or "number",
+            "tone": kpi.get("tone") or "primary",
+        }
+        panels.append(panel)
+        panel_id += 1
+
+    y += 4
+    for index, chart in enumerate(charts[:4]):
+        x = 0 if index % 2 == 0 else 12
+        if index and index % 2 == 0:
+            y += 8
+        panel = build_panel_base(
+            panel_id,
+            chart.get("title") or f"Chart {index + 1}",
+            "barchart",
+            {"x": x, "y": y, "w": 12, "h": 8},
+            "Visualizacion generada desde metricas del CRM.",
+        )
+        panel["targets"] = [{
+            "refId": grafana_ref_id(index),
+            "queryType": "aggregate",
+            "metric": chart.get("id"),
+            "source": "crm_metrics",
+        }]
+        panel["fieldConfig"]["defaults"] = {
+            "unit": "short",
+            "color": {"mode": "palette-classic"},
+        }
+        panel["options"] = {
+            "legend": {"showLegend": False},
+            "tooltip": {"mode": "single", "sort": "none"},
+            "xField": "label",
+            "yField": "value",
+        }
+        panel["data"] = chart.get("data", [])
+        panels.append(panel)
+        panel_id += 1
+
+    y += 8
+    critical_panel = build_panel_base(
+        panel_id,
+        "Ruta critica",
+        "state-timeline",
+        {"x": 0, "y": y, "w": 8, "h": 8},
+        "Secuencia operativa priorizada por el agente estratega.",
+    )
+    critical_panel["targets"] = [{"refId": "A", "queryType": "critical_path", "source": "strategy_payload"}]
+    critical_panel["options"] = {"showValue": "always", "mergeValues": False}
+    critical_panel["data"] = strategy.get("critical_path", [])
+    panels.append(critical_panel)
+    panel_id += 1
+
+    action_panel = build_panel_base(
+        panel_id,
+        "Plan de accion",
+        "table",
+        {"x": 8, "y": y, "w": 8, "h": 8},
+        "Acciones, responsables, prioridad e impacto.",
+    )
+    action_panel["targets"] = [{"refId": "A", "queryType": "action_plan", "source": "strategy_payload"}]
+    action_panel["fieldConfig"]["defaults"] = {"custom": {"align": "left"}}
+    action_panel["options"] = {"showHeader": True}
+    action_panel["data"] = strategy.get("action_plan", [])
+    panels.append(action_panel)
+    panel_id += 1
+
+    graph_panel = build_panel_base(
+        panel_id,
+        "Knowledge graph",
+        "nodeGraph",
+        {"x": 16, "y": y, "w": 8, "h": 8},
+        "Nodos Graphify mas relevantes para la pregunta.",
+    )
+    graph_panel["targets"] = [{"refId": "A", "queryType": "graphify_context", "source": "graphify"}]
+    graph_panel["options"] = {"nodeLimit": 18, "edgeLimit": 28}
+    graph_panel["data"] = {"nodes": graph.get("nodes", []), "links": graph.get("links", [])}
+    panels.append(graph_panel)
+    panel_id += 1
+
+    y += 8
+    handoff_panel = build_panel_base(
+        panel_id,
+        "Transferencia a agentes",
+        "table",
+        {"x": 0, "y": y, "w": 12, "h": 7},
+        "Misiones sugeridas para agentes especializados por rol.",
+    )
+    handoff_panel["targets"] = [{"refId": "A", "queryType": "agent_handoffs", "source": "strategy_payload"}]
+    handoff_panel["options"] = {"showHeader": True}
+    handoff_panel["data"] = strategy.get("agent_handoffs", [])
+    panels.append(handoff_panel)
+    panel_id += 1
+
+    summary_panel = build_panel_base(
+        panel_id,
+        "Resumen ejecutivo",
+        "text",
+        {"x": 12, "y": y, "w": 12, "h": 7},
+        "Lectura ejecutiva para toma de decision.",
+    )
+    summary_panel["targets"] = [{"refId": "A", "queryType": "executive_summary", "source": "strategy_payload"}]
+    summary_panel["options"] = {"mode": "markdown", "content": strategy.get("executive_summary", "")}
+    summary_panel["data"] = {
+        "answer": strategy.get("answer"),
+        "executive_summary": strategy.get("executive_summary"),
+        "graph_summary": strategy.get("graph_summary"),
+    }
+    panels.append(summary_panel)
+
+    dashboard_uid = uuid.uuid5(uuid.NAMESPACE_URL, f"{role_scope}:{question}:{len(panels)}").hex[:12]
+    return {
+        "uid": f"rovi-{dashboard_uid}",
+        "title": short_text(f"ROVI Strategy - {question}", 90),
+        "description": "Dashboard dinamico generado por el Asistente Estratega de ROVI.",
+        "tags": ["rovi", "ai", "strategy", "graphify", role_scope],
+        "timezone": "browser",
+        "schemaVersion": 39,
+        "version": 1,
+        "editable": True,
+        "style": "dark",
+        "time": {"from": "now-30d", "to": "now"},
+        "refresh": "5m",
+        "templating": {
+            "list": [
+                {
+                    "name": "role_scope",
+                    "type": "constant",
+                    "query": role_scope,
+                    "current": {"text": role_scope, "value": role_scope},
+                },
+                {
+                    "name": "question",
+                    "type": "textbox",
+                    "query": question,
+                    "current": {"text": question, "value": question},
+                },
+            ]
+        },
+        "annotations": {"list": []},
+        "links": [],
+        "panels": panels,
+        "meta": {
+            "generated_by": "ROVI Strategy Playground",
+            "source_pattern": "grafana_dashboard_model",
+            "role_scope": role_scope,
+            "graph_nodes": len(graph.get("nodes", [])),
+            "chart_count": len(charts),
+            "kpi_count": len(kpis),
+        },
+    }
+
+
+def graphify_strategy_context(question: str, max_nodes: int = 18, max_links: int = 28) -> dict:
+    try:
+        graph_path = resolve_rovi_workspace_graph_path()
+        graph_data = json.loads(graph_path.read_text())
+    except Exception:
+        return {"available": False, "nodes": [], "links": [], "summary": "Graphify no disponible."}
+
+    nodes = graph_data.get("nodes") or []
+    links = graph_data.get("links") or graph_data.get("edges") or []
+    degree: dict[str, int] = {}
+    for link in links:
+        source = link.get("source")
+        target = link.get("target")
+        degree[source] = degree.get(source, 0) + 1
+        degree[target] = degree.get(target, 0) + 1
+
+    query_terms = normalize_terms(
+        f"{question} estrategia negocio ruta critica revenue agentes roles marketplace copim crm workspace database"
+    )
+    scored = []
+    for node in nodes:
+        node_id = node.get("id")
+        label = str(node.get("label") or "")
+        source = normalize_source_path(node.get("source_file") or node.get("file") or "")
+        haystack = normalize_terms(f"{label} {source} {node_id}")
+        overlap = len(query_terms.intersection(haystack))
+        structural_score = min(degree.get(node_id, 0), 12) / 4
+        source_bonus = 2 if source.startswith(("docs/", "backend/", "frontend/src/pages/")) else 0
+        score = overlap * 3 + structural_score + source_bonus
+        if score > 1:
+            scored.append((score, node))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    selected = scored[:max_nodes]
+    selected_ids = {node.get("id") for _, node in selected}
+    selected_links = [
+        link for link in links
+        if link.get("source") in selected_ids and link.get("target") in selected_ids
+    ][:max_links]
+
+    graph_nodes = [
+        {
+            "id": node.get("id"),
+            "label": node.get("label") or node.get("id"),
+            "source": normalize_source_path(node.get("source_file") or node.get("file") or ""),
+            "type": node.get("file_type") or "node",
+            "community": node.get("community"),
+            "score": round(score, 2),
+        }
+        for score, node in selected
+    ]
+    graph_links = [
+        {
+            "source": link.get("source"),
+            "target": link.get("target"),
+            "relation": link.get("relation") or "relacion",
+            "confidence": link.get("confidence") or "EXTRACTED",
+        }
+        for link in selected_links
+    ]
+    summary_lines = [
+        f"- {node['label']} [{node['type']}] ({node['source']})"
+        for node in graph_nodes[:10]
+    ]
+    return {
+        "available": True,
+        "graph_path": str(graph_path),
+        "nodes": graph_nodes,
+        "links": graph_links,
+        "summary": "\n".join(summary_lines),
+    }
+
+
+async def aggregate_count_by(db: AsyncIOMotorDatabase, collection: str, match: dict, field: str, limit: int = 8) -> list[dict]:
+    rows = await db[collection].aggregate([
+        {"$match": match},
+        {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": limit},
+    ]).to_list(limit)
+    return [{"label": item.get("_id") or "Sin dato", "value": item.get("count", 0)} for item in rows]
+
+
+async def build_strategy_metrics(db: AsyncIOMotorDatabase, current_user: dict, role_scope: str) -> dict:
+    tenant_id = current_user.get("tenant_id")
+    charts = []
+    kpis = []
+    context: dict[str, Any] = {"tenant_id": tenant_id, "role_scope": role_scope}
+
+    if role_scope.startswith("rovi_"):
+        prospect_query = {"tenant_id": ROVI_INTERNAL_TENANT_ID}
+        prospects = serialize_docs(await db.rovi_prospects.find(prospect_query, {"_id": 0}).limit(1000).to_list(1000))
+        active = [item for item in prospects if item.get("stage") != "perdido"]
+        weighted_mrr = round(sum(float(item.get("weighted_mrr_mxn") or 0) for item in active), 2)
+        expected_mrr = round(sum(float(item.get("expected_mrr_mxn") or 0) for item in active), 2)
+        demos = len([item for item in prospects if item.get("stage") in {"demo_agendada", "demo_completada"}])
+        kpis.extend([
+            {"label": "Prospectos activos", "value": len(active), "tone": "primary", "description": "Pipeline ROVI sin perdidos."},
+            {"label": "MRR ponderado", "value": weighted_mrr, "format": "currency", "tone": "success", "description": "Valor estimado por probabilidad."},
+            {"label": "MRR potencial", "value": expected_mrr, "format": "currency", "tone": "primary", "description": "MRR esperado del pipeline activo."},
+            {"label": "Demos", "value": demos, "tone": "warning", "description": "Demos agendadas o completadas."},
+        ])
+        stage_data = await aggregate_count_by(db, "rovi_prospects", prospect_query, "stage")
+        source_data = await aggregate_count_by(db, "rovi_prospects", prospect_query, "source")
+        charts.extend([
+            {"id": "rovi_stage", "title": "Pipeline ROVI por etapa", "type": "bar", "data": stage_data},
+            {"id": "rovi_source", "title": "Fuentes ROVI", "type": "bar", "data": source_data},
+        ])
+        context["rovi_prospects"] = prospects[:12]
+
+    lead_query = build_lead_query(current_user)
+    lead_total = await db.leads.count_documents(lead_query)
+    if lead_total:
+        status_data = await aggregate_count_by(db, "leads", lead_query, "status")
+        source_data = await aggregate_count_by(db, "leads", lead_query, "source")
+        priority_data = await aggregate_count_by(db, "leads", lead_query, "priority")
+        high_priority = await db.leads.count_documents({**lead_query, "priority": "alta"})
+        budget_pipeline = await db.leads.aggregate([
+            {"$match": lead_query},
+            {"$group": {"_id": None, "budget": {"$sum": {"$ifNull": ["$budget_mxn", 0]}}}},
+        ]).to_list(1)
+        budget_total = round(float((budget_pipeline[0] if budget_pipeline else {}).get("budget") or 0), 2)
+        kpis.extend([
+            {"label": "Leads", "value": lead_total, "tone": "primary", "description": "Leads visibles para este usuario."},
+            {"label": "Alta prioridad", "value": high_priority, "tone": "warning", "description": "Leads con prioridad alta."},
+            {"label": "Pipeline estimado", "value": budget_total, "format": "currency", "tone": "success", "description": "Suma de presupuesto MXN."},
+        ])
+        charts.extend([
+            {"id": "lead_status", "title": "Leads por estado", "type": "bar", "data": status_data},
+            {"id": "lead_source", "title": "Leads por fuente", "type": "bar", "data": source_data},
+            {"id": "lead_priority", "title": "Leads por prioridad", "type": "bar", "data": priority_data},
+        ])
+        leads = await db.leads.find(lead_query, {"_id": 0, "name": 1, "status": 1, "priority": 1, "source": 1, "budget_mxn": 1}).sort("updated_at", -1).limit(10).to_list(10)
+        context["recent_leads"] = serialize_docs(leads)
+
+    if role_scope.startswith("copim"):
+        member_count = await db.copim_members.count_documents({"tenant_id": tenant_id})
+        invoice_count = await db.copim_invoices.count_documents({"tenant_id": tenant_id})
+        event_count = await db.copim_events.count_documents({"tenant_id": tenant_id})
+        kpis.extend([
+            {"label": "Socios COPIM", "value": member_count, "tone": "primary", "description": "Miembros en el tenant."},
+            {"label": "Facturas", "value": invoice_count, "tone": "warning", "description": "Cobranza registrada."},
+            {"label": "Eventos", "value": event_count, "tone": "success", "description": "Eventos del ecosistema."},
+        ])
+
+    marketplace_count = await db.marketplace_listings.count_documents({"status": "published"})
+    context["marketplace_published"] = marketplace_count
+    kpis.append({"label": "Marketplace", "value": marketplace_count, "tone": "primary", "description": "Listings publicados."})
+
+    return {"kpis": kpis[:8], "charts": charts[:6], "context": context}
+
+
+def default_strategy_payload(question: str, role_scope: str, metrics: dict, graph: dict, ai_payload: dict | None = None) -> dict:
+    payload = ai_payload or {}
+    kpis = payload.get("kpis") if isinstance(payload.get("kpis"), list) else metrics.get("kpis", [])
+    action_plan = payload.get("action_plan") if isinstance(payload.get("action_plan"), list) else []
+    if not action_plan:
+        action_plan = [
+            {
+                "title": "Alinear pregunta estrategica con datos accionables",
+                "owner": ROLE_LABELS.get(role_scope, role_scope),
+                "priority": "alta",
+                "next_step": "Convertir el objetivo en 3 KPIs y revisar los charts sugeridos.",
+                "impact": "Reduce ambiguedad y acelera decisiones.",
+            },
+            {
+                "title": "Identificar cuello de botella principal",
+                "owner": "Revenue Ops",
+                "priority": "media",
+                "next_step": "Comparar etapa/fuente con menor avance y asignar responsable.",
+                "impact": "Enfoca la siguiente accion comercial.",
+            },
+            {
+                "title": "Transferir aprendizaje a agentes por rol",
+                "owner": "AI Control Tower",
+                "priority": "media",
+                "next_step": "Crear o ajustar prompts de rol con el insight validado.",
+                "impact": "Convierte estrategia en ejecucion repetible.",
+            },
+        ]
+
+    critical_path = payload.get("critical_path") if isinstance(payload.get("critical_path"), list) else []
+    if not critical_path:
+        critical_path = [
+            {"step": "Diagnostico", "why": "Entender brecha entre meta y datos actuales.", "metric": "KPIs visibles", "urgency": "alta"},
+            {"step": "Priorizacion", "why": "Elegir el cuello de botella con mayor impacto.", "metric": "Pipeline/fuente/estado", "urgency": "alta"},
+            {"step": "Orquestacion", "why": "Enviar contexto al agente especialista correcto.", "metric": "Handoff por rol", "urgency": "media"},
+            {"step": "Ejecucion", "why": "Convertir insight en tareas y seguimiento.", "metric": "Acciones completadas", "urgency": "media"},
+        ]
+
+    handoffs = payload.get("agent_handoffs") if isinstance(payload.get("agent_handoffs"), list) else []
+    if not handoffs:
+        handoffs = [
+            {"role_scope": "rovi_sales", "mission": "Traducir insight a siguiente accion comercial.", "context": "Pipeline, fuente y oportunidad prioritaria."},
+            {"role_scope": "rovi_marketing", "mission": "Ajustar fuente, mensaje o campana.", "context": "Charts de fuentes y segmentos."},
+            {"role_scope": "rovi_ops", "mission": "Auditar datos, prompts y automatizaciones.", "context": "Knowledge graph y calidad de datos."},
+        ]
+
+    strategy = {
+        "answer": short_text(payload.get("answer")) or "Analisis estrategico generado con datos seguros del CRM y contexto Graphify.",
+        "executive_summary": short_text(payload.get("executive_summary"), 420) or f"Ruta critica para: {question}",
+        "kpis": kpis,
+        "charts": metrics.get("charts", []),
+        "critical_path": critical_path[:6],
+        "action_plan": action_plan[:6],
+        "agent_handoffs": handoffs[:6],
+        "knowledge_graph": {"nodes": graph.get("nodes", []), "links": graph.get("links", [])},
+        "graph_summary": graph.get("summary", ""),
+    }
+    strategy["dashboard"] = build_grafana_strategy_dashboard(question, role_scope, strategy, metrics, graph)
+    return strategy
+
+
+def build_strategy_prompt(question: str, role_scope: str, metrics: dict, graph: dict, knowledge_chunks: list[dict]) -> list[dict]:
+    knowledge = [
+        {"title": chunk.get("title"), "content": short_text(chunk.get("content"), 900)}
+        for chunk in knowledge_chunks[:5]
+    ]
+    system = """Actua como el Asistente Estratega de ROVI CRM.
+Tu trabajo es convertir datos, knowledge graph y contexto operativo en ruta critica accionable.
+Responde SOLO JSON valido, sin markdown, con este contrato:
+{
+  "answer": "respuesta breve",
+  "executive_summary": "resumen ejecutivo",
+  "critical_path": [{"step":"", "why":"", "metric":"", "urgency":"alta|media|baja"}],
+  "kpis": [{"label":"", "value":0, "format":"number|currency", "tone":"primary|success|warning|danger", "description":""}],
+  "action_plan": [{"title":"", "owner":"", "priority":"alta|media|baja", "next_step":"", "impact":""}],
+  "agent_handoffs": [{"role_scope":"", "mission":"", "context":""}]
+}
+No inventes datos. Si falta informacion, dilo y convierte la incertidumbre en una accion de validacion."""
+    user = {
+        "question": question,
+        "role_scope": role_scope,
+        "crm_metrics": metrics.get("context", {}),
+        "available_kpis": metrics.get("kpis", []),
+        "available_charts": metrics.get("charts", []),
+        "graphify_nodes": graph.get("nodes", [])[:14],
+        "graphify_summary": graph.get("summary", ""),
+        "knowledge_chunks": knowledge,
+    }
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+    ]
+
+
+async def run_strategy_playground(
+    db: AsyncIOMotorDatabase,
+    request: StrategyRunRequest,
+    current_user: dict,
+) -> dict:
+    question = request.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="La pregunta estrategica es obligatoria.")
+
+    role_scope = request.role_scope or resolve_role_scope(current_user)
+    if role_scope not in ROLE_SCOPES:
+        role_scope = resolve_role_scope(current_user)
+
+    config = await resolve_agent_config(db, role_scope)
+    metrics = await build_strategy_metrics(db, current_user, role_scope)
+    graph = graphify_strategy_context(question)
+    knowledge_chunks = await find_relevant_knowledge(db, role_scope, question, limit=6)
+    messages = build_strategy_prompt(question, role_scope, metrics, graph, knowledge_chunks)
+    run_id = f"strategy-run-{uuid.uuid4()}"
+    started = time.perf_counter()
+    success = True
+    error = None
+    raw_response = ""
+    ai_payload: dict = {}
+    provider_usage = {}
+
+    try:
+        model_response = await call_model(messages, config, f"strategy-{role_scope}-{current_user.get('user_id')}")
+        raw_response = model_response.get("content", "")
+        provider_usage = model_response.get("usage") or {}
+        ai_payload = parse_strategy_json(raw_response)
+    except Exception as exc:
+        success = False
+        error = str(exc)
+
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    strategy = default_strategy_payload(question, role_scope, metrics, graph, ai_payload)
+    input_tokens = provider_usage.get("input_tokens") or estimate_tokens(str(messages))
+    output_tokens = provider_usage.get("output_tokens") or estimate_tokens(raw_response or strategy.get("executive_summary"))
+
+    run_doc = {
+        "id": run_id,
+        "tenant_id": current_user.get("tenant_id"),
+        "user_id": current_user.get("user_id"),
+        "role_scope": role_scope,
+        "config_id": config.get("id"),
+        "source": "strategy_playground",
+        "message": question,
+        "response": strategy.get("executive_summary"),
+        "context_summary": {
+            "graph_nodes": len(graph.get("nodes", [])),
+            "knowledge_chunks": len(knowledge_chunks),
+            "charts": len(metrics.get("charts", [])),
+        },
+        "success": success,
+        "error": error,
+        "latency_ms": latency_ms,
+        "created_at": now_iso(),
+    }
+    await db.agent_runs.insert_one(run_doc)
+    usage_event = await record_agent_usage(
+        db,
+        run_id=run_id,
+        config=config,
+        current_user=current_user,
+        role_scope=role_scope,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=latency_ms,
+        success=success,
+        error=error,
+    )
+
+    return {
+        "success": True,
+        "ai_success": success,
+        "role_scope": role_scope,
+        "strategy": strategy,
+        "run": serialize_doc(run_doc),
+        "usage": serialize_doc(usage_event),
+        "config": public_config(config),
+        "knowledge_sources": [
+            {"file_id": chunk.get("file_id"), "title": chunk.get("title"), "chunk_index": chunk.get("chunk_index")}
+            for chunk in knowledge_chunks
+        ],
+        "provider_error": error,
+    }
+
+
 async def extract_text_from_upload(file: UploadFile) -> tuple[bytes, str]:
     data = await file.read()
     suffix = os.path.splitext(file.filename or "")[1].lower()
 
     if suffix in {".txt", ".md", ".csv", ".json", ".html", ".xml"}:
         return data, data.decode("utf-8", errors="ignore")
+
+    if suffix in {".xlsx", ".xls"}:
+        try:
+            import io
+            import pandas as pd  # type: ignore
+
+            workbook = pd.ExcelFile(io.BytesIO(data))
+            sections = []
+            for sheet_name in workbook.sheet_names[:12]:
+                frame = pd.read_excel(workbook, sheet_name=sheet_name, dtype=str).fillna("")
+                if frame.empty:
+                    continue
+                sections.append(f"# Sheet: {sheet_name}")
+                sections.append("Columns: " + ", ".join(str(column) for column in frame.columns))
+                for index, row in frame.head(200).iterrows():
+                    values = [
+                        f"{column}={str(value).strip()}"
+                        for column, value in row.items()
+                        if str(value).strip()
+                    ]
+                    if values:
+                        sections.append(f"Row {index + 1}: " + " | ".join(values))
+            return data, "\n".join(sections) or "XLSX cargado sin filas legibles."
+        except Exception as exc:
+            return data, f"XLSX cargado. No se pudo extraer texto automaticamente: {exc}"
 
     if suffix == ".pdf":
         try:
@@ -1111,5 +1899,9 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
     @router.post("/ai-agent/run")
     async def run_runtime_agent(payload: AgentRunRequest, current_user: dict = Depends(get_current_user)):
         return await run_agent_turn(db, payload, current_user, source="runtime")
+
+    @router.post("/strategy-playground/run")
+    async def run_strategy_playground_route(payload: StrategyRunRequest, current_user: dict = Depends(get_current_user)):
+        return await run_strategy_playground(db, payload, current_user)
 
     return router
