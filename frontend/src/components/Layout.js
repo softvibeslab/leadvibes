@@ -4,13 +4,16 @@ import { Sidebar } from './Sidebar';
 import { AIChat } from './AIChat';
 import { RealtimeNotifications } from './RealtimeNotifications';
 import { useAuth } from '../context/AuthContext';
+import { getEffectiveRole, isCopimAccount, isCopimRole } from '../lib/copimAccess';
 import { Menu } from 'lucide-react';
 import { Button } from './ui/button';
 
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const { isCopimMode } = useAuth();
+  const { isCopimMode, user } = useAuth();
+  const effectiveRole = getEffectiveRole(user);
+  const showFloatingAgent = !isCopimMode || isCopimRole(effectiveRole) || isCopimAccount(user);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -70,7 +73,7 @@ export const Layout = () => {
       </main>
       
       {/* AI Chat Widget */}
-      {!isCopimMode ? <AIChat /> : null}
+      {showFloatingAgent ? <AIChat /> : null}
     </div>
   );
 };

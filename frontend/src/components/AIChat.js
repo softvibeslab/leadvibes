@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getEffectiveRole, getRoleLabel, isCopimAccount, isCopimRole } from '../lib/copimAccess';
 import { Send, MessageCircle, X, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -7,7 +8,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 
 export const AIChat = () => {
-  const { api } = useAuth();
+  const { api, user, isCopimMode } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -15,12 +16,66 @@ export const AIChat = () => {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const effectiveRole = getEffectiveRole(user);
+  const isCopimAgent = isCopimMode && (isCopimRole(effectiveRole) || isCopimAccount(user));
+
+  const agentCopy = useMemo(() => {
+    if (!isCopimAgent) {
+      return {
+        title: 'Asistente IA',
+        subtitle: 'Rovi CRM',
+        greeting: '¡Hola! Soy tu asistente de ventas. ¿En qué puedo ayudarte?',
+        placeholder: 'Escribe tu mensaje...',
+        quickPrompts: [
+          '¿Cómo va mi meta de ventas?',
+          '¿Qué lead debo contactar primero?',
+          'Dame un tip de ventas',
+        ],
+      };
+    }
+
+    const rolePrompts = {
+      copim_admin: [
+        'Resume los KPIs nacionales de COPIM',
+        '¿Qué asociaciones requieren atención?',
+        '¿Qué producto del marketplace conviene impulsar?',
+      ],
+      copim_operator: [
+        '¿Qué socios locales necesitan seguimiento?',
+        'Resume cobranza, eventos y cursos pendientes',
+        'Dame una acción para activar el marketplace local',
+      ],
+      copim_member: [
+        '¿Cómo puedo mejorar mi perfil profesional?',
+        '¿Qué cursos o eventos me convienen?',
+        'Recomiéndame recursos del marketplace',
+      ],
+    };
+
+    return {
+      title: 'Agente COPIM',
+      subtitle: getRoleLabel(effectiveRole),
+      greeting: 'Hola, soy tu agente COPIM. Puedo ayudarte con socios, cursos, eventos, marketplace y prioridades institucionales.',
+      placeholder: 'Pregunta sobre COPIM...',
+      quickPrompts: rolePrompts[effectiveRole] || rolePrompts.copim_admin,
+    };
+  }, [effectiveRole, isCopimAgent]);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const response = await api.get('/chat/history?limit=30');
+      setMessages(response.data);
+      setHistoryLoaded(true);
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  }, [api]);
 
   useEffect(() => {
     if (isOpen && !historyLoaded) {
       loadHistory();
     }
-  }, [isOpen]);
+  }, [historyLoaded, isOpen, loadHistory]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -33,16 +88,6 @@ export const AIChat = () => {
       inputRef.current.focus();
     }
   }, [isOpen]);
-
-  const loadHistory = async () => {
-    try {
-      const response = await api.get('/chat/history?limit=30');
-      setMessages(response.data);
-      setHistoryLoaded(true);
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-    }
-  };
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -72,12 +117,6 @@ export const AIChat = () => {
     }
   };
 
-  const quickPrompts = [
-    '¿Cómo va mi meta de ventas?',
-    '¿Qué lead debo contactar primero?',
-    'Dame un tip de ventas',
-  ];
-
   return (
     <>
       {/* Floating button */}
@@ -103,8 +142,8 @@ export const AIChat = () => {
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">Asistente IA</h3>
-                <p className="text-xs opacity-80">Rovi CRM</p>
+                <h3 className="font-semibold text-sm">{agentCopy.title}</h3>
+                <p className="text-xs opacity-80">{agentCopy.subtitle}</p>
               </div>
             </div>
             <Button
@@ -124,10 +163,10 @@ export const AIChat = () => {
               <div className="text-center py-8">
                 <Sparkles className="w-12 h-12 mx-auto text-primary/50 mb-3" />
                 <p className="text-sm text-muted-foreground mb-4">
-                  ¡Hola! Soy tu asistente de ventas. ¿En qué puedo ayudarte?
+                  {agentCopy.greeting}
                 </p>
                 <div className="space-y-2">
-                  {quickPrompts.map((prompt, idx) => (
+                  {agentCopy.quickPrompts.map((prompt, idx) => (
                     <button
                       key={idx}
                       onClick={() => setInput(prompt)}
@@ -186,7 +225,7 @@ export const AIChat = () => {
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Escribe tu mensaje..."
+                placeholder={agentCopy.placeholder}
                 className="flex-1 rounded-full bg-muted/50"
                 disabled={loading}
                 data-testid="ai-chat-input"
