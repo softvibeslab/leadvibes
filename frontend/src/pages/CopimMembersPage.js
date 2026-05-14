@@ -68,6 +68,26 @@ const credentialTone = {
 
 const safeArray = (value) => (Array.isArray(value) ? value : []);
 
+const formatMemberStatusLabel = (status) => ({
+  active: 'Activo',
+  pending: 'Pendiente',
+  suspended: 'Suspendido',
+}[status] || status || 'Sin estatus');
+
+const formatCredentialStatusLabel = (status) => ({
+  issued: 'Emitida',
+  pending: 'Pendiente',
+  blocked: 'Bloqueada',
+}[status] || status || 'Sin credencial');
+
+const formatMembershipTierLabel = (tier) => ({
+  annual: 'Anual',
+  monthly: 'Mensual',
+  base: 'Base',
+  pro: 'Pro',
+  premium: 'Premium',
+}[tier] || tier || 'Sin plan');
+
 export const CopimMembersPage = () => {
   const { api } = useAuth();
   const navigate = useNavigate();
@@ -656,97 +676,120 @@ export const CopimMembersPage = () => {
           ))}
         </div>
       ) : (
-        <Card className="border-border/70 bg-card/95">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Socio</TableHead>
-                <TableHead>Asociación</TableHead>
-                <TableHead>Estatus</TableHead>
-                <TableHead>Credencial</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Completitud</TableHead>
-                <TableHead>Saldo</TableHead>
-                <TableHead>Directorio</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id} className={focusMemberId === member.id ? 'bg-primary/5' : ''}>
-                  <TableCell>
-                    <CopimMemberIdentity
-                      name={member.full_name}
-                      subtitle={member.email}
-                      avatarUrl={member.avatar_url}
-                    />
-                  </TableCell>
-                  <TableCell>{member.association_name}</TableCell>
-                  <TableCell>
-                    <Badge className={`capitalize ${memberTone[member.member_status] || 'bg-slate-200 text-slate-900'}`}>
-                      {member.member_status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={`capitalize ${credentialTone[member.credential_status] || 'bg-slate-200 text-slate-900'}`}>
-                      {member.credential_status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="capitalize">{member.membership_tier}</TableCell>
-                  <TableCell className="w-[170px]">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span>{member.profile_completion || 0}%</span>
-                      </div>
-                      <Progress value={member.profile_completion || 0} />
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatCopimCurrency(member.amount_due)}</TableCell>
-                  <TableCell>{member.directory_visible ? 'Visible' : 'Privado'}</TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openDetailSheet(member)}>
-                        Ver ficha
-                      </Button>
-                      {member.member_status === 'pending' ? (
-                        <Button size="sm" variant="outline" onClick={() => approveMember(member)}>
-                          <UserCheck className="mr-2 h-4 w-4" />
-                          Aprobar
-                        </Button>
-                      ) : null}
-                      {member.member_status === 'pending' ? (
-                        <Button size="sm" variant="ghost" onClick={() => requestInformation(member)}>
-                          Solicitar info
-                        </Button>
-                      ) : null}
-                      {!member.portal_access_enabled ? (
-                        <Button size="sm" variant="ghost" onClick={() => provisionPortalAccess(member)}>
-                          Portal
-                        </Button>
-                      ) : null}
-                      {member.credential_status !== 'issued' ? (
-                        <Button size="sm" variant="outline" onClick={() => issueCredential(member)}>
-                          <BadgeCheck className="mr-2 h-4 w-4" />
-                          Credencial
-                        </Button>
-                      ) : null}
-                      <Button size="sm" variant="outline" onClick={() => openEditDialog(member)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Editar
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => toggleMemberStatus(member)}>
-                        {member.member_status === 'suspended' ? 'Reactivar' : 'Suspender'}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteMember(member)}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Eliminar
-                      </Button>
-                    </div>
-                  </TableCell>
+        <Card className="overflow-hidden border-border/70 bg-card/95">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1120px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[420px]">Socio</TableHead>
+                  <TableHead className="w-[330px]">Estado operativo</TableHead>
+                  <TableHead className="w-[170px]">Completitud</TableHead>
+                  <TableHead className="w-[130px]">Saldo</TableHead>
+                  <TableHead className="min-w-[420px] text-right">Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id} className={focusMemberId === member.id ? 'bg-primary/5' : ''}>
+                    <TableCell className="align-top">
+                      <div className="min-w-[360px] space-y-2 py-2">
+                        <CopimMemberIdentity
+                          name={member.full_name}
+                          subtitle={member.email}
+                          avatarUrl={member.avatar_url}
+                          size="lg"
+                          textClassName="max-w-[290px]"
+                          subtitleClassName="text-sm"
+                        />
+                        <div className="ml-[60px] flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {member.company_name ? (
+                            <span className="max-w-[180px] truncate">{member.company_name}</span>
+                          ) : null}
+                          {member.specialty ? (
+                            <span className="max-w-[180px] truncate">{member.specialty}</span>
+                          ) : null}
+                          {member.city ? <span>{member.city}</span> : null}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="space-y-2 py-2">
+                        <div>
+                          <p className="font-medium text-foreground">{member.association_name || 'Sin asociación'}</p>
+                          <p className="text-xs text-muted-foreground">{member.city || 'Sin ciudad registrada'}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge className={memberTone[member.member_status] || 'bg-slate-200 text-slate-900'}>
+                            {formatMemberStatusLabel(member.member_status)}
+                          </Badge>
+                          <Badge className={credentialTone[member.credential_status] || 'bg-slate-200 text-slate-900'}>
+                            {formatCredentialStatusLabel(member.credential_status)}
+                          </Badge>
+                          <Badge variant="outline">
+                            {formatMembershipTierLabel(member.membership_tier)}
+                          </Badge>
+                          <Badge variant="outline">
+                            {member.directory_visible ? 'Directorio visible' : 'Directorio privado'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="w-[170px] align-top">
+                      <div className="space-y-2 py-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span>{member.profile_completion || 0}%</span>
+                        </div>
+                        <Progress value={member.profile_completion || 0} />
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="py-2">{formatCopimCurrency(member.amount_due)}</div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="ml-auto flex max-w-[520px] flex-wrap justify-end gap-2 py-2">
+                        <Button className="shrink-0" size="sm" variant="outline" onClick={() => openDetailSheet(member)}>
+                          Ver ficha
+                        </Button>
+                        {member.member_status === 'pending' ? (
+                          <Button className="shrink-0" size="sm" variant="outline" onClick={() => approveMember(member)}>
+                            <UserCheck className="mr-2 h-4 w-4" />
+                            Aprobar
+                          </Button>
+                        ) : null}
+                        {member.member_status === 'pending' ? (
+                          <Button className="shrink-0" size="sm" variant="ghost" onClick={() => requestInformation(member)}>
+                            Solicitar info
+                          </Button>
+                        ) : null}
+                        {!member.portal_access_enabled ? (
+                          <Button className="shrink-0" size="sm" variant="ghost" onClick={() => provisionPortalAccess(member)}>
+                            Portal
+                          </Button>
+                        ) : null}
+                        {member.credential_status !== 'issued' ? (
+                          <Button className="shrink-0" size="sm" variant="outline" onClick={() => issueCredential(member)}>
+                            <BadgeCheck className="mr-2 h-4 w-4" />
+                            Credencial
+                          </Button>
+                        ) : null}
+                        <Button className="shrink-0" size="sm" variant="outline" onClick={() => openEditDialog(member)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Editar
+                        </Button>
+                        <Button className="shrink-0" size="sm" variant="ghost" onClick={() => toggleMemberStatus(member)}>
+                          {member.member_status === 'suspended' ? 'Reactivar' : 'Suspender'}
+                        </Button>
+                        <Button className="shrink-0" size="sm" variant="ghost" onClick={() => deleteMember(member)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </Card>
       )}
 
