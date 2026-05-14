@@ -44,8 +44,8 @@ services:
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
 
-      # CORS - Acepta ambos puertos
-      CORS_ORIGINS: ${CORS_ORIGINS_PREVIEW:-http://localhost:3001,http://31.220.63.211:3001}
+      # CORS - Preview only
+      CORS_ORIGINS: ${CORS_ORIGINS_PREVIEW:-http://localhost:3200,http://31.220.63.211:3200,http://preview.srv1318804.hstgr.cloud,https://preview.srv1318804.hstgr.cloud}
 
       # Environment
       ENVIRONMENT: ${ENVIRONMENT:-preview}
@@ -54,12 +54,14 @@ services:
       - ./backend:/app
       - backend_preview_uploads:/app/uploads
     ports:
-      - "8001:8000"
+      - "8200:8000"
     depends_on:
       mongodb-preview:
         condition: service_healthy
     networks:
-      - rovi-preview-network
+      rovi-preview-network:
+        aliases:
+          - rovi-backend
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
@@ -73,11 +75,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://31.220.63.211:8001
+        REACT_APP_BACKEND_URL: ""
+        REACT_APP_ENVIRONMENT: preview
     container_name: rovi-frontend-preview
     restart: always
     ports:
-      - "3001:80"
+      - "3200:80"
     depends_on:
       backend-preview:
         condition: service_healthy
