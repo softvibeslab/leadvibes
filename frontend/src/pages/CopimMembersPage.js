@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Checkbox } from '../components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -96,12 +97,16 @@ export const CopimMembersPage = () => {
   const [associations, setAssociations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [portalDialogOpen, setPortalDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedSummary, setSelectedSummary] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [portalSelectedIds, setPortalSelectedIds] = useState([]);
+  const [portalProvisioning, setPortalProvisioning] = useState(false);
+  const [portalResults, setPortalResults] = useState([]);
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
   const [associationFilter, setAssociationFilter] = useState(() => searchParams.get('association') || 'all');
@@ -211,6 +216,16 @@ export const CopimMembersPage = () => {
     portalEnabled: members.filter((item) => item.portal_access_enabled).length,
   }), [members]);
 
+  const portalEligibleMembers = useMemo(
+    () => members.filter((member) => member.email && !member.portal_access_enabled),
+    [members],
+  );
+  const portalSelectedSet = useMemo(() => new Set(portalSelectedIds), [portalSelectedIds]);
+  const portalSuccessResults = useMemo(
+    () => portalResults.filter((result) => result.status === 'success'),
+    [portalResults],
+  );
+
   const availableCities = useMemo(() => Array.from(new Set(members.map((member) => member.city).filter(Boolean))).sort(), [members]);
   const availableSpecialties = useMemo(() => Array.from(new Set(members.map((member) => member.specialty).filter(Boolean))).sort(), [members]);
 
@@ -260,6 +275,21 @@ export const CopimMembersPage = () => {
     setEditingMember(null);
     setForm(EMPTY_FORM);
     setDialogOpen(true);
+  };
+
+  const openPortalAccessDialog = () => {
+    setPortalResults([]);
+    setPortalSelectedIds(portalEligibleMembers.map((member) => member.id));
+    setPortalDialogOpen(true);
+  };
+
+  const togglePortalSelection = (memberId, checked) => {
+    setPortalSelectedIds((current) => {
+      if (checked) {
+        return Array.from(new Set([...current, memberId]));
+      }
+      return current.filter((id) => id !== memberId);
+    });
   };
 
   const openEditDialog = (member) => {
@@ -407,6 +437,72 @@ export const CopimMembersPage = () => {
     }
   };
 
+  const provisionSelectedPortalAccess = async () => {
+    const selectedMembers = portalEligibleMembers.filter((member) => portalSelectedSet.has(member.id));
+    if (!selectedMembers.length) {
+      toast.error('Selecciona al menos un socio sin portal activo');
+      return;
+    }
+
+    setPortalProvisioning(true);
+    setPortalResults([]);
+    const results = [];
+
+    for (const member of selectedMembers) {
+      try {
+        const response = await api.post(`/copim/members/${member.id}/provision-portal-access`);
+        const credentials = response.data?.credentials || {};
+        results.push({
+          id: member.id,
+          name: member.full_name,
+          email: credentials.email || member.email,
+          temporary_password: credentials.temporary_password || 'demo123',
+          created: Boolean(credentials.created),
+          status: 'success',
+        });
+      } catch (error) {
+        results.push({
+          id: member.id,
+          name: member.full_name,
+          email: member.email,
+          message: error.response?.data?.detail || 'No se pudo activar',
+          status: 'error',
+        });
+      }
+    }
+
+    const successful = results.filter((result) => result.status === 'success');
+    const failed = results.filter((result) => result.status === 'error');
+
+    if (successful.length && navigator?.clipboard?.writeText) {
+      const credentialsText = successful
+        .map((result) => `${result.name} | ${result.email} / ${result.temporary_password}`)
+        .join('\n');
+      try {
+        await navigator.clipboard.writeText(credentialsText);
+      } catch (error) {
+        console.warn('No se pudieron copiar las credenciales masivas:', error);
+      }
+    }
+
+    setPortalResults(results);
+    setPortalSelectedIds([]);
+    setPortalProvisioning(false);
+
+    if (successful.length) {
+      toast.success(`${successful.length} portal(es) activados. Credenciales copiadas si el navegador lo permitió.`);
+    }
+    if (failed.length) {
+      toast.error(`${failed.length} socio(s) no pudieron activarse`);
+    }
+
+    await refreshMembers();
+    if (selectedSummary?.member?.id && successful.some((result) => result.id === selectedSummary.member.id)) {
+      const summary = await api.get(`/copim/members/${selectedSummary.member.id}/summary`);
+      setSelectedSummary(summary.data);
+    }
+  };
+
   const toggleMemberStatus = async (member) => {
     const nextStatus = member.member_status === 'suspended' ? 'active' : 'suspended';
     try {
@@ -532,6 +628,15 @@ export const CopimMembersPage = () => {
                 Pipeline
               </Button>
             </div>
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={openPortalAccessDialog}
+            >
+              <UserCheck className="mr-2 h-4 w-4" />
+              Activar portal
+              {portalEligibleMembers.length ? ` (${portalEligibleMembers.length})` : ''}
+            </Button>
             <Button
               variant="outline"
               className="rounded-full"
@@ -910,6 +1015,133 @@ export const CopimMembersPage = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={saveMember} disabled={saving}>
               {saving ? 'Guardando...' : editingMember ? 'Actualizar socio' : 'Crear socio'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={portalDialogOpen}
+        onOpenChange={(open) => {
+          if (!portalProvisioning) {
+            setPortalDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Activar portal de miembros</DialogTitle>
+            <DialogDescription>
+              Selecciona socios importados para crearles usuario de portal. La contraseña temporal será demo123 y las credenciales exitosas se copian al portapapeles cuando el navegador lo permite.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid gap-3 md:grid-cols-3">
+              <Card className="border-border/70 bg-muted/20 shadow-none">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Sin portal</p>
+                  <p className="mt-2 text-3xl font-semibold">{portalEligibleMembers.length}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border/70 bg-muted/20 shadow-none">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Seleccionados</p>
+                  <p className="mt-2 text-3xl font-semibold">{portalSelectedIds.length}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border/70 bg-muted/20 shadow-none">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Activados ahora</p>
+                  <p className="mt-2 text-3xl font-semibold">{portalSuccessResults.length}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPortalSelectedIds(portalEligibleMembers.map((member) => member.id))}
+                disabled={!portalEligibleMembers.length || portalProvisioning}
+              >
+                Seleccionar todos visibles
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPortalSelectedIds([])}
+                disabled={!portalSelectedIds.length || portalProvisioning}
+              >
+                Limpiar selección
+              </Button>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 bg-background/60">
+              {!portalEligibleMembers.length ? (
+                <div className="p-5 text-sm text-muted-foreground">
+                  Todos los socios visibles ya tienen portal activo. Ajusta filtros si quieres revisar otra asociación o búsqueda.
+                </div>
+              ) : (
+                <div className="max-h-[360px] divide-y divide-border/70 overflow-y-auto">
+                  {portalEligibleMembers.map((member) => (
+                    <label key={member.id} className="flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-muted/40">
+                      <Checkbox
+                        checked={portalSelectedSet.has(member.id)}
+                        onCheckedChange={(checked) => togglePortalSelection(member.id, checked === true)}
+                        disabled={portalProvisioning}
+                      />
+                      <CopimMemberIdentity
+                        name={member.full_name}
+                        subtitle={member.email}
+                        avatarUrl={member.avatar_url}
+                        size="sm"
+                        textClassName="max-w-[260px]"
+                      />
+                      <div className="ml-auto text-right text-xs text-muted-foreground">
+                        <p className="font-medium text-foreground">{member.association_name || 'Sin asociación'}</p>
+                        <p>{member.company_name || member.specialty || member.city || 'Sin detalle adicional'}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {portalResults.length ? (
+              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                <p className="font-medium">Resultado de activación</p>
+                <div className="mt-3 max-h-[220px] space-y-2 overflow-y-auto text-sm">
+                  {portalResults.map((result) => (
+                    <div key={result.id} className="flex flex-col gap-1 rounded-xl border border-border/70 bg-background/70 p-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-medium">{result.name}</p>
+                        <p className="text-muted-foreground">{result.email}</p>
+                      </div>
+                      {result.status === 'success' ? (
+                        <Badge className="w-fit bg-emerald-100 text-emerald-900">
+                          Portal activo / {result.temporary_password}
+                        </Badge>
+                      ) : (
+                        <Badge className="w-fit bg-rose-100 text-rose-900">
+                          {result.message}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPortalDialogOpen(false)} disabled={portalProvisioning}>
+              Cerrar
+            </Button>
+            <Button onClick={provisionSelectedPortalAccess} disabled={portalProvisioning || !portalSelectedIds.length}>
+              {portalProvisioning ? 'Activando...' : `Activar ${portalSelectedIds.length} portal(es)`}
             </Button>
           </DialogFooter>
         </DialogContent>
