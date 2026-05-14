@@ -49,6 +49,8 @@ export const CopimMemberIdentity = ({
     sm: 'h-9 w-9',
     md: 'h-10 w-10',
     lg: 'h-12 w-12',
+    xl: 'h-20 w-20',
+    '2xl': 'h-28 w-28',
   };
 
   return (

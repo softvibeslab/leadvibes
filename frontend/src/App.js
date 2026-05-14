@@ -35,6 +35,7 @@ import { CopimDashboardDemoPage } from './pages/CopimDashboardDemoPage';
 import { CopimOverviewPage } from './pages/CopimOverviewPage';
 import { CopimAssociationsPage } from './pages/CopimAssociationsPage';
 import { CopimMembersPage } from './pages/CopimMembersPage';
+import { CopimMemberImportPage } from './pages/CopimMemberImportPage';
 import { CopimMembershipsPage } from './pages/CopimMembershipsPage';
 import { CopimInvoicesPage } from './pages/CopimInvoicesPage';
 import { CopimEventsPage } from './pages/CopimEventsPage';
@@ -463,6 +464,16 @@ function AppRoutes() {
             <CopimModuleRoute>
               <CopimAssociationRoute>
                 <CopimMembersPage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/copim/members/import"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <CopimMemberImportPage />
               </CopimAssociationRoute>
             </CopimModuleRoute>
           }

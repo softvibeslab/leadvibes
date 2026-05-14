@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect, Form
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
@@ -110,8 +111,11 @@ from import_optimization import execute_import_optimized, execute_import_with_ad
 from agent_control import AgentRunRequest, create_agent_control_router, run_agent_turn
 from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
+from copim_member_import import create_copim_member_import_router
 
 ROOT_DIR = Path(__file__).parent
+UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
@@ -121,6 +125,7 @@ db = client[os.environ['DB_NAME']]
 
 # Create the main app
 app = FastAPI(title="Rovi CRM API", version="1.0.0")
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -15137,6 +15142,18 @@ async def receive_external_lead_webhook(
 api_router.include_router(create_marketplace_router(db, analyze_lead))
 api_router.include_router(create_rovi_internal_router(db))
 api_router.include_router(create_agent_control_router(db))
+api_router.include_router(create_copim_member_import_router(
+    db,
+    require_copim_admin_workspace=require_copim_admin_workspace,
+    resolve_scoped_copim_association_id=resolve_scoped_copim_association_id,
+    fetch_copim_association_or_404=fetch_copim_association_or_404,
+    sync_copim_association_stats=sync_copim_association_stats,
+    sync_copim_member_financials=sync_copim_member_financials,
+    normalize_copim_validation_checklist=normalize_copim_validation_checklist,
+    build_copim_credential_id=build_copim_credential_id,
+    upload_dir=UPLOADS_DIR,
+    emit_import_realtime_events=emit_import_realtime_events,
+))
 app.include_router(api_router)
 
 app.add_middleware(

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, Building2, LayoutGrid, List, Mail, Pencil, Phone, Plus, ShieldCheck, Sparkles, Trash2, UserCheck, Users } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Building2, LayoutGrid, List, Mail, Pencil, Phone, Plus, ShieldCheck, Sparkles, Trash2, Upload, UserCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/ui/badge';
@@ -512,6 +512,16 @@ export const CopimMembersPage = () => {
                 Pipeline
               </Button>
             </div>
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => openOperationalRoute('/copim/members/import', {
+                association: associationFilter === 'all' ? null : associationFilter,
+              })}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Importar socios
+            </Button>
             <Button className="rounded-full" onClick={openCreateDialog}>
               <Plus className="mr-2 h-4 w-4" />
               Nuevo socio
@@ -562,7 +572,12 @@ export const CopimMembersPage = () => {
                           <Sparkles className="h-3.5 w-3.5" />
                           Portal del socio
                         </div>
-                        <CopimMemberIdentity name={member.full_name} subtitle={member.association_name || 'Sin asociación'} size="lg" />
+                        <CopimMemberIdentity
+                          name={member.full_name}
+                          subtitle={member.association_name || 'Sin asociación'}
+                          avatarUrl={member.avatar_url}
+                          size="lg"
+                        />
                       </div>
                       <Badge className={`capitalize ${memberTone[member.member_status] || 'bg-slate-200 text-slate-900'}`}>
                         {member.member_status}
@@ -660,7 +675,11 @@ export const CopimMembersPage = () => {
               {members.map((member) => (
                 <TableRow key={member.id} className={focusMemberId === member.id ? 'bg-primary/5' : ''}>
                   <TableCell>
-                    <CopimMemberIdentity name={member.full_name} subtitle={member.email} />
+                    <CopimMemberIdentity
+                      name={member.full_name}
+                      subtitle={member.email}
+                      avatarUrl={member.avatar_url}
+                    />
                   </TableCell>
                   <TableCell>{member.association_name}</TableCell>
                   <TableCell>
@@ -864,8 +883,19 @@ export const CopimMembersPage = () => {
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedSummary.member?.full_name}</DialogTitle>
-                <DialogDescription>
+                <DialogTitle asChild>
+                  <div className="pr-8">
+                    <CopimMemberIdentity
+                      name={selectedSummary.member?.full_name}
+                      subtitle={selectedSummary.member?.email || selectedSummary.member?.phone || selectedSummary.member?.association_name}
+                      avatarUrl={selectedSummary.member?.avatar_url}
+                      size="xl"
+                      textClassName="space-y-1"
+                      subtitleClassName="text-sm"
+                    />
+                  </div>
+                </DialogTitle>
+                <DialogDescription className="mt-2">
                   Ficha consolidada del socio con estado, credencial, saldo y membresías asociadas.
                 </DialogDescription>
               </DialogHeader>
@@ -909,7 +939,20 @@ export const CopimMembersPage = () => {
                   <TabsContent value="profile">
                     <Card className="border-border/70 bg-card/95">
                       <CardHeader>
-                        <CardTitle>Perfil del socio</CardTitle>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <CopimMemberIdentity
+                            name={selectedSummary.member?.full_name}
+                            subtitle={selectedSummary.member?.company_name || selectedSummary.member?.association_name}
+                            avatarUrl={selectedSummary.member?.avatar_url}
+                            size="2xl"
+                          />
+                          <div className="text-left sm:text-right">
+                            <CardTitle>Perfil del socio</CardTitle>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {selectedSummary.member?.avatar_url ? 'Foto importada al perfil' : 'Sin foto importada'}
+                            </p>
+                          </div>
+                        </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">

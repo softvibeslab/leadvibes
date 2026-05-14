@@ -87,6 +87,13 @@ frontend/node_modules/.cache/default-development/6.pack
 # Generated knowledge graphs
 graphify-out/
 **/graphify-out/
+
+# Local COPIM import source data with member PII/media.
+docs/copim_users/media/
+docs/copim_users/*.csv
+docs/copim_users/*.xlsx
+docs/copim_users/*.xls
+docs/copim_users/.DS_Store
 -e 
 # Environment files
 *.env
