@@ -156,7 +156,7 @@ export const RoviAIControlTowerPage = () => {
   const [uploading, setUploading] = useState(false);
   const [importingGraph, setImportingGraph] = useState(false);
   const [dashboard, setDashboard] = useState(null);
-  const [userAccess, setUserAccess] = useState({ users: [], agent_catalog: [], skill_catalog: [], membership_tiers: [] });
+  const [userAccess, setUserAccess] = useState({ users: [], agent_catalog: [], role_agent_catalog: [], specialist_agent_catalog: [], skill_catalog: [], membership_tiers: [] });
   const [selectedUserId, setSelectedUserId] = useState('');
   const [accessSaving, setAccessSaving] = useState(false);
   const [linkResult, setLinkResult] = useState(null);
@@ -356,7 +356,11 @@ export const RoviAIControlTowerPage = () => {
     try {
       const response = await api.put(`/ai-control/user-access/${selectedUser.id}`, {
         membership_tier: selectedUser.membership_tier,
-        enabled_agents: selectedUser.enabled_agents || [],
+        orchestrator_role: selectedUser.orchestrator_role,
+        orchestration_mode: selectedUser.orchestration_mode || 'role_first',
+        enabled_role_agents: selectedUser.enabled_role_agents || selectedUser.enabled_agents || [],
+        enabled_specialist_agents: selectedUser.enabled_specialist_agents || [],
+        enabled_agents: selectedUser.enabled_role_agents || selectedUser.enabled_agents || [],
         enabled_skills: selectedUser.enabled_skills || [],
         is_active: selectedUser.is_active !== false,
         notes: selectedUser.notes || '',
@@ -379,12 +383,16 @@ export const RoviAIControlTowerPage = () => {
 
   const sendLinkCode = async (channel) => {
     if (!selectedUser) return;
+    const telegramBotToken = channel === 'telegram'
+      ? window.prompt('Pega el token del bot de Telegram de este usuario (BotFather). Se guardara solo en el perfil Hermes aislado:', '') || ''
+      : '';
     setAccessSaving(true);
     setLinkResult(null);
     try {
       const response = await api.post(`/ai-control/user-access/${selectedUser.id}/link-code`, {
         channel,
         destination: channel === 'whatsapp' ? selectedUser.phone : selectedUser.telegram,
+        telegram_bot_token: telegramBotToken,
       });
       setLinkResult(response.data);
       await loadUserAccess();
@@ -905,12 +913,28 @@ export const RoviAIControlTowerPage = () => {
                       </Select>
                       <p className="mt-2 text-xs text-muted-foreground">Recomendado: {selectedUser.recommended_membership_tier}</p>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg border border-border/70 bg-background/45 p-4">
-                      <div>
-                        <p className="font-medium">Acceso activo</p>
-                        <p className="text-xs text-muted-foreground">Apaga para pausar todos sus agentes.</p>
-                      </div>
-                      <Switch checked={selectedUser.is_active !== false} onCheckedChange={(checked) => updateSelectedUserField('is_active', checked)} />
+                    <div>
+                      <Label>Orquestador de rol</Label>
+                      <Select value={selectedUser.orchestrator_role || selectedUser.role || 'broker'} onValueChange={(value) => updateSelectedUserField('orchestrator_role', value)}>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Selecciona orquestador" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(userAccess.role_agent_catalog || userAccess.agent_catalog || []).map((agent) => (
+                            <SelectItem key={agent.value} value={agent.value}>{agent.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={selectedUser.orchestration_mode || 'role_first'} onValueChange={(value) => updateSelectedUserField('orchestration_mode', value)}>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Modo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="role_first">Rol manda, especialistas apoyan</SelectItem>
+                          <SelectItem value="blend">Mezcla rol + especialistas</SelectItem>
+                          <SelectItem value="specialist_first">Especialistas mandan, rol valida</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -918,34 +942,34 @@ export const RoviAIControlTowerPage = () => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <Label>Agentes especializados</Label>
-                          <p className="mt-1 text-sm text-muted-foreground">Selecciona los agentes disponibles para este usuario.</p>
+                          <Label>Agentes de rol (system prompt)</Label>
+                          <p className="mt-1 text-sm text-muted-foreground">Selecciona roles/sistema disponibles; el orquestador usa el system prompt del rol.</p>
                         </div>
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => updateSelectedUserField('enabled_agents', selectedUser.recommended_agents || [])}
+                          onClick={() => updateSelectedUserField('enabled_role_agents', selectedUser.recommended_role_agents || selectedUser.recommended_agents || [])}
                         >
                           Aplicar recomendados
                         </Button>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
-                        {(userAccess.agent_catalog || []).map((agent) => (
+                        {(userAccess.role_agent_catalog || userAccess.agent_catalog || []).map((agent) => (
                           <button
                             key={agent.value}
                             type="button"
-                            onClick={() => toggleUserAccessValue('enabled_agents', agent.value)}
+                            onClick={() => toggleUserAccessValue('enabled_role_agents', agent.value)}
                             className={`rounded-lg border p-3 text-left text-sm transition-colors ${
-                              (selectedUser.enabled_agents || []).includes(agent.value)
+                              (selectedUser.enabled_role_agents || selectedUser.enabled_agents || []).includes(agent.value)
                                 ? 'border-primary bg-primary/10'
                                 : 'border-border/70 bg-background/45 hover:bg-muted/50'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="font-medium">{agent.label}</span>
-                              {(selectedUser.recommended_agents || []).includes(agent.value) && <Badge variant="outline">recomendado</Badge>}
+                              {(selectedUser.recommended_role_agents || selectedUser.recommended_agents || []).includes(agent.value) && <Badge variant="outline">recomendado</Badge>}
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground">{agent.value}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">system: {agent.value}</p>
                           </button>
                         ))}
                       </div>
@@ -954,34 +978,60 @@ export const RoviAIControlTowerPage = () => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <Label>Skills activas</Label>
-                          <p className="mt-1 text-sm text-muted-foreground">Capacidades que heredan sus agentes.</p>
+                          <Label>Agentes especialistas (user prompt)</Label>
+                          <p className="mt-1 text-sm text-muted-foreground">Especialistas de Agency Agents que el orquestador mezcla como user prompt.</p>
                         </div>
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => updateSelectedUserField('enabled_skills', selectedUser.recommended_skills || [])}
+                          onClick={() => updateSelectedUserField('enabled_specialist_agents', selectedUser.recommended_specialist_agents || [])}
                         >
-                          Aplicar recomendadas
+                          Aplicar recomendados
                         </Button>
                       </div>
-                      <div className="grid gap-3">
-                        {(userAccess.skill_catalog || []).map((skill) => (
+                      <div className="grid max-h-[520px] gap-3 overflow-y-auto pr-2">
+                        {(userAccess.specialist_agent_catalog || []).map((skill) => (
                           <button
-                            key={skill.id}
+                            key={skill.value || skill.id}
                             type="button"
-                            onClick={() => toggleUserAccessValue('enabled_skills', skill.id)}
+                            onClick={() => toggleUserAccessValue('enabled_specialist_agents', skill.value || skill.id)}
                             className={`rounded-lg border p-3 text-left text-sm transition-colors ${
-                              (selectedUser.enabled_skills || []).includes(skill.id)
+                              (selectedUser.enabled_specialist_agents || []).includes(skill.value || skill.id)
                                 ? 'border-primary bg-primary/10'
                                 : 'border-border/70 bg-background/45 hover:bg-muted/50'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="font-medium">{skill.label}</span>
-                              {(selectedUser.recommended_skills || []).includes(skill.id) && <Badge variant="outline">recomendada</Badge>}
+                              {(selectedUser.recommended_specialist_agents || []).includes(skill.value || skill.id) && <Badge variant="outline">recomendado</Badge>}
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground">{skill.description}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">user: {skill.user_prompt || skill.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="flex items-center justify-between rounded-lg border border-border/70 bg-background/45 p-4">
+                      <div>
+                        <p className="font-medium">Acceso activo</p>
+                        <p className="text-xs text-muted-foreground">Apaga para pausar todos sus agentes.</p>
+                      </div>
+                      <Switch checked={selectedUser.is_active !== false} onCheckedChange={(checked) => updateSelectedUserField('is_active', checked)} />
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-background/45 p-4">
+                      <Label>Skills Hermes activas</Label>
+                      <p className="mt-1 text-xs text-muted-foreground">Herramientas/capacidades habilitadas para el perfil Hermes.</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(userAccess.skill_catalog || []).slice(0, 24).map((skill) => (
+                          <button
+                            key={skill.id}
+                            type="button"
+                            onClick={() => toggleUserAccessValue('enabled_skills', skill.id)}
+                            className={`rounded-full border px-3 py-1 text-xs ${(selectedUser.enabled_skills || []).includes(skill.id) ? 'border-primary bg-primary/10' : 'border-border/70 bg-background/60'}`}
+                          >
+                            {skill.label}
                           </button>
                         ))}
                       </div>
@@ -1004,6 +1054,16 @@ export const RoviAIControlTowerPage = () => {
                         <KeyRound className="h-4 w-4" /> Codigo de vinculacion: {linkResult.code}
                       </div>
                       <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{linkResult.message}</p>
+                      {linkResult.hermes_profile && (
+                        <div className="mt-3 rounded-md bg-background/70 p-3 text-xs">
+                          <p><strong>Perfil Hermes:</strong> {linkResult.hermes_profile.profile_name}</p>
+                          <p><strong>Estado:</strong> {linkResult.hermes_profile.status}</p>
+                          <p><strong>Ruta local:</strong> {linkResult.hermes_profile.profile_dir}</p>
+                          <ol className="mt-2 list-decimal space-y-1 pl-5">
+                            {(linkResult.hermes_profile.setup_steps || []).map((step, index) => <li key={index}><code>{step}</code></li>)}
+                          </ol>
+                        </div>
+                      )}
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button variant="outline" onClick={() => navigator.clipboard?.writeText(linkResult.message)}>Copiar mensaje</Button>
                         {linkResult.whatsapp_url && <Button variant="outline" onClick={() => window.open(linkResult.whatsapp_url, '_blank', 'noopener,noreferrer')}>Abrir WhatsApp</Button>}

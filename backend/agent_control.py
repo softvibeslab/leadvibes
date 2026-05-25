@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 import uuid
 import json
@@ -162,24 +163,39 @@ DEFAULT_TOOLS = {
 }
 
 
+AGENCY_AGENTS_CATALOG_PATH = Path(__file__).resolve().parent / "agency_agents_catalog.json"
+try:
+    AGENCY_AGENTS_CATALOG = json.loads(AGENCY_AGENTS_CATALOG_PATH.read_text(encoding="utf-8"))
+except Exception:
+    AGENCY_AGENTS_CATALOG = []
+
+SPECIALIST_AGENT_CATALOG = [
+    {"id": "lead_triage", "label": "Especialista en calificacion", "user_prompt": "Evalua intencion, presupuesto, urgencia, friccion y siguiente accion del lead."},
+    {"id": "whatsapp_followup", "label": "Copywriter WhatsApp", "user_prompt": "Escribe mensajes cortos, humanos, con contexto local y CTA claro; evita spam y presion abusiva."},
+    {"id": "appointment_setter", "label": "Agendador", "user_prompt": "Convierte conversaciones en citas: propone horarios, confirma datos y prepara recordatorios."},
+    {"id": "property_matcher", "label": "Matcher inmobiliario", "user_prompt": "Cruza necesidades, zona, presupuesto y etapa del cliente con inventario u oportunidades."},
+    {"id": "offer_architect", "label": "Arquitecto de ofertas", "user_prompt": "Disena ofertas simples con promesa, entregable, precio, margen, insumos y flujo de cumplimiento."},
+    {"id": "audience_intel", "label": "Inteligencia de audiencia", "user_prompt": "Analiza segmentos, grupos, lenguaje, permiso comercial y sensibilidad cultural antes de comunicar."},
+    {"id": "fulfillment_operator", "label": "Operador fulfillment", "user_prompt": "Transforma datos del comprador en entregable final, mensaje de entrega y solicitud de testimonio."},
+    {"id": "ab_test_analyst", "label": "Analista A/B", "user_prompt": "Compara variantes por replies, clicks, pagos y revenue; recomienda ganador y siguiente experimento."},
+    {"id": "revenue_ops", "label": "Revenue Ops", "user_prompt": "Revisa pipeline, conversion, presupuestos, costos, calidad de datos y cuellos de botella."},
+    {"id": "copim_membership_ops", "label": "Operacion COPIM", "user_prompt": "Gestiona membresias, cobranza, eventos, cursos, comunidad, marketplace y KPIs institucionales."},
+    {"id": "risk_guardian", "label": "Guardian de riesgo", "user_prompt": "Detecta permisos faltantes, claims sensibles, riesgo reputacional, scraping y mensajes tipo spam."},
+    *AGENCY_AGENTS_CATALOG,
+]
+
 SKILL_CATALOG = [
-    {"id": "lead_triage", "label": "Calificacion de leads", "description": "Prioriza leads, detecta urgencia y propone siguiente accion."},
-    {"id": "follow_up_whatsapp", "label": "Seguimiento WhatsApp", "description": "Redacta mensajes cortos, contextuales y con CTA claro."},
-    {"id": "calendar_booking", "label": "Agenda y citas", "description": "Sugiere horarios, prepara reuniones y recordatorios."},
-    {"id": "property_matching", "label": "Matching de propiedades", "description": "Cruza necesidades del cliente con inventario y oportunidades."},
-    {"id": "copim_membership_ops", "label": "Operacion COPIM", "description": "Membresias, cobranza, eventos, cursos y comunidad."},
-    {"id": "revenue_ops", "label": "Revenue Ops", "description": "Pipeline, conversion, presupuestos, costos y salud comercial."},
-    {"id": "marketplace_builder", "label": "Marketplace Builder", "description": "Crea ofertas, productos digitales, plantillas y servicios."},
-    {"id": "risk_guardian", "label": "Guardian de riesgo", "description": "Revisa permisos, reputacion, claims sensibles y spam."},
+    {"id": item["id"], "label": item["label"], "description": item["user_prompt"]}
+    for item in SPECIALIST_AGENT_CATALOG
 ]
 
 MEMBERSHIP_AGENT_RULES = {
-    "free": {"agents": ["broker"], "skills": ["lead_triage"]},
-    "starter": {"agents": ["broker", "whatsapp_copywriter"], "skills": ["lead_triage", "follow_up_whatsapp", "calendar_booking"]},
-    "pro": {"agents": ["broker", "agency_admin", "whatsapp_copywriter", "offer_architect"], "skills": ["lead_triage", "follow_up_whatsapp", "calendar_booking", "property_matching", "marketplace_builder"]},
-    "business": {"agents": ["agency_admin", "broker", "rovi_sales", "rovi_ops", "whatsapp_copywriter", "offer_architect", "risk_guardian"], "skills": ["lead_triage", "follow_up_whatsapp", "calendar_booking", "property_matching", "revenue_ops", "marketplace_builder", "risk_guardian"]},
-    "copim": {"agents": ["copim_council", "copim_association", "copim_member", "whatsapp_copywriter"], "skills": ["copim_membership_ops", "follow_up_whatsapp", "calendar_booking", "marketplace_builder"]},
-    "internal": {"agents": ROLE_SCOPES, "skills": [item["id"] for item in SKILL_CATALOG]},
+    "free": {"role_agents": ["broker"], "specialist_agents": ["lead_triage"], "skills": ["lead_triage"]},
+    "starter": {"role_agents": ["broker"], "specialist_agents": ["lead_triage", "whatsapp_followup", "appointment_setter"], "skills": ["lead_triage", "whatsapp_followup", "appointment_setter"]},
+    "pro": {"role_agents": ["broker", "agency_admin"], "specialist_agents": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher", "offer_architect"], "skills": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher", "offer_architect"]},
+    "business": {"role_agents": ["agency_admin", "broker", "rovi_sales", "rovi_ops"], "specialist_agents": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher", "offer_architect", "revenue_ops", "risk_guardian"], "skills": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher", "offer_architect", "revenue_ops", "risk_guardian"]},
+    "copim": {"role_agents": ["copim_council", "copim_association", "copim_member"], "specialist_agents": ["copim_membership_ops", "whatsapp_followup", "appointment_setter", "offer_architect"], "skills": ["copim_membership_ops", "whatsapp_followup", "appointment_setter", "offer_architect"]},
+    "internal": {"role_agents": ROLE_SCOPES, "specialist_agents": [item["id"] for item in SPECIALIST_AGENT_CATALOG], "skills": [item["id"] for item in SKILL_CATALOG]},
 }
 
 
@@ -225,7 +241,11 @@ class AgentConfigUpdate(BaseModel):
 
 class UserAgentAccessUpdate(BaseModel):
     membership_tier: Optional[str] = None
-    enabled_agents: list[str] = Field(default_factory=list)
+    orchestrator_role: Optional[str] = None
+    orchestration_mode: str = "role_first"
+    enabled_role_agents: list[str] = Field(default_factory=list)
+    enabled_specialist_agents: list[str] = Field(default_factory=list)
+    enabled_agents: list[str] = Field(default_factory=list)  # backwards compatible alias for role agents
     enabled_skills: list[str] = Field(default_factory=list)
     is_active: bool = True
     notes: str = ""
@@ -234,6 +254,7 @@ class UserAgentAccessUpdate(BaseModel):
 class LinkCodeRequest(BaseModel):
     channel: str = "whatsapp"
     destination: str = ""
+    telegram_bot_token: str = ""
 
 
 class AgentRunRequest(BaseModel):
@@ -1742,14 +1763,40 @@ def recommended_access_for(user: dict, memberships: list[dict] | None = None) ->
     tier = infer_membership_tier(user, memberships)
     rules = MEMBERSHIP_AGENT_RULES.get(tier, MEMBERSHIP_AGENT_RULES["starter"])
     role = (user.get("role") or "").lower()
-    agents = list(dict.fromkeys([*rules["agents"], *( [role] if role in ROLE_SCOPES else [] )]))
-    return {"membership_tier": tier, "agents": agents, "skills": rules["skills"]}
+    role_agents = list(dict.fromkeys([*rules["role_agents"], *( [role] if role in ROLE_SCOPES else [] )]))
+    specialist_agents = list(dict.fromkeys(rules["specialist_agents"]))
+    orchestrator_role = role if role in ROLE_SCOPES else role_agents[0] if role_agents else "broker"
+    return {
+        "membership_tier": tier,
+        "orchestrator_role": orchestrator_role,
+        "orchestration_mode": "role_first",
+        "role_agents": role_agents,
+        "specialist_agents": specialist_agents,
+        "agents": role_agents,  # backwards compatible alias
+        "skills": rules["skills"],
+    }
+
+
+def build_orchestration_prompt(role_agent: str, specialist_agents: list[str], mode: str) -> dict:
+    system_prompt = ROLE_PROMPTS.get(role_agent, ROLE_PROMPTS.get("broker", "Actua como orquestador operativo."))
+    specialist_map = {item["id"]: item for item in SPECIALIST_AGENT_CATALOG}
+    user_prompt_parts = [specialist_map[item]["user_prompt"] for item in specialist_agents if item in specialist_map]
+    return {
+        "role_agent": role_agent,
+        "mode": mode,
+        "system_prompt": system_prompt,
+        "user_prompt": "\n".join(f"- {part}" for part in user_prompt_parts),
+        "specialists": [specialist_map[item] for item in specialist_agents if item in specialist_map],
+    }
 
 
 def public_user_for_access(user: dict, memberships: list[dict], entitlement: Optional[dict]) -> dict:
     recommendation = recommended_access_for(user, memberships)
-    enabled_agents = entitlement.get("enabled_agents") if entitlement else None
+    enabled_role_agents = (entitlement or {}).get("enabled_role_agents") or (entitlement or {}).get("enabled_agents")
+    enabled_specialist_agents = (entitlement or {}).get("enabled_specialist_agents")
     enabled_skills = entitlement.get("enabled_skills") if entitlement else None
+    orchestrator_role = (entitlement or {}).get("orchestrator_role") or recommendation["orchestrator_role"]
+    orchestration_mode = (entitlement or {}).get("orchestration_mode") or recommendation["orchestration_mode"]
     return {
         "id": user.get("id") or user.get("user_id"),
         "name": user.get("name") or user.get("full_name") or user.get("email"),
@@ -1763,9 +1810,18 @@ def public_user_for_access(user: dict, memberships: list[dict], entitlement: Opt
         "recommended_membership_tier": recommendation["membership_tier"],
         "membership_tier": (entitlement or {}).get("membership_tier") or recommendation["membership_tier"],
         "recommended_agents": recommendation["agents"],
+        "recommended_role_agents": recommendation["role_agents"],
+        "recommended_specialist_agents": recommendation["specialist_agents"],
         "recommended_skills": recommendation["skills"],
-        "enabled_agents": enabled_agents if enabled_agents is not None else recommendation["agents"],
+        "orchestrator_role": orchestrator_role,
+        "orchestration_mode": orchestration_mode,
+        "enabled_role_agents": enabled_role_agents if enabled_role_agents is not None else recommendation["role_agents"],
+        "enabled_specialist_agents": enabled_specialist_agents if enabled_specialist_agents is not None else recommendation["specialist_agents"],
+        "enabled_agents": enabled_role_agents if enabled_role_agents is not None else recommendation["role_agents"],
         "enabled_skills": enabled_skills if enabled_skills is not None else recommendation["skills"],
+        "orchestration_prompt": build_orchestration_prompt(orchestrator_role, enabled_specialist_agents if enabled_specialist_agents is not None else recommendation["specialist_agents"], orchestration_mode),
+        "hermes_profile": (entitlement or {}).get("hermes_profile"),
+        "hermes_profile_status": (entitlement or {}).get("hermes_profile_status"),
         "is_active": (entitlement or {}).get("is_active", True),
         "notes": (entitlement or {}).get("notes", ""),
         "last_link_code": (entitlement or {}).get("last_link_code"),
@@ -1787,27 +1843,104 @@ async def build_user_agent_access_dashboard(db: AsyncIOMotorDatabase) -> dict:
             public_user_for_access(user, memberships_by_user.get(user.get("id"), []), entitlements_by_user.get(user.get("id")))
             for user in users
         ],
-        "agent_catalog": [{"value": role, "label": ROLE_LABELS.get(role, role)} for role in ROLE_SCOPES],
+        "agent_catalog": [{"value": role, "label": ROLE_LABELS.get(role, role), "prompt_type": "system"} for role in ROLE_SCOPES],
+        "role_agent_catalog": [{"value": role, "label": ROLE_LABELS.get(role, role), "prompt_type": "system", "system_prompt": ROLE_PROMPTS.get(role, "")} for role in ROLE_SCOPES],
+        "specialist_agent_catalog": [{"value": item["id"], "label": item["label"], "prompt_type": "user", "user_prompt": item["user_prompt"]} for item in SPECIALIST_AGENT_CATALOG],
         "skill_catalog": SKILL_CATALOG,
         "membership_rules": MEMBERSHIP_AGENT_RULES,
         "membership_tiers": list(MEMBERSHIP_AGENT_RULES.keys()),
     }
 
 
+def safe_profile_slug(user: dict) -> str:
+    base = user.get("email") or user.get("name") or user.get("id") or str(uuid.uuid4())
+    return "rovi-user-" + re.sub(r"[^a-z0-9]+", "-", base.lower()).strip("-")[:48]
+
+
 def build_link_message(user: dict, code: str, channel: str) -> dict:
     name = user.get("name") or user.get("email") or "tu cuenta"
-    link_url = f"https://app.rovicrm.com/vincular-agente?code={code}"
     message = (
-        f"Hola {name}, tu codigo para vincular tus agentes ROVI es: {code}\n\n"
-        f"Abre este link para activar tus agentes y skills: {link_url}\n"
-        "Si no solicitaste este acceso, ignora este mensaje."
+        f"Hola {name}, tu codigo para vincular tus agentes ROVI en Hermes es: {code}\n\n"
+        "Envia /start al bot de Telegram configurado o escanea el QR de WhatsApp del perfil Hermes. "
+        "Tus agentes se activaran con tu rol, membresia y especialistas asignados."
     )
     return {
         "message": message,
-        "link_url": link_url,
         "whatsapp_url": f"https://wa.me/?text={quote(message)}",
-        "telegram_url": f"https://t.me/share/url?url={quote(link_url)}&text={quote(message)}",
+        "telegram_url": f"https://t.me/share/url?text={quote(message)}",
         "channel": channel,
+    }
+
+
+def provision_hermes_profile(user: dict, entitlement: dict, channel: str, payload: LinkCodeRequest, code: str) -> dict:
+    profile_name = safe_profile_slug(user)
+    profiles_root = Path(os.environ.get("ROVI_HERMES_PROFILES_ROOT", "/tmp/rovi-hermes-profiles"))
+    profile_dir = profiles_root / profile_name
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    orchestration = build_orchestration_prompt(
+        entitlement.get("orchestrator_role") or "broker",
+        entitlement.get("enabled_specialist_agents") or [],
+        entitlement.get("orchestration_mode") or "role_first",
+    )
+    profile_spec = {
+        "profile_name": profile_name,
+        "user_id": user.get("id"),
+        "user_name": user.get("name") or user.get("email"),
+        "channel": channel,
+        "link_code": code,
+        "membership_tier": entitlement.get("membership_tier"),
+        "role_agents": entitlement.get("enabled_role_agents") or [],
+        "specialist_agents": entitlement.get("enabled_specialist_agents") or [],
+        "skills": entitlement.get("enabled_skills") or [],
+        "orchestration": orchestration,
+    }
+    (profile_dir / "rovi_user_profile.json").write_text(json.dumps(profile_spec, ensure_ascii=False, indent=2), encoding="utf-8")
+    env_lines = [
+        f"ROVI_USER_ID={user.get('id') or ''}",
+        f"ROVI_LINK_CODE={code}",
+        f"ROVI_ORCHESTRATOR_ROLE={orchestration['role_agent']}",
+        f"ROVI_SPECIALIST_AGENTS={','.join(entitlement.get('enabled_specialist_agents') or [])}",
+        "DISCORD_BOT_TOKEN=",
+        "SLACK_BOT_TOKEN=",
+    ]
+    if channel == "telegram":
+        env_lines.extend([
+            f"TELEGRAM_BOT_TOKEN={payload.telegram_bot_token.strip()}",
+            f"TELEGRAM_ALLOWED_USERS={payload.destination}",
+            f"TELEGRAM_HOME_CHANNEL={payload.destination}",
+            f"TELEGRAM_HOME_CHANNEL_NAME={user.get('name') or user.get('email') or profile_name}",
+            "WHATSAPP_SESSION_PATH=",
+        ])
+        setup_steps = [
+            f"hermes profile create {profile_name} --clone-all  # si aun no existe",
+            f"cp {profile_dir / '.env'} ~/.hermes/profiles/{profile_name}/.env",
+            f"cp {profile_dir / 'rovi_user_profile.json'} ~/.hermes/profiles/{profile_name}/rovi_user_profile.json",
+            f"{profile_name} gateway start",
+            "Abrir el bot en Telegram y enviar /start.",
+        ]
+        status = "telegram_token_ready" if payload.telegram_bot_token.strip() else "awaiting_telegram_bot_token"
+    else:
+        env_lines.extend([
+            "TELEGRAM_BOT_TOKEN=",
+            f"WHATSAPP_ALLOWED_USERS={payload.destination}",
+            f"WHATSAPP_SESSION_PATH=~/.hermes/profiles/{profile_name}/whatsapp-session",
+        ])
+        setup_steps = [
+            f"hermes profile create {profile_name} --clone-all  # si aun no existe",
+            f"cp {profile_dir / '.env'} ~/.hermes/profiles/{profile_name}/.env",
+            f"cp {profile_dir / 'rovi_user_profile.json'} ~/.hermes/profiles/{profile_name}/rovi_user_profile.json",
+            f"{profile_name} gateway start",
+            "Escanear el QR de WhatsApp que aparece en logs/status del gateway.",
+        ]
+        status = "awaiting_whatsapp_qr_scan"
+    (profile_dir / ".env").write_text("\n".join(env_lines) + "\n", encoding="utf-8")
+    (profile_dir / "SETUP.md").write_text("# Vinculacion Hermes ROVI\n\n" + "\n".join(f"{idx+1}. `{step}`" for idx, step in enumerate(setup_steps)) + "\n", encoding="utf-8")
+    return {
+        "profile_name": profile_name,
+        "profile_dir": str(profile_dir),
+        "status": status,
+        "setup_steps": setup_steps,
+        "spec": profile_spec,
     }
 
 
@@ -1884,9 +2017,16 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
         user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado.")
-        invalid_agents = [agent for agent in payload.enabled_agents if agent not in ROLE_SCOPES]
+        role_agents = payload.enabled_role_agents or payload.enabled_agents
+        invalid_agents = [agent for agent in role_agents if agent not in ROLE_SCOPES]
         if invalid_agents:
-            raise HTTPException(status_code=422, detail=f"Agentes invalidos: {', '.join(invalid_agents)}")
+            raise HTTPException(status_code=422, detail=f"Agentes de rol invalidos: {', '.join(invalid_agents)}")
+        if payload.orchestrator_role and payload.orchestrator_role not in ROLE_SCOPES:
+            raise HTTPException(status_code=422, detail="Orquestador de rol invalido.")
+        valid_specialists = {item["id"] for item in SPECIALIST_AGENT_CATALOG}
+        invalid_specialists = [agent for agent in payload.enabled_specialist_agents if agent not in valid_specialists]
+        if invalid_specialists:
+            raise HTTPException(status_code=422, detail=f"Especialistas invalidos: {', '.join(invalid_specialists)}")
         valid_skills = {item["id"] for item in SKILL_CATALOG}
         invalid_skills = [skill for skill in payload.enabled_skills if skill not in valid_skills]
         if invalid_skills:
@@ -1895,7 +2035,11 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
         doc = {
             "user_id": user_id,
             "membership_tier": payload.membership_tier or recommended_access_for(user)["membership_tier"],
-            "enabled_agents": payload.enabled_agents,
+            "orchestrator_role": payload.orchestrator_role or (role_agents[0] if role_agents else recommended_access_for(user)["orchestrator_role"]),
+            "orchestration_mode": payload.orchestration_mode if payload.orchestration_mode in {"role_first", "blend", "specialist_first"} else "role_first",
+            "enabled_role_agents": role_agents,
+            "enabled_specialist_agents": payload.enabled_specialist_agents,
+            "enabled_agents": role_agents,
             "enabled_skills": payload.enabled_skills,
             "is_active": payload.is_active,
             "notes": payload.notes,
@@ -1923,6 +2067,19 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
         code = str(uuid.uuid4()).split("-")[0].upper()
         now = now_iso()
         message_payload = build_link_message(user, code, channel)
+        entitlement = await db.user_agent_entitlements.find_one({"user_id": user_id}, {"_id": 0})
+        if not entitlement:
+            recommended = recommended_access_for(user)
+            entitlement = {
+                "user_id": user_id,
+                "membership_tier": recommended["membership_tier"],
+                "orchestrator_role": recommended["orchestrator_role"],
+                "orchestration_mode": recommended["orchestration_mode"],
+                "enabled_role_agents": recommended["role_agents"],
+                "enabled_specialist_agents": recommended["specialist_agents"],
+                "enabled_skills": recommended["skills"],
+            }
+        hermes_profile = provision_hermes_profile(user, entitlement, channel, payload, code)
         link_doc = {
             "id": f"agent-link-{uuid.uuid4()}",
             "user_id": user_id,
@@ -1930,14 +2087,15 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
             "channel": channel,
             "destination": payload.destination or user.get("phone") or user.get("telegram") or user.get("email") or "",
             "message": message_payload["message"],
-            "status": "ready_to_send",
+            "hermes_profile": hermes_profile,
+            "status": hermes_profile["status"],
             "created_by": current_user.get("user_id"),
             "created_at": now,
         }
         await db.agent_link_codes.insert_one(link_doc)
         await db.user_agent_entitlements.update_one(
             {"user_id": user_id},
-            {"$set": {"last_link_code": code, "last_link_channel": channel, "last_link_sent_at": now, "updated_at": now}, "$setOnInsert": {"id": f"user-agent-access-{uuid.uuid4()}", "created_at": now}},
+            {"$set": {"last_link_code": code, "last_link_channel": channel, "last_link_sent_at": now, "hermes_profile": hermes_profile, "hermes_profile_status": hermes_profile["status"], "updated_at": now}, "$setOnInsert": {"id": f"user-agent-access-{uuid.uuid4()}", "created_at": now}},
             upsert=True,
         )
         return {**serialize_doc(link_doc), **message_payload}
