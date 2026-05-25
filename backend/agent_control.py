@@ -30,6 +30,20 @@ FALLBACK_OPENAI_BASE_URL = os.environ.get("ROVI_FALLBACK_AI_BASE_URL", "https://
 FALLBACK_OPENAI_MODEL = os.environ.get("ROVI_FALLBACK_AI_MODEL", "gpt-5.2")
 USD_TO_MXN = float(os.environ.get("ROVI_AI_USD_TO_MXN", "18.5"))
 ROVI_INTERNAL_KNOWLEDGE_SCOPE = "rovi_internal"
+DEFAULT_CONTROL_TOWER_OWNER_EMAILS = {"rgarciavital@gmail.com"}
+CONTROL_TOWER_OWNER_EMAILS = {
+    email.strip().lower()
+    for email in os.environ.get("ROVI_CONTROL_TOWER_OWNER_EMAILS", ",".join(DEFAULT_CONTROL_TOWER_OWNER_EMAILS)).split(",")
+    if email.strip()
+}
+
+
+def require_ai_control_tower_owner(current_user: dict) -> dict:
+    """Restrict the AI Control Tower to Roger/explicit owner emails only."""
+    user = require_rovi_internal_workspace(current_user)
+    if user.get("email", "").lower() not in CONTROL_TOWER_OWNER_EMAILS:
+        raise HTTPException(status_code=403, detail="Esta Torre de Control es privada y solo Roger tiene acceso.")
+    return user
 
 
 ROLE_SCOPES = [
@@ -2003,17 +2017,17 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.get("/ai-control/dashboard")
     async def get_control_tower(current_user: dict = Depends(get_current_user)):
-        require_rovi_internal_workspace(current_user)
+        require_ai_control_tower_owner(current_user)
         return await build_usage_dashboard(db)
 
     @router.get("/ai-control/user-access")
     async def get_user_agent_access(current_user: dict = Depends(get_current_user)):
-        require_rovi_internal_workspace(current_user)
+        require_ai_control_tower_owner(current_user)
         return await build_user_agent_access_dashboard(db)
 
     @router.put("/ai-control/user-access/{user_id}")
     async def update_user_agent_access(user_id: str, payload: UserAgentAccessUpdate, current_user: dict = Depends(get_current_user)):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado.")
@@ -2057,7 +2071,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.post("/ai-control/user-access/{user_id}/link-code")
     async def create_user_link_code(user_id: str, payload: LinkCodeRequest, current_user: dict = Depends(get_current_user)):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado.")
@@ -2102,14 +2116,14 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.get("/ai-control/configs")
     async def list_configs(current_user: dict = Depends(get_current_user)):
-        require_rovi_internal_workspace(current_user)
+        require_ai_control_tower_owner(current_user)
         await ensure_default_agent_configs(db)
         configs = await db.agent_configs.find({}, {"_id": 0}).sort("role_scope", 1).to_list(100)
         return {"configs": [public_config(item) for item in configs], "role_scopes": ROLE_SCOPES}
 
     @router.post("/ai-control/configs")
     async def create_config(payload: AgentConfigCreate, current_user: dict = Depends(get_current_user)):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         if payload.role_scope not in ROLE_SCOPES:
             raise HTTPException(status_code=422, detail="Rol de agente invalido.")
         now = now_iso()
@@ -2126,7 +2140,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.put("/ai-control/configs/{config_id}")
     async def update_config(config_id: str, payload: AgentConfigUpdate, current_user: dict = Depends(get_current_user)):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         updates = {key: value for key, value in payload.model_dump(exclude_unset=True).items() if value is not None}
         if not updates:
             raise HTTPException(status_code=400, detail="No hay cambios para guardar.")
@@ -2157,7 +2171,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.delete("/ai-control/configs/{config_id}")
     async def delete_config(config_id: str, current_user: dict = Depends(get_current_user)):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         existing = await db.agent_configs.find_one({"id": config_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Configuracion no encontrada.")
@@ -2179,7 +2193,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.get("/ai-control/knowledge-files")
     async def list_knowledge_files(current_user: dict = Depends(get_current_user)):
-        require_rovi_internal_workspace(current_user)
+        require_ai_control_tower_owner(current_user)
         files = await db.agent_knowledge_files.find({}, {"_id": 0}).sort("created_at", -1).limit(200).to_list(200)
         return {"files": serialize_docs(files)}
 
@@ -2191,7 +2205,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
         file: UploadFile = File(...),
         current_user: dict = Depends(get_current_user),
     ):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         if role_scope not in {"global", ROVI_INTERNAL_KNOWLEDGE_SCOPE, *ROLE_SCOPES}:
             raise HTTPException(status_code=422, detail="Rol de conocimiento invalido.")
 
@@ -2233,7 +2247,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.get("/ai-control/knowledge/rovi-workspace/preview")
     async def preview_rovi_workspace_graph(current_user: dict = Depends(get_current_user)):
-        require_rovi_internal_workspace(current_user)
+        require_ai_control_tower_owner(current_user)
         try:
             payload = load_rovi_workspace_graph_chunks(max_chunks=12)
         except FileNotFoundError as exc:
@@ -2249,7 +2263,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.post("/ai-control/knowledge/rovi-workspace/import")
     async def import_rovi_workspace_graph(current_user: dict = Depends(get_current_user)):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         try:
             payload = await import_rovi_workspace_graph_knowledge(db, current_user)
         except FileNotFoundError as exc:
@@ -2266,7 +2280,7 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
 
     @router.post("/ai-control/test-run")
     async def test_agent(payload: AgentRunRequest, current_user: dict = Depends(get_current_user)):
-        current_user = require_rovi_internal_workspace(current_user)
+        current_user = require_ai_control_tower_owner(current_user)
         return await run_agent_turn(
             db,
             payload,

@@ -9,6 +9,22 @@ export const isCopimRole = (role) => (
 
 export const isRoviInternalRole = (role) => ROVI_INTERNAL_ROLES.has(role);
 
+const DEFAULT_CONTROL_TOWER_OWNER_EMAILS = ['rgarciavital@gmail.com'];
+const CONTROL_TOWER_OWNER_EMAILS = (process.env.REACT_APP_ROVI_CONTROL_TOWER_OWNER_EMAILS || DEFAULT_CONTROL_TOWER_OWNER_EMAILS.join(','))
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
+export const isRoviControlTowerOwner = (user) => (
+  isRoviInternalUser(user) && CONTROL_TOWER_OWNER_EMAILS.includes((user?.email || '').toLowerCase())
+);
+
+export const isPropertyManagerUser = (user) => (
+  user?.account_type === 'property_management' ||
+  user?.active_workspace?.tenant_type === 'property_management' ||
+  getEffectiveRole(user) === 'property_manager'
+);
+
 export const getEffectiveRole = (user) => (
   user?.active_workspace?.role || user?.role || 'broker'
 );
@@ -54,6 +70,10 @@ export const resolveAuthenticatedHome = (user, preferredMode = 'rovi') => {
     return '/rovi/dashboard';
   }
 
+  if (isPropertyManagerUser(user)) {
+    return '/rentals';
+  }
+
   if (isCopimMemberUser(user)) {
     return '/copim/member';
   }
@@ -73,6 +93,9 @@ export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
   if (accountType === 'rovi_internal') {
     return 'ROVI Internal';
   }
+  if (accountType === 'property_management') {
+    return 'Rentas';
+  }
   if (accountType === 'copim_member') {
     return 'Portal del asociado';
   }
@@ -88,6 +111,9 @@ export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
 export const getWorkspaceTypeLabel = (tenantType) => {
   if (tenantType === 'rovi_internal') {
     return 'ROVI Internal';
+  }
+  if (tenantType === 'property_management') {
+    return 'Rentas';
   }
   if (tenantType === 'copim') {
     return 'COPIM';
@@ -114,6 +140,7 @@ export const getRoleLabel = (role) => {
     owner: 'Owner',
     admin: 'Admin',
     manager: 'Manager',
+    property_manager: 'Property Manager',
     copim_admin: 'COPIM Nacional',
     copim_operator: 'Asociacion local',
     copim_member: 'Asociado',

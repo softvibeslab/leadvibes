@@ -5,9 +5,12 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   CreditCard,
+  Download,
+  FileArchive,
   FileText,
   Filter,
   Landmark,
+  PackageCheck,
   Plus,
   Search,
   ShieldCheck,
@@ -97,6 +100,46 @@ const demoListings = [
     status: 'published',
     sales_count: 38,
     minimum_tier: 'basic',
+    digital_artifact: {
+      artifact_type: 'contract_pack',
+      file_urls: ['/marketplace-mock/pack-contratos-rovi.zip'],
+      preview_url: '/marketplace-mock/contracts-src/03-guia-uso-pack.md',
+      license_terms: 'single_tenant_use',
+      version: '1.0.0',
+      estimated_minutes: 20,
+    },
+    metadata: {
+      file_format: 'zip',
+      download_label: 'Descargar ZIP',
+      delivery_summary: 'ZIP con contrato, checklist y guia de uso.',
+    },
+  },
+  {
+    id: 'demo-templates-pdf',
+    listing_type: 'digital_artifact',
+    title: 'Plantillas de Comunicacion COPIM',
+    subtitle: 'PDF descargable para WhatsApp, email y eventos',
+    description: 'Biblioteca inicial de mensajes para bienvenida, invitacion a eventos, seguimiento y reactivacion de contactos.',
+    category: 'sales',
+    tags: ['plantillas', 'whatsapp', 'email'],
+    price_mxn: 790,
+    creator_user_id: 'demo',
+    status: 'published',
+    sales_count: 52,
+    minimum_tier: 'basic',
+    digital_artifact: {
+      artifact_type: 'template',
+      file_urls: ['/marketplace-mock/plantillas-comunicacion-copim.pdf'],
+      preview_url: '/marketplace-mock/plantillas-comunicacion-copim.pdf',
+      license_terms: 'single_tenant_use',
+      version: '1.0.0',
+      estimated_minutes: 12,
+    },
+    metadata: {
+      file_format: 'pdf',
+      download_label: 'Descargar PDF',
+      delivery_summary: 'PDF listo para usar con plantillas editables.',
+    },
   },
   {
     id: 'demo-landing-page',
@@ -130,7 +173,15 @@ const demoListings = [
     minimum_tier: 'basic',
     agent_skill: {
       skill_slug: 'analista-mercado-inmobiliario-riviera-maya',
+      skill_version: '1.0.0',
+      install_mode: 'broker_agent',
+      compatible_agents: ['agente-comercial-rovi', 'agente-copim-socios'],
       required_mcp_tools: ['rovi.list_leads', 'rovi.retrieve_lead_summary', 'rovi.qualify_lead'],
+    },
+    metadata: {
+      agent_name: 'Agente Comercial ROVI',
+      activation_copy: 'Aparece como habilidad instalada en el agente del broker.',
+      visible_capabilities: ['Prioriza leads', 'Detecta objeciones', 'Sugiere siguiente accion'],
     },
   },
   {
@@ -176,7 +227,15 @@ const demoListings = [
     minimum_tier: 'premium',
     agent_skill: {
       skill_slug: 'especialista-fideicomisos-riviera-maya',
+      skill_version: '1.0.0',
+      install_mode: 'tenant_agent',
+      compatible_agents: ['agente-comercial-rovi', 'agente-trust-ready'],
       required_mcp_tools: ['rovi.retrieve_lead_summary'],
+    },
+    metadata: {
+      agent_name: 'Agente Legal-Comercial',
+      activation_copy: 'Se muestra como skill activa para explicar fideicomisos con lenguaje comercial.',
+      visible_capabilities: ['Explica fideicomiso', 'Responde objeciones', 'Prepara checklist documental'],
     },
   },
 ];
@@ -188,6 +247,8 @@ const createEmptyListingForm = () => ({
   category: 'sales',
   price_mxn: 0,
   minimum_tier: 'basic',
+  file_url: '/marketplace-mock/plantillas-comunicacion-copim.pdf',
+  file_format: 'pdf',
 });
 
 export const MarketplacePage = () => {
@@ -200,11 +261,15 @@ export const MarketplacePage = () => {
   const [tiers, setTiers] = useState([]);
   const [listings, setListings] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [purchaseEntitlements, setPurchaseEntitlements] = useState([]);
+  const [purchaseListings, setPurchaseListings] = useState({});
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState(createEmptyListingForm);
   const [busyListingId, setBusyListingId] = useState(null);
+  const [demoPurchases, setDemoPurchases] = useState([]);
+  const [installedSkills, setInstalledSkills] = useState([]);
 
   const roleContext = useMemo(() => {
     if (isCopimMemberUser(user)) return rolePlaybooks.member;
@@ -220,12 +285,14 @@ export const MarketplacePage = () => {
   const loadMarketplace = async () => {
     setLoading(true);
     try {
-      const [summaryResponse, meResponse, tiersResponse, listingsResponse, transactionsResponse] = await Promise.all([
+      const [summaryResponse, meResponse, tiersResponse, listingsResponse, transactionsResponse, purchasesResponse, installedSkillsResponse] = await Promise.all([
         api.get('/marketplace/strategy-summary'),
         api.get('/marketplace/me'),
         api.get('/marketplace/tiers'),
         api.get('/marketplace/listings', { params: { include_mine: true } }),
         api.get('/marketplace/transactions'),
+        api.get('/marketplace/purchases'),
+        api.get('/marketplace/agent-skills/installed'),
       ]);
       setStrategy(summaryResponse.data);
       setMarketplaceMe(meResponse.data);
@@ -233,9 +300,14 @@ export const MarketplacePage = () => {
       const apiListings = listingsResponse.data?.listings || [];
       setListings(apiListings.length ? apiListings : demoListings);
       setTransactions(transactionsResponse.data?.transactions || []);
+      setPurchaseEntitlements(purchasesResponse.data?.entitlements || []);
+      setPurchaseListings(purchasesResponse.data?.listings || {});
+      setInstalledSkills((installedSkillsResponse.data?.installations || []).map((installation) => installation.listing_id).filter(Boolean));
     } catch (error) {
       console.error('Error loading marketplace:', error);
       setListings(demoListings);
+      setPurchaseEntitlements([]);
+      setPurchaseListings({});
       setStrategy({
         positioning: 'ROVI Marketplace convierte COPIM en una economia digital soberana para productos, servicios y Agent Skills.',
         revenue_streams: ['suscripciones por tiers', 'comision tripartita por venta', 'servicios en escrow', 'Agent Skills'],
@@ -283,6 +355,92 @@ export const MarketplacePage = () => {
     ];
   }, [listings]);
 
+  const getPrimaryDownload = (listing) => {
+    const url = listing?.digital_artifact?.file_urls?.[0];
+    if (!url) return null;
+    const filename = url.split('/').pop();
+    const format = listing?.metadata?.file_format || filename?.split('.').pop() || 'archivo';
+    return {
+      url,
+      filename,
+      format: String(format).toUpperCase(),
+      label: listing?.metadata?.download_label || `Descargar ${String(format).toUpperCase()}`,
+    };
+  };
+
+  const findListingById = (listingId) => (
+    listings.find((item) => item.id === listingId)
+    || purchaseListings?.[listingId]
+    || demoListings.find((item) => item.id === listingId)
+  );
+
+  const getEntitlementForListing = (listing) => (
+    purchaseEntitlements.find((entitlement) => (
+      entitlement.listing_id === listing?.id
+      && entitlement.status === 'active'
+    ))
+  );
+
+  const hasPurchasedListing = (listing) => {
+    if (!listing) return false;
+    if (String(listing.id).startsWith('demo-') && demoPurchases.includes(listing.id)) return true;
+    if (getEntitlementForListing(listing)) return true;
+    return transactions.some((transaction) => (
+      transaction.listing_id === listing.id
+      && ['paid', 'completed', 'delivered'].includes(transaction.status)
+    ));
+  };
+
+  const isSkillInstalled = (listing) => Boolean(listing?.id && installedSkills.includes(listing.id));
+
+  const installedSkillListings = installedSkills.map(findListingById).filter(Boolean);
+
+  const resolveDownload = async (listing, entitlement = null) => {
+    const directDownload = getPrimaryDownload(listing);
+    if (!entitlement && directDownload?.url) {
+      const anchor = document.createElement('a');
+      anchor.href = directDownload.url;
+      anchor.download = directDownload.filename;
+      anchor.click();
+      return;
+    }
+
+    if (!entitlement) {
+      toast({
+        title: 'Descarga no disponible',
+        description: 'Compra el producto o espera a que se genere el derecho de descarga.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBusyListingId(listing?.id || entitlement.id);
+    try {
+      const response = await api.get(`/marketplace/entitlements/${entitlement.id}/download`);
+      const downloadUrl = response.data?.download_url;
+      if (!downloadUrl) throw new Error('download_url missing');
+      const filename = downloadUrl.split('/').pop();
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = filename;
+      anchor.click();
+      setPurchaseEntitlements((current) => current.map((item) => (
+        item.id === entitlement.id
+          ? { ...item, download_count: Number(item.download_count || 0) + 1 }
+          : item
+      )));
+    } catch (error) {
+      console.error('Error resolving download:', error);
+      toast({
+        title: 'No se pudo descargar',
+        description: error.response?.data?.detail || 'Revisa tu compra o intenta de nuevo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusyListingId(null);
+    }
+  };
+
   const submitListing = async (event) => {
     event.preventDefault();
     const payload = {
@@ -292,7 +450,19 @@ export const MarketplacePage = () => {
     };
 
     if (payload.listing_type === 'digital_artifact') {
-      payload.digital_artifact = { artifact_type: payload.category || 'template', file_urls: [] };
+      const fileUrl = payload.file_url || (payload.file_format === 'zip' ? '/marketplace-mock/pack-contratos-rovi.zip' : '/marketplace-mock/plantillas-comunicacion-copim.pdf');
+      payload.digital_artifact = {
+        artifact_type: payload.category === 'legal' ? 'contract_pack' : 'template',
+        file_urls: [fileUrl],
+        preview_url: fileUrl,
+      };
+      payload.metadata = {
+        file_format: payload.file_format,
+        download_label: payload.file_format === 'zip' ? 'Descargar ZIP' : 'Descargar PDF',
+        delivery_summary: payload.file_format === 'zip'
+          ? 'ZIP con documentos descargables.'
+          : 'PDF descargable listo para usar.',
+      };
     }
     if (payload.listing_type === 'professional_service') {
       payload.professional_service = {
@@ -333,6 +503,9 @@ export const MarketplacePage = () => {
     setBusyListingId(listing.id);
     try {
       if (String(listing.id).startsWith('demo-')) {
+        if (listing.listing_type === 'digital_artifact') {
+          setDemoPurchases((current) => current.includes(listing.id) ? current : [listing.id, ...current]);
+        }
         setTransactions((current) => [
           {
             id: `demo-tx-${Date.now()}`,
@@ -350,12 +523,17 @@ export const MarketplacePage = () => {
           ...current,
         ]);
       } else {
-        await api.post('/marketplace/purchase', { listing_id: listing.id, payment_provider: 'manual' });
+        const response = await api.post('/marketplace/purchase', { listing_id: listing.id, payment_provider: 'manual' });
+        if (response.data?.entitlement) {
+          setPurchaseEntitlements((current) => [response.data.entitlement, ...current.filter((item) => item.id !== response.data.entitlement.id)]);
+        }
         await loadMarketplace();
       }
       toast({
         title: listing.listing_type === 'professional_service' ? 'Servicio contratado' : 'Compra registrada',
-        description: 'Se genero la transaccion y el split de comisiones.',
+        description: listing.listing_type === 'digital_artifact'
+          ? `${listing.metadata?.download_label || 'Descarga'} lista en tu biblioteca.`
+          : 'Se genero la transaccion y el split de comisiones.',
       });
     } catch (error) {
       console.error('Error purchasing listing:', error);
@@ -375,9 +553,10 @@ export const MarketplacePage = () => {
       if (!String(listing.id).startsWith('demo-')) {
         await api.post(`/marketplace/agent-skills/${listing.id}/install`);
       }
+      setInstalledSkills((current) => current.includes(listing.id) ? current : [listing.id, ...current]);
       toast({
         title: 'Skill instalada',
-        description: 'Tu agente IA puede usar esta habilidad con las herramientas MCP del CRM.',
+        description: `${listing.metadata?.agent_name || 'Tu agente IA'} ya muestra esta habilidad activa.`,
       });
     } catch (error) {
       console.error('Error installing skill:', error);
@@ -390,6 +569,9 @@ export const MarketplacePage = () => {
       setBusyListingId(null);
     }
   };
+
+  const demoPurchasedListings = demoPurchases.map(findListingById).filter(Boolean);
+  const hasPurchaseLibrary = purchaseEntitlements.length > 0 || demoPurchasedListings.length > 0 || installedSkillListings.length > 0;
 
   return (
     <div className="min-h-full bg-background">
@@ -437,10 +619,11 @@ export const MarketplacePage = () => {
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <Tabs defaultValue="catalog" className="space-y-6">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:inline-grid md:w-auto md:grid-cols-5">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:inline-grid md:w-auto md:grid-cols-6">
             <TabsTrigger value="catalog">Catalogo</TabsTrigger>
             <TabsTrigger value="sell">Publicar</TabsTrigger>
             <TabsTrigger value="skills">Agent Skills</TabsTrigger>
+            <TabsTrigger value="purchases">Mis compras</TabsTrigger>
             <TabsTrigger value="tiers">Tiers</TabsTrigger>
             <TabsTrigger value="transactions">Transacciones</TabsTrigger>
           </TabsList>
@@ -504,6 +687,10 @@ export const MarketplacePage = () => {
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredListings.map((listing) => {
                   const Icon = listingIcons[listing.listing_type] || Store;
+                  const download = getPrimaryDownload(listing);
+                  const entitlement = getEntitlementForListing(listing);
+                  const purchased = hasPurchasedListing(listing);
+                  const skillInstalled = isSkillInstalled(listing);
                   return (
                     <Card key={listing.id} className="overflow-hidden">
                       <CardHeader className="border-b border-border bg-muted/30">
@@ -527,6 +714,27 @@ export const MarketplacePage = () => {
                           <Badge variant="outline">{listing.category}</Badge>
                           {(listing.tags || []).slice(0, 2).map((tag) => <Badge key={tag} variant="outline">{tag}</Badge>)}
                         </div>
+                        {listing.listing_type === 'digital_artifact' && (
+                          <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                {download?.format === 'ZIP' ? <FileArchive className="h-4 w-4 text-primary" /> : <FileText className="h-4 w-4 text-primary" />}
+                                <span className="font-medium">{listing.metadata?.delivery_summary || 'Entrega digital inmediata'}</span>
+                              </div>
+                              <Badge variant="outline">{download?.format || 'FILE'}</Badge>
+                            </div>
+                          </div>
+                        )}
+                        {listing.listing_type === 'agent_skill' && (
+                          <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                            <div className="flex items-center gap-2 font-medium">
+                              <Bot className="h-4 w-4 text-primary" />
+                              <span>{listing.metadata?.agent_name || 'Agente IA ROVI'}</span>
+                              {skillInstalled && <Badge className="ml-auto">Instalada</Badge>}
+                            </div>
+                            <p className="mt-2 text-muted-foreground">{listing.metadata?.activation_copy || 'La skill se agrega al agente despues de instalarla.'}</p>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between border-t border-border pt-4">
                           <div>
                             <p className="text-xs text-muted-foreground">Precio</p>
@@ -538,14 +746,21 @@ export const MarketplacePage = () => {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button className="flex-1" disabled={busyListingId === listing.id} onClick={() => purchaseListing(listing)}>
-                            <ShoppingBag className="h-4 w-4" />
-                            Comprar
-                          </Button>
+                          {download && purchased ? (
+                            <Button className="flex-1" disabled={busyListingId === listing.id} onClick={() => resolveDownload(listing, entitlement)}>
+                              <Download className="h-4 w-4" />
+                              {entitlement?.metadata?.download_label || download.label}
+                            </Button>
+                          ) : (
+                            <Button className="flex-1" disabled={busyListingId === listing.id} onClick={() => purchaseListing(listing)}>
+                              <ShoppingBag className="h-4 w-4" />
+                              Comprar
+                            </Button>
+                          )}
                           {listing.listing_type === 'agent_skill' && (
-                            <Button variant="outline" disabled={busyListingId === listing.id} onClick={() => installSkill(listing)}>
+                            <Button variant={skillInstalled ? 'secondary' : 'outline'} disabled={busyListingId === listing.id || skillInstalled} onClick={() => installSkill(listing)}>
                               <Bot className="h-4 w-4" />
-                              Instalar
+                              {skillInstalled ? 'Activa' : 'Instalar'}
                             </Button>
                           )}
                         </div>
@@ -606,6 +821,28 @@ export const MarketplacePage = () => {
                       <Label>Descripcion</Label>
                       <Textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Explica el resultado que obtiene el comprador." required />
                     </div>
+                    {form.listing_type === 'digital_artifact' && (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Formato de entrega</Label>
+                          <Select value={form.file_format} onValueChange={(value) => setForm((current) => ({
+                            ...current,
+                            file_format: value,
+                            file_url: value === 'zip' ? '/marketplace-mock/pack-contratos-rovi.zip' : '/marketplace-mock/plantillas-comunicacion-copim.pdf',
+                          }))}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pdf">PDF</SelectItem>
+                              <SelectItem value="zip">ZIP</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Archivo de entrega</Label>
+                          <Input value={form.file_url} onChange={(event) => setForm((current) => ({ ...current, file_url: event.target.value }))} placeholder="/marketplace-mock/archivo.pdf" />
+                        </div>
+                      </div>
+                    )}
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Precio MXN</Label>
@@ -650,40 +887,67 @@ export const MarketplacePage = () => {
           <TabsContent value="skills">
             <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
               <div className="grid gap-4 md:grid-cols-2">
-                {filteredListings.filter((listing) => listing.listing_type === 'agent_skill').map((listing) => (
-                  <Card key={listing.id}>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Bot className="h-5 w-5 text-primary" />
-                        {listing.title}
-                      </CardTitle>
-                      <CardDescription>{listing.subtitle}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground">{listing.description}</p>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                        <p className="font-medium">MCP requerido</p>
-                        <p className="mt-1 text-muted-foreground">
-                          {(listing.agent_skill?.required_mcp_tools || ['rovi.list_leads', 'rovi.retrieve_lead_summary']).join(', ')}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <strong>{formatCurrency(listing.price_mxn)}</strong>
-                        <Button onClick={() => installSkill(listing)} disabled={busyListingId === listing.id}>
-                          <Sparkles className="h-4 w-4" />
-                          Instalar Skill
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {filteredListings.filter((listing) => listing.listing_type === 'agent_skill').map((listing) => {
+                  const skillInstalled = isSkillInstalled(listing);
+                  return (
+                    <Card key={listing.id}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Bot className="h-5 w-5 text-primary" />
+                          {listing.title}
+                          {skillInstalled && <Badge className="ml-auto">Activa</Badge>}
+                        </CardTitle>
+                        <CardDescription>{listing.subtitle}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm text-muted-foreground">{listing.description}</p>
+                        <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                          <p className="font-medium">{listing.metadata?.agent_name || 'Agente IA ROVI'}</p>
+                          <p className="mt-1 text-muted-foreground">
+                            {(listing.metadata?.visible_capabilities || []).join(' · ') || 'Habilidad disponible para el agente comercial.'}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                          <p className="font-medium">MCP requerido</p>
+                          <p className="mt-1 text-muted-foreground">
+                            {(listing.agent_skill?.required_mcp_tools || ['rovi.list_leads', 'rovi.retrieve_lead_summary']).join(', ')}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <strong>{formatCurrency(listing.price_mxn)}</strong>
+                          <Button onClick={() => installSkill(listing)} disabled={busyListingId === listing.id || skillInstalled} variant={skillInstalled ? 'secondary' : 'default'}>
+                            <Sparkles className="h-4 w-4" />
+                            {skillInstalled ? 'Instalada' : 'Instalar Skill'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Orquestacion IA + MCP</CardTitle>
-                  <CardDescription>El agente compra conocimiento y usa herramientas seguras del CRM.</CardDescription>
+                  <CardTitle className="text-base">Agente con Skills activas</CardTitle>
+                  <CardDescription>El comprador ve que su agente ya tiene capacidades instaladas.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
+                  <div className="rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="flex items-center gap-2 font-medium">
+                      <PackageCheck className="h-4 w-4 text-primary" />
+                      <span>Agente Comercial ROVI</span>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      {installedSkillListings.length
+                        ? `${installedSkillListings.length} skill(s) activas en este agente.`
+                        : 'Sin skills instaladas todavia. Instala una para ver el estado activo.'}
+                    </p>
+                  </div>
+                  {installedSkillListings.map((listing) => (
+                    <div key={`installed-${listing.id}`} className="rounded-lg border border-border p-3">
+                      <p className="font-medium">{listing.title}</p>
+                      <p className="mt-1 text-muted-foreground">{listing.metadata?.activation_copy}</p>
+                    </div>
+                  ))}
                   {['Descubre Skill por descripcion', 'Carga SKILL.md al activarse', 'Usa rovi.list_leads y rovi.qualify_lead', 'Entrega diagnostico comercial accionable'].map((item) => (
                     <div key={item} className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary" />
@@ -693,6 +957,98 @@ export const MarketplacePage = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="purchases">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PackageCheck className="h-5 w-5 text-primary" />
+                  Biblioteca de compras
+                </CardTitle>
+                <CardDescription>
+                  Descargas, servicios y Agent Skills que el comprador ya tiene derecho a usar.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!hasPurchaseLibrary ? (
+                  <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                    <PackageCheck className="mx-auto h-10 w-10 text-muted-foreground" />
+                    <p className="mt-3 font-medium">Todavia no hay compras activas</p>
+                    <p className="text-sm text-muted-foreground">Compra un PDF, ZIP o Agent Skill para ver derechos de uso aqui.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {demoPurchasedListings.filter((listing) => listing.listing_type === 'digital_artifact').map((listing) => {
+                      const download = getPrimaryDownload(listing);
+                      return (
+                        <div key={`demo-library-${listing.id}`} className="rounded-lg border border-border p-4">
+                          <div className="flex items-start gap-3">
+                            {download?.format === 'ZIP' ? <FileArchive className="mt-1 h-5 w-5 text-primary" /> : <FileText className="mt-1 h-5 w-5 text-primary" />}
+                            <div>
+                              <p className="font-semibold">{listing.title}</p>
+                              <p className="mt-1 text-sm text-muted-foreground">{listing.metadata?.delivery_summary}</p>
+                            </div>
+                          </div>
+                          <Button className="mt-4 w-full" onClick={() => resolveDownload(listing)}>
+                            <Download className="h-4 w-4" />
+                            {download?.label || 'Descargar'}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                    {purchaseEntitlements.map((entitlement) => {
+                      const listing = findListingById(entitlement.listing_id);
+                      const isDownload = entitlement.entitlement_type === 'download';
+                      const isSkill = entitlement.entitlement_type === 'agent_skill';
+                      return (
+                        <div key={entitlement.id} className="rounded-lg border border-border p-4">
+                          <div className="flex items-start gap-3">
+                            {isDownload && <Download className="mt-1 h-5 w-5 text-primary" />}
+                            {isSkill && <Bot className="mt-1 h-5 w-5 text-primary" />}
+                            {!isDownload && !isSkill && <BriefcaseBusiness className="mt-1 h-5 w-5 text-primary" />}
+                            <div>
+                              <p className="font-semibold">{listing?.title || entitlement.listing_id}</p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {entitlement.metadata?.delivery_summary || entitlement.metadata?.activation_copy || entitlement.entitlement_type}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{entitlement.status}</span>
+                            {isDownload && <span>{entitlement.download_count || 0}/{entitlement.max_downloads || 10} descargas</span>}
+                          </div>
+                          {isDownload && (
+                            <Button className="mt-4 w-full" disabled={busyListingId === entitlement.id || busyListingId === listing?.id} onClick={() => resolveDownload(listing, entitlement)}>
+                              <Download className="h-4 w-4" />
+                              {entitlement.metadata?.download_label || 'Descargar archivo'}
+                            </Button>
+                          )}
+                          {isSkill && (
+                            <Button className="mt-4 w-full" variant={isSkillInstalled(listing) ? 'secondary' : 'default'} disabled={!listing || isSkillInstalled(listing)} onClick={() => installSkill(listing)}>
+                              <Sparkles className="h-4 w-4" />
+                              {isSkillInstalled(listing) ? 'Skill activa' : 'Instalar Skill'}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {installedSkillListings.map((listing) => (
+                      <div key={`skill-library-${listing.id}`} className="rounded-lg border border-border p-4">
+                        <div className="flex items-start gap-3">
+                          <Bot className="mt-1 h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-semibold">{listing.title}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{listing.metadata?.activation_copy}</p>
+                          </div>
+                        </div>
+                        <Badge className="mt-4">Activa en agente</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="tiers">
@@ -740,25 +1096,38 @@ export const MarketplacePage = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {transactions.map((transaction) => (
-                      <div key={transaction.id} className="rounded-lg border border-border p-4">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="font-semibold">{listingTypeLabels[transaction.listing_type] || transaction.listing_type}</p>
-                            <p className="text-sm text-muted-foreground">{transaction.status} · {new Date(transaction.created_at).toLocaleDateString('es-MX')}</p>
-                          </div>
-                          <p className="text-lg font-bold">{formatCurrency(transaction.gross_amount_mxn)}</p>
-                        </div>
-                        <div className="mt-3 grid gap-2 md:grid-cols-3">
-                          {(transaction.commission_splits || []).map((split) => (
-                            <div key={`${transaction.id}-${split.recipient_type}`} className="rounded-md bg-muted/40 p-3 text-sm">
-                              <p className="text-muted-foreground">{split.recipient_type}</p>
-                              <p className="font-semibold">{formatCurrency(split.amount_mxn)}</p>
+                    {transactions.map((transaction) => {
+                      const listing = findListingById(transaction.listing_id);
+                      const download = getPrimaryDownload(listing);
+                      const entitlement = getEntitlementForListing(listing);
+                      return (
+                        <div key={transaction.id} className="rounded-lg border border-border p-4">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <p className="font-semibold">{listing?.title || listingTypeLabels[transaction.listing_type] || transaction.listing_type}</p>
+                              <p className="text-sm text-muted-foreground">{transaction.status} · {new Date(transaction.created_at).toLocaleDateString('es-MX')}</p>
                             </div>
-                          ))}
+                            <div className="flex items-center gap-2 md:justify-end">
+                              {download && (
+                                <Button variant="outline" size="sm" disabled={busyListingId === transaction.listing_id} onClick={() => resolveDownload(listing, entitlement)}>
+                                  <Download className="h-4 w-4" />
+                                  {entitlement?.metadata?.download_label || download.label}
+                                </Button>
+                              )}
+                              <p className="text-lg font-bold">{formatCurrency(transaction.gross_amount_mxn)}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid gap-2 md:grid-cols-3">
+                            {(transaction.commission_splits || []).map((split) => (
+                              <div key={`${transaction.id}-${split.recipient_type}`} className="rounded-md bg-muted/40 p-3 text-sm">
+                                <p className="text-muted-foreground">{split.recipient_type}</p>
+                                <p className="font-semibold">{formatCurrency(split.amount_mxn)}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

@@ -8,6 +8,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from auth import get_current_user
 from models import (
     AgentSkillInstallation,
+    MarketplaceEntitlement,
+    MarketplaceEntitlementStatus,
+    MarketplaceEntitlementType,
     MarketplaceCommissionSplit,
     MarketplaceListingCreate,
     MarketplaceListingStatus,
@@ -234,6 +237,93 @@ def resolve_purchase_amount(listing: dict, package_name: Optional[str]) -> tuple
     return money(selected.get("price_mxn", listing.get("price_mxn", 0))), int(selected.get("delivery_days", 0) or 0)
 
 
+def get_file_format(url: str, listing: dict) -> str:
+    metadata = listing.get("metadata") or {}
+    if metadata.get("file_format"):
+        return str(metadata["file_format"]).lower()
+    if "." in url:
+        return url.rsplit(".", 1)[-1].lower()
+    return "file"
+
+
+def get_download_label(file_format: str) -> str:
+    if file_format == "zip":
+        return "Descargar ZIP"
+    if file_format == "pdf":
+        return "Descargar PDF"
+    return "Descargar archivo"
+
+
+async def create_entitlement_for_transaction(
+    db: AsyncIOMotorDatabase,
+    listing: dict,
+    transaction_doc: dict,
+    current_user: dict,
+) -> Optional[dict]:
+    listing_type = listing.get("listing_type")
+    entitlement_type: Optional[MarketplaceEntitlementType] = None
+    download_urls: list[str] = []
+    metadata: Dict[str, Any] = {}
+
+    if listing_type == MarketplaceListingType.DIGITAL_ARTIFACT.value:
+        artifact = listing.get("digital_artifact") or {}
+        download_urls = artifact.get("file_urls") or []
+        first_url = download_urls[0] if download_urls else ""
+        file_format = get_file_format(first_url, listing) if first_url else "file"
+        entitlement_type = MarketplaceEntitlementType.DOWNLOAD
+        metadata = {
+            "artifact_type": artifact.get("artifact_type", "template"),
+            "file_format": file_format,
+            "download_label": (listing.get("metadata") or {}).get("download_label") or get_download_label(file_format),
+            "delivery_summary": (listing.get("metadata") or {}).get("delivery_summary"),
+            "license_terms": artifact.get("license_terms", "single_tenant_use"),
+            "version": artifact.get("version", "1.0.0"),
+        }
+    elif listing_type == MarketplaceListingType.AGENT_SKILL.value:
+        skill = listing.get("agent_skill") or {}
+        entitlement_type = MarketplaceEntitlementType.AGENT_SKILL
+        metadata = {
+            "skill_slug": skill.get("skill_slug"),
+            "skill_version": skill.get("skill_version", "1.0.0"),
+            "install_mode": skill.get("install_mode", "tenant_agent"),
+            "compatible_agents": skill.get("compatible_agents", []),
+            "required_mcp_tools": skill.get("required_mcp_tools", []),
+            "agent_name": (listing.get("metadata") or {}).get("agent_name"),
+            "activation_copy": (listing.get("metadata") or {}).get("activation_copy"),
+        }
+    elif listing_type == MarketplaceListingType.PROFESSIONAL_SERVICE.value:
+        entitlement_type = MarketplaceEntitlementType.SERVICE_ORDER
+        metadata = {
+            "package_name": transaction_doc.get("package_name"),
+            "delivery_due_at": transaction_doc.get("delivery_due_at"),
+        }
+
+    if not entitlement_type:
+        return None
+
+    entitlement = MarketplaceEntitlement(
+        tenant_id=current_user["tenant_id"],
+        buyer_user_id=current_user["user_id"],
+        listing_id=listing["id"],
+        transaction_id=transaction_doc["id"],
+        entitlement_type=entitlement_type,
+        download_urls=download_urls,
+        metadata=metadata,
+    )
+    entitlement_doc = entitlement.model_dump(mode="json")
+    await db.marketplace_entitlements.update_one(
+        {
+            "tenant_id": current_user["tenant_id"],
+            "buyer_user_id": current_user["user_id"],
+            "listing_id": listing["id"],
+            "transaction_id": transaction_doc["id"],
+        },
+        {"$set": entitlement_doc},
+        upsert=True,
+    )
+    return entitlement_doc
+
+
 def create_marketplace_router(
     db: AsyncIOMotorDatabase,
     analyze_lead_fn: Optional[Callable[[dict], Any]] = None,
@@ -455,11 +545,12 @@ def create_marketplace_router(
         )
         transaction_doc = transaction.model_dump(mode="json")
         await db.marketplace_transactions.insert_one(transaction_doc)
+        entitlement_doc = await create_entitlement_for_transaction(db, listing, transaction_doc, current_user)
         await db.marketplace_listings.update_one(
             {"id": listing["id"], "tenant_id": current_user["tenant_id"]},
             {"$inc": {"sales_count": 1}, "$set": {"updated_at": now_iso()}},
         )
-        return {"message": "Compra registrada", "transaction": transaction_doc}
+        return {"message": "Compra registrada", "transaction": transaction_doc, "entitlement": entitlement_doc}
 
     @router.get("/transactions")
     async def list_marketplace_transactions(current_user: dict = Depends(get_current_user)):
@@ -468,6 +559,67 @@ def create_marketplace_router(
             query = {"tenant_id": current_user["tenant_id"]}
         transactions = await db.marketplace_transactions.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
         return {"transactions": [serialize_doc(item) for item in transactions]}
+
+    @router.get("/purchases")
+    async def list_marketplace_purchases(current_user: dict = Depends(get_current_user)):
+        transactions = await db.marketplace_transactions.find(
+            {"tenant_id": current_user["tenant_id"], "buyer_user_id": current_user["user_id"]},
+            {"_id": 0},
+        ).sort("created_at", -1).to_list(200)
+        entitlements = await db.marketplace_entitlements.find(
+            {"tenant_id": current_user["tenant_id"], "buyer_user_id": current_user["user_id"]},
+            {"_id": 0},
+        ).sort("created_at", -1).to_list(200)
+        listing_ids = sorted({item.get("listing_id") for item in transactions + entitlements if item.get("listing_id")})
+        listings = []
+        if listing_ids:
+            listings = await db.marketplace_listings.find(
+                {"tenant_id": current_user["tenant_id"], "id": {"$in": listing_ids}},
+                {"_id": 0},
+            ).to_list(len(listing_ids))
+        listing_map = {item["id"]: serialize_doc(item) for item in listings}
+
+        return {
+            "transactions": [serialize_doc(item) for item in transactions],
+            "entitlements": [serialize_doc(item) for item in entitlements],
+            "listings": listing_map,
+        }
+
+    @router.get("/entitlements/{entitlement_id}/download")
+    async def resolve_marketplace_download(entitlement_id: str, file_index: int = 0, current_user: dict = Depends(get_current_user)):
+        entitlement = await db.marketplace_entitlements.find_one(
+            {"id": entitlement_id, "tenant_id": current_user["tenant_id"]},
+            {"_id": 0},
+        )
+        if not entitlement:
+            raise HTTPException(status_code=404, detail="Derecho de descarga no encontrado.")
+        if entitlement.get("buyer_user_id") != current_user["user_id"] and current_user.get("role") not in ADMIN_ROLES:
+            raise HTTPException(status_code=403, detail="No puedes descargar este producto.")
+        if entitlement.get("status") != MarketplaceEntitlementStatus.ACTIVE.value:
+            raise HTTPException(status_code=403, detail="Este derecho de descarga no esta activo.")
+        if entitlement.get("entitlement_type") != MarketplaceEntitlementType.DOWNLOAD.value:
+            raise HTTPException(status_code=400, detail="Este entitlement no contiene descargas.")
+        if int(entitlement.get("download_count", 0)) >= int(entitlement.get("max_downloads", 10)):
+            raise HTTPException(status_code=403, detail="Limite de descargas alcanzado.")
+
+        download_urls = entitlement.get("download_urls") or []
+        if not download_urls:
+            raise HTTPException(status_code=404, detail="El producto no tiene archivos configurados.")
+        if file_index < 0 or file_index >= len(download_urls):
+            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+
+        download_url = download_urls[file_index]
+        metadata = entitlement.get("metadata") or {}
+        await db.marketplace_entitlements.update_one(
+            {"id": entitlement_id, "tenant_id": current_user["tenant_id"]},
+            {"$inc": {"download_count": 1}, "$set": {"updated_at": now_iso()}},
+        )
+        return {
+            "download_url": download_url,
+            "file_format": metadata.get("file_format") or get_file_format(download_url, {"metadata": metadata}),
+            "download_label": metadata.get("download_label") or get_download_label(get_file_format(download_url, {"metadata": metadata})),
+            "remaining_downloads": max(0, int(entitlement.get("max_downloads", 10)) - int(entitlement.get("download_count", 0)) - 1),
+        }
 
     @router.post("/agent-skills/{listing_id}/install")
     async def install_agent_skill(listing_id: str, current_user: dict = Depends(get_current_user)):
@@ -484,7 +636,14 @@ def create_marketplace_router(
             "buyer_user_id": current_user["user_id"],
             "status": {"$in": ["paid", "completed"]},
         })
-        if listing.get("price_mxn", 0) > 0 and not has_purchase and listing.get("creator_user_id") != current_user["user_id"]:
+        has_entitlement = await db.marketplace_entitlements.find_one({
+            "tenant_id": current_user["tenant_id"],
+            "listing_id": listing_id,
+            "buyer_user_id": current_user["user_id"],
+            "entitlement_type": MarketplaceEntitlementType.AGENT_SKILL.value,
+            "status": MarketplaceEntitlementStatus.ACTIVE.value,
+        })
+        if listing.get("price_mxn", 0) > 0 and not has_purchase and not has_entitlement and listing.get("creator_user_id") != current_user["user_id"]:
             raise HTTPException(status_code=402, detail="Debes comprar la Skill antes de instalarla.")
 
         skill_payload = listing.get("agent_skill") or {}
@@ -506,6 +665,25 @@ def create_marketplace_router(
             upsert=True,
         )
         return {"message": "Agent Skill instalada", "installation": install_doc}
+
+    @router.get("/agent-skills/installed")
+    async def list_installed_agent_skills(current_user: dict = Depends(get_current_user)):
+        installations = await db.agent_skill_installations.find(
+            {"tenant_id": current_user["tenant_id"], "user_id": current_user["user_id"], "status": "active"},
+            {"_id": 0},
+        ).sort("installed_at", -1).to_list(100)
+        listing_ids = [item.get("listing_id") for item in installations if item.get("listing_id")]
+        listings = []
+        if listing_ids:
+            listings = await db.marketplace_listings.find(
+                {"tenant_id": current_user["tenant_id"], "id": {"$in": listing_ids}},
+                {"_id": 0},
+            ).to_list(len(listing_ids))
+        listing_map = {item["id"]: serialize_doc(item) for item in listings}
+        return {
+            "installations": [serialize_doc(item) for item in installations],
+            "listings": listing_map,
+        }
 
     async def mcp_list_tools() -> dict:
         return {

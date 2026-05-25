@@ -23,6 +23,12 @@ const PRODUCT_TYPES = [
   { value: 'service', label: 'Servicio' }
 ];
 
+const OPERATION_TYPES = [
+  { value: 'sale', label: 'Venta' },
+  { value: 'rent', label: 'Renta' },
+  { value: 'both', label: 'Venta y renta' },
+];
+
 const NICHOS = {
   real_estate: ['Residencial', 'Comercial', 'VIP', 'Plusvalía', 'Inversionistas'],
   software: ['Agentes IA', 'Automatización', 'CRM', 'Integraciones'],
@@ -35,8 +41,12 @@ const EMPTY_PRODUCT = {
   title: '',
   description: '',
   product_type: 'real_estate',
+  operation_type: 'sale',
   niche: '',
   price_mxn: 0,
+  monthly_rent_mxn: 0,
+  nightly_rent_mxn: 0,
+  rental_type: '',
   features: [],
   aliases: [],
   keywords: [],
@@ -367,8 +377,12 @@ export const ProductsPage = () => {
       title: product.title || '',
       description: product.description || '',
       product_type: product.product_type || 'real_estate',
+      operation_type: product.operation_type || 'sale',
       niche: product.niche || '',
       price_mxn: product.price_mxn || 0,
+      monthly_rent_mxn: product.monthly_rent_mxn || 0,
+      nightly_rent_mxn: product.nightly_rent_mxn || 0,
+      rental_type: product.rental_type || '',
       features: product.features || [],
       aliases: product.aliases || [],
       keywords: product.keywords || [],
@@ -954,7 +968,10 @@ export const ProductsPage = () => {
                     <h3 className="text-lg font-semibold">{product.title}</h3>
                     <p className="text-sm text-muted-foreground">{product.niche || 'Sin nicho'}</p>
                   </div>
-                  <Badge variant="outline">{PRODUCT_TYPES.find((type) => type.value === product.product_type)?.label || product.product_type}</Badge>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge variant="outline">{PRODUCT_TYPES.find((type) => type.value === product.product_type)?.label || product.product_type}</Badge>
+                    <Badge variant="secondary">{OPERATION_TYPES.find((type) => type.value === (product.operation_type || 'sale'))?.label || 'Venta'}</Badge>
+                  </div>
                 </div>
 
                 <p className="line-clamp-2 text-sm text-muted-foreground">
@@ -968,8 +985,8 @@ export const ProductsPage = () => {
                   <p className="font-medium">${Number(product.price_mxn || 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Imágenes</p>
-                  <p className="font-medium">{product.images?.length || 0}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Renta</p>
+                  <p className="font-medium">${Number(product.nightly_rent_mxn || product.monthly_rent_mxn || 0).toLocaleString()}</p>
                 </div>
               </div>
 
@@ -1021,6 +1038,7 @@ export const ProductsPage = () => {
               <TableHead>SKU</TableHead>
               <TableHead>Título</TableHead>
               <TableHead>Tipo</TableHead>
+              <TableHead>Operación</TableHead>
               <TableHead>Nicho</TableHead>
               <TableHead>Precio</TableHead>
               {visibleTableFields.map((field) => (
@@ -1049,6 +1067,7 @@ export const ProductsPage = () => {
                   <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                   <TableCell className="font-medium">{product.title}</TableCell>
                   <TableCell>{PRODUCT_TYPES.find((type) => type.value === product.product_type)?.label || product.product_type}</TableCell>
+                  <TableCell>{OPERATION_TYPES.find((type) => type.value === (product.operation_type || 'sale'))?.label || 'Venta'}</TableCell>
                   <TableCell>{product.niche || '-'}</TableCell>
                   <TableCell>${Number(product.price_mxn || 0).toLocaleString()}</TableCell>
                   {visibleTableFields.map((field) => (
@@ -1137,16 +1156,51 @@ export const ProductsPage = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div>
               <Label>Título</Label>
               <Input value={formData.title} onChange={(event) => setFormData((prev) => ({ ...prev, title: event.target.value }))} placeholder="ej: Lote Residencial Aldea Zama" />
+            </div>
+            <div>
+              <Label>Operación</Label>
+              <Select value={formData.operation_type || 'sale'} onValueChange={(value) => setFormData((prev) => ({ ...prev, operation_type: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {OPERATION_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Precio (MXN)</Label>
               <Input type="number" value={formData.price_mxn} onChange={(event) => setFormData((prev) => ({ ...prev, price_mxn: Number(event.target.value || 0) }))} />
             </div>
           </div>
+
+          {(formData.operation_type === 'rent' || formData.operation_type === 'both') && (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label>Tipo de renta</Label>
+                <Select value={formData.rental_type || 'short_term'} onValueChange={(value) => setFormData((prev) => ({ ...prev, rental_type: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="short_term">Corta estancia</SelectItem>
+                    <SelectItem value="mid_term">Media estancia</SelectItem>
+                    <SelectItem value="long_term">Larga estancia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Renta mensual</Label>
+                <Input type="number" value={formData.monthly_rent_mxn} onChange={(event) => setFormData((prev) => ({ ...prev, monthly_rent_mxn: Number(event.target.value || 0) }))} />
+              </div>
+              <div>
+                <Label>Renta por noche</Label>
+                <Input type="number" value={formData.nightly_rent_mxn} onChange={(event) => setFormData((prev) => ({ ...prev, nightly_rent_mxn: Number(event.target.value || 0) }))} />
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="mb-2 flex items-center justify-between">

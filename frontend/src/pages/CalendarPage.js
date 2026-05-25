@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   Calendar as CalendarIcon, Plus, Clock, Phone, Video, MapPin, User,
-  ChevronLeft, ChevronRight, Check, Trash2, Loader2, RefreshCw, Settings
+  ChevronLeft, ChevronRight, Check, Trash2, Loader2, RefreshCw, Settings,
+  Home, ClipboardList, Wrench, X
 } from 'lucide-react';
+import { isPropertyManagerUser } from '../lib/copimAccess';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -38,6 +40,12 @@ const eventTypeConfig = {
   llamada: { label: 'Llamada', icon: Phone, color: 'bg-cyan-500' },
   zoom: { label: 'Zoom', icon: Video, color: 'bg-purple-500' },
   visita: { label: 'Visita', icon: MapPin, color: 'bg-[#4D7C0F]' },
+  reserva: { label: 'Reserva', icon: Home, color: 'bg-emerald-500' },
+  checkout: { label: 'Check-out', icon: MapPin, color: 'bg-amber-500' },
+  bloqueo: { label: 'Bloqueo', icon: CalendarIcon, color: 'bg-slate-500' },
+  limpieza: { label: 'Limpieza', icon: ClipboardList, color: 'bg-sky-500' },
+  mantenimiento: { label: 'Mantenimiento', icon: Wrench, color: 'bg-orange-500' },
+  tarea: { label: 'Tarea', icon: ClipboardList, color: 'bg-indigo-500' },
   otro: { label: 'Otro', icon: CalendarIcon, color: 'bg-gray-500' },
 };
 
@@ -62,6 +70,7 @@ const EventCard = ({ event, onComplete, onDelete }) => {
                 {format(eventTime, 'HH:mm', { locale: es })} hrs
               </p>
             </div>
+            {!event.read_only && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {!event.completed && (
                 <Button
@@ -82,6 +91,7 @@ const EventCard = ({ event, onComplete, onDelete }) => {
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
+            )}
           </div>
           {event.description && (
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
@@ -90,6 +100,12 @@ const EventCard = ({ event, onComplete, onDelete }) => {
             <div className="flex items-center gap-1 mt-2 text-xs text-primary">
               <User className="w-3 h-3" />
               <span>{event.lead.name}</span>
+            </div>
+          )}
+          {event.property && (
+            <div className="flex items-center gap-1 mt-2 text-xs text-primary">
+              <Home className="w-3 h-3" />
+              <span>{event.property.title}</span>
             </div>
           )}
         </div>
@@ -300,35 +316,49 @@ const NewEventModal = ({ isOpen, onClose, onCreated, api, selectedDate, leads, b
 };
 
 export const CalendarPage = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const [events, setEvents] = useState([]);
   const [leads, setLeads] = useState([]);
   const [brokers, setBrokers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showNewModal, setShowNewModal] = useState(false);
   const [showRoundRobinConfig, setShowRoundRobinConfig] = useState(false);
+  const isRentalCalendar = isPropertyManagerUser(user);
 
   useEffect(() => {
     loadData();
   }, [currentMonth]);
 
   const loadData = async () => {
+    setLoading(true);
+    setLoadError('');
     try {
       const start = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
-      const end = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
+      const end = format(endOfMonth(isRentalCalendar ? addMonths(currentMonth, 2) : currentMonth), 'yyyy-MM-dd');
+
+      if (isRentalCalendar) {
+        const eventsRes = await api.get(`/rentals/calendar/events?start_date=${start}&end_date=${end}`);
+        setEvents(eventsRes.data || []);
+        setLeads([]);
+        setBrokers([]);
+        return;
+      }
 
       const [eventsRes, leadsRes, brokersRes] = await Promise.all([
         api.get(`/calendar/events?start_date=${start}&end_date=${end}`),
-        api.get('/leads'),
-        api.get('/users?role=broker'), // Load brokers for assignment
+        api.get('/leads').catch(() => ({ data: [] })),
+        api.get('/users?role=broker').catch(() => ({ data: [] })),
       ]);
-      setEvents(eventsRes.data);
+      setEvents(eventsRes.data || []);
       setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : (leadsRes.data?.leads || []));
-      setBrokers(brokersRes.data || []);
+      setBrokers(Array.isArray(brokersRes.data) ? brokersRes.data : []);
     } catch (error) {
       console.error('Error loading calendar data:', error);
+      setEvents([]);
+      setLoadError(error.response?.data?.detail || 'No se pudo cargar el calendario');
     } finally {
       setLoading(false);
     }
@@ -364,6 +394,17 @@ export const CalendarPage = () => {
   };
 
   const selectedDateEvents = getEventsForDate(selectedDate);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const upcomingEvents = events
+    .filter((event) => !event.completed && new Date(event.start_time) >= todayStart)
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+    .slice(0, 5);
+  const todayEvents = getEventsForDate(new Date())
+    .filter((event) => !event.completed)
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+    .slice(0, 5);
+  const footerEvents = isRentalCalendar ? upcomingEvents : todayEvents;
 
   const daysInMonth = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -381,10 +422,13 @@ export const CalendarPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">Calendario</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Gestiona tus actividades y seguimientos</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-['Outfit']">{isRentalCalendar ? 'Calendario de rentas' : 'Calendario'}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            {isRentalCalendar ? 'Reservas, bloqueos y tareas operativas de tus propiedades.' : 'Gestiona tus actividades y seguimientos'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          {!isRentalCalendar && (
           <Button
             variant="outline"
             onClick={() => setShowRoundRobinConfig(true)}
@@ -393,11 +437,20 @@ export const CalendarPage = () => {
             <Settings className="w-4 h-4 mr-2" />
             Asignaciones
           </Button>
+          )}
+          {!isRentalCalendar && (
           <Button onClick={() => setShowNewModal(true)} className="rounded-full w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" /> Nuevo Evento
           </Button>
+          )}
         </div>
       </div>
+
+      {loadError && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-4 text-sm text-destructive">{loadError}</CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -559,16 +612,12 @@ export const CalendarPage = () => {
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
             <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#D97706]" />
-            Próximos Eventos de Hoy
+            {isRentalCalendar ? 'Próximos eventos de operación' : 'Próximos Eventos de Hoy'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-            {getEventsForDate(new Date())
-              .filter((e) => !e.completed)
-              .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
-              .slice(0, 5)
-              .map((event) => {
+            {footerEvents.map((event) => {
                 const config = eventTypeConfig[event.event_type] || eventTypeConfig.otro;
                 const Icon = config.icon;
                 return (
@@ -583,21 +632,23 @@ export const CalendarPage = () => {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{event.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(event.start_time), 'HH:mm')} hrs
+                          {format(new Date(event.start_time), isRentalCalendar ? 'd MMM · HH:mm' : 'HH:mm', { locale: es })} hrs
                         </p>
                       </div>
                     </div>
-                    {event.lead && (
+                    {(event.lead || event.property) && (
                       <Badge variant="secondary" className="text-xs">
-                        <User className="w-3 h-3 mr-1" />
-                        {event.lead.name}
+                        {event.lead ? <User className="w-3 h-3 mr-1" /> : <Home className="w-3 h-3 mr-1" />}
+                        {event.lead?.name || event.property?.title}
                       </Badge>
                     )}
                   </div>
                 );
               })}
-            {getEventsForDate(new Date()).filter((e) => !e.completed).length === 0 && (
-              <p className="text-muted-foreground text-sm py-4">No hay eventos pendientes para hoy</p>
+            {footerEvents.length === 0 && (
+              <p className="text-muted-foreground text-sm py-4">
+                {isRentalCalendar ? 'No hay eventos próximos de operación' : 'No hay eventos pendientes para hoy'}
+              </p>
             )}
           </div>
         </CardContent>

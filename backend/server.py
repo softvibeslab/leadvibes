@@ -33,7 +33,7 @@ from models import (
     CopimCourseCreate, CopimCourseUpdate, CopimCourseAIDraftRequest, CopimCourseProgressUpdate,
     Goal, GoalCreate,
     AIProfile, AIProfileCreate, AIProfileUpdate,
-    Lead, LeadCreate, LeadUpdate, LeadStatus, LeadPriority,
+    Lead, LeadCreate, LeadUpdate, LeadStatus, LeadPriority, OperationType,
     Activity, ActivityCreate, ActivityType,
     GamificationRule, GamificationRuleCreate, BrokerStats, PointLedger,
     ChatMessage, ChatMessageCreate,
@@ -111,6 +111,8 @@ from import_optimization import execute_import_optimized, execute_import_with_ad
 from agent_control import AgentRunRequest, create_agent_control_router, run_agent_turn
 from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
+from vibe_lab import create_vibe_lab_router
+from rentals import create_rentals_router
 from copim_member_import import create_copim_member_import_router
 
 ROOT_DIR = Path(__file__).parent
@@ -176,6 +178,8 @@ async def get_or_create_tenant(user_id: str) -> str:
 def resolve_account_tenant_type(account_type: str) -> str:
     if account_type == "agency":
         return "agency"
+    if account_type == "property_management":
+        return "property_management"
     if account_type == "copim":
         return "copim"
     if account_type == "rovi_internal":
@@ -193,6 +197,9 @@ def resolve_user_role(account_type: str, requested_role: str | None) -> str:
 
     if account_type == "copim_member":
         return "copim_member"
+
+    if account_type == "property_management":
+        return "property_manager"
 
     if requested_role in copim_roles:
         return "broker"
@@ -213,6 +220,8 @@ def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -
         return f"{base_name} Personal"
     if tenant_type == "agency":
         return f"{base_name} Inmobiliaria"
+    if tenant_type == "property_management":
+        return f"{base_name} Rentas"
     if tenant_type == "association":
         return f"{base_name} Asociacion"
     if tenant_type == "council":
@@ -322,11 +331,15 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
             is_default=not is_copim_member_account,
         )
     else:
-        await ensure_membership_doc(personal_tenant_id, membership_role="owner", is_default=account_type != "agency" and account_type != "copim")
+        await ensure_membership_doc(
+            personal_tenant_id,
+            membership_role="owner",
+            is_default=account_type not in {"agency", "copim", "property_management"},
+        )
         await ensure_membership_doc(
             current_tenant_id,
             membership_role="owner" if account_type == "agency" and role == "broker" else role,
-            is_default=account_type in {"agency", "copim"},
+            is_default=account_type in {"agency", "copim", "property_management"},
         )
 
     return user
@@ -7230,6 +7243,8 @@ async def get_leads(
     current_user: dict = Depends(get_current_user),
     status: Optional[List[LeadStatus]] = Query(None),
     priority: Optional[List[LeadPriority]] = Query(None),
+    operation_type: Optional[OperationType] = None,
+    pipeline_type: Optional[str] = None,
     source: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
@@ -7249,6 +7264,8 @@ async def get_leads(
         current_user=current_user,
         status=status,
         priority=priority,
+        operation_type=operation_type.value if operation_type else None,
+        pipeline_type=pipeline_type,
         source=source,
         date_from=date_from,
         date_to=date_to,
@@ -8494,6 +8511,7 @@ def build_product_query(
     tenant_id: str,
     is_active: Optional[bool] = None,
     product_type: Optional[str] = None,
+    operation_type: Optional[str] = None,
     niche: Optional[str] = None,
     search: Optional[str] = None,
     has_images: Optional[bool] = None,
@@ -8504,6 +8522,8 @@ def build_product_query(
         query["is_active"] = is_active
     if product_type:
         query["product_type"] = product_type
+    if operation_type:
+        query["operation_type"] = operation_type
     if niche:
         query["niche"] = niche
     if has_images is True:
@@ -8544,6 +8564,7 @@ async def validate_custom_field_uniqueness(tenant_id: str, entity_type: str, key
 async def get_products(
     is_active: Optional[bool] = None,
     product_type: Optional[str] = None,
+    operation_type: Optional[OperationType] = None,
     niche: Optional[str] = None,
     search: Optional[str] = None,
     has_images: Optional[bool] = None,
@@ -8557,6 +8578,7 @@ async def get_products(
         tenant_id=tenant_id,
         is_active=is_active,
         product_type=product_type,
+        operation_type=operation_type.value if operation_type else None,
         niche=niche,
         search=search,
         has_images=has_images,
@@ -15142,6 +15164,8 @@ async def receive_external_lead_webhook(
 api_router.include_router(create_marketplace_router(db, analyze_lead))
 api_router.include_router(create_rovi_internal_router(db))
 api_router.include_router(create_agent_control_router(db))
+api_router.include_router(create_vibe_lab_router(db))
+api_router.include_router(create_rentals_router(db))
 api_router.include_router(create_copim_member_import_router(
     db,
     require_copim_admin_workspace=require_copim_admin_workspace,

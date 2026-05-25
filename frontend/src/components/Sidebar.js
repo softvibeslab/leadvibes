@@ -10,6 +10,8 @@ import {
   getWorkspaceTypeLabel,
   isCopimLocalAssociationUser,
   isCopimMemberUser,
+  isPropertyManagerUser,
+  isRoviControlTowerOwner,
   isRoviInternalUser,
   resolveAuthenticatedHome,
 } from '../lib/copimAccess';
@@ -40,8 +42,10 @@ import {
   CreditCard,
   IdCard,
   FolderKanban,
+  BriefcaseBusiness,
   Store,
-  Handshake
+  Handshake,
+  FlaskConical,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -96,6 +100,25 @@ const roviInternalNavItems = [
   { to: '/rovi/team', icon: UserCircle, label: 'Equipo Interno' },
   { to: '/rovi/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/rovi/ai-control', icon: Bot, label: 'AI Control' },
+  { to: '/rovi/vibe-lab', icon: FlaskConical, label: 'VibeLab' },
+  { to: '/database-chat', icon: Database, label: 'Estratega IA' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const propertyManagerNavItems = [
+  { to: '/rentals', icon: LayoutDashboard, label: 'Rentas HQ' },
+  { to: '/rentals/properties', icon: Package, label: 'Propiedades' },
+  { to: '/rentals/bookings', icon: CalendarDays, label: 'Reservas' },
+  { to: '/rentals/calendar', icon: CalendarDays, label: 'Calendario' },
+  { to: '/rentals/tasks', icon: FolderKanban, label: 'Tareas' },
+  { to: '/rentals/staff', icon: BriefcaseBusiness, label: 'Staff' },
+  { to: '/rentals/financials', icon: WalletCards, label: 'Finanzas' },
+  { to: '/rentals/integrations', icon: Zap, label: 'Integraciones' },
+  { to: '/rentals/import', icon: Upload, label: 'Importador' },
+  { to: '/leads', icon: Users, label: 'Leads' },
+  { to: '/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
+  { to: '/database-chat', icon: Database, label: 'Estratega IA' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
 
@@ -161,6 +184,8 @@ export const Sidebar = ({ onClose }) => {
   const isMemberPortal = isCopimMemberUser(user);
   const isLocalAssociationWorkspace = isCopimLocalAssociationUser(user);
   const isRoviInternalWorkspace = isRoviInternalUser(user);
+  const isControlTowerOwner = isRoviControlTowerOwner(user);
+  const isPropertyManagerWorkspace = isPropertyManagerUser(user);
 
   const handleWorkspaceChange = async (tenantId) => {
     if (!tenantId || tenantId === activeWorkspace?.tenant_id) return;
@@ -171,6 +196,8 @@ export const Sidebar = ({ onClose }) => {
       const targetRole = targetWorkspace?.role || getEffectiveRole(user);
       const nextPath = targetWorkspace?.tenant_type === 'rovi_internal' || String(targetRole).startsWith('rovi_')
         ? '/rovi/dashboard'
+        : targetWorkspace?.tenant_type === 'property_management' || targetRole === 'property_manager'
+        ? '/rentals'
         : targetRole === 'copim_member'
         ? '/copim/member'
         : targetRole === 'copim_operator'
@@ -194,7 +221,9 @@ export const Sidebar = ({ onClose }) => {
   // Choose nav items based on account type
   const currentModeValue = location.pathname.startsWith('/copim') ? 'copim' : appMode;
   const navItems = isRoviInternalWorkspace || location.pathname.startsWith('/rovi')
-    ? roviInternalNavItems
+    ? roviInternalNavItems.filter((item) => item.to !== '/rovi/ai-control' || isControlTowerOwner)
+    : isPropertyManagerWorkspace || location.pathname.startsWith('/rentals')
+    ? propertyManagerNavItems
     : currentModeValue === 'copim'
     ? (isMemberPortal ? copimMemberNavItems : (isLocalAssociationWorkspace ? copimLocalAssociationNavItems : copimNationalNavItems))
     : isIndividual
@@ -281,6 +310,7 @@ export const Sidebar = ({ onClose }) => {
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.to === '/rentals'}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive

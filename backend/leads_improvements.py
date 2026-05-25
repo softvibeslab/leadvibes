@@ -63,6 +63,8 @@ async def get_leads_advanced_filters(
     current_user: dict,
     status: Optional[List[LeadStatus]] = Query(None),
     priority: Optional[List[LeadPriority]] = Query(None),
+    operation_type: Optional[str] = None,
+    pipeline_type: Optional[str] = None,
     source: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
@@ -87,6 +89,12 @@ async def get_leads_advanced_filters(
         # Filtros de priority (múltiples)
         if priority:
             query["priority"] = {"$in": [p.value for p in priority]}
+
+        if operation_type:
+            query["operation_type"] = operation_type
+
+        if pipeline_type:
+            query["pipeline_type"] = pipeline_type
 
         # Filtro de source
         if source:

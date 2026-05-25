@@ -48,6 +48,7 @@ services:
       ROVI_AI_API_KEY: ${ROVI_AI_API_KEY:-}
       ROVI_AI_USD_TO_MXN: ${ROVI_AI_USD_TO_MXN:-18.5}
       ROVI_WORKSPACE_GRAPH_PATH: ${ROVI_WORKSPACE_GRAPH_PATH:-}
+      ROVI_CONTROL_TOWER_OWNER_EMAILS: ${ROVI_CONTROL_TOWER_OWNER_EMAILS:-rgarciavital@gmail.com}
 
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
@@ -84,6 +85,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        REACT_APP_ROVI_CONTROL_TOWER_OWNER_EMAILS: ${ROVI_CONTROL_TOWER_OWNER_EMAILS:-rgarciavital@gmail.com}
     container_name: rovi-frontend
     restart: always
     ports:

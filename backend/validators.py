@@ -190,7 +190,12 @@ def sanitize_lead_data(data: dict) -> dict:
         )
 
     # Copy other safe fields
-    safe_fields = ['source', 'assigned_broker_id', 'created_by', 'tenant_id']
+    safe_fields = [
+        'source', 'assigned_broker_id', 'created_by', 'tenant_id',
+        'operation_type', 'pipeline_type', 'rental_intent',
+        'monthly_budget_mxn', 'nightly_budget_mxn', 'desired_check_in',
+        'desired_check_out', 'guests_count', 'preferred_zone',
+    ]
     for field in safe_fields:
         if field in data and data[field]:
             sanitized[field] = data[field]

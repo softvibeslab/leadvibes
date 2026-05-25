@@ -43,6 +43,7 @@ services:
 
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
+      ROVI_CONTROL_TOWER_OWNER_EMAILS: ${ROVI_CONTROL_TOWER_OWNER_EMAILS:-rgarciavital@gmail.com,preview.rovi.admin@rovicrm.com}
 
       # CORS - Preview only
       CORS_ORIGINS: ${CORS_ORIGINS_PREVIEW:-http://localhost:3200,http://31.220.63.211:3200,http://preview.srv1318804.hstgr.cloud,https://preview.srv1318804.hstgr.cloud}
@@ -77,6 +78,7 @@ services:
       args:
         REACT_APP_BACKEND_URL: ""
         REACT_APP_ENVIRONMENT: preview
+        REACT_APP_ROVI_CONTROL_TOWER_OWNER_EMAILS: ${ROVI_CONTROL_TOWER_OWNER_EMAILS:-rgarciavital@gmail.com,preview.rovi.admin@rovicrm.com}
     container_name: rovi-frontend-preview
     restart: always
     ports:

@@ -133,6 +133,13 @@ jobs:
             # Navigate to project directory
             cd ${{ secrets.PREVIEW_PATH }}
 
+            # Sync the VPS checkout with the branch/ref that triggered this deployment.
+            DEPLOY_REF="${{ github.ref_name }}"
+            git config --global --add safe.directory "${{ secrets.PREVIEW_PATH }}"
+            git fetch origin "$DEPLOY_REF"
+            git checkout -B "$DEPLOY_REF" "origin/$DEPLOY_REF"
+            git reset --hard "origin/$DEPLOY_REF"
+
             # Create .env file for preview
             cat > .env << 'EOF'
             MONGO_ROOT_USERNAME=${{ secrets.MONGO_ROOT_USERNAME }}
@@ -142,18 +149,19 @@ jobs:
             JWT_ALGORITHM=HS256
             JWT_EXPIRATION_HOURS=24
             EMERGENT_LLM_KEY=${{ secrets.EMERGENT_LLM_KEY }}
+            ROVI_CONTROL_TOWER_OWNER_EMAILS=rgarciavital@gmail.com,preview.rovi.admin@rovicrm.com
             CORS_ORIGINS=${{ secrets.PREVIEW_CORS_ORIGINS }}
             ENVIRONMENT=preview
             DEBUG=true
             EOF
 
-            # Pull latest images
-            echo "Pulling latest Docker images..."
-            docker compose -f docker-compose.preview.yml pull
+            # Rebuild and restart services with the synced checkout.
+            echo "Building and restarting preview services..."
+            docker compose -f docker-compose.preview.yml up -d --build --force-recreate
 
-            # Restart services
-            echo "Restarting services..."
-            docker compose -f docker-compose.preview.yml up -d --force-recreate
+            # Seed deterministic preview users for every role family.
+            echo "Seeding preview access users..."
+            docker compose -f docker-compose.preview.yml exec -T backend-preview python scripts/seed_preview_access_users.py
 
             # Clean up old images
             echo "Cleaning up old images..."
@@ -167,7 +175,10 @@ jobs:
           sleep 15
 
           # Check backend health
-          BACKEND_URL="${{ secrets.PREVIEW_BACKEND_URL }}/api/health"
+          BACKEND_URL="${{ secrets.PREVIEW_BACKEND_URL }}"
+          if ! echo "$BACKEND_URL" | grep -q "/api/health$"; then
+            BACKEND_URL="${BACKEND_URL%/}/api/health"
+          fi
           if curl -f -s "$BACKEND_URL" | grep -q "healthy"; then
             echo "✅ Preview backend is healthy"
           else

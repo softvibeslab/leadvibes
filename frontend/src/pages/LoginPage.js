@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Leaf, Eye, EyeOff, Sun, Moon, Loader2, User, Building2, Globe2 } from 'lucide-react';
+import { Leaf, Eye, EyeOff, Sun, Moon, Loader2, User, Building2, Globe2, KeyRound } from 'lucide-react';
 import { resolveAuthenticatedHome } from '../lib/copimAccess';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -74,7 +74,11 @@ export const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const registrationRole = registerForm.account_type === 'copim' ? 'copim_admin' : 'broker';
+      const registrationRole = registerForm.account_type === 'copim'
+        ? 'copim_admin'
+        : registerForm.account_type === 'property_management'
+          ? 'property_manager'
+          : 'broker';
       await register(
         registerForm.name, 
         registerForm.email, 
@@ -258,6 +262,20 @@ export const LoginPage = () => {
                           <Globe2 className={`w-6 h-6 mb-2 ${registerForm.account_type === 'copim' ? 'text-primary' : 'text-muted-foreground'}`} />
                           <p className="font-medium text-sm">COPIM Institucional</p>
                           <p className="text-xs text-muted-foreground">Administra asociaciones, socios, eventos y membresias</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegisterForm({ ...registerForm, account_type: 'property_management' })}
+                          className={`p-4 rounded-xl border-2 transition-all text-left col-span-2 ${
+                            registerForm.account_type === 'property_management'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          data-testid="account-type-property-management"
+                        >
+                          <KeyRound className={`w-6 h-6 mb-2 ${registerForm.account_type === 'property_management' ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <p className="font-medium text-sm">Rentas / Airbnb</p>
+                          <p className="text-xs text-muted-foreground">Gestiona propiedades, reservas, huéspedes, tareas y rentabilidad</p>
                         </button>
                       </div>
                     </div>

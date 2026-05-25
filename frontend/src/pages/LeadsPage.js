@@ -83,6 +83,12 @@ const sourceConfig = {
   'WhatsApp': { label: 'WhatsApp', color: 'bg-emerald-500' },
 };
 
+const operationConfig = {
+  sale: { label: 'Venta', color: 'bg-emerald-500' },
+  rent: { label: 'Renta', color: 'bg-cyan-500' },
+  both: { label: 'Venta/Renta', color: 'bg-amber-500' },
+};
+
 const normalizeLeadCustomFieldValue = (field, value) => {
   if (field.field_type === 'number') {
     return Number(value || 0);
@@ -202,6 +208,7 @@ const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort
               <SortableHeader column="phone" label="Teléfono" />
               <SortableHeader column="status" label="Estado" />
               <SortableHeader column="priority" label="Prioridad" />
+              <SortableHeader column="operation_type" label="Operación" />
               <SortableHeader column="source" label="Fuente" />
               <SortableHeader column="budget_mxn" label="Presupuesto" />
               {visibleCustomFields.map((field) => (
@@ -216,6 +223,7 @@ const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort
               const status = statusConfig[lead.status] || statusConfig.nuevo;
               const priority = priorityConfig[lead.priority] || priorityConfig.media;
               const source = sourceConfig[lead.source] || { label: lead.source, color: 'bg-gray-400' };
+              const operation = operationConfig[lead.operation_type || 'sale'] || operationConfig.sale;
               
               return (
                 <TableRow 
@@ -257,6 +265,11 @@ const LeadsTableView = ({ leads, onLeadClick, onStatusChange, sortConfig, onSort
                       <div className={`w-2 h-2 rounded-full ${priority.color}`} />
                       <span className="text-xs">{priority.label}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {operation.label}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">
@@ -332,6 +345,7 @@ const SortableLeadCard = ({ lead, onClick }) => {
 
   const status = statusConfig[lead.status] || statusConfig.nuevo;
   const priority = priorityConfig[lead.priority] || priorityConfig.media;
+  const operation = operationConfig[lead.operation_type || 'sale'] || operationConfig.sale;
 
   return (
     <Card
@@ -375,6 +389,9 @@ const SortableLeadCard = ({ lead, onClick }) => {
             <MapPin className="w-3 h-3" />
             <span className="truncate">{lead.property_interest || 'Sin especificar'}</span>
           </div>
+          <Badge variant="outline" className="w-fit text-[10px]">
+            {operation.label}
+          </Badge>
           {Array.isArray(lead.tags) && lead.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {lead.tags.slice(0, 3).map((tag) => (
@@ -1176,7 +1193,16 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
     phone: '',
     email: '',
     source: 'web',
+    operation_type: 'sale',
+    pipeline_type: 'sales',
+    rental_intent: '',
     budget_mxn: 0,
+    monthly_budget_mxn: 0,
+    nightly_budget_mxn: 0,
+    desired_check_in: '',
+    desired_check_out: '',
+    guests_count: 1,
+    preferred_zone: '',
     property_interest: '',
     tags: [],
     email_opt_out: false,
@@ -1204,18 +1230,28 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
 
   const handleBeforeCreate = async (leadData) => {
     setLoading(true);
+    const payload = {
+      ...leadData,
+      desired_check_in: leadData.desired_check_in ? new Date(`${leadData.desired_check_in}T12:00:00`).toISOString() : null,
+      desired_check_out: leadData.desired_check_out ? new Date(`${leadData.desired_check_out}T12:00:00`).toISOString() : null,
+      monthly_budget_mxn: Number(leadData.monthly_budget_mxn) || null,
+      nightly_budget_mxn: Number(leadData.nightly_budget_mxn) || null,
+      guests_count: Number(leadData.guests_count) || null,
+      rental_intent: leadData.rental_intent || null,
+      preferred_zone: leadData.preferred_zone || null,
+    };
     try {
       // Verificar duplicados antes de crear
-      const response = await api.post('/leads/check-duplicates', leadData);
+      const response = await api.post('/leads/check-duplicates', payload);
       const duplicates = response.data;
 
       if (duplicates.duplicates_found > 0) {
         // Mostrar modal de duplicados
-        setLeadDataToCheck(leadData);
+        setLeadDataToCheck(payload);
         setShowDuplicateModal(true);
       } else {
         // No hay duplicados, crear directamente
-        await api.post('/leads', leadData);
+        await api.post('/leads', payload);
         toast.success('Lead creado exitosamente');
         onCreated();
         handleClose();
@@ -1223,7 +1259,7 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
     } catch (error) {
       console.error('Error checking duplicates:', error);
       // Si falla la verificación, crear de todos modos
-      await api.post('/leads', leadData);
+      await api.post('/leads', payload);
       toast.success('Lead creado exitosamente');
       onCreated();
       handleClose();
@@ -1239,7 +1275,16 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
       phone: '',
       email: '',
       source: 'web',
+      operation_type: 'sale',
+      pipeline_type: 'sales',
+      rental_intent: '',
       budget_mxn: 0,
+      monthly_budget_mxn: 0,
+      nightly_budget_mxn: 0,
+      desired_check_in: '',
+      desired_check_out: '',
+      guests_count: 1,
+      preferred_zone: '',
       property_interest: '',
       tags: [],
       email_opt_out: false,
@@ -1312,6 +1357,43 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label>Operación</Label>
+                <Select
+                  value={form.operation_type}
+                  onValueChange={(v) => setForm({
+                    ...form,
+                    operation_type: v,
+                    pipeline_type: v === 'rent' ? 'rentals_guest' : 'sales',
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sale">Venta</SelectItem>
+                    <SelectItem value="rent">Renta</SelectItem>
+                    <SelectItem value="both">Venta y renta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Intención de renta</Label>
+                <Select value={form.rental_intent || 'none'} onValueChange={(v) => setForm({ ...form, rental_intent: v === 'none' ? '' : v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No aplica</SelectItem>
+                    <SelectItem value="guest_short_term">Huésped corta estancia</SelectItem>
+                    <SelectItem value="tenant_long_term">Inquilino largo plazo</SelectItem>
+                    <SelectItem value="owner_wants_management">Propietario busca administración</SelectItem>
+                    <SelectItem value="investor_airbnb">Inversionista Airbnb</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Presupuesto (MXN)</Label>
                 <Input
                   type="number"
@@ -1328,6 +1410,59 @@ const NewLeadModal = ({ isOpen, onClose, onCreated, api, customFields = [] }) =>
                 />
               </div>
             </div>
+            {(form.operation_type === 'rent' || form.operation_type === 'both') && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Presupuesto mensual</Label>
+                  <Input
+                    type="number"
+                    value={form.monthly_budget_mxn}
+                    onChange={(e) => setForm({ ...form, monthly_budget_mxn: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Presupuesto por noche</Label>
+                  <Input
+                    type="number"
+                    value={form.nightly_budget_mxn}
+                    onChange={(e) => setForm({ ...form, nightly_budget_mxn: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Check-in deseado</Label>
+                  <Input
+                    type="date"
+                    value={form.desired_check_in}
+                    onChange={(e) => setForm({ ...form, desired_check_in: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Check-out deseado</Label>
+                  <Input
+                    type="date"
+                    value={form.desired_check_out}
+                    onChange={(e) => setForm({ ...form, desired_check_out: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Huéspedes</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={form.guests_count}
+                    onChange={(e) => setForm({ ...form, guests_count: parseInt(e.target.value, 10) || 1 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Zona preferida</Label>
+                  <Input
+                    value={form.preferred_zone}
+                    onChange={(e) => setForm({ ...form, preferred_zone: e.target.value })}
+                    placeholder="Ej: La Veleta"
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Notas</Label>
               <Textarea

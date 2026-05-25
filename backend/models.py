@@ -36,6 +36,12 @@ class ActivityType(str, Enum):
     APARTADO = "apartado"
     VENTA = "venta"
 
+
+class OperationType(str, Enum):
+    SALE = "sale"
+    RENT = "rent"
+    BOTH = "both"
+
 # User Models
 class UserBase(BaseModel):
     email: EmailStr
@@ -119,6 +125,7 @@ class AuthWorkspaceSummary(BaseModel):
 class TenantType(str, Enum):
     INDIVIDUAL = "individual"
     AGENCY = "agency"
+    PROPERTY_MANAGEMENT = "property_management"
     COPIM = "copim"
     ASSOCIATION = "association"
     COUNCIL = "council"
@@ -130,6 +137,7 @@ class MembershipRole(str, Enum):
     ADMIN = "admin"
     MANAGER = "manager"
     BROKER = "broker"
+    PROPERTY_MANAGER = "property_manager"
     COPIM_ADMIN = "copim_admin"
     COPIM_OPERATOR = "copim_operator"
     COPIM_MEMBER = "copim_member"
@@ -281,7 +289,16 @@ class LeadCreate(BaseModel):
     status: Optional[LeadStatus] = None
     priority: Optional[LeadPriority] = None
     source: str = "web"
+    operation_type: OperationType = OperationType.SALE
+    pipeline_type: str = "sales"
+    rental_intent: Optional[str] = None
     budget_mxn: float = 0.0
+    monthly_budget_mxn: Optional[float] = None
+    nightly_budget_mxn: Optional[float] = None
+    desired_check_in: Optional[datetime] = None
+    desired_check_out: Optional[datetime] = None
+    guests_count: Optional[int] = None
+    preferred_zone: Optional[str] = None
     property_interest: Optional[str] = None
     raw_interest_text: Optional[str] = None
     interest_source: Optional[str] = None
@@ -303,7 +320,16 @@ class LeadUpdate(BaseModel):
     status: Optional[LeadStatus] = None
     priority: Optional[LeadPriority] = None
     source: Optional[str] = None
+    operation_type: Optional[OperationType] = None
+    pipeline_type: Optional[str] = None
+    rental_intent: Optional[str] = None
     budget_mxn: Optional[float] = None
+    monthly_budget_mxn: Optional[float] = None
+    nightly_budget_mxn: Optional[float] = None
+    desired_check_in: Optional[datetime] = None
+    desired_check_out: Optional[datetime] = None
+    guests_count: Optional[int] = None
+    preferred_zone: Optional[str] = None
     property_interest: Optional[str] = None
     raw_interest_text: Optional[str] = None
     interest_source: Optional[str] = None
@@ -330,7 +356,16 @@ class Lead(BaseModel):
     status: LeadStatus = LeadStatus.NUEVO
     priority: LeadPriority = LeadPriority.MEDIA
     source: str = "web"
+    operation_type: OperationType = OperationType.SALE
+    pipeline_type: str = "sales"
+    rental_intent: Optional[str] = None
     budget_mxn: float = 0.0
+    monthly_budget_mxn: Optional[float] = None
+    nightly_budget_mxn: Optional[float] = None
+    desired_check_in: Optional[datetime] = None
+    desired_check_out: Optional[datetime] = None
+    guests_count: Optional[int] = None
+    preferred_zone: Optional[str] = None
     property_interest: Optional[str] = None
     raw_interest_text: Optional[str] = None
     interest_source: Optional[str] = None
@@ -882,6 +917,18 @@ class MarketplaceTransactionStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class MarketplaceEntitlementType(str, Enum):
+    DOWNLOAD = "download"
+    SERVICE_ORDER = "service_order"
+    AGENT_SKILL = "agent_skill"
+
+
+class MarketplaceEntitlementStatus(str, Enum):
+    ACTIVE = "active"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
+
 class MarketplaceTierCreate(BaseModel):
     code: MarketplaceTierCode
     name: str
@@ -1027,6 +1074,24 @@ class MarketplaceTransaction(BaseModel):
     commission_splits: List[MarketplaceCommissionSplit] = Field(default_factory=list)
     buyer_notes: Optional[str] = None
     delivery_due_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class MarketplaceEntitlement(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    buyer_user_id: str
+    listing_id: str
+    transaction_id: str
+    entitlement_type: MarketplaceEntitlementType
+    status: MarketplaceEntitlementStatus = MarketplaceEntitlementStatus.ACTIVE
+    download_urls: List[str] = Field(default_factory=list)
+    max_downloads: int = 10
+    download_count: int = 0
+    expires_at: Optional[datetime] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
 
@@ -1686,8 +1751,12 @@ class ProductServiceCreate(BaseModel):
     title: str
     description: str
     product_type: ProductServiceType
+    operation_type: OperationType = OperationType.SALE
     niche: str  # "Residencial", "Comercial", "VIP", etc.
     price_mxn: float = 0.0
+    monthly_rent_mxn: Optional[float] = None
+    nightly_rent_mxn: Optional[float] = None
+    rental_type: Optional[str] = None
     features: List[str] = []
     aliases: List[str] = []
     keywords: List[str] = []
@@ -1705,8 +1774,12 @@ class ProductServiceUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     product_type: Optional[ProductServiceType] = None
+    operation_type: Optional[OperationType] = None
     niche: Optional[str] = None
     price_mxn: Optional[float] = None
+    monthly_rent_mxn: Optional[float] = None
+    nightly_rent_mxn: Optional[float] = None
+    rental_type: Optional[str] = None
     features: Optional[List[str]] = None
     aliases: Optional[List[str]] = None
     keywords: Optional[List[str]] = None
@@ -1726,6 +1799,550 @@ class ProductService(ProductServiceCreate):
     created_by: str
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== RENTALS / PROPERTY MANAGEMENT ====================
+
+class RentalType(str, Enum):
+    SHORT_TERM = "short_term"
+    MID_TERM = "mid_term"
+    LONG_TERM = "long_term"
+
+
+class RentalPropertyStatus(str, Enum):
+    ACTIVE = "active"
+    PAUSED = "paused"
+    MAINTENANCE = "maintenance"
+    ARCHIVED = "archived"
+
+
+class BookingStatus(str, Enum):
+    INQUIRY = "inquiry"
+    RESERVED = "reserved"
+    CONFIRMED = "confirmed"
+    CHECKED_IN = "checked_in"
+    CHECKED_OUT = "checked_out"
+    CANCELLED = "cancelled"
+
+
+class RentalTaskStatus(str, Enum):
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    CANCELLED = "cancelled"
+
+
+class RentalOwnerCreate(BaseModel):
+    name: str
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalOwner(RentalOwnerCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalPropertyCreate(BaseModel):
+    title: str
+    owner_id: Optional[str] = None
+    address: Optional[str] = None
+    zone: Optional[str] = None
+    operation_type: OperationType = OperationType.RENT
+    rental_type: RentalType = RentalType.SHORT_TERM
+    status: RentalPropertyStatus = RentalPropertyStatus.ACTIVE
+    bedrooms: int = 1
+    bathrooms: float = 1
+    max_guests: int = 2
+    nightly_price_mxn: float = 0.0
+    monthly_price_mxn: float = 0.0
+    cleaning_fee_mxn: float = 0.0
+    deposit_mxn: float = 0.0
+    commission_rate: float = 0.20
+    platforms: List[str] = []
+    amenities: List[str] = []
+    images: List[MediaAsset] = []
+    notes: Optional[str] = None
+
+
+class RentalPropertyUpdate(BaseModel):
+    title: Optional[str] = None
+    owner_id: Optional[str] = None
+    address: Optional[str] = None
+    zone: Optional[str] = None
+    operation_type: Optional[OperationType] = None
+    rental_type: Optional[RentalType] = None
+    status: Optional[RentalPropertyStatus] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[float] = None
+    max_guests: Optional[int] = None
+    nightly_price_mxn: Optional[float] = None
+    monthly_price_mxn: Optional[float] = None
+    cleaning_fee_mxn: Optional[float] = None
+    deposit_mxn: Optional[float] = None
+    commission_rate: Optional[float] = None
+    platforms: Optional[List[str]] = None
+    amenities: Optional[List[str]] = None
+    images: Optional[List[MediaAsset]] = None
+    notes: Optional[str] = None
+
+
+class RentalProperty(RentalPropertyCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalGuestCreate(BaseModel):
+    name: str
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    nationality: Optional[str] = None
+    document_id: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalGuest(RentalGuestCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalStaffCreate(BaseModel):
+    name: str
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    role: str = "Operaciones"
+    responsibilities: List[str] = []
+    specialties: List[str] = []
+    status: str = "active"
+    notes: Optional[str] = None
+
+
+class RentalStaffUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+    responsibilities: Optional[List[str]] = None
+    specialties: Optional[List[str]] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalStaff(RentalStaffCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalBookingCreate(BaseModel):
+    property_id: str
+    guest_id: Optional[str] = None
+    guest_name: str
+    guest_email: Optional[EmailStr] = None
+    guest_phone: Optional[str] = None
+    source: str = "direct"
+    check_in: datetime
+    check_out: datetime
+    guests_count: int = 1
+    status: BookingStatus = BookingStatus.RESERVED
+    total_amount_mxn: float = 0.0
+    paid_amount_mxn: float = 0.0
+    cleaning_fee_mxn: float = 0.0
+    deposit_mxn: float = 0.0
+    platform_fee_mxn: float = 0.0
+    notes: Optional[str] = None
+
+
+class RentalBookingUpdate(BaseModel):
+    property_id: Optional[str] = None
+    guest_id: Optional[str] = None
+    guest_name: Optional[str] = None
+    guest_email: Optional[EmailStr] = None
+    guest_phone: Optional[str] = None
+    source: Optional[str] = None
+    check_in: Optional[datetime] = None
+    check_out: Optional[datetime] = None
+    guests_count: Optional[int] = None
+    status: Optional[BookingStatus] = None
+    total_amount_mxn: Optional[float] = None
+    paid_amount_mxn: Optional[float] = None
+    cleaning_fee_mxn: Optional[float] = None
+    deposit_mxn: Optional[float] = None
+    platform_fee_mxn: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class RentalBooking(RentalBookingCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    nights: int = 0
+    balance_due_mxn: float = 0.0
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalCalendarEventCreate(BaseModel):
+    property_id: str
+    title: Optional[str] = None
+    event_type: str = "blocked"
+    start_date: datetime
+    end_date: datetime
+    status: str = "active"
+    source: str = "manual"
+    notes: Optional[str] = None
+
+
+class RentalCalendarEventUpdate(BaseModel):
+    property_id: Optional[str] = None
+    title: Optional[str] = None
+    event_type: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    status: Optional[str] = None
+    source: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalCalendarEvent(RentalCalendarEventCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalExpenseCreate(BaseModel):
+    property_id: str
+    booking_id: Optional[str] = None
+    staff_id: Optional[str] = None
+    category: str = "maintenance"
+    amount_mxn: float
+    description: str
+    expense_date: datetime = Field(default_factory=now_utc)
+    vendor: Optional[str] = None
+    payment_method: str = "transfer"
+    status: str = "paid"
+    receipt_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalExpenseUpdate(BaseModel):
+    property_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    staff_id: Optional[str] = None
+    category: Optional[str] = None
+    amount_mxn: Optional[float] = None
+    description: Optional[str] = None
+    expense_date: Optional[datetime] = None
+    vendor: Optional[str] = None
+    payment_method: Optional[str] = None
+    status: Optional[str] = None
+    receipt_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalExpense(RentalExpenseCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalExternalSaleCreate(BaseModel):
+    property_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    staff_id: Optional[str] = None
+    guest_name: Optional[str] = None
+    concept: str
+    amount_mxn: float
+    sale_date: datetime = Field(default_factory=now_utc)
+    payment_method: str = "transfer"
+    status: str = "collected"
+    source: str = "manual"
+    notes: Optional[str] = None
+
+
+class RentalExternalSaleUpdate(BaseModel):
+    property_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    staff_id: Optional[str] = None
+    guest_name: Optional[str] = None
+    concept: Optional[str] = None
+    amount_mxn: Optional[float] = None
+    sale_date: Optional[datetime] = None
+    payment_method: Optional[str] = None
+    status: Optional[str] = None
+    source: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalExternalSale(RentalExternalSaleCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalCashClosureCreate(BaseModel):
+    closure_date: datetime = Field(default_factory=now_utc)
+    responsible_staff_id: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalCashClosureUpdate(BaseModel):
+    responsible_staff_id: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RentalCashClosure(RentalCashClosureCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    status: str = "closed"
+    bookings_collected_mxn: float = 0.0
+    external_sales_mxn: float = 0.0
+    expenses_paid_mxn: float = 0.0
+    expenses_pending_mxn: float = 0.0
+    balance_due_mxn: float = 0.0
+    net_mxn: float = 0.0
+    snapshot: dict = {}
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalTaskCreate(BaseModel):
+    property_id: str
+    booking_id: Optional[str] = None
+    assigned_staff_id: Optional[str] = None
+    task_type: str = "cleaning"
+    title: str
+    due_at: Optional[datetime] = None
+    priority: str = "medium"
+    assigned_to: Optional[str] = None
+    schedule_type: str = "one_time"
+    recurrence_rule: Optional[str] = None
+    linked_event_type: Optional[str] = None
+    next_due_at: Optional[datetime] = None
+    status: RentalTaskStatus = RentalTaskStatus.TODO
+    notes: Optional[str] = None
+
+
+class RentalTaskUpdate(BaseModel):
+    property_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    assigned_staff_id: Optional[str] = None
+    task_type: Optional[str] = None
+    title: Optional[str] = None
+    due_at: Optional[datetime] = None
+    priority: Optional[str] = None
+    assigned_to: Optional[str] = None
+    schedule_type: Optional[str] = None
+    recurrence_rule: Optional[str] = None
+    linked_event_type: Optional[str] = None
+    next_due_at: Optional[datetime] = None
+    status: Optional[RentalTaskStatus] = None
+    notes: Optional[str] = None
+
+
+class RentalTask(RentalTaskCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+# ==================== VIBE LAB ====================
+
+class VibeSegment(str, Enum):
+    BUY_SELL = "buy_sell"
+    WOMEN_FAMILY = "women_family"
+    WELLNESS = "wellness"
+    BUSINESS = "business"
+    EXPATS_FOODIES = "expats_foodies"
+    OTHER = "other"
+
+
+class OutreachMode(str, Enum):
+    MANUAL_PERMISSION = "manual_permission"
+    SEMI_AUTOMATED = "semi_automated"
+    AGGRESSIVE_CONTROLLED = "aggressive_controlled"
+
+
+class AudienceGroupCreate(BaseModel):
+    name: str
+    link: Optional[str] = None
+    group_type: Optional[str] = None
+    platform: str = "WhatsApp"
+    segment: VibeSegment = VibeSegment.OTHER
+    is_full: bool = False
+    is_excluded: bool = False
+    exclusion_reason: Optional[str] = None
+    score: int = 0
+    best_offer_type: Optional[str] = None
+    proposed_value: Optional[str] = None
+    notes: Optional[str] = None
+    source_file: Optional[str] = None
+    tags: List[str] = []
+    metadata: Dict[str, Any] = {}
+
+
+class AudienceGroup(AudienceGroupCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class VibeOfferCreate(BaseModel):
+    title: str
+    offer_type: str
+    segment: VibeSegment = VibeSegment.OTHER
+    target_segments: List[VibeSegment] = []
+    description: str
+    value_prop: str
+    price_mxn: float = 0.0
+    delivery_minutes: int = 30
+    cta: str = "Responder INFO"
+    payment_link: Optional[str] = None
+    fulfillment_prompt: Optional[str] = None
+    assets: List[Dict[str, Any]] = []
+    tags: List[str] = []
+    is_active: bool = True
+
+
+class VibeOffer(VibeOfferCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class VibeExperimentVariant(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    key: str = "A"
+    name: str
+    copy_text: str = Field(alias="copy")
+    asset_url: Optional[str] = None
+    cta: str = "Responder INFO"
+    utm_code: Optional[str] = None
+    expected_signal: Optional[str] = None
+
+
+class VibeExperimentStatus(str, Enum):
+    DRAFT = "draft"
+    READY = "ready"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+
+
+class VibeExperimentCreate(BaseModel):
+    name: str
+    offer_id: Optional[str] = None
+    segment: VibeSegment = VibeSegment.OTHER
+    audience_group_ids: List[str] = []
+    outreach_mode: OutreachMode = OutreachMode.MANUAL_PERMISSION
+    status: VibeExperimentStatus = VibeExperimentStatus.DRAFT
+    hypothesis: str = ""
+    success_metric: str = "payments"
+    landing_url: Optional[str] = None
+    variants: List[VibeExperimentVariant] = []
+    planned_start_at: Optional[datetime] = None
+
+
+class VibeExperiment(VibeExperimentCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class VibePostStatus(str, Enum):
+    DRAFT = "draft"
+    APPROVED = "approved"
+    PUBLISHED_MANUAL = "published_manual"
+    SKIPPED = "skipped"
+
+
+class VibePostCreate(BaseModel):
+    experiment_id: str
+    audience_group_id: str
+    variant_key: str = "A"
+    outreach_mode: OutreachMode = OutreachMode.MANUAL_PERMISSION
+    message: str
+    status: VibePostStatus = VibePostStatus.DRAFT
+    requires_approval: bool = True
+    approval_warning: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    published_at: Optional[datetime] = None
+    metadata: Dict[str, Any] = {}
+
+
+class VibePost(VibePostCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class ExperimentMetricCreate(BaseModel):
+    experiment_id: str
+    post_id: Optional[str] = None
+    audience_group_id: Optional[str] = None
+    variant_key: str = "A"
+    replies: int = 0
+    clicks: int = 0
+    payments: int = 0
+    revenue_mxn: float = 0.0
+    refunds: int = 0
+    complaints: int = 0
+    delivery_minutes_avg: Optional[float] = None
+    notes: Optional[str] = None
+    recorded_at: datetime = Field(default_factory=now_utc)
+
+
+class ExperimentMetric(ExperimentMetricCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
 
 
 class LeadProductInterestType(str, Enum):

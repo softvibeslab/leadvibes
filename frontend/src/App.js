@@ -22,6 +22,8 @@ import { ProductsPage } from './pages/ProductsPage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import { RoviInternalWorkspacePage } from './pages/RoviInternalWorkspacePage';
 import { RoviAIControlTowerPage } from './pages/RoviAIControlTowerPage';
+import { VibeLabPage } from './pages/VibeLabPage';
+import { RentalsPage } from './pages/RentalsPage';
 import { EncuentraLeadsPage } from './pages/EncuentraLeadsPage';
 import { ModuleTrackerPage } from './pages/ModuleTrackerPage';
 import { LandingPage } from './pages/LandingPage';
@@ -64,6 +66,8 @@ import {
   isCopimLocalAssociationUser,
   isCopimMemberUser,
   isCopimNationalUser,
+  isPropertyManagerUser,
+  isRoviControlTowerOwner,
   isRoviInternalUser,
   resolveAuthenticatedHome,
 } from './lib/copimAccess';
@@ -207,10 +211,24 @@ const CopimMemberPortalRoute = ({ children }) => {
   return children;
 };
 
-const RoviInternalRoute = ({ children }) => {
+const RoviInternalRoute = ({ children, ownerOnly = false }) => {
   const { user } = useAuth();
 
   if (!isRoviInternalUser(user)) {
+    return <Navigate to={resolveAuthenticatedHome(user)} replace />;
+  }
+
+  if (ownerOnly && !isRoviControlTowerOwner(user)) {
+    return <Navigate to="/rovi/dashboard" replace />;
+  }
+
+  return children;
+};
+
+const PropertyManagerRoute = ({ children }) => {
+  const { user } = useAuth();
+
+  if (!isPropertyManagerUser(user)) {
     return <Navigate to={resolveAuthenticatedHome(user)} replace />;
   }
 
@@ -298,6 +316,14 @@ function AppRoutes() {
         <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/encuentra-leads" element={<EncuentraLeadsPage />} />
         <Route path="/products" element={<ProductsPage />} />
+        <Route
+          path="/rentals/*"
+          element={
+            <PropertyManagerRoute>
+              <RentalsPage />
+            </PropertyManagerRoute>
+          }
+        />
         <Route path="/marketplace" element={<MarketplacePage />} />
         <Route path="/scripts" element={<ScriptsPage />} />
         <Route path="/database-chat" element={<DatabaseChatPage />} />
@@ -362,8 +388,16 @@ function AppRoutes() {
         <Route
           path="/rovi/ai-control"
           element={
-            <RoviInternalRoute>
+            <RoviInternalRoute ownerOnly>
               <RoviAIControlTowerPage />
+            </RoviInternalRoute>
+          }
+        />
+        <Route
+          path="/rovi/vibe-lab"
+          element={
+            <RoviInternalRoute>
+              <VibeLabPage />
             </RoviInternalRoute>
           }
         />
