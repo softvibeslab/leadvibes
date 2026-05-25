@@ -13,9 +13,11 @@ import {
   Loader2,
   PlugZap,
   Play,
+  Plus,
   Save,
   Server,
   SlidersHorizontal,
+  Trash2,
   Upload,
   WalletCards,
 } from 'lucide-react';
@@ -51,6 +53,7 @@ const toolLabels = {
   marketplace_recommendations: 'Marketplace',
   copim_context: 'COPIM',
   rovi_internal_metrics: 'ROVI',
+  vibe_lab_context: 'VibeLab',
   write_actions: 'Escritura',
 };
 
@@ -145,13 +148,17 @@ export const RoviAIControlTowerPage = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [testing, setTesting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [importingGraph, setImportingGraph] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [configs, setConfigs] = useState([]);
+  const [agentRoleScopes, setAgentRoleScopes] = useState([]);
   const [roleScopes, setRoleScopes] = useState([]);
   const [selectedConfigId, setSelectedConfigId] = useState('');
+  const [newAgentRole, setNewAgentRole] = useState('rovi_admin');
   const [form, setForm] = useState(null);
   const [knowledgeRole, setKnowledgeRole] = useState('global');
   const [knowledgeTitle, setKnowledgeTitle] = useState('');
@@ -175,6 +182,10 @@ export const RoviAIControlTowerPage = () => {
       const payload = response.data || {};
       setDashboard(payload);
       setConfigs(payload.configs || []);
+      setAgentRoleScopes(payload.role_scopes || []);
+      if (!newAgentRole && payload.role_scopes?.length) {
+        setNewAgentRole(payload.role_scopes[0].value);
+      }
       setRoleScopes(payload.knowledge_scopes || payload.role_scopes || []);
       setGraphImport((payload.knowledge_files || []).find((file) => file.source_kind === 'graphify_rovi_workspace') || null);
       if (!selectedConfigId && payload.configs?.length) {
@@ -234,6 +245,69 @@ export const RoviAIControlTowerPage = () => {
       base_url: preset.baseUrl,
       api_key_env: preset.apiKeyEnv,
     }));
+  };
+
+  const buildNewAgentPayload = (roleScope = 'rovi_admin') => {
+    const preset = providerPresets[0];
+    const roleLabel = agentRoleScopes.find((role) => role.value === roleScope)?.label || roleScope.replaceAll('_', ' ');
+    return {
+      role_scope: roleScope,
+      name: `${roleLabel} Agent`,
+      description: `Agente operativo para ${roleLabel}.`,
+      provider: dashboard?.defaults?.provider || preset.provider,
+      model: dashboard?.defaults?.model || preset.defaultModel,
+      base_url: dashboard?.defaults?.base_url || preset.baseUrl,
+      api_key_env: dashboard?.defaults?.api_key_env || preset.apiKeyEnv,
+      system_prompt: `Actua como ${roleLabel}. Responde en espanol, con enfoque ejecutivo, acciones concretas, riesgos y siguiente mejor paso.`,
+      temperature: 0.25,
+      max_output_tokens: 900,
+      monthly_budget_mxn: 2500,
+      knowledge_enabled: true,
+      is_active: true,
+      tools: Object.fromEntries(Object.keys(toolLabels).map((tool) => [tool, tool !== 'write_actions'])),
+    };
+  };
+
+  const createConfig = async () => {
+    const roleScope = newAgentRole || agentRoleScopes[0]?.value || 'rovi_admin';
+    setCreating(true);
+    try {
+      const response = await api.post('/ai-control/configs', buildNewAgentPayload(roleScope));
+      setSelectedConfigId(response.data?.id || '');
+      setActiveTab('agents');
+      toast({ title: 'Agente creado', description: 'Ya puedes editar prompt, proveedor, permisos y presupuesto.' });
+      await loadDashboard();
+    } catch (error) {
+      toast({
+        title: 'No se pudo crear el agente',
+        description: error.response?.data?.detail || 'Intenta de nuevo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteConfig = async () => {
+    if (!selectedConfig) return;
+    const confirmed = window.confirm(`Eliminar el agente "${selectedConfig.name}"? Esta accion no borra historico de ejecuciones.`);
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/ai-control/configs/${selectedConfig.id}`);
+      setSelectedConfigId('');
+      setForm(null);
+      toast({ title: 'Agente eliminado', description: 'La configuracion fue retirada del CRUD.' });
+      await loadDashboard();
+    } catch (error) {
+      toast({
+        title: 'No se pudo eliminar',
+        description: error.response?.data?.detail || 'Intenta de nuevo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const saveConfig = async () => {
@@ -442,7 +516,26 @@ export const RoviAIControlTowerPage = () => {
                 <CardTitle>Agentes por rol</CardTitle>
                 <CardDescription>{configs.length} configuraciones activas.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border border-dashed border-border/80 bg-background/45 p-4">
+                  <Label>Nuevo agente</Label>
+                  <div className="mt-3 grid gap-3">
+                    <Select value={newAgentRole} onValueChange={setNewAgentRole}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona rol" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agentRoleScopes.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={createConfig} disabled={creating} className="w-full">
+                      {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                      Crear agente
+                    </Button>
+                  </div>
+                </div>
                 {configs.map((config) => (
                   <button
                     key={config.id}
@@ -474,10 +567,16 @@ export const RoviAIControlTowerPage = () => {
                     <CardTitle>Prompt Studio</CardTitle>
                     <CardDescription>Version {selectedConfig?.version || 1} · {selectedConfig?.role_scope?.replaceAll('_', ' ')}</CardDescription>
                   </div>
-                  <Button onClick={saveConfig} disabled={saving}>
-                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Guardar
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={deleteConfig} disabled={deleting} variant="outline">
+                      {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                      Eliminar
+                    </Button>
+                    <Button onClick={saveConfig} disabled={saving}>
+                      {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      Guardar
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(320px,0.55fr)]">

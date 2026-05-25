@@ -1792,6 +1792,28 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
         updated = await db.agent_configs.find_one({"id": config_id}, {"_id": 0})
         return public_config(updated)
 
+    @router.delete("/ai-control/configs/{config_id}")
+    async def delete_config(config_id: str, current_user: dict = Depends(get_current_user)):
+        current_user = require_rovi_internal_workspace(current_user)
+        existing = await db.agent_configs.find_one({"id": config_id}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Configuracion no encontrada.")
+
+        now = now_iso()
+        await db.agent_prompt_versions.insert_one({
+            "id": f"prompt-version-{uuid.uuid4()}",
+            "config_id": config_id,
+            "role_scope": existing.get("role_scope"),
+            "system_prompt": existing.get("system_prompt"),
+            "provider": existing.get("provider"),
+            "model": existing.get("model"),
+            "created_by": current_user.get("user_id"),
+            "created_at": now,
+            "change_type": "deleted",
+        })
+        await db.agent_configs.delete_one({"id": config_id})
+        return {"deleted": True, "id": config_id}
+
     @router.get("/ai-control/knowledge-files")
     async def list_knowledge_files(current_user: dict = Depends(get_current_user)):
         require_rovi_internal_workspace(current_user)
