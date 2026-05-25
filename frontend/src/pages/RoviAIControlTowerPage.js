@@ -19,6 +19,8 @@ import {
   SlidersHorizontal,
   Trash2,
   Upload,
+  Users,
+  Send,
   WalletCards,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -154,6 +156,10 @@ export const RoviAIControlTowerPage = () => {
   const [uploading, setUploading] = useState(false);
   const [importingGraph, setImportingGraph] = useState(false);
   const [dashboard, setDashboard] = useState(null);
+  const [userAccess, setUserAccess] = useState({ users: [], agent_catalog: [], skill_catalog: [], membership_tiers: [] });
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [accessSaving, setAccessSaving] = useState(false);
+  const [linkResult, setLinkResult] = useState(null);
   const [configs, setConfigs] = useState([]);
   const [agentRoleScopes, setAgentRoleScopes] = useState([]);
   const [roleScopes, setRoleScopes] = useState([]);
@@ -174,6 +180,19 @@ export const RoviAIControlTowerPage = () => {
   );
   const activeProvider = getProviderPreset(form?.provider);
   const modelOptions = getModelOptions(form?.provider);
+  const selectedUser = useMemo(
+    () => userAccess.users.find((user) => user.id === selectedUserId) || userAccess.users[0],
+    [userAccess.users, selectedUserId]
+  );
+
+  const loadUserAccess = async () => {
+    const response = await api.get('/ai-control/user-access');
+    const payload = response.data || { users: [] };
+    setUserAccess(payload);
+    if (!selectedUserId && payload.users?.length) {
+      setSelectedUserId(payload.users[0].id);
+    }
+  };
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -191,6 +210,7 @@ export const RoviAIControlTowerPage = () => {
       if (!selectedConfigId && payload.configs?.length) {
         setSelectedConfigId(payload.configs[0].id);
       }
+      await loadUserAccess();
     } catch (error) {
       toast({
         title: 'No pude cargar AI Control Tower',
@@ -307,6 +327,78 @@ export const RoviAIControlTowerPage = () => {
       });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const toggleUserAccessValue = (field, value) => {
+    if (!selectedUser) return;
+    const currentValues = selectedUser[field] || [];
+    const nextValues = currentValues.includes(value)
+      ? currentValues.filter((item) => item !== value)
+      : [...currentValues, value];
+    setUserAccess((current) => ({
+      ...current,
+      users: current.users.map((user) => (user.id === selectedUser.id ? { ...user, [field]: nextValues } : user)),
+    }));
+  };
+
+  const updateSelectedUserField = (field, value) => {
+    if (!selectedUser) return;
+    setUserAccess((current) => ({
+      ...current,
+      users: current.users.map((user) => (user.id === selectedUser.id ? { ...user, [field]: value } : user)),
+    }));
+  };
+
+  const saveUserAccess = async () => {
+    if (!selectedUser) return;
+    setAccessSaving(true);
+    try {
+      const response = await api.put(`/ai-control/user-access/${selectedUser.id}`, {
+        membership_tier: selectedUser.membership_tier,
+        enabled_agents: selectedUser.enabled_agents || [],
+        enabled_skills: selectedUser.enabled_skills || [],
+        is_active: selectedUser.is_active !== false,
+        notes: selectedUser.notes || '',
+      });
+      setUserAccess((current) => ({
+        ...current,
+        users: current.users.map((user) => (user.id === selectedUser.id ? response.data : user)),
+      }));
+      toast({ title: 'Acceso actualizado', description: 'Agentes y skills guardados para el usuario.' });
+    } catch (error) {
+      toast({
+        title: 'No se pudo guardar el acceso',
+        description: error.response?.data?.detail || 'Intenta de nuevo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAccessSaving(false);
+    }
+  };
+
+  const sendLinkCode = async (channel) => {
+    if (!selectedUser) return;
+    setAccessSaving(true);
+    setLinkResult(null);
+    try {
+      const response = await api.post(`/ai-control/user-access/${selectedUser.id}/link-code`, {
+        channel,
+        destination: channel === 'whatsapp' ? selectedUser.phone : selectedUser.telegram,
+      });
+      setLinkResult(response.data);
+      await loadUserAccess();
+      toast({ title: 'Codigo generado', description: `Listo para enviar por ${channel}.` });
+      const shareUrl = channel === 'whatsapp' ? response.data.whatsapp_url : response.data.telegram_url;
+      if (shareUrl) window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      toast({
+        title: 'No se pudo generar codigo',
+        description: error.response?.data?.detail || 'Intenta de nuevo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAccessSaving(false);
     }
   };
 
@@ -443,6 +535,7 @@ export const RoviAIControlTowerPage = () => {
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-lg bg-muted/70 p-1 sm:w-fit">
             <TabsTrigger value="tower" className="gap-2"><Gauge className="h-4 w-4" /> Torre</TabsTrigger>
             <TabsTrigger value="agents" className="gap-2"><Bot className="h-4 w-4" /> Agentes</TabsTrigger>
+            <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> Usuarios</TabsTrigger>
             <TabsTrigger value="knowledge" className="gap-2"><Database className="h-4 w-4" /> Base</TabsTrigger>
             <TabsTrigger value="testing" className="gap-2"><Play className="h-4 w-4" /> Prueba</TabsTrigger>
           </TabsList>
@@ -737,6 +830,187 @@ export const RoviAIControlTowerPage = () => {
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="users" className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
+            <Card className="rounded-lg border-border/70 bg-card/85 shadow-sm">
+              <CardHeader>
+                <CardTitle>Usuarios y membresias</CardTitle>
+                <CardDescription>{userAccess.users.length} usuarios con acceso gestionable.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {userAccess.users.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => { setSelectedUserId(user.id); setLinkResult(null); }}
+                    className={`w-full rounded-lg border p-4 text-left transition-colors ${
+                      selectedUser?.id === user.id
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border/70 bg-background/45 hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium">{user.name}</p>
+                      <Badge variant={user.is_active === false ? 'outline' : 'secondary'}>{user.membership_tier}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{user.role || 'sin rol'} · {user.account_type || 'sin tipo'}</p>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            {selectedUser && (
+              <Card className="rounded-lg border-border/70 bg-card/85 shadow-sm">
+                <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <CardTitle>Acceso de agentes por usuario</CardTitle>
+                    <CardDescription>Activa agentes y skills segun rol, membresia y contexto del usuario.</CardDescription>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => sendLinkCode('telegram')} disabled={accessSaving}>
+                      <Send className="mr-2 h-4 w-4" /> Telegram
+                    </Button>
+                    <Button variant="outline" onClick={() => sendLinkCode('whatsapp')} disabled={accessSaving}>
+                      <Send className="mr-2 h-4 w-4" /> WhatsApp
+                    </Button>
+                    <Button onClick={saveUserAccess} disabled={accessSaving}>
+                      {accessSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      Guardar acceso
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-lg border border-border/70 bg-background/45 p-4">
+                      <Label>Usuario</Label>
+                      <p className="mt-2 font-medium">{selectedUser.name}</p>
+                      <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                    </div>
+                    <div>
+                      <Label>Membresia comercial</Label>
+                      <Select value={selectedUser.membership_tier} onValueChange={(value) => updateSelectedUserField('membership_tier', value)}>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Selecciona membresia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(userAccess.membership_tiers || []).map((tier) => (
+                            <SelectItem key={tier} value={tier}>{tier}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="mt-2 text-xs text-muted-foreground">Recomendado: {selectedUser.recommended_membership_tier}</p>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border/70 bg-background/45 p-4">
+                      <div>
+                        <p className="font-medium">Acceso activo</p>
+                        <p className="text-xs text-muted-foreground">Apaga para pausar todos sus agentes.</p>
+                      </div>
+                      <Switch checked={selectedUser.is_active !== false} onCheckedChange={(checked) => updateSelectedUserField('is_active', checked)} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-5 xl:grid-cols-2">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <Label>Agentes especializados</Label>
+                          <p className="mt-1 text-sm text-muted-foreground">Selecciona los agentes disponibles para este usuario.</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => updateSelectedUserField('enabled_agents', selectedUser.recommended_agents || [])}
+                        >
+                          Aplicar recomendados
+                        </Button>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {(userAccess.agent_catalog || []).map((agent) => (
+                          <button
+                            key={agent.value}
+                            type="button"
+                            onClick={() => toggleUserAccessValue('enabled_agents', agent.value)}
+                            className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                              (selectedUser.enabled_agents || []).includes(agent.value)
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border/70 bg-background/45 hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{agent.label}</span>
+                              {(selectedUser.recommended_agents || []).includes(agent.value) && <Badge variant="outline">recomendado</Badge>}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{agent.value}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <Label>Skills activas</Label>
+                          <p className="mt-1 text-sm text-muted-foreground">Capacidades que heredan sus agentes.</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => updateSelectedUserField('enabled_skills', selectedUser.recommended_skills || [])}
+                        >
+                          Aplicar recomendadas
+                        </Button>
+                      </div>
+                      <div className="grid gap-3">
+                        {(userAccess.skill_catalog || []).map((skill) => (
+                          <button
+                            key={skill.id}
+                            type="button"
+                            onClick={() => toggleUserAccessValue('enabled_skills', skill.id)}
+                            className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                              (selectedUser.enabled_skills || []).includes(skill.id)
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border/70 bg-background/45 hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{skill.label}</span>
+                              {(selectedUser.recommended_skills || []).includes(skill.id) && <Badge variant="outline">recomendada</Badge>}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{skill.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Notas operativas</Label>
+                    <Textarea
+                      className="mt-2 min-h-[90px]"
+                      value={selectedUser.notes || ''}
+                      onChange={(event) => updateSelectedUserField('notes', event.target.value)}
+                      placeholder="Ej. Activar solo durante piloto, requiere onboarding por WhatsApp..."
+                    />
+                  </div>
+
+                  {linkResult && (
+                    <div className="rounded-lg border border-primary/40 bg-primary/10 p-4">
+                      <div className="flex items-center gap-2 font-medium">
+                        <KeyRound className="h-4 w-4" /> Codigo de vinculacion: {linkResult.code}
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{linkResult.message}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => navigator.clipboard?.writeText(linkResult.message)}>Copiar mensaje</Button>
+                        {linkResult.whatsapp_url && <Button variant="outline" onClick={() => window.open(linkResult.whatsapp_url, '_blank', 'noopener,noreferrer')}>Abrir WhatsApp</Button>}
+                        {linkResult.telegram_url && <Button variant="outline" onClick={() => window.open(linkResult.telegram_url, '_blank', 'noopener,noreferrer')}>Abrir Telegram</Button>}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -161,6 +162,27 @@ DEFAULT_TOOLS = {
 }
 
 
+SKILL_CATALOG = [
+    {"id": "lead_triage", "label": "Calificacion de leads", "description": "Prioriza leads, detecta urgencia y propone siguiente accion."},
+    {"id": "follow_up_whatsapp", "label": "Seguimiento WhatsApp", "description": "Redacta mensajes cortos, contextuales y con CTA claro."},
+    {"id": "calendar_booking", "label": "Agenda y citas", "description": "Sugiere horarios, prepara reuniones y recordatorios."},
+    {"id": "property_matching", "label": "Matching de propiedades", "description": "Cruza necesidades del cliente con inventario y oportunidades."},
+    {"id": "copim_membership_ops", "label": "Operacion COPIM", "description": "Membresias, cobranza, eventos, cursos y comunidad."},
+    {"id": "revenue_ops", "label": "Revenue Ops", "description": "Pipeline, conversion, presupuestos, costos y salud comercial."},
+    {"id": "marketplace_builder", "label": "Marketplace Builder", "description": "Crea ofertas, productos digitales, plantillas y servicios."},
+    {"id": "risk_guardian", "label": "Guardian de riesgo", "description": "Revisa permisos, reputacion, claims sensibles y spam."},
+]
+
+MEMBERSHIP_AGENT_RULES = {
+    "free": {"agents": ["broker"], "skills": ["lead_triage"]},
+    "starter": {"agents": ["broker", "whatsapp_copywriter"], "skills": ["lead_triage", "follow_up_whatsapp", "calendar_booking"]},
+    "pro": {"agents": ["broker", "agency_admin", "whatsapp_copywriter", "offer_architect"], "skills": ["lead_triage", "follow_up_whatsapp", "calendar_booking", "property_matching", "marketplace_builder"]},
+    "business": {"agents": ["agency_admin", "broker", "rovi_sales", "rovi_ops", "whatsapp_copywriter", "offer_architect", "risk_guardian"], "skills": ["lead_triage", "follow_up_whatsapp", "calendar_booking", "property_matching", "revenue_ops", "marketplace_builder", "risk_guardian"]},
+    "copim": {"agents": ["copim_council", "copim_association", "copim_member", "whatsapp_copywriter"], "skills": ["copim_membership_ops", "follow_up_whatsapp", "calendar_booking", "marketplace_builder"]},
+    "internal": {"agents": ROLE_SCOPES, "skills": [item["id"] for item in SKILL_CATALOG]},
+}
+
+
 MODEL_PRICING_PER_1M_USD = {
     "glm-5": {"input": 0.40, "output": 1.28},
     "gpt-5.2": {"input": 1.25, "output": 10.00},
@@ -199,6 +221,19 @@ class AgentConfigUpdate(BaseModel):
     knowledge_enabled: Optional[bool] = None
     tools: Optional[dict[str, bool]] = None
     monthly_budget_mxn: Optional[float] = None
+
+
+class UserAgentAccessUpdate(BaseModel):
+    membership_tier: Optional[str] = None
+    enabled_agents: list[str] = Field(default_factory=list)
+    enabled_skills: list[str] = Field(default_factory=list)
+    is_active: bool = True
+    notes: str = ""
+
+
+class LinkCodeRequest(BaseModel):
+    channel: str = "whatsapp"
+    destination: str = ""
 
 
 class AgentRunRequest(BaseModel):
@@ -1675,6 +1710,107 @@ async def import_rovi_workspace_graph_knowledge(
     return {**payload, "file": serialize_doc(file_doc)}
 
 
+def infer_membership_tier(user: dict, memberships: list[dict] | None = None) -> str:
+    raw = (
+        user.get("membership_tier")
+        or user.get("subscription_tier")
+        or user.get("plan_tier")
+        or user.get("membership_plan")
+        or user.get("plan")
+        or ""
+    )
+    account_type = (user.get("account_type") or "").lower()
+    role = (user.get("role") or "").lower()
+    if account_type == "rovi_internal" or role.startswith("rovi_"):
+        return "internal"
+    if account_type.startswith("copim") or role.startswith("copim"):
+        return "copim"
+    if raw:
+        raw = str(raw).lower()
+        if raw in MEMBERSHIP_AGENT_RULES:
+            return raw
+        if raw in {"premium", "growth"}:
+            return "pro"
+        if raw in {"enterprise", "agency", "team"}:
+            return "business"
+    if account_type == "agency":
+        return "business"
+    return "starter"
+
+
+def recommended_access_for(user: dict, memberships: list[dict] | None = None) -> dict:
+    tier = infer_membership_tier(user, memberships)
+    rules = MEMBERSHIP_AGENT_RULES.get(tier, MEMBERSHIP_AGENT_RULES["starter"])
+    role = (user.get("role") or "").lower()
+    agents = list(dict.fromkeys([*rules["agents"], *( [role] if role in ROLE_SCOPES else [] )]))
+    return {"membership_tier": tier, "agents": agents, "skills": rules["skills"]}
+
+
+def public_user_for_access(user: dict, memberships: list[dict], entitlement: Optional[dict]) -> dict:
+    recommendation = recommended_access_for(user, memberships)
+    enabled_agents = entitlement.get("enabled_agents") if entitlement else None
+    enabled_skills = entitlement.get("enabled_skills") if entitlement else None
+    return {
+        "id": user.get("id") or user.get("user_id"),
+        "name": user.get("name") or user.get("full_name") or user.get("email"),
+        "email": user.get("email"),
+        "phone": user.get("phone") or user.get("whatsapp"),
+        "telegram": user.get("telegram") or user.get("telegram_username"),
+        "role": user.get("role"),
+        "account_type": user.get("account_type"),
+        "tenant_id": user.get("tenant_id"),
+        "memberships": serialize_docs(memberships),
+        "recommended_membership_tier": recommendation["membership_tier"],
+        "membership_tier": (entitlement or {}).get("membership_tier") or recommendation["membership_tier"],
+        "recommended_agents": recommendation["agents"],
+        "recommended_skills": recommendation["skills"],
+        "enabled_agents": enabled_agents if enabled_agents is not None else recommendation["agents"],
+        "enabled_skills": enabled_skills if enabled_skills is not None else recommendation["skills"],
+        "is_active": (entitlement or {}).get("is_active", True),
+        "notes": (entitlement or {}).get("notes", ""),
+        "last_link_code": (entitlement or {}).get("last_link_code"),
+        "last_link_channel": (entitlement or {}).get("last_link_channel"),
+        "last_link_sent_at": (entitlement or {}).get("last_link_sent_at"),
+    }
+
+
+async def build_user_agent_access_dashboard(db: AsyncIOMotorDatabase) -> dict:
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).limit(500).to_list(500)
+    memberships = await db.tenant_memberships.find({}, {"_id": 0}).to_list(2000)
+    entitlements = await db.user_agent_entitlements.find({}, {"_id": 0}).to_list(1000)
+    memberships_by_user: dict[str, list[dict]] = {}
+    for item in memberships:
+        memberships_by_user.setdefault(item.get("user_id"), []).append(item)
+    entitlements_by_user = {item.get("user_id"): item for item in entitlements}
+    return {
+        "users": [
+            public_user_for_access(user, memberships_by_user.get(user.get("id"), []), entitlements_by_user.get(user.get("id")))
+            for user in users
+        ],
+        "agent_catalog": [{"value": role, "label": ROLE_LABELS.get(role, role)} for role in ROLE_SCOPES],
+        "skill_catalog": SKILL_CATALOG,
+        "membership_rules": MEMBERSHIP_AGENT_RULES,
+        "membership_tiers": list(MEMBERSHIP_AGENT_RULES.keys()),
+    }
+
+
+def build_link_message(user: dict, code: str, channel: str) -> dict:
+    name = user.get("name") or user.get("email") or "tu cuenta"
+    link_url = f"https://app.rovicrm.com/vincular-agente?code={code}"
+    message = (
+        f"Hola {name}, tu codigo para vincular tus agentes ROVI es: {code}\n\n"
+        f"Abre este link para activar tus agentes y skills: {link_url}\n"
+        "Si no solicitaste este acceso, ignora este mensaje."
+    )
+    return {
+        "message": message,
+        "link_url": link_url,
+        "whatsapp_url": f"https://wa.me/?text={quote(message)}",
+        "telegram_url": f"https://t.me/share/url?url={quote(link_url)}&text={quote(message)}",
+        "channel": channel,
+    }
+
+
 async def build_usage_dashboard(db: AsyncIOMotorDatabase) -> dict:
     await ensure_default_agent_configs(db)
     events = serialize_docs(await db.agent_usage_events.find({}, {"_id": 0}).sort("created_at", -1).limit(5000).to_list(5000))
@@ -1736,6 +1872,75 @@ def create_agent_control_router(db: AsyncIOMotorDatabase) -> APIRouter:
     async def get_control_tower(current_user: dict = Depends(get_current_user)):
         require_rovi_internal_workspace(current_user)
         return await build_usage_dashboard(db)
+
+    @router.get("/ai-control/user-access")
+    async def get_user_agent_access(current_user: dict = Depends(get_current_user)):
+        require_rovi_internal_workspace(current_user)
+        return await build_user_agent_access_dashboard(db)
+
+    @router.put("/ai-control/user-access/{user_id}")
+    async def update_user_agent_access(user_id: str, payload: UserAgentAccessUpdate, current_user: dict = Depends(get_current_user)):
+        current_user = require_rovi_internal_workspace(current_user)
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+        invalid_agents = [agent for agent in payload.enabled_agents if agent not in ROLE_SCOPES]
+        if invalid_agents:
+            raise HTTPException(status_code=422, detail=f"Agentes invalidos: {', '.join(invalid_agents)}")
+        valid_skills = {item["id"] for item in SKILL_CATALOG}
+        invalid_skills = [skill for skill in payload.enabled_skills if skill not in valid_skills]
+        if invalid_skills:
+            raise HTTPException(status_code=422, detail=f"Skills invalidas: {', '.join(invalid_skills)}")
+        now = now_iso()
+        doc = {
+            "user_id": user_id,
+            "membership_tier": payload.membership_tier or recommended_access_for(user)["membership_tier"],
+            "enabled_agents": payload.enabled_agents,
+            "enabled_skills": payload.enabled_skills,
+            "is_active": payload.is_active,
+            "notes": payload.notes,
+            "updated_by": current_user.get("user_id"),
+            "updated_at": now,
+        }
+        await db.user_agent_entitlements.update_one(
+            {"user_id": user_id},
+            {"$set": doc, "$setOnInsert": {"id": f"user-agent-access-{uuid.uuid4()}", "created_at": now}},
+            upsert=True,
+        )
+        entitlement = await db.user_agent_entitlements.find_one({"user_id": user_id}, {"_id": 0})
+        memberships = await db.tenant_memberships.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+        return public_user_for_access(user, memberships, entitlement)
+
+    @router.post("/ai-control/user-access/{user_id}/link-code")
+    async def create_user_link_code(user_id: str, payload: LinkCodeRequest, current_user: dict = Depends(get_current_user)):
+        current_user = require_rovi_internal_workspace(current_user)
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+        channel = (payload.channel or "whatsapp").lower()
+        if channel not in {"whatsapp", "telegram"}:
+            raise HTTPException(status_code=422, detail="Canal invalido. Usa whatsapp o telegram.")
+        code = str(uuid.uuid4()).split("-")[0].upper()
+        now = now_iso()
+        message_payload = build_link_message(user, code, channel)
+        link_doc = {
+            "id": f"agent-link-{uuid.uuid4()}",
+            "user_id": user_id,
+            "code": code,
+            "channel": channel,
+            "destination": payload.destination or user.get("phone") or user.get("telegram") or user.get("email") or "",
+            "message": message_payload["message"],
+            "status": "ready_to_send",
+            "created_by": current_user.get("user_id"),
+            "created_at": now,
+        }
+        await db.agent_link_codes.insert_one(link_doc)
+        await db.user_agent_entitlements.update_one(
+            {"user_id": user_id},
+            {"$set": {"last_link_code": code, "last_link_channel": channel, "last_link_sent_at": now, "updated_at": now}, "$setOnInsert": {"id": f"user-agent-access-{uuid.uuid4()}", "created_at": now}},
+            upsert=True,
+        )
+        return {**serialize_doc(link_doc), **message_payload}
 
     @router.get("/ai-control/configs")
     async def list_configs(current_user: dict = Depends(get_current_user)):
