@@ -71,10 +71,10 @@ ${formData.message || 'Sin mensaje adicional'}
   };
 
   const benefits = [
-    'Demo personalizada de 30 minutos',
-    'Acceso a trial gratuito de 14 días',
-    'Configuración inicial incluida',
-    'Sin compromiso de compra'
+    'Implementación personalizada según tu operación comercial',
+    'Onboarding guiado para tu equipo',
+    'Configuración inicial y puesta en marcha incluidas',
+    'Acompañamiento consultivo para acelerar resultados'
   ];
 
   if (isSuccess) {

@@ -207,7 +207,7 @@ Asegúrate de tener:
 
 4. **Guarda tus credenciales**:
    - Guarda `.env` localmente de forma segura
-   - No lo commitees a GitHub
+   - No lo subas a GitHub
 
 ## Contacto
 

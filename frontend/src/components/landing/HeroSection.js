@@ -115,7 +115,7 @@ export const HeroSection = () => {
 
             <div className="grid grid-cols-3 gap-6">
               {[
-                { icon: Building2, label: '10+ años', sublabel: 'Experiencia en Real Estate' },
+                { icon: Building2, label: '10+ horas', sublabel: 'Ahorradas a la semana' },
                 { icon: TrendingUp, label: '+45%', sublabel: 'Aumento en conversiones' },
                 { icon: Zap, label: '24/7', sublabel: 'Soporte especializado' },
               ].map((stat, i) => (

@@ -68,7 +68,7 @@ export const TestimonialsSection = () => {
             <span className="text-accent"> Rovi CRM</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Desarrollado por profesionales con más de 10 años de experiencia en tecnología e inmobiliario,
+            Ahorra 10+ horas a la semana,
             entendiendo las necesidades reales del mercado mexicano.
           </p>
         </motion.div>
@@ -140,7 +140,7 @@ export const TestimonialsSection = () => {
           <div className="grid md:grid-cols-4 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold text-primary mb-1">10+</div>
-              <div className="text-muted-foreground">Años en Real Estate</div>
+              <div className="text-muted-foreground">Horas ahorradas por semana</div>
             </div>
             <div>
               <div className="text-4xl font-bold text-primary mb-1">24/7</div>

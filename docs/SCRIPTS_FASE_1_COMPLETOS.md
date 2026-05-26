@@ -418,9 +418,9 @@ Mismo formato
 │   te cuesta más cerrar?             │
 │                                     │
 │   ─────────────────────             │
-│   Nacional = Coment 🇲🇽            │
-│   Extranjero = Coment 🌎           │
-│   Ambos = Coment 💪                │
+│   Nacional = Comenta 🇲🇽           │
+│   Extranjero = Comenta 🌎          │
+│   Ambos = Comenta 💪               │
 │                                     │
 │   @rovi.crm                         │
 │                                     │

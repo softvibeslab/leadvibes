@@ -13,7 +13,7 @@ export const BenefitsSection = () => {
   const stats = [
     { icon: TrendingUp, value: '45%', label: 'Aumento en conversión', desc: 'Promedio en los primeros 3 meses' },
     { icon: Clock, value: '3.5h', label: 'Ahorradas por día', desc: 'En tareas administrativas' },
-    { icon: Users, value: '10+', label: 'Años experiencia', desc: 'En sector real estate' },
+    { icon: Users, value: '10+', label: 'Horas ahorradas', desc: 'A la semana' },
     { icon: Target, value: '24/7', label: 'Soporte activo', desc: 'Equipo especializado' },
     { icon: DollarSign, value: '30%', label: 'Ahorro en tiempo', desc: 'Automatización de procesos' },
     { icon: Award, value: '100%', label: 'En español', desc: 'Diseñado para México' },
