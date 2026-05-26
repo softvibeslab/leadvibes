@@ -4,6 +4,8 @@ Modulo interno para configurar agentes de IA por rol, knowledge base y medicion 
 
 Ver tambien: `docs/ROVI_AI_WORKSPACE_CONTROL_TOWER_IMPLEMENTATION.md` para el cierre tecnico de la implementacion local.
 
+Modulo relacionado: `docs/ROVI_STRATEGY_PLAYGROUND.md` documenta el playground estrategico conectado a Graphify y los agentes por rol.
+
 ## Variables de entorno
 
 No guardar tokens en Git. En local o VPS agrega:
