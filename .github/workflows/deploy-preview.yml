@@ -150,6 +150,12 @@ jobs:
             JWT_EXPIRATION_HOURS=24
             EMERGENT_LLM_KEY=${{ secrets.EMERGENT_LLM_KEY }}
             ROVI_CONTROL_TOWER_OWNER_EMAILS=rgarciavital@gmail.com,preview.rovi.admin@rovicrm.com
+            ROVI_TELEGRAM_BOT_TOKEN=${{ secrets.ROVI_TELEGRAM_BOT_TOKEN }}
+            ROVI_TELEGRAM_BOT_USERNAME=${{ secrets.ROVI_TELEGRAM_BOT_USERNAME }}
+            ROVI_HERMES_WEBHOOK_SECRET=${{ secrets.ROVI_HERMES_WEBHOOK_SECRET }}
+            ROVI_HERMES_PROFILES_ROOT=${{ secrets.ROVI_HERMES_PROFILES_ROOT || '/app/hermes-profiles' }}
+            ROVI_HERMES_PROFILES_ROOT_HOST=${{ secrets.ROVI_HERMES_PROFILES_ROOT_HOST || './hermes-profiles-preview' }}
+            ROVI_PUBLIC_API_BASE_URL=${{ secrets.PREVIEW_PUBLIC_API_BASE_URL || secrets.PREVIEW_FRONTEND_URL || 'http://preview.srv1318804.hstgr.cloud' }}
             CORS_ORIGINS=${{ secrets.PREVIEW_CORS_ORIGINS }}
             ENVIRONMENT=preview
             DEBUG=true

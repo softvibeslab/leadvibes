@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect, Form
+from pydantic import BaseModel
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -19,7 +20,9 @@ import math
 import jwt
 import base64
 import json
-from urllib.parse import quote, urlparse
+import hmac
+import hashlib
+from urllib.parse import quote, urlparse, parse_qsl
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, AuthMeResponse, SwitchWorkspaceRequest, OnboardingCompletionRequest,
@@ -114,6 +117,19 @@ from rovi_internal import create_rovi_internal_router
 from vibe_lab import create_vibe_lab_router
 from rentals import create_rentals_router
 from copim_member_import import create_copim_member_import_router
+from hermes_bridge import (
+    build_hermes_profile_spec,
+    build_qr_url,
+    build_telegram_deep_link,
+    mask_email,
+    mask_phone,
+    normalize_phone_for_match,
+    phones_match,
+    resolve_role_scope_for_hermes,
+    safe_profile_slug,
+    send_telegram_confirmation,
+    write_hermes_profile_files,
+)
 
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
@@ -4121,7 +4137,473 @@ async def cleanup_tokens(current_user: dict = Depends(require_role(["admin"]))):
     return await cleanup_expired_tokens(db)
 
 
+# ==================== DEVICE LINK / HERMES TELEGRAM ROUTES ====================
+
+class DeviceLinkQrSessionRequest(BaseModel):
+    destination: str = ""
+    hermes_profile_name: str = ""
+    ttl_minutes: int = 10
+
+
+class DeviceLinkEmailConfirmRequest(BaseModel):
+    code: str
+
+
+class HermesTelegramStartRequest(BaseModel):
+    code: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    telegram_user_id: str
+    telegram_username: Optional[str] = None
+    chat_id: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
+class HermesTelegramContactRequest(BaseModel):
+    code: Optional[str] = None
+    link_id: Optional[str] = None
+    telegram_user_id: str
+    telegram_phone: str
+    chat_id: Optional[str] = None
+
+
+class TelegramMiniAppSessionRequest(BaseModel):
+    init_data: str
+    start_param: Optional[str] = None
+
+
+def normalize_link_code(value: str | None) -> str:
+    if not value:
+        return ""
+    code = value.strip()
+    if code.lower().startswith("rovi_"):
+        code = code[5:]
+    return "".join(ch for ch in code.upper() if ch.isalnum())
+
+
+def build_device_link_public(link: dict) -> dict:
+    result = serialize_doc(link) or {}
+    if result.get("user_phone"):
+        result["user_phone_masked"] = mask_phone(result.get("user_phone"))
+    if result.get("user_email"):
+        result["user_email_masked"] = mask_email(result.get("user_email"))
+    return result
+
+
+async def require_hermes_webhook_secret(request: Request) -> None:
+    expected = os.environ.get("ROVI_HERMES_WEBHOOK_SECRET") or os.environ.get("HERMES_WEBHOOK_SECRET")
+    if not expected:
+        return
+    received = request.headers.get("x-hermes-webhook-secret") or request.headers.get("x-rovi-webhook-secret")
+    if received != expected:
+        raise HTTPException(status_code=401, detail="Webhook Hermes no autorizado")
+
+
+async def current_user_doc_and_workspace(current_user: dict) -> tuple[dict, dict | None, list[dict]]:
+    user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(
+        workspaces,
+        current_user.get("active_tenant_id") or resolve_auth_workspace_target(user) or current_user.get("tenant_id"),
+    )
+    return user, active_workspace, workspaces
+
+
+async def find_user_for_telegram_identity(payload: HermesTelegramStartRequest) -> dict | None:
+    if payload.email:
+        user = await db.users.find_one({"email": payload.email.strip().lower()}, {"_id": 0, "password_hash": 0})
+        if user:
+            return user
+    normalized_payload_phone = normalize_phone_for_match(payload.phone)
+    if normalized_payload_phone:
+        candidates = await db.users.find(
+            {"phone": {"$exists": True, "$nin": [None, ""]}},
+            {"_id": 0, "password_hash": 0},
+        ).limit(2000).to_list(2000)
+        for candidate in candidates:
+            if phones_match(candidate.get("phone"), normalized_payload_phone):
+                return candidate
+    return None
+
+
+async def find_device_link_by_code_or_id(code: str | None = None, link_id: str | None = None) -> dict | None:
+    if link_id:
+        return await db.user_device_links.find_one({"id": link_id}, {"_id": 0})
+    normalized_code = normalize_link_code(code)
+    if not normalized_code:
+        return None
+    return await db.user_device_links.find_one({"code": normalized_code}, {"_id": 0})
+
+
+def device_link_is_expired(link: dict) -> bool:
+    expires_at = parse_iso_datetime(link.get("expires_at"))
+    return bool(expires_at and expires_at < datetime.now(timezone.utc))
+
+
+def validate_telegram_webapp_init_data(init_data: str) -> dict:
+    bot_token = (
+        os.environ.get("ROVI_TELEGRAM_BOT_TOKEN")
+        or os.environ.get("HERMES_TELEGRAM_BOT_TOKEN")
+        or os.environ.get("TELEGRAM_BOT_TOKEN")
+    )
+    if not bot_token:
+        raise HTTPException(status_code=503, detail="Falta configurar token de Telegram en el backend")
+    if not init_data:
+        raise HTTPException(status_code=400, detail="initData de Telegram es obligatorio")
+
+    parsed = dict(parse_qsl(init_data, keep_blank_values=True))
+    received_hash = parsed.pop("hash", None)
+    if not received_hash:
+        raise HTTPException(status_code=400, detail="initData de Telegram no contiene hash")
+
+    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(parsed.items()))
+    secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
+    calculated_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(calculated_hash, received_hash):
+        raise HTTPException(status_code=401, detail="initData de Telegram invalido")
+
+    auth_date = int(parsed.get("auth_date") or 0)
+    if auth_date and datetime.now(timezone.utc).timestamp() - auth_date > 86400:
+        raise HTTPException(status_code=401, detail="Sesion de Telegram expirada")
+
+    try:
+        telegram_user = json.loads(parsed.get("user") or "{}")
+    except json.JSONDecodeError:
+        telegram_user = {}
+    return {"raw": parsed, "user": telegram_user}
+
+
+async def activate_hermes_device_link(link: dict, user: dict, active_workspace: dict | None) -> dict:
+    now = datetime.now(timezone.utc).isoformat()
+    profile_spec = build_hermes_profile_spec(user=user, link=link, active_workspace=active_workspace)
+    profile_files = write_hermes_profile_files(profile_spec)
+    telegram = link.get("telegram") or {}
+    confirmation = await send_telegram_confirmation(
+        telegram.get("chat_id"),
+        (
+            "Tu cuenta ROVI fue vinculada correctamente.\n\n"
+            f"Rol activo: {profile_spec.get('role_scope')}.\n"
+            "Ya puedes usar tu agente conectado al CRM."
+        ),
+    )
+    update_payload = {
+        "status": "active",
+        "hermes_profile_name": profile_files["profile_name"],
+        "hermes_profile": profile_files,
+        "hermes_profile_spec": profile_spec,
+        "confirmation_message": confirmation,
+        "activated_at": now,
+        "updated_at": now,
+    }
+    await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+    return {**link, **update_payload}
+
+
+@api_router.get("/device-links", response_model=dict)
+async def list_device_links(current_user: dict = Depends(get_current_user)):
+    links = await db.user_device_links.find(
+        {"user_id": current_user["user_id"], "tenant_id": current_user["tenant_id"], "status": {"$ne": "revoked"}},
+        {"_id": 0, "hermes_profile_spec": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return {"links": [build_device_link_public(link) for link in links]}
+
+
+@api_router.post("/device-links/telegram/qr-session", response_model=dict)
+async def create_telegram_qr_session(
+    payload: DeviceLinkQrSessionRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    user, active_workspace, _ = await current_user_doc_and_workspace(current_user)
+    now = datetime.now(timezone.utc)
+    ttl_minutes = min(max(payload.ttl_minutes or 10, 1), 60)
+    code = uuid.uuid4().hex[:8].upper()
+    role_scope = resolve_role_scope_for_hermes(user, active_workspace)
+    profile_name = payload.hermes_profile_name.strip() if payload.hermes_profile_name.strip() else safe_profile_slug(user, role_scope)
+    deep_link = build_telegram_deep_link(code)
+    link_doc = {
+        "id": f"device-link-{uuid.uuid4()}",
+        "user_id": user["id"],
+        "tenant_id": active_workspace["tenant_id"] if active_workspace else current_user["tenant_id"],
+        "membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+        "role_scope": role_scope,
+        "account_type": user.get("account_type", "individual"),
+        "user_email": user.get("email"),
+        "user_phone": user.get("phone"),
+        "code": code,
+        "channel": "telegram",
+        "destination": payload.destination or user.get("phone") or user.get("email") or "",
+        "link_method": "qr",
+        "telegram_deep_link": deep_link,
+        "qr_url": build_qr_url(deep_link),
+        "status": "pending",
+        "hermes_profile_name": profile_name,
+        "phone_required": bool(user.get("phone")),
+        "phone_match_required": bool(user.get("phone")),
+        "expires_at": (now + timedelta(minutes=ttl_minutes)).isoformat(),
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
+    await db.user_device_links.insert_one(link_doc)
+    return build_device_link_public(link_doc)
+
+
+@api_router.post("/device-links/{link_id}/revoke", response_model=dict)
+async def revoke_device_link(link_id: str, current_user: dict = Depends(get_current_user)):
+    link = await db.user_device_links.find_one(
+        {"id": link_id, "user_id": current_user["user_id"], "tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Vinculo no encontrado")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.user_device_links.update_one(
+        {"id": link_id},
+        {"$set": {"status": "revoked", "revoked_at": now, "updated_at": now}},
+    )
+    return {"message": "Dispositivo desvinculado", "id": link_id}
+
+
+@api_router.post("/device-links/{link_id}/confirm-email", response_model=dict)
+async def confirm_device_link_email(
+    link_id: str,
+    payload: DeviceLinkEmailConfirmRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    link = await db.user_device_links.find_one(
+        {"id": link_id, "user_id": current_user["user_id"], "tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Vinculo no encontrado")
+    if link.get("status") == "revoked":
+        raise HTTPException(status_code=400, detail="El vinculo fue revocado")
+    if device_link_is_expired(link):
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired"}})
+        raise HTTPException(status_code=400, detail="El QR/codigo expiro")
+    if normalize_link_code(payload.code) != normalize_link_code(link.get("email_confirmation_code")):
+        raise HTTPException(status_code=400, detail="Codigo de email invalido")
+    user, active_workspace, _ = await current_user_doc_and_workspace(current_user)
+    activated = await activate_hermes_device_link(link, user, active_workspace)
+    return build_device_link_public(activated)
+
+
+@api_router.post("/hermes/telegram/start", response_model=dict)
+async def hermes_telegram_start(payload: HermesTelegramStartRequest, request: Request):
+    await require_hermes_webhook_secret(request)
+    link = await find_device_link_by_code_or_id(payload.code)
+    user = None
+
+    if link:
+        user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    else:
+        user = await find_user_for_telegram_identity(payload)
+        if user:
+            user = await ensure_workspace_infra_for_user(user)
+            workspaces = await get_user_workspaces(user)
+            active_workspace = select_active_workspace(workspaces, resolve_auth_workspace_target(user))
+            now = datetime.now(timezone.utc)
+            code = uuid.uuid4().hex[:8].upper()
+            role_scope = resolve_role_scope_for_hermes(user, active_workspace)
+            link = {
+                "id": f"device-link-{uuid.uuid4()}",
+                "user_id": user["id"],
+                "tenant_id": active_workspace["tenant_id"] if active_workspace else user.get("tenant_id"),
+                "membership_id": active_workspace.get("membership_id") if active_workspace else None,
+                "role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+                "role_scope": role_scope,
+                "account_type": user.get("account_type", "individual"),
+                "user_email": user.get("email"),
+                "user_phone": user.get("phone"),
+                "code": code,
+                "channel": "telegram",
+                "destination": payload.phone or payload.email or "",
+                "link_method": "phone" if payload.phone else "email",
+                "telegram_deep_link": build_telegram_deep_link(code),
+                "qr_url": build_qr_url(build_telegram_deep_link(code)),
+                "status": "pending",
+                "hermes_profile_name": safe_profile_slug(user, role_scope),
+                "phone_required": bool(user.get("phone")),
+                "phone_match_required": bool(user.get("phone")),
+                "expires_at": (now + timedelta(minutes=30)).isoformat(),
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            await db.user_device_links.insert_one(link)
+
+    if not link or not user:
+        raise HTTPException(status_code=404, detail="No encontre una cuenta ROVI para ese codigo, email o telefono")
+    if link.get("status") in {"active", "revoked"}:
+        return {"status": link.get("status"), "link": build_device_link_public(link)}
+    if device_link_is_expired(link):
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired"}})
+        raise HTTPException(status_code=400, detail="El QR/codigo expiro")
+
+    now = datetime.now(timezone.utc).isoformat()
+    email_code = uuid.uuid4().hex[:6].upper()
+    update_payload = {
+        "status": "awaiting_contact" if user.get("phone") else "pending_email_confirmation",
+        "telegram": {
+            "user_id": payload.telegram_user_id,
+            "username": payload.telegram_username,
+            "chat_id": payload.chat_id,
+            "first_name": payload.first_name,
+            "last_name": payload.last_name,
+            "started_at": now,
+        },
+        "email_confirmation_code": email_code,
+        "updated_at": now,
+    }
+    await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+    updated = {**link, **update_payload}
+    response = {
+        "status": updated["status"],
+        "request_contact": bool(user.get("phone")),
+        "requires_email_confirmation": not bool(user.get("phone")),
+        "message": (
+            "Comparte tu telefono desde Telegram para validar que coincide con ROVI."
+            if user.get("phone")
+            else "Tu cuenta ROVI no tiene telefono. Confirma con el codigo enviado/visible para activar."
+        ),
+        "link": build_device_link_public(updated),
+    }
+    if os.environ.get("ROVI_DEVICE_LINK_RETURN_EMAIL_CODE", "false").lower() == "true":
+        response["email_confirmation_code"] = email_code
+    return response
+
+
+@api_router.post("/hermes/telegram/contact", response_model=dict)
+async def hermes_telegram_contact(payload: HermesTelegramContactRequest, request: Request):
+    await require_hermes_webhook_secret(request)
+    link = await find_device_link_by_code_or_id(payload.code, payload.link_id)
+    if not link:
+        raise HTTPException(status_code=404, detail="Vinculo no encontrado")
+    if link.get("status") == "revoked":
+        raise HTTPException(status_code=400, detail="El vinculo fue revocado")
+    if device_link_is_expired(link):
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired"}})
+        raise HTTPException(status_code=400, detail="El QR/codigo expiro")
+
+    telegram = link.get("telegram") or {}
+    if telegram.get("user_id") and str(telegram.get("user_id")) != str(payload.telegram_user_id):
+        raise HTTPException(status_code=403, detail="El usuario de Telegram no coincide con la sesion")
+
+    user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario ROVI no encontrado")
+
+    phone_ok = phones_match(user.get("phone"), payload.telegram_phone)
+    now = datetime.now(timezone.utc).isoformat()
+    contact_payload = {
+        **telegram,
+        "user_id": payload.telegram_user_id,
+        "chat_id": payload.chat_id or telegram.get("chat_id"),
+        "phone": payload.telegram_phone,
+        "phone_normalized": normalize_phone_for_match(payload.telegram_phone),
+        "contact_received_at": now,
+    }
+
+    if not phone_ok:
+        update_payload = {
+            "status": "phone_mismatch",
+            "telegram": contact_payload,
+            "phone_match": False,
+            "updated_at": now,
+        }
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+        return {
+            "status": "phone_mismatch",
+            "message": "El telefono compartido en Telegram no coincide con el telefono de ROVI.",
+            "expected_phone_masked": mask_phone(user.get("phone")),
+            "received_phone_masked": mask_phone(payload.telegram_phone),
+            "link": build_device_link_public({**link, **update_payload}),
+        }
+
+    await db.user_device_links.update_one(
+        {"id": link["id"]},
+        {"$set": {"telegram": contact_payload, "phone_match": True, "updated_at": now}},
+    )
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, link.get("tenant_id") or resolve_auth_workspace_target(user))
+    activated = await activate_hermes_device_link({**link, "telegram": contact_payload, "phone_match": True}, user, active_workspace)
+    return {
+        "status": "active",
+        "message": "Cuenta ROVI vinculada con Telegram y Hermes.",
+        "link": build_device_link_public(activated),
+    }
+
+
+@api_router.post("/telegram-miniapp/session", response_model=dict)
+async def create_telegram_miniapp_session(payload: TelegramMiniAppSessionRequest):
+    telegram_data = validate_telegram_webapp_init_data(payload.init_data)
+    telegram_user = telegram_data.get("user") or {}
+    telegram_user_id = str(telegram_user.get("id") or "")
+    if not telegram_user_id:
+        raise HTTPException(status_code=400, detail="No se pudo identificar el usuario de Telegram")
+
+    active_link = await db.user_device_links.find_one(
+        {"telegram.user_id": telegram_user_id, "status": "active"},
+        {"_id": 0, "hermes_profile_spec": 0},
+        sort=[("activated_at", -1)],
+    )
+    if not active_link:
+        return {
+            "status": "link_required",
+            "telegram_user": telegram_user,
+            "start_code": normalize_link_code(payload.start_param),
+            "message": "Este Telegram todavia no esta vinculado a una cuenta ROVI activa.",
+        }
+
+    user = await db.users.find_one({"id": active_link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="La cuenta ROVI vinculada no esta activa")
+
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, active_link.get("tenant_id") or resolve_auth_workspace_target(user))
+    access_token = create_access_token(build_access_token_payload(user, active_workspace))
+    token_jti, refresh_token = create_refresh_token({
+        "sub": user["id"],
+        "tenant_id": user["tenant_id"],
+        "active_tenant_id": active_workspace["tenant_id"] if active_workspace else user["tenant_id"],
+        "active_membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "active_role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+        "account_type": user.get("account_type", "individual"),
+    })
+    await db.refresh_tokens.update_one(
+        {"jti": token_jti},
+        {"$set": {
+            "jti": token_jti,
+            "user_id": user["id"],
+            "tenant_id": active_workspace["tenant_id"] if active_workspace else user["tenant_id"],
+            "source": "telegram_miniapp",
+            "telegram_user_id": telegram_user_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+            "revoked": False,
+            "used": False,
+        }},
+        upsert=True,
+    )
+    return {
+        "status": "active",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": JWT_EXPIRATION_MINUTES * 60,
+        "user": build_user_response_payload(user),
+        "active_workspace": active_workspace,
+        "available_workspaces": workspaces,
+        "device_link": build_device_link_public(active_link),
+    }
+
+
 # ==================== COPIM MODULE ROUTES ====================
+
 
 @api_router.post("/copim/bootstrap-demo", response_model=dict)
 async def bootstrap_copim_demo(current_user: dict = Depends(require_copim_national_workspace)):

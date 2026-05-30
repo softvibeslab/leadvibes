@@ -44,6 +44,11 @@ services:
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
       ROVI_CONTROL_TOWER_OWNER_EMAILS: ${ROVI_CONTROL_TOWER_OWNER_EMAILS:-rgarciavital@gmail.com,preview.rovi.admin@rovicrm.com}
+      ROVI_TELEGRAM_BOT_TOKEN: ${ROVI_TELEGRAM_BOT_TOKEN:-}
+      ROVI_TELEGRAM_BOT_USERNAME: ${ROVI_TELEGRAM_BOT_USERNAME:-}
+      ROVI_HERMES_WEBHOOK_SECRET: ${ROVI_HERMES_WEBHOOK_SECRET:-}
+      ROVI_HERMES_PROFILES_ROOT: ${ROVI_HERMES_PROFILES_ROOT:-/app/hermes-profiles}
+      ROVI_PUBLIC_API_BASE_URL: ${ROVI_PUBLIC_API_BASE_URL:-http://preview.srv1318804.hstgr.cloud}
 
       # CORS - Preview only
       CORS_ORIGINS: ${CORS_ORIGINS_PREVIEW:-http://localhost:3200,http://31.220.63.211:3200,http://preview.srv1318804.hstgr.cloud,https://preview.srv1318804.hstgr.cloud}
@@ -54,6 +59,7 @@ services:
     volumes:
       - ./backend:/app
       - backend_preview_uploads:/app/uploads
+      - ${ROVI_HERMES_PROFILES_ROOT_HOST:-./hermes-profiles-preview}:${ROVI_HERMES_PROFILES_ROOT:-/app/hermes-profiles}
     ports:
       - "8200:8000"
     depends_on:

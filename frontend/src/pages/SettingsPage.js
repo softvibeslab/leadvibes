@@ -5,7 +5,8 @@ import { useSearchParams } from 'react-router-dom';
 import { 
   Settings, User, Target, Moon, Sun, Save, Loader2, 
   Phone, MessageSquare, CheckCircle, XCircle, Eye, EyeOff,
-  TestTube, Zap, Mail, Calendar, ExternalLink, Unlink
+  TestTube, Zap, Mail, Calendar, ExternalLink, Unlink,
+  Smartphone, QrCode, Copy, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -61,6 +62,11 @@ export const SettingsPage = () => {
   const [showSendgridKey, setShowSendgridKey] = useState(false);
   const [showGoogleSecret, setShowGoogleSecret] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+  const [deviceLinks, setDeviceLinks] = useState([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [creatingQr, setCreatingQr] = useState(false);
+  const [qrSession, setQrSession] = useState(null);
+  const [deviceProfileName, setDeviceProfileName] = useState('');
   
   const [goals, setGoals] = useState({
     ventas_mes: 5,
@@ -95,9 +101,10 @@ export const SettingsPage = () => {
   useEffect(() => {
     loadGoals();
     loadIntegrations();
+    loadDeviceLinks();
     const requestedTab = searchParams.get('tab');
-    if (requestedTab === 'integrations') {
-      setActiveTab('integrations');
+    if (['integrations', 'devices'].includes(requestedTab)) {
+      setActiveTab(requestedTab);
     }
     
     // Check for Google OAuth callback
@@ -129,6 +136,18 @@ export const SettingsPage = () => {
       setIntegrations(res.data);
     } catch (error) {
       console.error('Error loading integrations:', error);
+    }
+  };
+
+  const loadDeviceLinks = async () => {
+    setDevicesLoading(true);
+    try {
+      const res = await api.get('/device-links');
+      setDeviceLinks(res.data.links || []);
+    } catch (error) {
+      console.error('Error loading device links:', error);
+    } finally {
+      setDevicesLoading(false);
     }
   };
 
@@ -249,6 +268,54 @@ export const SettingsPage = () => {
     window.open('/campaign-activation-dashboard.html', '_blank', 'noopener,noreferrer');
   };
 
+  const handleCreateTelegramQr = async () => {
+    setCreatingQr(true);
+    try {
+      const res = await api.post('/device-links/telegram/qr-session', {
+        hermes_profile_name: deviceProfileName,
+        ttl_minutes: 10,
+      });
+      setQrSession(res.data);
+      toast.success('QR de vinculación generado');
+      loadDeviceLinks();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No pude crear el QR de vinculación');
+    } finally {
+      setCreatingQr(false);
+    }
+  };
+
+  const handleRevokeDeviceLink = async (linkId) => {
+    try {
+      await api.post(`/device-links/${linkId}/revoke`);
+      toast.success('Dispositivo desvinculado');
+      if (qrSession?.id === linkId) setQrSession(null);
+      loadDeviceLinks();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No pude desvincular el dispositivo');
+    }
+  };
+
+  const copyToClipboard = async (value, message = 'Copiado') => {
+    try {
+      await navigator.clipboard?.writeText(value);
+      toast.success(message);
+    } catch {
+      toast.error('No pude copiar al portapapeles');
+    }
+  };
+
+  const getDeviceStatusBadge = (status) => {
+    const active = status === 'active';
+    const warning = ['pending', 'awaiting_contact', 'pending_email_confirmation'].includes(status);
+    return (
+      <Badge variant={active ? 'default' : 'secondary'} className={warning ? 'border-amber-500/30 text-amber-600' : ''}>
+        {active ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+        {status || 'pending'}
+      </Badge>
+    );
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6" data-testid="settings-page">
       {/* Header */}
@@ -258,10 +325,14 @@ export const SettingsPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
           <TabsTrigger value="general" className="gap-2">
             <Settings className="w-4 h-4" />
             <span className="hidden sm:inline">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="devices" className="gap-2">
+            <Smartphone className="w-4 h-4" />
+            <span className="hidden sm:inline">Dispositivos</span>
           </TabsTrigger>
           <TabsTrigger value="integrations" className="gap-2">
             <Zap className="w-4 h-4" />
@@ -404,6 +475,163 @@ export const SettingsPage = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Connected Devices */}
+        <TabsContent value="devices" className="space-y-4 sm:space-y-6">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <QrCode className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Vincular Telegram con Hermes</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Genera un QR para conectar este usuario ROVI con un profile Hermes y activar su agente por rol.
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button variant="outline" onClick={loadDeviceLinks} disabled={devicesLoading} className="rounded-full">
+                  {devicesLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Actualizar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+              <div className="grid gap-4 lg:grid-cols-[1fr,320px]">
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-border/60 bg-background/60 p-4 space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Profile Hermes opcional</Label>
+                        <Input
+                          value={deviceProfileName}
+                          onChange={(e) => setDeviceProfileName(e.target.value)}
+                          placeholder="rovi-broker-carlos"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Si lo dejas vacío, ROVI crea un nombre seguro basado en tu rol y cuenta.
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
+                        <p className="font-medium text-foreground mb-1">Validación</p>
+                        <p>El bot Hermes debe pedir compartir contacto en Telegram. ROVI activa el profile solo si el teléfono coincide con tu cuenta.</p>
+                      </div>
+                    </div>
+                    <Button onClick={handleCreateTelegramQr} disabled={creatingQr} className="rounded-full w-full sm:w-auto">
+                      {creatingQr ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
+                      Generar QR Telegram
+                    </Button>
+                  </div>
+
+                  {qrSession && (
+                    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-medium">QR listo para Telegram</p>
+                          <p className="text-xs text-muted-foreground">
+                            Expira: {qrSession.expires_at ? new Date(qrSession.expires_at).toLocaleString('es-MX') : '10 minutos'}
+                          </p>
+                        </div>
+                        {getDeviceStatusBadge(qrSession.status)}
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-[180px,1fr] sm:items-center">
+                        <div className="rounded-xl bg-white p-3">
+                          <img src={qrSession.qr_url} alt="QR para vincular Telegram" className="w-full h-auto" />
+                        </div>
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            Escanea el QR desde Telegram o abre el link para iniciar el bot Hermes con el código de vínculo.
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => copyToClipboard(qrSession.telegram_deep_link, 'Link de Telegram copiado')}>
+                              <Copy className="w-4 h-4 mr-2" />
+                              Copiar link
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => copyToClipboard(qrSession.code, 'Código copiado')}>
+                              <Copy className="w-4 h-4 mr-2" />
+                              Copiar código
+                            </Button>
+                          </div>
+                          <code className="block rounded-lg bg-muted p-2 text-xs break-all">{qrSession.telegram_deep_link}</code>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-sm">Cuenta activa</CardTitle>
+                    <CardDescription className="text-xs">Datos usados para validar el dispositivo.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0 space-y-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="font-medium break-all">{user?.email || 'Sin email'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Teléfono</p>
+                      <p className="font-medium">{user?.phone || 'Sin teléfono registrado'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Rol</p>
+                      <p className="font-medium">{user?.active_workspace?.role || user?.role || 'broker'}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Dispositivos vinculados</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Profiles Hermes y sesiones Telegram asociadas a tu workspace activo.</CardDescription>
+                </div>
+                {devicesLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              {deviceLinks.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  Aún no hay dispositivos vinculados.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {deviceLinks.map((link) => (
+                    <div key={link.id} className="rounded-2xl border border-border/70 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">{link.hermes_profile_name || 'Profile Hermes pendiente'}</p>
+                            {getDeviceStatusBadge(link.status)}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {link.channel} · {link.role_scope || link.role} · {link.link_method} · creado {link.created_at ? new Date(link.created_at).toLocaleString('es-MX') : ''}
+                          </p>
+                          {link.telegram?.username && (
+                            <p className="text-xs text-muted-foreground">Telegram: @{link.telegram.username}</p>
+                          )}
+                          {link.hermes_profile?.profile_dir && (
+                            <code className="block rounded bg-muted p-2 text-xs break-all">{link.hermes_profile.profile_dir}</code>
+                          )}
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => handleRevokeDeviceLink(link.id)} className="text-red-500 hover:text-red-600">
+                          <Unlink className="w-4 h-4 mr-2" />
+                          Revocar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Integrations */}
