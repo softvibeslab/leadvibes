@@ -8,6 +8,12 @@ Preview serves the Telegram MiniApp from the same frontend container as ROVI CRM
 http://preview.srv1318804.hstgr.cloud/miniapp/
 ```
 
+The final Telegram menu URL should be:
+
+```text
+https://rovicrm.com.mx/miniapp/
+```
+
 When HTTPS is fixed for the preview subdomain, use:
 
 ```text
@@ -65,6 +71,19 @@ git push origin HEAD:rovi_deploy
 The GitHub Action rebuilds `backend-preview` and `frontend-preview`, then seeds
 preview users.
 
+If GitHub Actions is unavailable, run this on the VPS after DNS points
+`rovicrm.com.mx` to the VPS:
+
+```bash
+scp /Users/rogergv/Documents/SoftvibesLab/Rovi/minirovi/rovi-broker-agent-env.md root@srv1318804.hstgr.cloud:/root/rovi-broker-agent-env.md
+ssh root@srv1318804.hstgr.cloud
+cd /root/rovi-crm/preview
+git fetch origin rovi_deploy
+git checkout -B rovi_deploy origin/rovi_deploy
+chmod +x deploy/deploy-miniapp-preview-domain.sh
+LETSENCRYPT_EMAIL=tu-email@dominio.com ./deploy/deploy-miniapp-preview-domain.sh
+```
+
 ## Telegram BotFather
 
 After the HTTPS certificate is valid:
@@ -75,6 +94,5 @@ After the HTTPS certificate is valid:
 4. Configure:
 
 ```text
-https://preview.srv1318804.hstgr.cloud/miniapp/
+https://rovicrm.com.mx/miniapp/
 ```
-
