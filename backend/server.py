@@ -113,6 +113,7 @@ from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
 from vibe_lab import create_vibe_lab_router
 from rentals import create_rentals_router
+from tasks import create_tasks_router
 from copim_member_import import create_copim_member_import_router
 
 ROOT_DIR = Path(__file__).parent
@@ -15166,6 +15167,7 @@ api_router.include_router(create_rovi_internal_router(db))
 api_router.include_router(create_agent_control_router(db))
 api_router.include_router(create_vibe_lab_router(db))
 api_router.include_router(create_rentals_router(db))
+api_router.include_router(create_tasks_router(db))
 api_router.include_router(create_copim_member_import_router(
     db,
     require_copim_admin_workspace=require_copim_admin_workspace,
