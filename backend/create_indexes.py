@@ -212,6 +212,27 @@ async def create_indexes():
     await db.activities.create_index([("tenant_id", 1), ("created_at", -1)])
     print("  ✅ (tenant_id, created_at) - Sort optimization")
 
+    # TASKS COLLECTION
+    print("\n✅ Índices para Tasks:")
+
+    try:
+        await db.tasks.create_index([("tenant_id", 1), ("id", 1)], unique=True)
+        print("  ✅ (tenant_id, id) - Unique task lookup")
+    except Exception as e:
+        print(f"  ⚠️  (tenant_id, id) - Ya existe: {e}")
+
+    await db.tasks.create_index([("tenant_id", 1), ("deleted", 1), ("status", 1)])
+    print("  ✅ (tenant_id, deleted, status) - Board filters")
+
+    await db.tasks.create_index([("tenant_id", 1), ("assigned_to", 1), ("status", 1)])
+    print("  ✅ (tenant_id, assigned_to, status) - User workload")
+
+    await db.tasks.create_index([("tenant_id", 1), ("lead_id", 1)])
+    print("  ✅ (tenant_id, lead_id) - Lead task timeline")
+
+    await db.tasks.create_index([("tenant_id", 1), ("due_date", 1)])
+    print("  ✅ (tenant_id, due_date) - Due date filters")
+
     # MARKETPLACE COLLECTIONS
     print("\n🛒 Índices para ROVI Marketplace:")
 

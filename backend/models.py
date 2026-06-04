@@ -406,6 +406,78 @@ class Activity(ActivityCreate):
     created_at: datetime = Field(default_factory=now_utc)
     points_earned: int = 0
 
+
+class TaskStatus(str, Enum):
+    PENDIENTE = "pendiente"
+    EN_PROGRESO = "en_progreso"
+    EN_ESPERA = "en_espera"
+    COMPLETADA = "completada"
+    CANCELADA = "cancelada"
+
+
+class TaskPriority(str, Enum):
+    BAJA = "baja"
+    MEDIA = "media"
+    ALTA = "alta"
+    URGENTE = "urgente"
+
+
+class TaskChecklistItem(BaseModel):
+    id: str = Field(default_factory=generate_uuid)
+    title: str
+    completed: bool = False
+
+
+class TaskCommentCreate(BaseModel):
+    body: str
+
+
+class TaskComment(TaskCommentCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    user_name: str
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str = ""
+    status: TaskStatus = TaskStatus.PENDIENTE
+    priority: TaskPriority = TaskPriority.MEDIA
+    due_date: Optional[datetime] = None
+    assigned_to: Optional[str] = None
+    lead_id: Optional[str] = None
+    tags: List[str] = []
+    checklist: List[TaskChecklistItem] = []
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
+    due_date: Optional[datetime] = None
+    assigned_to: Optional[str] = None
+    lead_id: Optional[str] = None
+    tags: Optional[List[str]] = None
+    checklist: Optional[List[TaskChecklistItem]] = None
+
+
+class TaskStatusUpdate(BaseModel):
+    status: TaskStatus
+
+
+class Task(TaskCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    comments: List[TaskComment] = []
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+    completed_at: Optional[datetime] = None
+
 # Gamification Models
 class GamificationRuleCreate(BaseModel):
     action: str

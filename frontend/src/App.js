@@ -15,6 +15,7 @@ import { CalendarPage } from './pages/CalendarPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AutomationsPage } from './pages/AutomationsPage';
+import { TasksPage } from './pages/TasksPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
 import { DatabaseChatPage } from './pages/DatabaseChatPage';
@@ -235,6 +236,19 @@ const PropertyManagerRoute = ({ children }) => {
   return children;
 };
 
+const SalesCrmRoute = ({ children }) => {
+  const { user } = useAuth();
+  const role = user?.active_workspace?.role || user?.role;
+  const tenantType = user?.active_workspace?.tenant_type || user?.account_type;
+  const isSalesWorkspace = ['individual', 'agency'].includes(tenantType) || ['owner', 'admin', 'manager', 'broker'].includes(role);
+
+  if (!isSalesWorkspace || isPropertyManagerUser(user) || isCopimMemberUser(user) || isCopimLocalAssociationUser(user) || isCopimNationalUser(user) || isRoviInternalUser(user)) {
+    return <Navigate to={resolveAuthenticatedHome(user)} replace />;
+  }
+
+  return children;
+};
+
 const CopimHomeRedirect = () => {
   const { user } = useAuth();
   if (isCopimMemberUser(user)) {
@@ -313,6 +327,14 @@ function AppRoutes() {
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/automations" element={<AutomationsPage />} />
+        <Route
+          path="/tasks"
+          element={
+            <SalesCrmRoute>
+              <TasksPage />
+            </SalesCrmRoute>
+          }
+        />
         <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/encuentra-leads" element={<EncuentraLeadsPage />} />
         <Route path="/products" element={<ProductsPage />} />
