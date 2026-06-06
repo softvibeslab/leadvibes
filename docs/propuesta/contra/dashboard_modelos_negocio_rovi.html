@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super Calculadora Modelos de Negocio ROVI</title>
+  <style>
+    :root {
+      --ink: #142033;
+      --muted: #64748b;
+      --line: #d7dee8;
+      --surface: #ffffff;
+      --soft: #f8fafc;
+      --teal: #0d9488;
+      --teal-dark: #0f766e;
+      --blue: #0a4daf;
+      --blue-dark: #062b5f;
+      --green: #4d7c0f;
+      --amber: #d97706;
+      --red: #dc2626;
+      --purple: #6d28d9;
+      --teal-soft: #e7f6f3;
+      --blue-soft: #edf4ff;
+      --green-soft: #eef7e8;
+      --amber-soft: #fff4df;
+      --red-soft: #fff1f2;
+      --purple-soft: #f3e8ff;
+      --shadow: 0 16px 44px rgba(15, 23, 42, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(237, 244, 255, 0.95), rgba(248, 250, 252, 0.98) 45%, rgba(238, 247, 232, 0.94)),
+        #f8fafc;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid rgba(215, 222, 232, 0.92);
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 900;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      font-size: 13px;
+      box-shadow: 0 8px 18px rgba(13, 148, 136, 0.24);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+
+    .nav a:hover {
+      color: var(--ink);
+      background: var(--blue-soft);
+    }
+
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 20px 56px;
+    }
+
+    .hero {
+      min-height: 430px;
+      display: grid;
+      align-items: end;
+      overflow: hidden;
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(6, 43, 95, 0.96) 0%, rgba(10, 77, 175, 0.86) 42%, rgba(13, 148, 136, 0.54) 100%),
+        url("../../../frontend/src/assets/copim-platform-poster.jpg") center right / cover no-repeat;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-content {
+      max-width: 990px;
+      padding: 46px;
+      color: #fff;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      min-height: 31px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.12);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    h1 {
+      max-width: 940px;
+      margin: 18px 0 14px;
+      font-size: 48px;
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 780px;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 18px;
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 28px;
+      max-width: 1050px;
+    }
+
+    .hero-metric {
+      min-height: 94px;
+      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .hero-metric strong {
+      display: block;
+      font-size: 23px;
+      line-height: 1.08;
+    }
+
+    .hero-metric span {
+      display: block;
+      margin-top: 7px;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    section {
+      margin-top: 24px;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .section-note {
+      max-width: 690px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .pill.teal { color: var(--teal-dark); background: var(--teal-soft); }
+    .pill.blue { color: var(--blue-dark); background: var(--blue-soft); }
+    .pill.green { color: #365314; background: var(--green-soft); }
+    .pill.amber { color: #92400e; background: var(--amber-soft); }
+    .pill.purple { color: #581c87; background: var(--purple-soft); }
+    .pill.red { color: #9f1239; background: var(--red-soft); }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 18px;
+    }
+
+    .metric {
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .metric label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .metric small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .preset-button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+      color: var(--muted);
+      background: #fff;
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .preset-button.active,
+    .preset-button:hover {
+      color: #fff;
+      border-color: var(--blue);
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+    }
+
+    .calculator-layout {
+      display: grid;
+      grid-template-columns: 390px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .input-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    summary {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 14px;
+      cursor: pointer;
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    details[open] summary {
+      border-bottom: 1px solid var(--line);
+      background: var(--soft);
+    }
+
+    .inputs {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .field input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      color: var(--ink);
+      background: #fff;
+      text-align: right;
+      font-weight: 800;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .result {
+      min-height: 126px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(135deg, #fff, var(--blue-soft));
+    }
+
+    .result:nth-child(2) { background: linear-gradient(135deg, #fff, var(--teal-soft)); }
+    .result:nth-child(3) { background: linear-gradient(135deg, #fff, var(--green-soft)); }
+    .result:nth-child(4) { background: linear-gradient(135deg, #fff, var(--amber-soft)); }
+    .result:nth-child(5) { background: linear-gradient(135deg, #fff, var(--purple-soft)); }
+    .result:nth-child(6) { background: linear-gradient(135deg, #fff, var(--blue-soft)); }
+    .result:nth-child(7) { background: linear-gradient(135deg, #fff, var(--teal-soft)); }
+    .result:nth-child(8) { background: linear-gradient(135deg, #fff, var(--green-soft)); }
+
+    .result label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .result strong {
+      display: block;
+      margin-top: 10px;
+      font-size: 27px;
+      line-height: 1;
+    }
+
+    .result span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .chart-shell {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.6fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .bar-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 175px 1fr 100px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .bar-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .bar-track {
+      height: 18px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e2e8f0;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--teal), var(--blue));
+      transition: width 180ms ease;
+    }
+
+    .bar-fill.green { background: linear-gradient(90deg, var(--green), var(--teal)); }
+    .bar-fill.amber { background: linear-gradient(90deg, var(--amber), #f59e0b); }
+    .bar-fill.purple { background: linear-gradient(90deg, var(--purple), var(--blue)); }
+    .bar-fill.red { background: linear-gradient(90deg, var(--red), var(--amber)); }
+
+    .bar-value {
+      text-align: right;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .stacked {
+      display: grid;
+      gap: 12px;
+    }
+
+    .stack-title {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .stack-bar {
+      display: flex;
+      min-height: 30px;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #e2e8f0;
+    }
+
+    .stack-bar span {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      transition: width 180ms ease;
+    }
+
+    .seg-rovi { background: var(--teal); }
+    .seg-copim { background: var(--blue); }
+    .seg-ciib { background: var(--green); }
+    .seg-creators { background: var(--purple); }
+    .seg-promoter { background: var(--amber); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      background: var(--teal);
+    }
+
+    .swatch.blue { background: var(--blue); }
+    .swatch.green { background: var(--green); }
+    .swatch.purple { background: var(--purple); }
+    .swatch.amber { background: var(--amber); }
+
+    .matrix {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .matrix th,
+    .matrix td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    .matrix th {
+      color: #fff;
+      background: linear-gradient(90deg, var(--blue-dark), var(--blue), var(--teal));
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .matrix tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .plan-card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      background: #fff;
+    }
+
+    .plan-card.featured {
+      border-color: rgba(13, 148, 136, 0.46);
+      background: linear-gradient(180deg, var(--teal-soft), #fff 38%);
+      box-shadow: 0 14px 30px rgba(13, 148, 136, 0.12);
+    }
+
+    .plan-card h3 {
+      margin: 4px 0 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .plan-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .plan-tier {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .plan-price {
+      display: block;
+      margin-top: 6px;
+      color: var(--ink);
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .plan-meta {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .plan-includes,
+    .plan-checklist {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .plan-includes li,
+    .plan-checklist li {
+      display: grid;
+      grid-template-columns: 20px 1fr;
+      gap: 8px;
+      align-items: start;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .module-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--teal);
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .plan-module-title {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .module-check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      min-height: 26px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: var(--teal-dark);
+      background: var(--teal-soft);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .module-check.addon {
+      color: #92400e;
+      background: var(--amber-soft);
+    }
+
+    .module-check.no {
+      color: var(--muted);
+      background: #f1f5f9;
+    }
+
+    .plan-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .expense-layout {
+      display: grid;
+      grid-template-columns: 410px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .expense-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 18px;
+    }
+
+    .expense-controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .expense-group {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .expense-group:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .expense-group h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .expense-field {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 118px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .expense-field label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .expense-field input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      color: var(--ink);
+      background: #fff;
+      text-align: right;
+      font-weight: 800;
+    }
+
+    .expense-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .expense-result {
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: linear-gradient(135deg, #fff, var(--blue-soft));
+    }
+
+    .expense-result:nth-child(2) { background: linear-gradient(135deg, #fff, var(--teal-soft)); }
+    .expense-result:nth-child(3) { background: linear-gradient(135deg, #fff, var(--green-soft)); }
+    .expense-result:nth-child(4) { background: linear-gradient(135deg, #fff, var(--amber-soft)); }
+    .expense-result:nth-child(5) { background: linear-gradient(135deg, #fff, var(--red-soft)); }
+    .expense-result:nth-child(6) { background: linear-gradient(135deg, #fff, var(--purple-soft)); }
+
+    .expense-result label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .expense-result strong {
+      display: block;
+      color: var(--ink);
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .expense-result span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .expense-bars {
+      display: grid;
+      gap: 10px;
+    }
+
+    .expense-bar {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr) 92px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .expense-fill {
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue), var(--teal));
+      min-width: 2%;
+    }
+
+    .expense-fill.green { background: linear-gradient(90deg, var(--green), var(--teal)); }
+    .expense-fill.amber { background: linear-gradient(90deg, var(--amber), #fbbf24); }
+    .expense-fill.red { background: linear-gradient(90deg, var(--red), #fb7185); }
+    .expense-fill.purple { background: linear-gradient(90deg, var(--purple), var(--blue)); }
+
+    .expense-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .model-name {
+      font-weight: 900;
+    }
+
+    .score {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--teal);
+    }
+
+    .dot.green { background: var(--green); }
+    .dot.amber { background: var(--amber); }
+    .dot.red { background: var(--red); }
+
+    .formula {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .formula li {
+      display: grid;
+      grid-template-columns: 116px 1fr;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .formula strong {
+      color: var(--ink);
+    }
+
+    .footer {
+      margin-top: 24px;
+      padding: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1180px) {
+      .hero-metrics,
+      .grid.cols-5 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .calculator-layout,
+      .expense-layout,
+      .chart-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .results-grid,
+      .expense-summary,
+      .plan-grid,
+      .grid.cols-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav {
+        justify-content: flex-start;
+      }
+
+      .hero-content {
+        padding: 28px 20px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .hero-copy {
+        font-size: 16px;
+      }
+
+      section {
+        padding: 20px;
+      }
+
+      .section-head {
+        flex-direction: column;
+      }
+
+      .hero-metrics,
+      .results-grid,
+      .grid.cols-2,
+      .grid.cols-3,
+      .grid.cols-4,
+      .plan-grid,
+      .expense-summary,
+      .grid.cols-5 {
+        grid-template-columns: 1fr;
+      }
+
+      .field,
+      .bar-row,
+      .expense-field,
+      .expense-bar,
+      .formula li {
+        grid-template-columns: 1fr;
+      }
+
+      .field input,
+      .bar-value {
+        text-align: left;
+      }
+
+      .matrix {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .nav,
+      .presets {
+        display: none;
+      }
+
+      .page {
+        padding: 0;
+      }
+
+      .hero,
+      section {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">RV</div>
+        <span>Super Calculadora ROVI</span>
+      </div>
+      <nav class="nav" aria-label="Navegacion">
+        <a href="#resumen">Resumen</a>
+        <a href="#calculadora">Calculadora</a>
+        <a href="#modelos">Modelos</a>
+        <a href="#planes-crm">Planes CRM</a>
+        <a href="#gastos-crm">Gastos CRM</a>
+        <a href="#distribucion">Distribucion</a>
+        <a href="#ranking">Ranking</a>
+        <a href="#formulas">Formulas</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="hero">
+      <div class="hero-content">
+        <span class="eyebrow">Financial cockpit | COPIM + Marketplace + Trust-Ready</span>
+        <h1>Super calculadora de modelos de negocio para ROVI</h1>
+        <p class="hero-copy">Compara en vivo el ingreso de COPIM institucional, extensiones, marketplace, educacion CIIB QRO / ROVI, Trust-Ready, referidos y patrocinadores. Los supuestos son editables y los resultados se recalculan al instante.</p>
+        <div class="hero-metrics">
+          <div class="hero-metric"><strong id="heroRovi">$0</strong><span>ROVI mensual neto</span></div>
+          <div class="hero-metric"><strong id="heroCopim">$0</strong><span>COPIM mensual</span></div>
+          <div class="hero-metric"><strong id="heroArr">$0</strong><span>ARR total ecosistema</span></div>
+          <div class="hero-metric"><strong id="heroPayback">0</strong><span>payback setup</span></div>
+          <div class="hero-metric"><strong id="heroBest">-</strong><span>modelo dominante</span></div>
+        </div>
+      </div>
+    </div>
+
+    <section id="resumen">
+      <div class="section-head">
+        <div>
+          <h2>Lectura ejecutiva</h2>
+          <p class="section-note">La comparativa separa el ingreso base que ayuda a adoptar, los modelos premium que expanden margen y las lineas estrategicas que convierten a ROVI en infraestructura economica del sector.</p>
+        </div>
+        <span class="pill teal">Vista consolidada</span>
+      </div>
+      <div class="grid cols-4">
+        <div class="panel metric">
+          <label>Ingreso bruto mensual</label>
+          <strong id="totalGross">$0</strong>
+          <small>Todos los modelos antes de costos directos y distribuciones.</small>
+        </div>
+        <div class="panel metric">
+          <label>ROVI mensual</label>
+          <strong id="roviNet">$0</strong>
+          <small>Despues de splits, referidos, infraestructura y soporte.</small>
+        </div>
+        <div class="panel metric">
+          <label>COPIM mensual</label>
+          <strong id="copimNet">$0</strong>
+          <small>Base, extensiones, marketplace y patrocinios.</small>
+        </div>
+        <div class="panel metric">
+          <label>Creadores / partners</label>
+          <strong id="creatorNet">$0</strong>
+          <small>Economia interna que vuelve atractiva la plataforma.</small>
+        </div>
+      </div>
+    </section>
+
+    <section id="calculadora">
+      <div class="section-head">
+        <div>
+          <h2>Supuestos editables</h2>
+          <p class="section-note">Los presets cambian todos los inputs. Despues puedes ajustar cualquier campo para simular una negociacion especifica.</p>
+        </div>
+        <div class="presets" aria-label="Presets de escenario">
+          <button class="preset-button" data-preset="conservative">Conservador</button>
+          <button class="preset-button active" data-preset="base">Base recomendado</button>
+          <button class="preset-button" data-preset="aggressive">Agresivo</button>
+        </div>
+      </div>
+
+      <div class="calculator-layout">
+        <aside class="input-stack">
+          <details open>
+            <summary>Base de adopcion</summary>
+            <div class="inputs">
+              <div class="field"><label for="associations">Asociaciones activas</label><input id="associations" type="number" min="0" value="5"></div>
+              <div class="field"><label for="membersPerAssociation">Socios por asociacion</label><input id="membersPerAssociation" type="number" min="0" value="50"></div>
+              <div class="field"><label for="activeRate">Usuarios activos (%)</label><input id="activeRate" type="number" min="0" max="100" value="65"></div>
+              <div class="field"><label for="setupFee">Setup reconocido</label><input id="setupFee" type="number" min="0" value="75000"></div>
+              <div class="field"><label for="infraCost">Infra + soporte mensual</label><input id="infraCost" type="number" min="0" value="13000"></div>
+            </div>
+          </details>
+
+          <details open>
+            <summary>COPIM institucional</summary>
+            <div class="inputs">
+              <div class="field"><label for="nationalLicense">Licencia nacional COPIM</label><input id="nationalLicense" type="number" min="0" value="6900"></div>
+              <div class="field"><label for="associationBasePrice">Base por asociacion</label><input id="associationBasePrice" type="number" min="0" value="980"></div>
+              <div class="field"><label for="associationProPrice">Association Pro</label><input id="associationProPrice" type="number" min="0" value="1290"></div>
+              <div class="field"><label for="associationProRate">Conversion Association Pro (%)</label><input id="associationProRate" type="number" min="0" max="100" value="25"></div>
+              <div class="field"><label for="councilIntel">Consejo Intelligence</label><input id="councilIntel" type="number" min="0" value="4900"></div>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Extensiones ROVI</summary>
+            <div class="inputs">
+              <div class="field"><label for="brokerProPrice">ROVI Pro mensual</label><input id="brokerProPrice" type="number" min="0" value="580"></div>
+              <div class="field"><label for="brokerProRate">Conversion ROVI Pro (%)</label><input id="brokerProRate" type="number" min="0" max="100" value="10"></div>
+              <div class="field"><label for="teamProOffices">Oficinas Team Pro</label><input id="teamProOffices" type="number" min="0" value="2"></div>
+              <div class="field"><label for="teamProPrice">Team Pro mensual</label><input id="teamProPrice" type="number" min="0" value="1900"></div>
+              <div class="field"><label for="addonRoviShare">Share ROVI extensiones (%)</label><input id="addonRoviShare" type="number" min="0" max="100" value="60"></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Marketplace B2B</summary>
+            <div class="inputs">
+              <div class="field"><label for="buyerRate">Compradores activos (%)</label><input id="buyerRate" type="number" min="0" max="100" value="12"></div>
+              <div class="field"><label for="purchasesPerBuyer">Compras por comprador</label><input id="purchasesPerBuyer" type="number" min="0" step="0.1" value="1.3"></div>
+              <div class="field"><label for="marketTicket">Ticket promedio marketplace</label><input id="marketTicket" type="number" min="0" value="950"></div>
+              <div class="field"><label for="marketRoviShare">Comision ROVI (%)</label><input id="marketRoviShare" type="number" min="0" max="100" value="15"></div>
+              <div class="field"><label for="marketCopimShare">Comision COPIM/asoc (%)</label><input id="marketCopimShare" type="number" min="0" max="100" value="10"></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Educacion CIIB QRO / ROVI</summary>
+            <div class="inputs">
+              <div class="field"><label for="courseBuyerRate">Compradores curso (%)</label><input id="courseBuyerRate" type="number" min="0" max="100" value="8"></div>
+              <div class="field"><label for="courseTicket">Ticket promedio curso</label><input id="courseTicket" type="number" min="0" value="1400"></div>
+              <div class="field"><label for="coursesPerBuyer">Cursos por comprador</label><input id="coursesPerBuyer" type="number" min="0" step="0.1" value="1"></div>
+              <div class="field"><label for="ciibShare">Share CIIB QRO (%)</label><input id="ciibShare" type="number" min="0" max="100" value="60"></div>
+              <div class="field"><label for="roviEducationShare">Share ROVI (%)</label><input id="roviEducationShare" type="number" min="0" max="100" value="40"></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Trust-Ready desarrolladores</summary>
+            <div class="inputs">
+              <div class="field"><label for="trustClients">Clientes desarrollador</label><input id="trustClients" type="number" min="0" value="2"></div>
+              <div class="field"><label for="trustLicense">Licencia mensual premium</label><input id="trustLicense" type="number" min="0" value="14900"></div>
+              <div class="field"><label for="trustSetup">Setup por desarrollador</label><input id="trustSetup" type="number" min="0" value="45000"></div>
+              <div class="field"><label for="trustReferral">Comision referido año 1 (%)</label><input id="trustReferral" type="number" min="0" max="100" value="20"></div>
+              <div class="field"><label for="trustDeliveryCost">Costo soporte premium mensual</label><input id="trustDeliveryCost" type="number" min="0" value="6000"></div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Patrocinios y aliados</summary>
+            <div class="inputs">
+              <div class="field"><label for="sponsors">Patrocinadores activos</label><input id="sponsors" type="number" min="0" value="3"></div>
+              <div class="field"><label for="sponsorTicket">Ticket patrocinador mensual</label><input id="sponsorTicket" type="number" min="0" value="6500"></div>
+              <div class="field"><label for="sponsorCopimShare">Share COPIM (%)</label><input id="sponsorCopimShare" type="number" min="0" max="100" value="70"></div>
+              <div class="field"><label for="sponsorRoviShare">Share ROVI (%)</label><input id="sponsorRoviShare" type="number" min="0" max="100" value="30"></div>
+              <div class="field"><label for="pmBonusReserve">Reserva PM/hitos mensual</label><input id="pmBonusReserve" type="number" min="0" value="5000"></div>
+            </div>
+          </details>
+        </aside>
+
+        <div>
+          <div class="results-grid">
+            <div class="result"><label>Usuarios activos</label><strong id="activeUsers">0</strong><span>Base estimada para conversion.</span></div>
+            <div class="result"><label>Ingreso bruto mensual</label><strong id="grossMonthly">$0</strong><span>Suma de todas las lineas.</span></div>
+            <div class="result"><label>ROVI mensual neto</label><strong id="roviMonthly">$0</strong><span>Despues de costos y reservas.</span></div>
+            <div class="result"><label>COPIM mensual</label><strong id="copimMonthly">$0</strong><span>Ingreso institucional y comisiones.</span></div>
+            <div class="result"><label>ARR ecosistema</label><strong id="arrTotal">$0</strong><span>Ingreso bruto anualizado.</span></div>
+            <div class="result"><label>ARR ROVI neto</label><strong id="arrRovi">$0</strong><span>ROVI neto mensual x 12.</span></div>
+            <div class="result"><label>Payback setup</label><strong id="payback">0</strong><span>Meses para recuperar setup reconocido.</span></div>
+            <div class="result"><label>Margen ROVI</label><strong id="roviMargin">0%</strong><span>ROVI neto sobre bruto mensual.</span></div>
+          </div>
+
+          <div class="chart-shell">
+            <div class="panel">
+              <h3>Ingreso bruto por modelo</h3>
+              <div class="bar-list" id="modelBars"></div>
+            </div>
+            <div class="panel">
+              <h3>Distribucion mensual por actor</h3>
+              <div class="stacked">
+                <div>
+                  <div class="stack-title">Participacion total</div>
+                  <div class="stack-bar" id="actorStack"></div>
+                </div>
+                <div class="legend">
+                  <span><span class="swatch"></span>ROVI</span>
+                  <span><span class="swatch blue"></span>COPIM</span>
+                  <span><span class="swatch green"></span>CIIB QRO</span>
+                  <span><span class="swatch purple"></span>Creadores</span>
+                  <span><span class="swatch amber"></span>Referidos/PM</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="modelos">
+      <div class="section-head">
+        <div>
+          <h2>Comparativa de modelos</h2>
+          <p class="section-note">Cada modelo tiene una funcion distinta: adopcion, margen, legitimidad, crecimiento o defensa estrategica.</p>
+        </div>
+        <span class="pill blue">Cartera de ingresos</span>
+      </div>
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>Modelo</th>
+            <th>Ingreso bruto mensual</th>
+            <th>ROVI mensual</th>
+            <th>COPIM / CIIB QRO / terceros</th>
+            <th>Lectura</th>
+          </tr>
+        </thead>
+      <tbody id="modelsTable"></tbody>
+      </table>
+    </section>
+
+    <section id="planes-crm">
+      <div class="section-head">
+        <div>
+          <h2>Planes ROVI CRM y checklist modular</h2>
+          <p class="section-note">Los modelos financieros se vuelven vendibles cuando el CRM esta empaquetado por tiers. Esta seccion traduce el producto en planes, modulos activables y upsells que ayudan a aumentar ARPU sin bloquear la adopcion inicial.</p>
+        </div>
+        <span class="pill blue">Oferta SaaS modular</span>
+      </div>
+
+      <div class="plan-grid">
+        <article class="plan-card">
+          <div class="plan-top">
+            <div>
+              <div class="plan-tier">Essential</div>
+              <h3>ROVI CRM Essential</h3>
+              <strong class="plan-price">$2,999</strong>
+            </div>
+            <span class="pill teal">1 broker</span>
+          </div>
+          <p class="plan-meta"><span>Ideal para broker individual o equipo muy pequeno.</span><span>Objetivo: operar pipeline, seguimiento y primeras campanas sin friccion.</span></p>
+          <p class="plan-module-title">Incluye</p>
+          <ul class="plan-includes">
+            <li><span class="module-dot">1</span><span>Pipeline ilimitado de leads con Kanban y tabla.</span></li>
+            <li><span class="module-dot">2</span><span>Importador CSV/XLSX, tags, fuentes y deduplicacion basica.</span></li>
+            <li><span class="module-dot">3</span><span>Campanas email, plantillas, calendario y analytics basico.</span></li>
+            <li><span class="module-dot">4</span><span>Soporte por email y scripts comerciales base.</span></li>
+          </ul>
+        </article>
+
+        <article class="plan-card featured">
+          <div class="plan-top">
+            <div>
+              <div class="plan-tier">Standard</div>
+              <h3>ROVI CRM Standard</h3>
+              <strong class="plan-price">$7,999</strong>
+            </div>
+            <span class="pill green">2-10 brokers</span>
+          </div>
+          <p class="plan-meta"><span>Ideal para inmobiliarias chicas y medianas que necesitan adopcion por equipo.</span><span>Objetivo: centralizar leads, medir brokers y activar automatizaciones.</span></p>
+          <p class="plan-module-title">Incluye</p>
+          <ul class="plan-includes">
+            <li><span class="module-dot">1</span><span>Todo Essential, mas administracion de brokers y roles.</span></li>
+            <li><span class="module-dot">2</span><span>Gamificacion, leaderboard, metas y puntos por actividad.</span></li>
+            <li><span class="module-dot">3</span><span>Automatizaciones, segmentos y campanas SMS, WhatsApp, llamadas o email.</span></li>
+            <li><span class="module-dot">4</span><span>Scripts IA, analisis de leads y marketplace como comprador.</span></li>
+          </ul>
+        </article>
+
+        <article class="plan-card">
+          <div class="plan-top">
+            <div>
+              <div class="plan-tier">Professional</div>
+              <h3>ROVI CRM Professional</h3>
+              <strong class="plan-price">$14,999</strong>
+            </div>
+            <span class="pill amber">11-50 brokers</span>
+          </div>
+          <p class="plan-meta"><span>Ideal para equipos con varias fuentes, coordinacion comercial y necesidad de direccion.</span><span>Objetivo: conectar ventas, marketing, IA, datos y expansion.</span></p>
+          <p class="plan-module-title">Incluye</p>
+          <ul class="plan-includes">
+            <li><span class="module-dot">1</span><span>Todo Standard, mas analytics avanzado y tableros por fuente/equipo.</span></li>
+            <li><span class="module-dot">2</span><span>AI Control Tower, prompts por rol, base de conocimiento y consumo de tokens.</span></li>
+            <li><span class="module-dot">3</span><span>API access, integraciones, marketplace como vendedor y Agent Skills.</span></li>
+            <li><span class="module-dot">4</span><span>CSM dedicado, training en sitio y playbooks de adopcion.</span></li>
+          </ul>
+        </article>
+
+        <article class="plan-card">
+          <div class="plan-top">
+            <div>
+              <div class="plan-tier">Enterprise</div>
+              <h3>ROVI CRM Enterprise</h3>
+              <strong class="plan-price">Cotizacion</strong>
+            </div>
+            <span class="pill blue">50+ brokers</span>
+          </div>
+          <p class="plan-meta"><span>Ideal para redes, franquicias, asociaciones, desarrolladores y cuentas multi-sede.</span><span>Objetivo: operar ROVI como infraestructura comercial y de datos.</span></p>
+          <p class="plan-module-title">Incluye</p>
+          <ul class="plan-includes">
+            <li><span class="module-dot">1</span><span>Todo Professional, mas SLA, account manager y gobierno de datos.</span></li>
+            <li><span class="module-dot">2</span><span>Servidor dedicado o ambiente privado, respaldos y politicas avanzadas.</span></li>
+            <li><span class="module-dot">3</span><span>Desarrollo custom, MCP, BI externo, integraciones profundas y SSO.</span></li>
+            <li><span class="module-dot">4</span><span>Trust-Ready, workflows legales y soporte para unidades de negocio.</span></li>
+          </ul>
+        </article>
+      </div>
+
+      <table class="matrix" style="margin-top:14px">
+        <thead>
+          <tr>
+            <th>Modulo activable</th>
+            <th>Essential</th>
+            <th>Standard</th>
+            <th>Professional</th>
+            <th>Enterprise</th>
+            <th>Impacto en modelo de negocio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Leads CRM: Kanban, tabla, filtros y actividades</td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Retencion base y activacion diaria.</td></tr>
+          <tr><td>Importador CSV/XLSX, deduplicacion y campos custom</td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Reduce friccion de migracion y acelera onboarding.</td></tr>
+          <tr><td>Productos / inventario inmobiliario y matching con leads</td><td><span class="module-check addon">Basico</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Abre upsell hacia desarrolladores y carteras compartidas.</td></tr>
+          <tr><td>Campanas email, SMS, WhatsApp, llamadas y segmentos</td><td><span class="module-check addon">Email</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Monetiza add-ons y costos por canal con margen controlado.</td></tr>
+          <tr><td>Calendario, tareas, round robin y asignacion de brokers</td><td><span class="module-check addon">Basico</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Aumenta adopcion en equipos y justifica precio Standard.</td></tr>
+          <tr><td>Gamificacion, metas, leaderboard y productividad</td><td><span class="module-check no">No</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Convierte gestion comercial en control operativo visible.</td></tr>
+          <tr><td>Automatizaciones, scripts IA y analisis de leads</td><td><span class="module-check addon">Basico</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Expande ARPU y reduce trabajo manual del broker.</td></tr>
+          <tr><td>AI Control Tower, base de conocimiento y consumo de tokens</td><td><span class="module-check no">No</span></td><td><span class="module-check addon">Add-on</span></td><td><span class="module-check">Si</span></td><td><span class="module-check">Si</span></td><td>Nuevo centro de monetizacion por agentes, tokens y skills.</td></tr>
+          <tr><td>Marketplace, productos digitales, servicios y Agent Skills</td><td><span class="module-check addon">Compra</span></td><td><span class="module-check addon">Compra</span></td><td><span class="module-check">Venta</span></td><td><span class="module-check">Custom</span></td><td>Genera comisiones transaccionales y efecto de red.</td></tr>
+          <tr><td>API, integraciones, MCP, BI externo, SSO y SLA</td><td><span class="module-check no">No</span></td><td><span class="module-check addon">Add-on</span></td><td><span class="module-check">API</span></td><td><span class="module-check">Full</span></td><td>Captura cuentas grandes con setup, soporte y contratos anuales.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="plan-note">Lectura financiera: Essential crea volumen, Standard es el plan recomendado para inmobiliarias, Professional maximiza ARPU con IA y Enterprise debe venderse con setup, SLA e integraciones a medida.</p>
+    </section>
+
+    <section id="gastos-crm">
+      <div class="section-head">
+        <div>
+          <h2>Gastos ROVI CRM: calculadora operativa</h2>
+          <p class="section-note">Esta calculadora aterriza el costo mensual necesario para que el modelo de negocio sea sostenible: infraestructura, IA, comunicaciones, licencias, oficina, servicios profesionales y sueldos. El resultado ayuda a definir precio minimo, margen y runway.</p>
+        </div>
+        <span class="pill red">Unit economics</span>
+      </div>
+
+      <div class="expense-layout">
+        <div class="expense-panel">
+          <div class="expense-controls">
+            <div class="expense-group">
+              <h3>Operacion comercial</h3>
+              <div class="expense-field"><label for="expenseClients">Clientes CRM activos</label><input id="expenseClients" data-expense="driver" type="number" min="1" value="8"></div>
+              <div class="expense-field"><label for="expenseUsers">Usuarios/brokers activos</label><input id="expenseUsers" data-expense="driver" type="number" min="1" value="120"></div>
+              <div class="expense-field"><label for="expenseTargetMargin">Margen bruto objetivo (%)</label><input id="expenseTargetMargin" data-expense="driver" type="number" min="1" max="95" value="65"></div>
+              <div class="expense-field"><label for="expenseCashReserve">Reserva disponible</label><input id="expenseCashReserve" data-expense="driver" type="number" min="0" value="250000"></div>
+            </div>
+
+            <div class="expense-group">
+              <h3>Infraestructura y seguridad</h3>
+              <div class="expense-field"><label for="expenseVps">VPS / cloud principal</label><input id="expenseVps" data-expense="infra" type="number" min="0" value="1200"></div>
+              <div class="expense-field"><label for="expenseDb">MongoDB, backups y storage</label><input id="expenseDb" data-expense="infra" type="number" min="0" value="1800"></div>
+              <div class="expense-field"><label for="expenseMonitoring">Monitoreo, logs y alertas</label><input id="expenseMonitoring" data-expense="infra" type="number" min="0" value="900"></div>
+              <div class="expense-field"><label for="expenseSecurity">Dominios, SSL, seguridad y WAF</label><input id="expenseSecurity" data-expense="infra" type="number" min="0" value="750"></div>
+            </div>
+
+            <div class="expense-group">
+              <h3>IA, mensajes e integraciones</h3>
+              <div class="expense-field"><label for="expenseAi">Modelos IA / tokens / embeddings</label><input id="expenseAi" data-expense="ai" type="number" min="0" value="4500"></div>
+              <div class="expense-field"><label for="expenseVoice">VAPI / llamadas IA</label><input id="expenseVoice" data-expense="ai" type="number" min="0" value="2200"></div>
+              <div class="expense-field"><label for="expenseMessaging">Twilio / WhatsApp / SMS</label><input id="expenseMessaging" data-expense="ai" type="number" min="0" value="2800"></div>
+              <div class="expense-field"><label for="expenseEmail">SendGrid / email transaccional</label><input id="expenseEmail" data-expense="ai" type="number" min="0" value="950"></div>
+            </div>
+
+            <div class="expense-group">
+              <h3>Licencias, oficina y servicios</h3>
+              <div class="expense-field"><label for="expenseLicenses">GitHub, Notion, diseño, analitica</label><input id="expenseLicenses" data-expense="ops" type="number" min="0" value="3500"></div>
+              <div class="expense-field"><label for="expenseOffice">Cowork/oficina, internet, luz y telefono</label><input id="expenseOffice" data-expense="ops" type="number" min="0" value="8500"></div>
+              <div class="expense-field"><label for="expenseLegal">Contabilidad, legal y contratos</label><input id="expenseLegal" data-expense="ops" type="number" min="0" value="4500"></div>
+              <div class="expense-field"><label for="expenseMarketing">Marketing, demos, viajes y ventas</label><input id="expenseMarketing" data-expense="ops" type="number" min="0" value="12000"></div>
+            </div>
+
+            <div class="expense-group">
+              <h3>Sueldos y soporte</h3>
+              <div class="expense-field"><label for="expenseFounder">Direccion / PM producto</label><input id="expenseFounder" data-expense="payroll" type="number" min="0" value="35000"></div>
+              <div class="expense-field"><label for="expenseEngineering">Backend + frontend + DevOps</label><input id="expenseEngineering" data-expense="payroll" type="number" min="0" value="85000"></div>
+              <div class="expense-field"><label for="expenseCustomer">Customer success y soporte</label><input id="expenseCustomer" data-expense="payroll" type="number" min="0" value="28000"></div>
+              <div class="expense-field"><label for="expenseSales">Sales / marketing operativo</label><input id="expenseSales" data-expense="payroll" type="number" min="0" value="32000"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="expense-panel">
+          <div class="expense-summary">
+            <div class="expense-result"><label>OPEX mensual</label><strong id="expenseMonthlyTotal">$0</strong><span>Gasto total para sostener la operacion.</span></div>
+            <div class="expense-result"><label>OPEX anual</label><strong id="expenseAnnualTotal">$0</strong><span>Vista presupuestal a 12 meses.</span></div>
+            <div class="expense-result"><label>Costo por cliente</label><strong id="expensePerClient">$0</strong><span>OPEX mensual / clientes activos.</span></div>
+            <div class="expense-result"><label>Costo por usuario</label><strong id="expensePerUser">$0</strong><span>OPEX mensual / usuarios activos.</span></div>
+            <div class="expense-result"><label>Revenue minimo</label><strong id="expenseRequiredRevenue">$0</strong><span>Ingreso para cumplir margen objetivo.</span></div>
+            <div class="expense-result"><label>Runway</label><strong id="expenseRunway">0 meses</strong><span>Reserva disponible / OPEX mensual.</span></div>
+          </div>
+
+          <div class="expense-bars" id="expenseBars"></div>
+
+          <table class="matrix" style="margin-top:14px">
+            <thead>
+              <tr>
+                <th>Categoria</th>
+                <th>Monto mensual</th>
+                <th>% OPEX</th>
+                <th>Lectura de control</th>
+              </tr>
+            </thead>
+            <tbody id="expenseTable"></tbody>
+          </table>
+
+          <p class="expense-note" id="expenseRecommendation">Ajusta los supuestos para ver el nivel de ingreso minimo y el runway operativo.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="distribucion">
+      <div class="section-head">
+        <div>
+          <h2>Distribucion por actor</h2>
+          <p class="section-note">La fortaleza de la tesis no es que ROVI capture todo; es que el ecosistema tenga incentivos para comprar, vender, recomendar y sostener el canal.</p>
+        </div>
+        <span class="pill green">Alineacion de incentivos</span>
+      </div>
+      <div class="grid cols-5">
+        <div class="panel metric"><label>ROVI</label><strong id="distRovi">$0</strong><small>Plataforma, licencias premium y marketplace.</small></div>
+        <div class="panel metric"><label>COPIM</label><strong id="distCopim">$0</strong><small>Base, comisiones y patrocinios.</small></div>
+        <div class="panel metric"><label>CIIB QRO</label><strong id="distCiib">$0</strong><small>Capacitacion y contenido.</small></div>
+        <div class="panel metric"><label>Creadores</label><strong id="distCreators">$0</strong><small>Productos, servicios y Skills.</small></div>
+        <div class="panel metric"><label>Referidos / PM</label><strong id="distPromoter">$0</strong><small>Comisiones comerciales y reserva de hitos.</small></div>
+      </div>
+    </section>
+
+    <section id="ranking">
+      <div class="section-head">
+        <div>
+          <h2>Ranking estrategico</h2>
+          <p class="section-note">No todo lo que genera dinero debe lanzarse primero. El ranking cruza ingreso, velocidad de implementacion, riesgo operativo y valor estrategico.</p>
+        </div>
+        <span class="pill amber">Decision portfolio</span>
+      </div>
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>Prioridad</th>
+            <th>Modelo</th>
+            <th>Razon</th>
+            <th>Riesgo</th>
+            <th>Accion recomendada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td class="model-name">COPIM base + asociaciones</td>
+            <td>Abre adopcion y captura datos. Sin esto, las demas lineas no tienen base.</td>
+            <td><span class="score"><span class="dot green"></span>Bajo</span></td>
+            <td>Cerrar piloto con 3 a 5 asociaciones.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td class="model-name">Cursos + productos digitales</td>
+            <td>Monetiza rapido con bajo riesgo operativo y valida marketplace.</td>
+            <td><span class="score"><span class="dot green"></span>Bajo</span></td>
+            <td>Lanzar como Marketplace 1.0.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td class="model-name">Extensiones ROVI / ROVI Pro</td>
+            <td>Expande ARPU sin encarecer la entrada institucional.</td>
+            <td><span class="score"><span class="dot amber"></span>Medio</span></td>
+            <td>Activar despues de medir usuarios activos.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td class="model-name">ROVI Trust-Ready</td>
+            <td>Puede producir tickets grandes y diferenciacion nacional.</td>
+            <td><span class="score"><span class="dot amber"></span>Medio</span></td>
+            <td>Vender como candidato evaluable, no como certificacion automatica.</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td class="model-name">Servicios Gig con escrow</td>
+            <td>Gran upside, pero requiere pagos, disputas, soporte y terminos robustos.</td>
+            <td><span class="score"><span class="dot red"></span>Alto</span></td>
+            <td>Dejar para fase 2 o 3.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="formulas">
+      <div class="section-head">
+        <div>
+          <h2>Formulas principales</h2>
+          <p class="section-note">Estas formulas explican como se calcula cada linea del dashboard para que puedas defender los supuestos en una mesa de negociacion.</p>
+        </div>
+        <span class="pill purple">Modelo transparente</span>
+      </div>
+      <div class="grid cols-3">
+        <div class="panel">
+          <h3>COPIM institucional</h3>
+          <ul class="formula">
+            <li><strong>Base</strong><span>licencia nacional + asociaciones x tarifa base.</span></li>
+            <li><strong>Pro</strong><span>asociaciones x conversion Pro x tarifa Pro.</span></li>
+            <li><strong>IA</strong><span>Consejo Intelligence si se mantiene activo.</span></li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Marketplace</h3>
+          <ul class="formula">
+            <li><strong>GMV</strong><span>usuarios activos x compradores x compras x ticket.</span></li>
+            <li><strong>ROVI</strong><span>GMV x comision plataforma.</span></li>
+            <li><strong>COPIM</strong><span>GMV x comision asociacion.</span></li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Trust-Ready</h3>
+          <ul class="formula">
+            <li><strong>MRR</strong><span>clientes desarrollador x licencia mensual.</span></li>
+            <li><strong>Setup</strong><span>setup total dividido entre 12 para vista anualizada.</span></li>
+            <li><strong>Referido</strong><span>comision comercial sobre ingreso premium del primer año.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">
+      Dashboard financiero generado para modelar los escenarios de negocio ROVI x COPIM. Los montos son supuestos editables y no sustituyen una corrida contable final.
+    </div>
+  </main>
+
+  <script>
+    const moneyFormatter = new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      maximumFractionDigits: 0
+    });
+    const numberFormatter = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+
+    const inputIds = [
+      'associations', 'membersPerAssociation', 'activeRate', 'setupFee', 'infraCost',
+      'nationalLicense', 'associationBasePrice', 'associationProPrice', 'associationProRate', 'councilIntel',
+      'brokerProPrice', 'brokerProRate', 'teamProOffices', 'teamProPrice', 'addonRoviShare',
+      'buyerRate', 'purchasesPerBuyer', 'marketTicket', 'marketRoviShare', 'marketCopimShare',
+      'courseBuyerRate', 'courseTicket', 'coursesPerBuyer', 'ciibShare', 'roviEducationShare',
+      'trustClients', 'trustLicense', 'trustSetup', 'trustReferral', 'trustDeliveryCost',
+      'sponsors', 'sponsorTicket', 'sponsorCopimShare', 'sponsorRoviShare', 'pmBonusReserve'
+    ];
+
+    const presets = {
+      conservative: {
+        associations: 3, membersPerAssociation: 35, activeRate: 50, setupFee: 75000, infraCost: 9000,
+        nationalLicense: 4900, associationBasePrice: 790, associationProPrice: 990, associationProRate: 10, councilIntel: 0,
+        brokerProPrice: 399, brokerProRate: 5, teamProOffices: 1, teamProPrice: 1800, addonRoviShare: 60,
+        buyerRate: 5, purchasesPerBuyer: 1, marketTicket: 690, marketRoviShare: 15, marketCopimShare: 10,
+        courseBuyerRate: 4, courseTicket: 900, coursesPerBuyer: 1, ciibShare: 60, roviEducationShare: 40,
+        trustClients: 0, trustLicense: 12900, trustSetup: 35000, trustReferral: 20, trustDeliveryCost: 0,
+        sponsors: 1, sponsorTicket: 4500, sponsorCopimShare: 70, sponsorRoviShare: 30, pmBonusReserve: 2500
+      },
+      base: {
+        associations: 5, membersPerAssociation: 50, activeRate: 65, setupFee: 75000, infraCost: 13000,
+        nationalLicense: 6900, associationBasePrice: 980, associationProPrice: 1290, associationProRate: 25, councilIntel: 4900,
+        brokerProPrice: 580, brokerProRate: 10, teamProOffices: 2, teamProPrice: 1900, addonRoviShare: 60,
+        buyerRate: 12, purchasesPerBuyer: 1.3, marketTicket: 950, marketRoviShare: 15, marketCopimShare: 10,
+        courseBuyerRate: 8, courseTicket: 1400, coursesPerBuyer: 1, ciibShare: 60, roviEducationShare: 40,
+        trustClients: 2, trustLicense: 14900, trustSetup: 45000, trustReferral: 20, trustDeliveryCost: 6000,
+        sponsors: 3, sponsorTicket: 6500, sponsorCopimShare: 70, sponsorRoviShare: 30, pmBonusReserve: 5000
+      },
+      aggressive: {
+        associations: 10, membersPerAssociation: 65, activeRate: 75, setupFee: 75000, infraCost: 22000,
+        nationalLicense: 7900, associationBasePrice: 1490, associationProPrice: 1490, associationProRate: 40, councilIntel: 5900,
+        brokerProPrice: 599, brokerProRate: 18, teamProOffices: 6, teamProPrice: 1900, addonRoviShare: 60,
+        buyerRate: 22, purchasesPerBuyer: 1.6, marketTicket: 1200, marketRoviShare: 15, marketCopimShare: 10,
+        courseBuyerRate: 14, courseTicket: 1800, coursesPerBuyer: 1.2, ciibShare: 60, roviEducationShare: 40,
+        trustClients: 5, trustLicense: 19900, trustSetup: 65000, trustReferral: 20, trustDeliveryCost: 14000,
+        sponsors: 8, sponsorTicket: 8500, sponsorCopimShare: 70, sponsorRoviShare: 30, pmBonusReserve: 7000
+      }
+    };
+
+    const inputs = Object.fromEntries(inputIds.map((id) => [id, document.getElementById(id)]));
+
+    function value(id) {
+      return Number(inputs[id].value) || 0;
+    }
+
+    function pct(id) {
+      return Math.max(0, Math.min(100, value(id))) / 100;
+    }
+
+    function money(value) {
+      return moneyFormatter.format(Math.max(0, Number(value) || 0));
+    }
+
+    function signedMoney(value) {
+      const n = Number(value) || 0;
+      return `${n < 0 ? '-' : ''}${money(Math.abs(n))}`;
+    }
+
+    function num(value) {
+      return numberFormatter.format(Math.max(0, Number(value) || 0));
+    }
+
+    function setText(id, text) {
+      document.getElementById(id).textContent = text;
+    }
+
+    function modelRow(model) {
+      return `
+        <tr>
+          <td><span class="model-name">${model.name}</span></td>
+          <td>${money(model.gross)}</td>
+          <td>${signedMoney(model.rovi)}</td>
+          <td>${money(model.other)}</td>
+          <td>${model.reading}</td>
+        </tr>
+      `;
+    }
+
+    function barRow(model, maxGross) {
+      const width = maxGross > 0 ? Math.max(2, (model.gross / maxGross) * 100) : 0;
+      return `
+        <div class="bar-row">
+          <div class="bar-label">${model.short}</div>
+          <div class="bar-track"><div class="bar-fill ${model.tone}" style="width:${width}%"></div></div>
+          <div class="bar-value">${money(model.gross)}</div>
+        </div>
+      `;
+    }
+
+    function stackSegment(label, className, amount, total) {
+      if (amount <= 0 || total <= 0) return '';
+      const width = Math.max(4, (amount / total) * 100);
+      const visibleLabel = width >= 11 ? label : '';
+      return `<span class="${className}" style="width:${width}%">${visibleLabel}</span>`;
+    }
+
+    function calculate() {
+      const associations = value('associations');
+      const members = value('membersPerAssociation');
+      const totalMembers = associations * members;
+      const activeUsers = totalMembers * pct('activeRate');
+
+      const institutionalGross =
+        value('nationalLicense') +
+        associations * value('associationBasePrice') +
+        associations * pct('associationProRate') * value('associationProPrice') +
+        value('councilIntel');
+      const institutionalRovi = institutionalGross;
+      const institutionalCopim = 0;
+
+      const brokerUsers = activeUsers * pct('brokerProRate');
+      const brokerGross = brokerUsers * value('brokerProPrice');
+      const teamGross = value('teamProOffices') * value('teamProPrice');
+      const addonGross = brokerGross + teamGross;
+      const addonRovi = addonGross * pct('addonRoviShare');
+      const addonCopim = addonGross - addonRovi;
+
+      const marketplaceGmv = activeUsers * pct('buyerRate') * value('purchasesPerBuyer') * value('marketTicket');
+      const marketplaceRovi = marketplaceGmv * pct('marketRoviShare');
+      const marketplaceCopim = marketplaceGmv * pct('marketCopimShare');
+      const marketplaceCreators = Math.max(0, marketplaceGmv - marketplaceRovi - marketplaceCopim);
+
+      const educationGross = activeUsers * pct('courseBuyerRate') * value('coursesPerBuyer') * value('courseTicket');
+      const educationCiib = educationGross * pct('ciibShare');
+      const educationRovi = educationGross * pct('roviEducationShare');
+
+      const trustRecurring = value('trustClients') * value('trustLicense');
+      const trustSetupAnnualized = (value('trustClients') * value('trustSetup')) / 12;
+      const trustGross = trustRecurring + trustSetupAnnualized;
+      const trustPromoter = trustGross * pct('trustReferral');
+      const trustRovi = trustGross - trustPromoter - value('trustDeliveryCost');
+
+      const sponsorGross = value('sponsors') * value('sponsorTicket');
+      const sponsorCopim = sponsorGross * pct('sponsorCopimShare');
+      const sponsorRovi = sponsorGross * pct('sponsorRoviShare');
+
+      const directCosts = value('infraCost') + value('pmBonusReserve');
+      const roviBeforeCosts = institutionalRovi + addonRovi + marketplaceRovi + educationRovi + trustRovi + sponsorRovi;
+      const roviNet = roviBeforeCosts - directCosts;
+      const copimNet = institutionalCopim + addonCopim + marketplaceCopim + sponsorCopim;
+      const ciibNet = educationCiib;
+      const creatorsNet = marketplaceCreators;
+      const promoterNet = trustPromoter + value('pmBonusReserve');
+      const totalGross = institutionalGross + addonGross + marketplaceGmv + educationGross + trustGross + sponsorGross;
+      const actorTotal = Math.max(1, Math.max(0, roviNet) + copimNet + ciibNet + creatorsNet + promoterNet);
+      const setupFee = value('setupFee');
+      const paybackMonths = roviNet > 0 ? Math.ceil(setupFee / roviNet) : 0;
+      const roviMargin = totalGross > 0 ? (roviNet / totalGross) * 100 : 0;
+
+      const models = [
+        { name: 'COPIM institucional', short: 'COPIM base', gross: institutionalGross, rovi: institutionalRovi, other: institutionalCopim, tone: '', reading: 'Base de adopcion y control nacional. Es el ancla del ecosistema.' },
+        { name: 'Extensiones ROVI', short: 'Extensiones', gross: addonGross, rovi: addonRovi, other: addonCopim, tone: 'green', reading: 'Expande ARPU sin encarecer la entrada para asociaciones.' },
+        { name: 'Marketplace B2B', short: 'Marketplace', gross: marketplaceGmv, rovi: marketplaceRovi, other: marketplaceCopim + marketplaceCreators, tone: 'purple', reading: 'Activa economia de creadores, servicios, plantillas y Agent Skills.' },
+        { name: 'Educacion CIIB QRO / ROVI', short: 'Educacion', gross: educationGross, rovi: educationRovi, other: educationCiib, tone: 'amber', reading: 'Linea rapida de bajo riesgo para validar pagos y contenido premium.' },
+        { name: 'ROVI Trust-Ready', short: 'Trust-Ready', gross: trustGross, rovi: trustRovi, other: trustPromoter, tone: 'red', reading: 'Ticket alto y diferenciacion para desarrolladores; requiere discurso legal cuidadoso.' },
+        { name: 'Patrocinios y aliados', short: 'Sponsors', gross: sponsorGross, rovi: sponsorRovi, other: sponsorCopim, tone: 'green', reading: 'Monetiza audiencia cuando ya existe masa critica y segmentacion.' }
+      ];
+
+      const bestModel = models.reduce((best, item) => item.gross > best.gross ? item : best, models[0]);
+      const maxGross = Math.max(...models.map((item) => item.gross), 1);
+
+      setText('activeUsers', num(activeUsers));
+      setText('grossMonthly', money(totalGross));
+      setText('roviMonthly', signedMoney(roviNet));
+      setText('copimMonthly', money(copimNet));
+      setText('arrTotal', money(totalGross * 12));
+      setText('arrRovi', signedMoney(roviNet * 12));
+      setText('payback', paybackMonths ? `${paybackMonths} meses` : 'Sin payback');
+      setText('roviMargin', `${Math.round(roviMargin)}%`);
+
+      setText('totalGross', money(totalGross));
+      setText('roviNet', signedMoney(roviNet));
+      setText('copimNet', money(copimNet));
+      setText('creatorNet', money(creatorsNet));
+
+      setText('heroRovi', signedMoney(roviNet));
+      setText('heroCopim', money(copimNet));
+      setText('heroArr', money(totalGross * 12));
+      setText('heroPayback', paybackMonths ? `${paybackMonths} meses` : 'Sin payback');
+      setText('heroBest', bestModel.short);
+
+      setText('distRovi', signedMoney(roviNet));
+      setText('distCopim', money(copimNet));
+      setText('distCiib', money(ciibNet));
+      setText('distCreators', money(creatorsNet));
+      setText('distPromoter', money(promoterNet));
+
+      document.getElementById('modelBars').innerHTML = models.map((model) => barRow(model, maxGross)).join('');
+      document.getElementById('modelsTable').innerHTML = models.map(modelRow).join('');
+      document.getElementById('actorStack').innerHTML = [
+        stackSegment('ROVI', 'seg-rovi', Math.max(0, roviNet), actorTotal),
+        stackSegment('COPIM', 'seg-copim', copimNet, actorTotal),
+        stackSegment('CIIB QRO', 'seg-ciib', ciibNet, actorTotal),
+        stackSegment('Creadores', 'seg-creators', creatorsNet, actorTotal),
+        stackSegment('Ref/PM', 'seg-promoter', promoterNet, actorTotal)
+      ].join('');
+    }
+
+    function applyPreset(name) {
+      const preset = presets[name] || presets.base;
+      Object.entries(preset).forEach(([key, val]) => {
+        if (inputs[key]) inputs[key].value = val;
+      });
+      document.querySelectorAll('.preset-button').forEach((button) => {
+        button.classList.toggle('active', button.dataset.preset === name);
+      });
+      calculate();
+    }
+
+    inputIds.forEach((id) => inputs[id].addEventListener('input', calculate));
+    document.querySelectorAll('.preset-button').forEach((button) => {
+      button.addEventListener('click', () => applyPreset(button.dataset.preset));
+    });
+
+    calculate();
+
+    (() => {
+      const expenseInputs = Array.from(document.querySelectorAll('#gastos-crm input[data-expense]'));
+      if (!expenseInputs.length) return;
+
+      const expenseFormatter = new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        maximumFractionDigits: 0
+      });
+
+      const categories = [
+        { key: 'infra', label: 'Infraestructura', className: '', note: 'Mantener redundancia, backups y monitoreo antes de escalar clientes.' },
+        { key: 'ai', label: 'IA y comunicaciones', className: 'green', note: 'Separar costo por uso y trasladar excedentes a add-ons o consumo medido.' },
+        { key: 'ops', label: 'Licencias, oficina y servicios', className: 'amber', note: 'Revisar herramientas duplicadas y contratos mensuales no esenciales.' },
+        { key: 'payroll', label: 'Sueldos y soporte', className: 'purple', note: 'La nomina debe crecer contra MRR recurrente, no contra ingresos one-shot.' }
+      ];
+
+      const expenseMoney = (value) => expenseFormatter.format(Math.max(0, Number(value) || 0));
+      const expenseValue = (id) => Math.max(0, Number(document.getElementById(id)?.value) || 0);
+      const setExpenseText = (id, value) => {
+        const node = document.getElementById(id);
+        if (node) node.textContent = value;
+      };
+
+      function calculateExpenses() {
+        const totals = Object.fromEntries(categories.map((category) => [
+          category.key,
+          expenseInputs
+            .filter((input) => input.dataset.expense === category.key)
+            .reduce((sum, input) => sum + expenseValue(input.id), 0)
+        ]));
+
+        const monthlyTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
+        const clients = Math.max(1, expenseValue('expenseClients'));
+        const users = Math.max(1, expenseValue('expenseUsers'));
+        const marginTarget = Math.min(95, Math.max(1, expenseValue('expenseTargetMargin'))) / 100;
+        const reserve = expenseValue('expenseCashReserve');
+        const requiredRevenue = monthlyTotal > 0 ? monthlyTotal / (1 - marginTarget) : 0;
+        const runway = monthlyTotal > 0 ? reserve / monthlyTotal : 0;
+        const averageRequiredMrr = requiredRevenue / clients;
+
+        setExpenseText('expenseMonthlyTotal', expenseMoney(monthlyTotal));
+        setExpenseText('expenseAnnualTotal', expenseMoney(monthlyTotal * 12));
+        setExpenseText('expensePerClient', expenseMoney(monthlyTotal / clients));
+        setExpenseText('expensePerUser', expenseMoney(monthlyTotal / users));
+        setExpenseText('expenseRequiredRevenue', expenseMoney(requiredRevenue));
+        setExpenseText('expenseRunway', runway ? `${runway.toFixed(1)} meses` : 'Sin gasto');
+
+        const maxCategory = Math.max(...Object.values(totals), 1);
+        const bars = categories.map((category) => {
+          const amount = totals[category.key] || 0;
+          const width = Math.max(2, (amount / maxCategory) * 100);
+          return `
+            <div class="expense-bar">
+              <span>${category.label}</span>
+              <div class="bar-track"><div class="expense-fill ${category.className}" style="width:${width}%"></div></div>
+              <strong>${expenseMoney(amount)}</strong>
+            </div>
+          `;
+        }).join('');
+
+        const rows = categories.map((category) => {
+          const amount = totals[category.key] || 0;
+          const share = monthlyTotal > 0 ? Math.round((amount / monthlyTotal) * 100) : 0;
+          return `<tr><td>${category.label}</td><td>${expenseMoney(amount)}</td><td>${share}%</td><td>${category.note}</td></tr>`;
+        }).join('');
+
+        document.getElementById('expenseBars').innerHTML = bars;
+        document.getElementById('expenseTable').innerHTML = rows;
+
+        const payrollShare = monthlyTotal > 0 ? totals.payroll / monthlyTotal : 0;
+        const runwayWarning = runway && runway < 3 ? ' Runway menor a 3 meses: requiere cobranza inicial, anualidades o recorte temporal.' : '';
+        const payrollWarning = payrollShare > 0.65 ? ' La nomina concentra mas de 65% del OPEX; conviene ligar contrataciones a MRR probado.' : '';
+        setExpenseText(
+          'expenseRecommendation',
+          `Para sostener ${clients} clientes, el MRR promedio recomendado es ${expenseMoney(averageRequiredMrr)} por cliente con margen objetivo de ${Math.round(marginTarget * 100)}%. ${runwayWarning}${payrollWarning}`.trim()
+        );
+      }
+
+      expenseInputs.forEach((input) => input.addEventListener('input', calculateExpenses));
+      calculateExpenses();
+    })();
+  </script>
+</body>
+</html>

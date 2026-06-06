@@ -2,6 +2,7 @@ const COPIM_TENANT_TYPES = new Set(['copim', 'council', 'association']);
 const COPIM_ASSOCIATION_ROLES = new Set(['copim_admin', 'copim_operator']);
 const COPIM_NATIONAL_ROLES = new Set(['copim_admin']);
 const ROVI_INTERNAL_ROLES = new Set(['rovi_admin', 'rovi_sales', 'rovi_marketing', 'rovi_customer_success', 'rovi_ops']);
+const VALUATION_ROLES = new Set(['certified_valuator']);
 
 export const isCopimRole = (role) => (
   typeof role === 'string' && role.startsWith('copim')
@@ -23,6 +24,12 @@ export const isPropertyManagerUser = (user) => (
   user?.account_type === 'property_management' ||
   user?.active_workspace?.tenant_type === 'property_management' ||
   getEffectiveRole(user) === 'property_manager'
+);
+
+export const isValuationUser = (user) => (
+  user?.account_type === 'valuation' ||
+  user?.active_workspace?.tenant_type === 'valuation' ||
+  VALUATION_ROLES.has(getEffectiveRole(user))
 );
 
 export const getEffectiveRole = (user) => (
@@ -74,6 +81,10 @@ export const resolveAuthenticatedHome = (user, preferredMode = 'rovi') => {
     return '/rentals';
   }
 
+  if (isValuationUser(user)) {
+    return '/valuations';
+  }
+
   if (isCopimMemberUser(user)) {
     return '/copim/member';
   }
@@ -96,6 +107,9 @@ export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
   if (accountType === 'property_management') {
     return 'Rentas';
   }
+  if (accountType === 'valuation') {
+    return 'Valuador Certificado';
+  }
   if (accountType === 'copim_member') {
     return 'Portal del asociado';
   }
@@ -114,6 +128,9 @@ export const getWorkspaceTypeLabel = (tenantType) => {
   }
   if (tenantType === 'property_management') {
     return 'Rentas';
+  }
+  if (tenantType === 'valuation') {
+    return 'Valuacion';
   }
   if (tenantType === 'copim') {
     return 'COPIM';
@@ -141,6 +158,7 @@ export const getRoleLabel = (role) => {
     admin: 'Admin',
     manager: 'Manager',
     property_manager: 'Property Manager',
+    certified_valuator: 'Valuador Certificado',
     copim_admin: 'COPIM Nacional',
     copim_operator: 'Asociacion local',
     copim_member: 'Asociado',

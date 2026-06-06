@@ -1,0 +1,347 @@
+# RESUMEN DE MÓDULOS POR NIVEL - ROVI OWNERS
+# Guía rápida para Mercadólogos y Ventas
+
+# ===================================================================
+# NIVEL 1: ROVI ADMIN GENERAL (CONTROL TOTAL)
+# ===================================================================
+
+# QUIÉN USA: CEO, COO, Directivos
+# QUÉ VE: TODO - Visibilidad global
+
+# MÓDULOS DISPONIBLES:
+
+# 1. DASHBOARD PRINCIPAL (Vista Global)
+# QUÉ HACE: Centraliza KPIs de Marketing + Sales en tiempo real
+# QUÉ PUEDES VER:
+#   - Leads generados hoy vs cierres hoy
+#   - Revenue MRR (Ingreso Mensual Recurrente)
+#   - ROI por canal de marketing
+#   - Top performers del mes
+#   - Alertas: campañas con ROI negativo, vendedores sin actividad
+
+# 2. ANALYTICS AVANZADO
+# QUÉ HACE: Genera reportes a profundidad
+# QUÉ PUEDES HACER:
+#   - ROI por canal: "Facebook dio 3.8x, LinkedIn 4.3x. ¿Duplicamos inversión en LinkedIn?"
+#   - Embudo de conversión: "Perdemos 75% de leads en calificación. Mejorar criterios."
+#   - Tiempos de respuesta: "María responde en 4.1 hrs vs Carlos en 1.8 hrs. Coaching para María."
+#   - Churn analysis: "10.7% cancelación vs industria 5-7%. Implementar onboarding obligatorio."
+
+# 3. CONTROL TOTAL DE BASE DE DATOS
+# QUÉ HACE: Acceso maestro a todos los prospects (1,247 totales)
+# QUÉ PUEDES HACER:
+#   - Reasignar masiva: "Juan se va de vacaciones. Reasignar sus 23 prospects a María."
+#   - Ver historial completo de cualquier prospecto (desde que fue creado hasta hoy)
+#   - Revertir importaciones si hubo error
+#   - Ver QUIÉN importó QUÉ y CUÁNDO
+
+# 4. ENCUENTRA LEADS (SCRAPER)
+# QUÉ HACE: Configura fuentes automáticas de prospección
+# QUÉ PUEDES HACER:
+#   - Configurar búsquedas automáticas: "Busca inmobiliarias 5-50 brokers cada 3 horas"
+#   - Setear límites: "No más de 50 leads por día"
+#   - Monitorear costos: "SaleADS: $1.50/lead (barato) vs LinkedIn: $3.20/lead (caro pero calidad alta)"
+#   - Pausar fuentes que no funcionan
+
+# 5. GAMIFICACIÓN (Control Maestro)
+# QUÉ HACE: Configura puntos, rankings y bonos
+# QUÉ PUEDES VER:
+#   - Hall of Fame: "Ana Torres (Marketing): 4,850 pts, Bono $15k"
+#   - Ranking global de Sales + Marketing juntos
+# QUÉ PUEDES HACER:
+#   - Editar reglas de puntaje: "Discovery Call = 50 pts, Demo Completada = 150 pts"
+#   - Configurar bonos económicos: "1° lugar Sales = $20,000, 2° = $15,000"
+#   - Ajustar puntos manualmente si hubo error
+
+# 6. GESTIÓN DE EQUIPO
+# QUÉ HACE: Administrar usuarios del sistema
+# QUÉ PUEDES HACER:
+#   - Crear nuevo miembro: "Contratar a Sofia como Marketing Specialist"
+#   - Editar miembro: "Promover a Juan de Executive a Manager"
+#   - Pausar cuenta: "Carlos se va de vacaciones. Reasignar sus prospects."
+#   - Desactivar cuenta: "Laura renunció. Revocar acceso inmediatamente."
+#   - Ver permisos: "María solo ve SUS prospects, Admin ve TODOS"
+
+# 7. INTEGRACIONES Y SETTINGS
+# QUÉ HACE: Configura Stripe, VAPI, Twilio, SendGrid, Google Calendar
+# QUÉ PUEDES HACER:
+#   - Stripe: Configurar planes de pago (Essential $3k, Standard $8k, etc.)
+#   - VAPI: Configurar asistente de IA para llamadas automáticas
+#   - Twilio: Crear plantillas de SMS ("Recordatorio de demo mañana a las 3pm")
+#   - SendGrid: Configurar tracking de emails (aperturas, clics)
+#   - Google Calendar: Sincronizar citas bidireccionalmente
+
+# ===================================================================
+# NIVEL 2: ROVI SALES (CONVERSIÓN)
+# ===================================================================
+
+# QUIÉN USA: Sales Executives, Account Executives, Closers
+# QUÉ VE: Solo SUS prospectos, SUS metas, SUS métricas
+
+# MÓDULOS DISPONIBLES:
+
+# 1. DASHBOARD PERSONAL ("Mi Performance")
+# QUÉ HACE: Tu escritorio de trabajo diario
+# QUÉ PUEDES VER:
+#   - Tus metas del mes: "3 de 5 ventas (60%). Me faltan 2 en 12 días."
+#   - Tareas pendientes hoy: "9am Discovery Call, 11am Demo, 2pm Follow-up"
+#   - Prospectos que requieren atención: "URGENTE: Cancun Realty no respondió en 5 días"
+#   - Tu gamificación: "5,120 pts, 1° lugar, Bono estimado $20,000"
+
+# 2. PIPELINE DE PROSPECTS (Vista Kanban)
+# QUÉ HACE: Tablero tipo Trello con tus prospects organizados por etapa
+# ETAPAS DEL PIPELINE:
+#   PROSPECTO → DISCOVERY CALL → DEMO AGENDADA → DEMO COMPLETADA
+#   → PROPUESTA ENVIADA → NEGOCIACIÓN → CONTRATO CERRADO → ONBOARDING
+# QUÉ PUEDES HACER:
+#   - Mover prospecto entre etapas (arrastrar y soltar)
+#   - Ver detalle completo: "Tulum Luxury Realty, 25 brokers, presupuesto $10k, score 72"
+#   - Ver historial: "Creado el 15 Mar por Ana Torres, Discovery call el 16 Mar..."
+#   - Crear tareas: "Llamar el 25 Mar a las 10am"
+#   - Añadir notas: "Muy interesados en plan Standard"
+
+# 3. SCRIPTS DE VENTA
+# QUÉ HACE: Guiones probados para cada situación
+# SCRIPTS DISPONIBLES:
+#   - Discovery Call (20-30 min): Preguntas para conocer el negocio, detectar pain points
+#   - Demo (30-45 min): Presentación guiada del producto
+#   - Manejo de Objeciones: "Es muy caro", "Lo tengo que pensar"
+#   - Cierre: Técnicas para pedir la venta
+# EJEMPLO DE PREGUNTA DEL SCRIPT:
+#   - "¿Cuál es el mayor desafío que enfrentan hoy con su sistema actual?"
+#   - "¿Me puedes dar un ejemplo específico de un lead que se les haya escapado?"
+
+# 4. PRODUCTOS/SERVICIOS (Catálogo)
+# QUÉ HACE: Muestra los 4 planes que vendes
+# PLANES DISPONIBLES:
+#   - Essential ($2,999/mes): Para 1 broker, funcionalidades básicas
+#   - Standard ($7,999/mes): Para 2-10 brokers, gamificación + integraciones
+#   - Professional ($14,999/mes): Para 11-50 brokers, analytics avanzado + CSM dedicado
+#   - Enterprise (Cotización): Para 50+ brokers, desarrollo a medida
+# CÓMO DECIDIR QUÉ PLAN OFRECER:
+#   - Tamaño: 25 brokers → Professional
+#   - Presupuesto: $10k → Standard
+#   - Recomendación: "Ofrecer Standard ($7,999) si son sensibles a precio"
+
+# 5. CALENDARIO
+# QUÉ HACE: Tu agenda integrada
+# QUÉ PUEDES VER:
+#   - Citas de hoy: "9am Discovery Call, 11am Demo, 2pm Follow-up"
+#   - Citas de mañana y esta semana
+#   - Sincronización con Google Calendar
+# QUÉ PUEDES HACER:
+#   - Crear nueva cita (tipo, prospecto, fecha/hora)
+#   - Sistema envía confirmación automática por email
+#   - Setear recordatorios: "Recordarme 1 hora antes"
+
+# 6. ANALYTICS PERSONAL
+# QUÉ HACE: Tus métricas de desempeño
+# QUÉ PUEDES VER:
+#   - Ventas cerradas: 3 de 5 meta (60%)
+#   - Tasas de conversión: "Demos → Propuestas: 39%, Propuestas → Ventas: 43%"
+#   - Tiempos de respuesta: "Lead → Primer contacto: 2.3 hrs (promedio industria: 15 min) MEJORAR"
+#   - Gamificación: "5,120 pts, 1° lugar en Sales"
+
+# ===================================================================
+# NIVEL 3: ROVI MARKETING (GENERACIÓN DE DEMANDA)
+# ===================================================================
+
+# QUIÉN USA: Marketing Specialists, Campaign Managers, Content Creators
+# QUÉ VE: Campañas, leads generados, plantillas de email
+
+# MÓDULOS DISPONIBLES:
+
+# 1. DASHBOARD MARKETING
+# QUÉ HACE: Tu centro de control de marketing
+# QUÉ PUEDES VER:
+#   - Leads generados hoy: 47
+#   - Costo por lead: $420
+#   - Campañas activas: 3 (Facebook Ads, LinkedIn Ads, Email Sequence)
+#   - Emails abiertos: 68%
+#   - Leads calificados: 12 (de 47 totales)
+#   - Tu gamificación: "4,850 pts, 1° lugar Marketing, Bono $15,000"
+
+# 2. CAMPAÑAS (MARKETING)
+# QUÉ HACE: Crear y lanzar campañas de alcance masivo
+# TIPOS DE CAMPAÑAS:
+#   - Email Campaigns: Secuencias de nutrición automatizadas
+#   - SMS Campaigns: Mensajes cortos masivos (recordatorios, últimos cupos)
+#   - VAPI Calls: Llamadas automatizadas con IA
+# EJEMPLO DE CAMPAÑA DE EMAIL:
+#   Día 1: "Hola {{nombre}}, te invitamos a una demo de ROVI..."
+#   Día 3: "Últimos cupos disponibles para esta semana..."
+#   Día 5: "¿Tienes 5 minutos? Te mostramos cómo ahorrar 10hrs/semana..."
+# QUÉ PUEDES HACER:
+#   - Crear campaña desde cero o usar template
+#   - Seleccionar segmento: "500 leads que no han abierto email en 30 días"
+#   - Programar envío: "Mañana a las 10am"
+#   - Ver resultados: "Enviados: 500, Abiertos: 340 (68%), Clics: 42 (12%)"
+
+# 3. EMAIL TEMPLATES
+# QUÉ HACE: Editar plantillas de email para campañas
+# QUÉ PUEDES HACER:
+#   - Crear nuevo template: "Bienvenida después de demo"
+#   - Editar template existente: "Mejorar asunto de email de recordatorio"
+#   - Usar variables dinámicas: "{{nombre}}, {{empresa}}, {{hora_demo}}"
+#   - Añadir links de seguimiento: "Confirmar cita: {{zoom_link}}"
+#   - Previsualizar email antes de enviar
+
+# 4. AUTOMATIZACIONES
+# QUÉ HACE: Configurar flujos de nutrición automáticos
+# EJEMPLO DE AUTOMATIZACIÓN:
+#   Trigger: Lead descarga brochure de ROVI
+#   ↓
+#   Acción 1 (Día 0): Enviar email de bienvenida
+#   ↓
+#   Acción 2 (Día 2): Si abrió email → Enviar caso de éxito
+#   ↓
+#   Acción 3 (Día 5): Si NO abrió email → Reenviar con asunto distinto
+#   ↓
+#   Acción 4 (Día 7): Si abrió alguno → Preguntar si quiere agendar demo
+#   ↓
+#   Acción 5 (Día 10): Si agendó demo → Notificar a Sales
+# QUÉ PUEDES HACER:
+#   - Crear nuevos flujos de automatización
+#   - Editar flujos existentes
+#   - Ver estadísticas: "347 leads entraron en flujo, 89 completaron todas las etapas"
+
+# 5. IMPORTACIÓN DE LEADS
+# QUÉ HACE: Cargar bases de datos externas
+# QUÉ PUEDES HACER:
+#   - Importar desde CSV/XLSX: "LinkedIn_Export.csv con 245 leads"
+#   - Importar desde herramientas: SaleADS.ai, Facebook Lead Ads
+#   - Mapear columnas: "Columna A = Nombre, Columna B = Email..."
+#   - Detectar duplicados: "54 leads ya existen en base de datos"
+#   - Asignar a vendedor: "Asignar nuevos leads a Juan Pérez"
+
+# 6. ANALYTICS MARKETING
+# QUÉ HACE: Tus métricas de marketing
+# QUÉ PUEDES VER:
+#   - Leads generados: 445 este mes
+#   - Leads calificados: 112 (25%)
+#   - Costo por lead: $63
+#   - Mejor campaña: "LinkedIn Ads - ROI 4.3x"
+#   - Peor campaña: "Facebook Ads - ROI 1.2x (pausar)"
+#   - Tasa de apertura: 68%
+#   - Tasa de clics: 12%
+
+# 7. CHAT CON IA
+# QUÉ HACE: Herramienta de apoyo para redacción
+# QUÉ PUEDES HACER:
+#   - Generar copy para campaña: "Escribe 3 asuntos de email para demo de ROVI"
+#   - Mejorar texto: "Mejora este copy para que sea más persuasivo"
+#   - Generar posts de redes sociales: "Escribe 3 posts de LinkedIn sobre ROVI"
+#   - Generar respuestas a objections: "Escribe respuesta a 'es muy caro'"
+
+# 8. GAMIFICACIÓN MARKETING
+# QUÉ HACE: Ver tus puntos y ranking
+# QUÉ PUEDES VER:
+#   - Puntos totales: 4,850
+#   - Lugar: 1° en Marketing 🥇
+#   - Desglose por actividad:
+#     - Leads calificados: 112 → +5,600 pts (50 pts c/u)
+#     - Campañas lanzadas: 8 → +600 pts (75 pts c/u)
+#     - Emails abiertos: 5,680 → +340 pts (no aplica límite diario)
+#   - Bono estimado: $15,000
+
+# ===================================================================
+# COMPARATIVA DE MÓDULOS POR NIVEL
+# ===================================================================
+
+# Módulo                    Nivel 1 (Admin)    Nivel 2 (Sales)     Nivel 3 (Marketing)
+# ────────────────────────────────────────────────────────────────────────────────
+# Dashboard                 Global              Personal            Marketing
+#                           (Mktg + Sales)      (mis metas)         (leads, campañas)
+
+# Analytics                 Avanzado            Personal             Marketing
+#                           (ROI, Churn)        (mis métricas)       (CPL, aperture)
+
+# Pipeline                  Todos               Solo mis             Solo leads que
+#                           (reasignar masivo)  prospects           generé
+
+# Gamification              Configurar          Ver mis              Ver mis
+#                           reglas, ver         puntos,             puntos,
+#                           ranking             leaderboard         leaderboard
+
+# Campaigns                 Ver todas,          No tiene            Crear, editar,
+#                           configurar                              lanzar
+
+# Scripts                   Ver/editar          Usar                No tiene
+#                           todos               scripts
+
+# Products                  Configurar          Ver                 No tiene
+#                           planes              catálogo
+
+# Calendar                  Ver todas           Solo mis            No tiene
+#                           las citas           citas
+
+# Team Management           Crear, editar,      Ver mi              Ver mi
+#                           eliminar            perfil              perfil
+
+# Integrations              Configurar          No tiene            No tiene
+#                           todo
+
+# Email Templates           Ver/editar          No tiene            Crear, editar
+#                           todos                                   templates
+
+# Import Leads              Ver historial,      No tiene            Importar
+#                           revertir                                 leads
+
+# Chat IA                   Configurar          No tiene            Usar para
+#                                                                    copy
+
+# ===================================================================
+# DIFERENCIAS CLAVE ENTRE NIVELES
+# ===================================================================
+
+# VISIBILIDAD
+# - Nivel 1: Ve TODO (todos los prospects, todas las campañas, todos los usuarios)
+# - Nivel 2: Ve SOLO SUS prospects y SUS métricas
+# - Nivel 3: Ve campañas que creó, leads que generó, SUS métricas
+
+# CONTROL
+# - Nivel 1: Control TOTAL (reasignar prospects, editar gamificación, configurar integraciones)
+# - Nivel 2: Control de SUS prospects (mover etapas, editar info, crear tareas)
+# - Nivel 3: Control de campañas (crear, editar, pausar, ver resultados)
+
+# RESPONSABILIDAD
+# - Nivel 1: Responsabilidad ESTRATÉGICA (decidir dónde invertir, qué campañas escalar)
+# - Nivel 2: Responsabilidad de CIERRE (convertir prospects en clientes)
+# - Nivel 3: Responsabilidad de GENERACIÓN (crear leads calificados para Sales)
+
+# ===================================================================
+# TÉRMINOS CLAVE
+# ===================================================================
+
+# Prospecto: Cliente potencial B2B (empresa interesada en comprar)
+# Lead: Persona que mostró interés (todavía no es cliente)
+# Pipeline: Embudo de ventas (proceso desde interés hasta compra)
+# Score: Número 0-100 que dice qué tan probable es que compren
+# Discovery Call: Primera llamada para conocer al prospecto
+# Demo: Presentación del producto (30-45 minutos)
+# Propuesta: Oficial de precios y servicios
+# Negociación: Discutir detalles finales del contrato
+# Cierre: Momento en que firman y pagan
+# Onboarding: Primeros 30 días del cliente (aprendizaje del sistema)
+# Churn: Tasa de cancelación (clientes que se van)
+# CAC: Costo de Adquisición de Cliente (cuanto cuesta conseguir uno)
+# MRR: Monthly Recurring Revenue (ingreso mensual recurrente)
+# ROI: Return on Investment (retorno de inversión)
+# ICP: Ideal Customer Profile (perfil de cliente ideal)
+# Gamification: Sistema de puntos y recompensas
+# Cross-level: Entre departamentos (Marketing + Sales)
+
+# ===================================================================
+# RESUMEN FINAL
+# ===================================================================
+
+# Nivel 1 (Admin): Estrategia y Control. Ve todo, decide todo, controla todo.
+# Nivel 2 (Sales): Cierre y Conversión. Gestionan prospects, cierran ventas, compiten por bonos.
+# Nivel 3 (Marketing): Generación y Demanda. Crean campañas, generan leads, nutren prospects.
+
+# Flujo: Marketing genera → Sales cierra → Admin supervisa → Gamificación motiva a todos.
+
+# ===================================================================
+# Documento creado para equipo de Marketing y Ventas
+# Sin tecnicismos, enfocado en la práctica diaria
+# ===================================================================

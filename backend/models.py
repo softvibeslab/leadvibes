@@ -57,7 +57,7 @@ class UserCreate(BaseModel):
     name: str
     role: str = "broker"
     phone: Optional[str] = None
-    account_type: str = "individual"  # individual, agency, copim, copim_member, rovi_internal
+    account_type: str = "individual"  # individual, agency, valuation, copim, copim_member, rovi_internal
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -91,7 +91,7 @@ class User(UserBase):
     onboarding_completed: bool = False
     tenant_id: str = ""
     personal_tenant_id: Optional[str] = None
-    account_type: str = "individual"  # individual, agency, copim, copim_member, rovi_internal
+    account_type: str = "individual"  # individual, agency, valuation, copim, copim_member, rovi_internal
     linked_copim_association_id: Optional[str] = None
     ai_profile: Optional['AIProfile'] = None  # Perfil personalizado para el asistente IA (forward reference)
 
@@ -126,6 +126,7 @@ class TenantType(str, Enum):
     INDIVIDUAL = "individual"
     AGENCY = "agency"
     PROPERTY_MANAGEMENT = "property_management"
+    VALUATION = "valuation"
     COPIM = "copim"
     ASSOCIATION = "association"
     COUNCIL = "council"
@@ -138,6 +139,7 @@ class MembershipRole(str, Enum):
     MANAGER = "manager"
     BROKER = "broker"
     PROPERTY_MANAGER = "property_manager"
+    CERTIFIED_VALUATOR = "certified_valuator"
     COPIM_ADMIN = "copim_admin"
     COPIM_OPERATOR = "copim_operator"
     COPIM_MEMBER = "copim_member"
@@ -405,6 +407,78 @@ class Activity(ActivityCreate):
     tenant_id: str
     created_at: datetime = Field(default_factory=now_utc)
     points_earned: int = 0
+
+
+class TaskStatus(str, Enum):
+    PENDIENTE = "pendiente"
+    EN_PROGRESO = "en_progreso"
+    EN_ESPERA = "en_espera"
+    COMPLETADA = "completada"
+    CANCELADA = "cancelada"
+
+
+class TaskPriority(str, Enum):
+    BAJA = "baja"
+    MEDIA = "media"
+    ALTA = "alta"
+    URGENTE = "urgente"
+
+
+class TaskChecklistItem(BaseModel):
+    id: str = Field(default_factory=generate_uuid)
+    title: str
+    completed: bool = False
+
+
+class TaskCommentCreate(BaseModel):
+    body: str
+
+
+class TaskComment(TaskCommentCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    user_id: str
+    user_name: str
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str = ""
+    status: TaskStatus = TaskStatus.PENDIENTE
+    priority: TaskPriority = TaskPriority.MEDIA
+    due_date: Optional[datetime] = None
+    assigned_to: Optional[str] = None
+    lead_id: Optional[str] = None
+    tags: List[str] = []
+    checklist: List[TaskChecklistItem] = []
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
+    due_date: Optional[datetime] = None
+    assigned_to: Optional[str] = None
+    lead_id: Optional[str] = None
+    tags: Optional[List[str]] = None
+    checklist: Optional[List[TaskChecklistItem]] = None
+
+
+class TaskStatusUpdate(BaseModel):
+    status: TaskStatus
+
+
+class Task(TaskCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    comments: List[TaskComment] = []
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+    completed_at: Optional[datetime] = None
 
 # Gamification Models
 class GamificationRuleCreate(BaseModel):
@@ -1159,7 +1233,7 @@ class CalendarEvent(CalendarEventCreate):
 # ==================== INTEGRATION SETTINGS ====================
 
 class IntegrationSettings(BaseModel):
-    """Settings for external integrations (VAPI, Twilio, SendGrid, Google Calendar, Apify)"""
+    """Settings for external integrations (VAPI, Twilio, SendGrid, Google Calendar, Apify, OpenWA)"""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
     user_id: str
@@ -1173,6 +1247,11 @@ class IntegrationSettings(BaseModel):
     twilio_auth_token: Optional[str] = None
     twilio_phone_number: Optional[str] = None
     twilio_whatsapp_number: Optional[str] = None
+    # OpenWA Settings
+    openwa_base_url: Optional[str] = None
+    openwa_api_key: Optional[str] = None
+    openwa_session_id: Optional[str] = None
+    openwa_webhook_secret: Optional[str] = None
     # SendGrid Settings
     sendgrid_api_key: Optional[str] = None
     sendgrid_sender_email: Optional[str] = None
@@ -1188,6 +1267,7 @@ class IntegrationSettings(BaseModel):
     vapi_enabled: bool = False
     twilio_enabled: bool = False
     twilio_whatsapp_enabled: bool = False
+    openwa_enabled: bool = False
     sendgrid_enabled: bool = False
     google_calendar_enabled: bool = False
     apify_enabled: bool = False
@@ -1202,6 +1282,10 @@ class IntegrationSettingsUpdate(BaseModel):
     twilio_auth_token: Optional[str] = None
     twilio_phone_number: Optional[str] = None
     twilio_whatsapp_number: Optional[str] = None
+    openwa_base_url: Optional[str] = None
+    openwa_api_key: Optional[str] = None
+    openwa_session_id: Optional[str] = None
+    openwa_webhook_secret: Optional[str] = None
     sendgrid_api_key: Optional[str] = None
     sendgrid_sender_email: Optional[str] = None
     sendgrid_sender_name: Optional[str] = None
@@ -1366,6 +1450,20 @@ class WhatsAppRecord(BaseModel):
     delivered_at: Optional[datetime] = None
     read_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=now_utc)
+
+
+class OpenWASettingsUpdate(BaseModel):
+    openwa_base_url: Optional[str] = None
+    openwa_api_key: Optional[str] = None
+    openwa_session_id: Optional[str] = None
+    openwa_webhook_secret: Optional[str] = None
+    openwa_enabled: Optional[bool] = None
+
+
+class OpenWATestMessageRequest(BaseModel):
+    phone_number: str
+    message: str
+    lead_id: Optional[str] = None
 
 # ==================== CONVERSATION ANALYSIS (DEMO) ====================
 
@@ -1852,6 +1950,8 @@ class RentalOwner(RentalOwnerCreate):
 class RentalPropertyCreate(BaseModel):
     title: str
     owner_id: Optional[str] = None
+    pipeline_id: Optional[str] = None
+    stage_id: Optional[str] = None
     address: Optional[str] = None
     zone: Optional[str] = None
     operation_type: OperationType = OperationType.RENT
@@ -1874,6 +1974,8 @@ class RentalPropertyCreate(BaseModel):
 class RentalPropertyUpdate(BaseModel):
     title: Optional[str] = None
     owner_id: Optional[str] = None
+    pipeline_id: Optional[str] = None
+    stage_id: Optional[str] = None
     address: Optional[str] = None
     zone: Optional[str] = None
     operation_type: Optional[OperationType] = None
@@ -1896,6 +1998,63 @@ class RentalPropertyUpdate(BaseModel):
 class RentalProperty(RentalPropertyCreate):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalPipelineCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    entity_type: str = "booking"
+    status: str = "active"
+    is_default: bool = False
+
+
+class RentalPipelineUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    entity_type: Optional[str] = None
+    status: Optional[str] = None
+    is_default: Optional[bool] = None
+
+
+class RentalPipeline(RentalPipelineCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    tenant_id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class RentalPipelineStageCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    booking_status: Optional[BookingStatus] = None
+    color: str = "#0D9488"
+    probability: int = 0
+    sort_order: int = 10
+    is_closing_stage: bool = False
+    automation_notes: Optional[str] = None
+
+
+class RentalPipelineStageUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    booking_status: Optional[BookingStatus] = None
+    color: Optional[str] = None
+    probability: Optional[int] = None
+    sort_order: Optional[int] = None
+    is_closing_stage: Optional[bool] = None
+    automation_notes: Optional[str] = None
+
+
+class RentalPipelineStage(RentalPipelineStageCreate):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=generate_uuid)
+    pipeline_id: str
     tenant_id: str
     created_by: str
     created_at: datetime = Field(default_factory=now_utc)

@@ -1,0 +1,466 @@
+# INDICE COMPLETO DE LA CARPETA ROVI_OWNERS
+# Mayo 2026 - Documentación de ROVI OWNERS
+
+# ===================================================================
+# ARCHIVOS .TXT (FORMATO TEXTO PLANO)
+# ===================================================================
+
+# 1. PROMPT_MAESTRO_COMPLETO.txt
+#    - Guía completa para desarrolladores Full Stack
+#    - 2,866 líneas de documentación técnica
+#    - Incluye: Contexto, Arquitectura, Modelos de Datos, Endpoints API, Frontend,
+#      Base de Datos, Integraciones, Plan de Implementación (8 semanas)
+#    - Para: Desarrolladores que van a construir el sistema desde cero
+#    - Tiempo de lectura: 60-90 minutos
+
+# 2. GUIA_PARA_MERCADOLOGA.txt
+#    - Explicación simple sin tecnicismos
+#    - 15 módulos detallados en lenguaje claro
+#    - Incluye: Introducción, 3 niveles, módulos detallados, ejemplos prácticos,
+#      flujo completo de trabajo (10 días de un lead), glosario de términos
+#    - Para: Mercadólogos, equipo de ventas, personas no técnicas
+#    - Tiempo de lectura: 30-40 minutos
+
+# 3. RESUMEN_MODULOS_3_NIVELES.txt
+#    - Guía rápida de referencia
+#    - Resumen ejecutivo de módulos por nivel
+#    - Incluye: Lista de módulos por nivel, tabla comparativa, diferencias clave,
+#      términos clave
+#    - Para: Equipos que necesitan referencia rápida
+#    - Tiempo de lectura: 10-15 minutos
+
+# 4. README.txt
+#    - Índice general de la carpeta
+#    - Resumen ejecutivo del proyecto
+#    - Incluye: Índice de documentos, resumen ejecutivo, cambios clave,
+#      diferenciadores vs competidores, oferta de productos, próximos pasos,
+#      criterios de éxito, preguntas frecuentes
+#    - Para: Todos los stakeholders
+#    - Tiempo de lectura: 15-20 minutos
+
+# ===================================================================
+# ARCHIVOS .MD (FORMATO MARKDOWN)
+# ===================================================================
+
+# 1. PROMPT_MAESTRO_COMPLETO.md
+#    - Contenido completo del prompt maestro en formato Markdown
+#    - Mismo contenido que el archivo .txt pero con formato mejorado
+#    - Ideal para visualización en editores de código o GitHub
+
+# 2. GUIA_PARA_MERCADOLOGA.md
+#    - Contenido completo de la guía para mercadólogos en Markdown
+#    - Mismo contenido que el archivo .txt pero con formato mejorado
+#    - Ideal para visualización en editores de código o GitHub
+
+# 3. RESUMEN_MODULOS_3_NIVELES.md
+#    - Resumen de módulos en formato Markdown
+#    - Contenido condensado para referencia rápida
+#    - Incluye: Módulos por nivel, tabla comparativa, glosario
+
+# 4. DETALLE_MODULOS_POR_VISTA.md
+#    - Detalle exhaustivo de cada módulo por vista/rol
+#    - Incluye screenshots (descripciones), funcionalidades específicas,
+#      permisos, casos de uso
+#    - Para: Desarrolladores que necesitan entender detalles de implementación
+
+# 5. PROPUESTA_ADAPTACION_ROVI_CRM.md
+#    - Propuesta conceptual completa de la adaptación
+#    - Incluye: Visión general, arquitectura de 3 niveles, flujo de datos,
+#      adaptación de módulos existentes, matriz de módulos, métricas de éxito
+#    - Para: Stakeholders, Product Managers, Decision Makers
+#    - Tiempo de lectura: 25-30 minutos
+
+# 6. ESPECIFICACIONES_TECNICAS.md
+#    - Detalle técnico de implementación
+#    - Incluye: Cambios en modelos de datos, endpoints API con ejemplos,
+#      lógica de scoring, scripts de migración, cambios en frontend
+#    - Para: Desarrolladores, Arquitectos, Técnicos
+#    - Tiempo de lectura: 40-45 minutos
+
+# 7. ROADMAP_IMPLEMENTACION.md
+#    - Plan de implementación de 8 semanas
+#    - Incluye: Weekly breakdown, milestones, recursos necesarios,
+#      riesgos y mitigación, métricas de éxito, post-launch plan
+#    - Para: Project Managers, Equipos de desarrollo, Stakeholders
+#    - Tiempo de lectura: 20-25 minutos
+
+# 8. PROMPT_MAESTRO_INICIO.md
+#    - Prompt inicial de implementación
+#    - Versión abreviada del prompt maestro para comenzar el desarrollo
+#    - Incluye: Primeros pasos, setup técnico, modelos básicos
+#    - Para: Desarrolladores que inician el proyecto
+
+# 9. README.md
+#    - Índice general de la carpeta en formato Markdown
+#    - Contenido similar al README.txt pero con formato mejorado
+
+# ===================================================================
+# ARCHIVOS .HTML (FORMATO HTML)
+# ===================================================================
+
+# 1. GUIA_PARA_MERCADOLOGA.html
+#    - Versión HTML de la guía para mercadólogos
+#    - Diseño profesional con estilos CSS
+#    - Ideal para visualización en navegador web
+#    - Incluye: Tabla de contenidos con anchor links, diseño responsive,
+#      colores corporativos, ejemplos de código con syntax highlighting
+#    - Para: Visualización en navegador Chrome/Edge/Firefox
+#    - Cómo abrir: Doble clic en el archivo o abrir con navegador
+
+# ===================================================================
+# ARCHIVOS .PDF (FORMATO PDF)
+# ===================================================================
+
+# 1. PROMPT_MAESTRO_COMPLETO.pdf
+#    - Versión PDF del prompt maestro completo
+#    - Ideal para imprimir o compartir por email
+#    - Formato profesional con índice clickable
+
+# 2. GUIA_PARA_MERCADOLOGA.pdf
+#    - Versión PDF de la guía para mercadólogos
+#    - Ideal para compartir con equipo no técnico
+#    - Formato visual atractivo
+
+# Nota: Los archivos PDF se generan desde los archivos .md usando scripts Python
+
+# ===================================================================
+# SCRIPTS PYTHON
+# ===================================================================
+
+# 1. generar_pdf_prompt_maestro.py
+#    - Script para generar PDF del prompt maestro
+#    - Convierte PROMPT_MAESTRO_COMPLETO.md a PDF
+#    - Uso: python generar_pdf_prompt_maestro.py
+
+# 2. generar_pdf_mercadologa.py
+#    - Script para generar PDF de la guía para mercadólogos
+#    - Convierte GUIA_PARA_MERCADOLOGA.md a PDF
+#    - Uso: python generar_pdf_mercadologa.py
+
+# ===================================================================
+# ESTRUCTURA RECOMENDADA DE LECTURA
+# ===================================================================
+
+# PARA STAKEHOLDERS Y DECISION MAKERS:
+# 1. README.txt (15-20 min) - Resumen ejecutivo
+# 2. PROPUESTA_ADAPTACION_ROVI_CRM.md (25-30 min) - Propuesta conceptual
+# 3. ROADMAP_IMPLEMENTACION.md (20-25 min) - Plan de implementación
+
+# PARA DESARROLLADORES:
+# 1. README.txt (15-20 min) - Contexto general
+# 2. PROMPT_MAESTRO_COMPLETO.txt (60-90 min) - Guía completa
+# 3. ESPECIFICACIONES_TECNICAS.md (40-45 min) - Detalle técnico
+# 4. DETALLE_MODULOS_POR_VISTA.md (referencia continua) - Detalle de módulos
+
+# PARA EQUIPO DE MARKETING Y VENTAS:
+# 1. GUIA_PARA_MERCADOLOGA.html (30-40 min) - Guía visual completa
+# 2. RESUMEN_MODULOS_3_NIVELES.txt (10-15 min) - Referencia rápida
+# 3. GUIA_PARA_MERCADOLOGA.txt (30-40 min) - Versión texto plano
+
+# PARA PROJECT MANAGERS:
+# 1. README.txt (15-20 min) - Resumen ejecutivo
+# 2. ROADMAP_IMPLEMENTACION.md (20-25 min) - Plan detallado
+# 3. PROPUESTA_ADAPTACION_ROVI_CRM.md (25-30 min) - Contexto completo
+
+# ===================================================================
+# CONTENIDO POR ARCHIVO
+# ===================================================================
+
+# PROMPT_MAESTRO_COMPLETO (.txt, .md, .pdf)
+# - Sección 1: Contexto Completo del Proyecto (8 páginas)
+#   - Qué es ROVI OWNERS
+#   - Modelo de negocio
+#   - Público objetivo (ICP)
+#   - Oferta de productos (4 tiers)
+#   - Los 3 niveles de acceso
+#
+# - Sección 2: Arquitectura del Sistema (4 páginas)
+#   - Stack tecnológico
+#   - Estructura de carpetas
+#   - Diagrama de arquitectura
+#
+# - Sección 3: Modelos de Datos (15 páginas)
+#   - Enums (ProspectStatus, CompanySize, ServiceTier, etc.)
+#   - Model 1: Prospect (reemplaza a Lead)
+#   - Model 2: ServicePlan (catálogo de planes)
+#   - Model 3: TeamMember (actualización de User)
+#   - Model 4: GamificationRule v2 (cross-level)
+#   - Model 5: Campaign (para Marketing)
+#   - Model 6: Automation (automatizaciones)
+#   - Model 7: EmailTemplate
+#   - Model 8: ImportJob
+#
+# - Sección 4: Endpoints API Completos (30 páginas)
+#   - Endpoints 1-5: Prospects (CRUD + Scoring)
+#   - Endpoints 6-8: Service Plans
+#   - Endpoints 9-11: Gamification
+#   - Endpoints 12-14: Campaigns
+#   - Endpoints 15-17: Import Leads
+#   - Endpoints 18-20: Automatizations
+#   - Endpoints 21-23: AI Chat
+#   - Endpoints 24-26: Analytics
+#   - Endpoints 27-30: Team Management
+#   - Endpoints 31-33: Calendar
+#   - Endpoints 34-36: Sales Scripts
+#   - Endpoints 37-40: Settings/Integrations
+#
+# - Sección 5: Frontend - Componentes por Nivel (10 páginas)
+#   - Estructura de rutas en App.js
+#   - Componentes Admin (AdminDashboard, TeamPage, Analytics)
+#   - Componentes Sales (SalesDashboard, ProspectsPage, ServicePlans)
+#   - Componentes Marketing (MarketingDashboard, Campaigns)
+#   - Componentes compartidos (Gamification, Calendar, AIChat)
+#
+# - Sección 6: Base de Datos y Migración (8 páginas)
+#   - Script de migración completo
+#   - Migración de leads → prospects
+#   - Creación de planes de servicio
+#   - Creación de reglas de gamificación
+#
+# - Sección 7: Integraciones Externas (12 páginas)
+#   - Integración con Stripe (pagos)
+#   - Integración con VAPI.ai (llamadas IA)
+#   - Integración con Twilio (SMS)
+#   - Integración con SendGrid (email marketing)
+#
+# - Sección 8: Plan de Implementación (10 páginas)
+#   - Semana 1: Fundación y Arquitectura
+#   - Semana 2: Endpoints Core
+#   - Semana 3: Gamificación y Analytics
+#   - Semana 4: Campañas y Marketing
+#   - Semana 5: Importación y Automatizaciones
+#   - Semana 6: AI Chat y Scripts
+#   - Semana 7: Frontend - Dashboards
+#   - Semana 8: Frontend - Módulos Especiales
+#   - Semana 9-10: Testing y Validación
+#
+# - Criterios de Éxito del Proyecto (2 páginas)
+# - Soporte y Mantenimiento (3 páginas)
+
+# GUIA_PARA_MERCADOLOGA (.txt, .md, .html, .pdf)
+# - Introducción (2 páginas)
+#   - Propósito de la guía
+#   - Audiencia objetivo
+#   - Cómo usar esta guía
+#
+# - Nivel 1: ROVI ADMIN GENERAL (20 páginas)
+#   - Módulo 1: Dashboard Principal
+#   - Módulo 2: Analytics Avanzado
+#   - Módulo 3: Control Total de Base de Datos
+#   - Módulo 4: Encuentra Leads (Scraper)
+#   - Módulo 5: Gamificación (Control Maestro)
+#   - Módulo 6: Gestión de Equipo
+#   - Módulo 7: Integraciones y Settings
+#
+# - Nivel 2: ROVI SALES (25 páginas)
+#   - Módulo 1: Dashboard Personal
+#   - Módulo 2: Pipeline de Prospects
+#   - Módulo 3: Scripts de Venta
+#   - Módulo 4: Productos/Servicios
+#   - Módulo 5: Calendario
+#   - Módulo 6: Analytics Personal
+#   - Módulo 7: Importación de Leads (NUEVO)
+#   - Módulo 8: Automatizaciones (NUEVO)
+#   - Módulo 9: Chat con IA (NUEVO)
+#
+# - Nivel 3: ROVI MARKETING (22 páginas)
+#   - Módulo 1: Dashboard Marketing
+#   - Módulo 2: Campañas
+#   - Módulo 3: Email Templates
+#   - Módulo 4: Automatizaciones
+#   - Módulo 5: Importación de Leads
+#   - Módulo 6: Analytics Marketing
+#   - Módulo 7: Chat con IA
+#   - Módulo 8: Gamificación Marketing
+#
+# - Comparativa de Módulos por Nivel (3 páginas)
+# - Diferencias Clave entre Niveles (2 páginas)
+# - Flujo Completo de Trabajo (4 páginas)
+#   - Ejemplo real: 10 días de un lead
+# - Términos Clave (2 páginas)
+# - Resumen Final (1 página)
+
+# RESUMEN_MODULOS_3_NIVELES (.txt, .md)
+# - Nivel 1: ROVI ADMIN GENERAL (4 páginas)
+#   - Lista de 7 módulos con funcionalidades clave
+#
+# - Nivel 2: ROVI SALES (6 páginas)
+#   - Lista de 9 módulos con funcionalidades clave
+#
+# - Nivel 3: ROVI MARKETING (5 páginas)
+#   - Lista de 8 módulos con funcionalidades clave
+#
+# - Comparativa de Módulos por Nivel (1 página)
+# - Diferencias Clave entre Niveles (1 página)
+# - Términos Clave (1 página)
+# - Resumen Final (1 página)
+
+# PROPUESTA_ADAPTACION_ROVI_CRM.md
+# - Resumen Ejecutivo (2 páginas)
+# - Visión General (4 páginas)
+#   - Transformación de modelo de negocio
+#   - Objetivos estratégicos
+#   - KPIs de éxito
+#
+# - Arquitectura de 3 Niveles (6 páginas)
+#   - Nivel 1: ROVI ADMIN GENERAL
+#   - Nivel 2: ROVI SALES
+#   - Nivel 3: ROVI MARKETING
+#   - Matriz de permisos
+#
+# - Flujo de Datos entre Niveles (4 páginas)
+#   - Marketing → Sales
+#   - Sales → Admin
+#   - Gamificación Cross-level
+#
+# - Adaptación de Módulos Existentes (8 páginas)
+#   - 18 módulos actuales y cómo se adaptan
+#   - Cambios en cada módulo
+#
+# - 3 Nuevos Módulos Específicos (4 páginas)
+#   - Onboarding
+#   - Churn Prediction
+#   - Referrals
+#
+# - Matriz de Módulos por Nivel (2 páginas)
+# - Métricas de Éxito por Nivel (2 páginas)
+# - Cronograma de Implementación (2 páginas)
+
+# ESPECIFICACIONES_TECNICAS.md
+# - Cambios en Modelos de Datos (12 páginas)
+#   - Prospect (nuevo modelo)
+#   - ServicePlan (nuevo modelo)
+#   - TeamMember (actualización de User)
+#   - GamificationRule v2
+#   - Enums nuevos
+#
+# - Endpoints API Adaptados (20 páginas)
+#   - Request/Response examples
+#   - Authentication
+#   - Permissions
+#
+# - Lógica de Scoring (4 páginas)
+#   - Algoritmo para software sales
+#   - Factores de scoring
+#   - Ejemplos de cálculo
+#
+# - Scripts de Migración (6 páginas)
+#   - migrate_to_rovi_owners.py
+#   - seed_data.py
+#   - export_db_backup.py
+#
+# - Cambios en Frontend (8 páginas)
+#   - Sidebar navigation
+#   - Route protection
+#   - Component updates
+#   - State management
+#
+# - Integraciones (6 páginas)
+#   - Stripe
+#   - VAPI
+#   - Twilio
+#   - SendGrid
+
+# ROADMAP_IMPLEMENTACION.md
+# - Overview del Proyecto (2 páginas)
+#   - Duración: 8 semanas
+#   - Equipo necesario
+#   - Recursos técnicos
+#
+# - Weekly Breakdown (16 páginas)
+#   - Semana 1: Fundación y Arquitectura
+#   - Semana 2: Endpoints Core
+#   - Semana 3: Gamificación y Analytics
+#   - Semana 4: Campañas y Marketing
+#   - Semana 5: Importación y Automatizaciones
+#   - Semana 6: AI Chat y Scripts
+#   - Semana 7: Frontend - Dashboards
+#   - Semana 8: Frontend - Módulos Especiales
+#
+# - Milestones (2 páginas)
+# - Riesgos y Mitigación (2 páginas)
+# - Métricas de Éxito (2 páginas)
+# - Post-Launch Plan (2 páginas)
+#   - Mes 1: Monitoreo
+#   - Mes 2: Optimización
+#   - Mes 3: Escalamiento
+
+# ===================================================================
+# TOTAL DE PÁGINAS ESTIMADO
+# ===================================================================
+
+# PROMPT_MAESTRO_COMPLETO: ~100 páginas
+# GUIA_PARA_MERCADOLOGA: ~80 páginas
+# RESUMEN_MODULOS_3_NIVELES: ~20 páginas
+# PROPUESTA_ADAPTACION_ROVI_CRM: ~35 páginas
+# ESPECIFICACIONES_TECNICAS: ~60 páginas
+# ROADMAP_IMPLEMENTACION: ~25 páginas
+
+# TOTAL: ~320 páginas de documentación
+
+# ===================================================================
+# CÓMO USAR ESTA DOCUMENTACIÓN
+# ===================================================================
+
+# PARA COMENZAR EL DESARROLLO:
+# 1. Leer README.txt para contexto general
+# 2. Leer PROMPT_MAESTRO_COMPLETO.txt (secciones 1-3)
+# 3. Configurar ambiente de desarrollo
+# 4. Seguir plan de implementación (semana 1)
+# 5. Referir a DETALLE_MODULOS_POR_VISTA.md durante desarrollo
+
+# PARA ENTENDER EL SISTEMA:
+# 1. Abrir GUIA_PARA_MERCADOLOGA.html en navegador
+# 2. Navegar por índice de contenidos
+# 3. Revisar módulos de interés
+# 4. Consultar glosario de términos
+
+# PARA PLANIFICACIÓN:
+# 1. Leer ROADMAP_IMPLEMENTACION.md
+# 2. Identificar milestones clave
+# 3. Asignar recursos por semana
+# 4. Monitorear riesgos identificados
+
+# PARA PRESENTACIONES:
+# 1. Usar PROPUESTA_ADAPTACION_ROVI_CRM.md
+# 2. Crear slides basados en secciones clave
+# 3. Incluir métricas de éxito
+# 4. Preparar demo de funcionalidades
+
+# ===================================================================
+# GENERACIÓN DE PDFs
+# ===================================================================
+
+# Para generar PDFs desde archivos Markdown:
+
+# 1. Instalar dependencias:
+#    pip install markdown pdfkit
+#
+# 2. Generar PDF del Prompt Maestro:
+#    cd ROVI_OWNERS
+#    python generar_pdf_prompt_maestro.py
+#
+# 3. Generar PDF de Guía para Mercadóloga:
+#    cd ROVI_OWNERS
+#    python generar_pdf_mercadologa.py
+
+# ===================================================================
+# CONTACTO Y SOPORTE
+# ===================================================================
+
+# Para dudas sobre documentación:
+# - Email: tech@rovicrm.com
+# - Slack: #rovi-owners-project
+# - Issue Tracker: GitHub Issues
+
+# ===================================================================
+# ACTUALIZACION DE DOCUMENTOS
+# ===================================================================
+
+# Fecha de última actualización: Mayo 2026
+# Próxima revisión: Post-implementación (Agosto 2026)
+# Versión: 1.0
+
+# ===================================================================
+# FIN DEL INDICE COMPLETO
+# ===================================================================

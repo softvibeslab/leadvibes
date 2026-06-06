@@ -1,0 +1,127 @@
+# Isolated Telegram MiniApp stack.
+# This compose is intentionally separate from production so the existing
+# rovi-backend / rovi-frontend containers are not recreated.
+
+services:
+  miniapp-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rovi-miniapp-backend
+    restart: always
+    environment:
+      MONGO_URL: ${MINIAPP_MONGO_URL:-mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@rovi-mongodb:27017/${DB_NAME:-rovi_crm}?authSource=admin}
+      DB_NAME: ${DB_NAME:-rovi_crm}
+      MONGO_SERVER_SELECTION_TIMEOUT_MS: ${MONGO_SERVER_SELECTION_TIMEOUT_MS:-5000}
+      MONGO_CONNECT_TIMEOUT_MS: ${MONGO_CONNECT_TIMEOUT_MS:-5000}
+      MONGO_SOCKET_TIMEOUT_MS: ${MONGO_SOCKET_TIMEOUT_MS:-20000}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY:-}
+      CORS_ORIGINS: ${MINIAPP_CORS_ORIGINS:-https://rovicrm.com,https://www.rovicrm.com}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+      ROVI_CRM_TELEGRAM_BOT_TOKEN: ${ROVI_CRM_TELEGRAM_BOT_TOKEN:-}
+      ROVI_CRM_TELEGRAM_BOT_USERNAME: ${ROVI_CRM_TELEGRAM_BOT_USERNAME:-}
+      ROVI_BROKER_TELEGRAM_BOT_TOKEN: ${ROVI_BROKER_TELEGRAM_BOT_TOKEN:-}
+      ROVI_BROKER_TELEGRAM_BOT_USERNAME: ${ROVI_BROKER_TELEGRAM_BOT_USERNAME:-}
+      ROVI_TELEGRAM_BOT_TOKEN: ${ROVI_TELEGRAM_BOT_TOKEN:-}
+      ROVI_TELEGRAM_BOT_USERNAME: ${ROVI_TELEGRAM_BOT_USERNAME:-}
+      ROVI_HERMES_WEBHOOK_SECRET: ${ROVI_HERMES_WEBHOOK_SECRET:-}
+      ROVI_HERMES_PROFILES_ROOT: ${ROVI_HERMES_PROFILES_ROOT:-/app/hermes-profiles}
+      ROVI_PUBLIC_API_BASE_URL: ${ROVI_PUBLIC_API_BASE_URL:-https://rovicrm.com}
+      ROVI_LEADS_DATA_DIR: ${ROVI_LEADS_DATA_DIR:-/app/leads}
+    volumes:
+      - ${ROVI_LEADS_DATA_DIR_HOST:-./leads}:${ROVI_LEADS_DATA_DIR:-/app/leads}:ro
+      - ${ROVI_HERMES_PROFILES_ROOT_HOST:-./hermes-profiles-miniapp}:${ROVI_HERMES_PROFILES_ROOT:-/app/hermes-profiles}
+    ports:
+      - "${MINIAPP_BACKEND_HOST_PORT:-8300}:8000"
+    networks:
+      - rovi-existing-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  miniapp-frontend:
+    build:
+      context: ./frontend
+      dockerfile: miniapp-nginx/Dockerfile
+    container_name: rovi-miniapp-frontend
+    restart: always
+    ports:
+      - "${MINIAPP_FRONTEND_HOST_PORT:-3300}:80"
+    depends_on:
+      miniapp-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/miniapp/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  telegram-agent:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rovi-telegram-agent
+    restart: always
+    command: ["python", "telegram_agent.py"]
+    environment:
+      MONGO_URL: ${MINIAPP_MONGO_URL:-mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@rovi-mongodb:27017/${DB_NAME:-rovi_crm}?authSource=admin}
+      DB_NAME: ${DB_NAME:-rovi_crm}
+      ROVI_CRM_TELEGRAM_BOT_TOKEN: ${ROVI_CRM_TELEGRAM_BOT_TOKEN:-}
+      ROVI_CRM_TELEGRAM_BOT_USERNAME: ${ROVI_CRM_TELEGRAM_BOT_USERNAME:-}
+      ROVI_TELEGRAM_BOT_TOKEN: ${ROVI_CRM_TELEGRAM_BOT_TOKEN:-}
+      ROVI_TELEGRAM_BOT_USERNAME: ${ROVI_CRM_TELEGRAM_BOT_USERNAME:-}
+      ROVI_MINIAPP_URL: ${ROVI_MINIAPP_URL:-https://rovicrm.com/miniapp/}
+      ROVI_PUBLIC_API_BASE_URL: ${ROVI_PUBLIC_API_BASE_URL:-https://rovicrm.com}
+      ROVI_HERMES_PROFILES_ROOT: ${ROVI_HERMES_PROFILES_ROOT:-/app/hermes-profiles}
+      ROVI_TELEGRAM_AGENT_LOG_LEVEL: ${ROVI_TELEGRAM_AGENT_LOG_LEVEL:-INFO}
+    volumes:
+      - ${ROVI_HERMES_PROFILES_ROOT_HOST:-./hermes-profiles-miniapp}:${ROVI_HERMES_PROFILES_ROOT:-/app/hermes-profiles}
+    depends_on:
+      miniapp-backend:
+        condition: service_healthy
+    networks:
+      - rovi-existing-network
+    healthcheck:
+      disable: true
+
+  broker-telegram-agent:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rovi-broker-telegram-agent
+    restart: always
+    command: ["python", "telegram_agent.py"]
+    environment:
+      MONGO_URL: ${MINIAPP_MONGO_URL:-mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@rovi-mongodb:27017/${DB_NAME:-rovi_crm}?authSource=admin}
+      DB_NAME: ${DB_NAME:-rovi_crm}
+      ROVI_CRM_TELEGRAM_BOT_TOKEN: ${ROVI_BROKER_TELEGRAM_BOT_TOKEN:-}
+      ROVI_CRM_TELEGRAM_BOT_USERNAME: ${ROVI_BROKER_TELEGRAM_BOT_USERNAME:-}
+      ROVI_TELEGRAM_BOT_TOKEN: ${ROVI_BROKER_TELEGRAM_BOT_TOKEN:-}
+      ROVI_TELEGRAM_BOT_USERNAME: ${ROVI_BROKER_TELEGRAM_BOT_USERNAME:-}
+      ROVI_MINIAPP_URL: ${ROVI_MINIAPP_URL:-https://rovicrm.com/miniapp/}
+      ROVI_PUBLIC_API_BASE_URL: ${ROVI_PUBLIC_API_BASE_URL:-https://rovicrm.com}
+      ROVI_HERMES_PROFILES_ROOT: /app/hermes-profiles
+      ROVI_HERMES_PROFILE: ${ROVI_BROKER_HERMES_PROFILE:-rovi-broker}
+      ROVI_TELEGRAM_AGENT_LOG_LEVEL: ${ROVI_TELEGRAM_AGENT_LOG_LEVEL:-INFO}
+    volumes:
+      - ${ROVI_BROKER_HERMES_PROFILES_ROOT_HOST:-${ROVI_HERMES_PROFILES_ROOT_HOST:-./hermes-profiles-miniapp}}:/app/hermes-profiles
+    depends_on:
+      miniapp-backend:
+        condition: service_healthy
+    networks:
+      - rovi-existing-network
+    healthcheck:
+      disable: true
+
+networks:
+  rovi-existing-network:
+    external: true
+    name: ${ROVI_DOCKER_NETWORK:-leadvibes_rovi-network}

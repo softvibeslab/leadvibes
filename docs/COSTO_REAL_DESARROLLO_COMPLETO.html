@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Costo Real del Desarrollo ROVI COPIM</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --teal: #0d9488;
+      --purple: #8b5cf6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f0fdfa 0%, #f8fafc 50%, #eff6ff 100%);
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ef4444 0%, #f59e0b 50%, #22c55e 100%);
+      color: white;
+      padding: 60px 20px 80px;
+    }
+
+    .header-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin: 0 0 16px;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin: 0;
+    }
+
+    .main {
+      max-width: 1000px;
+      margin: -40px auto 0;
+      padding: 0 20px 80px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      text-align: center;
+    }
+
+    .stat-card.investment { border-top: 4px solid var(--red); }
+    .stat-card.market { border-top: 4px solid var(--purple); }
+    .stat-card.profit { border-top: 4px solid var(--green); }
+    .stat-card.roi { border-top: 4px solid var(--teal); }
+
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 900;
+    }
+
+    .stat-card.investment .stat-value { color: var(--red); }
+    .stat-card.market .stat-value { color: var(--purple); }
+    .stat-card.profit .stat-value { color: var(--green); }
+    .stat-card.roi .stat-value { color: var(--teal); }
+
+    .stat-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .card-subtitle {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin: 0 0 24px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 24px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 4px;
+      height: 20px;
+      background: var(--teal);
+      border-radius: 2px;
+    }
+
+    .cost-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+
+    .cost-table th,
+    .cost-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cost-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .cost-table .number {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .cost-table .total {
+      background: linear-gradient(90deg, rgba(13, 148, 136, 0.1), transparent);
+    }
+
+    .cost-table .total .number {
+      font-size: 1.3rem;
+    }
+
+    .summary-box {
+      background: linear-gradient(135deg, #ef4444, #f59e0b);
+      border-radius: var(--radius);
+      padding: 40px;
+      color: white;
+      text-align: center;
+      margin: 32px 0;
+    }
+
+    .summary-box h2 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      margin: 0 0 20px;
+    }
+
+    .summary-big {
+      font-size: 4.5rem;
+      font-weight: 900;
+      margin: 0 0 16px;
+    }
+
+    .summary-note {
+      font-size: 14px;
+      opacity: 0.9;
+      margin: 0;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 24px 0;
+    }
+
+    .comparison-card {
+      padding: 24px;
+      background: var(--surface-2);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .comparison-card.highlight {
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.1), var(--surface-2));
+      border: 2px solid var(--teal);
+    }
+
+    .comp-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .comp-value {
+      font-size: 2rem;
+      font-weight: 900;
+    }
+
+    .comparison-card.yours .comp-value { color: var(--red); }
+    .comparison-card.market .comp-value { color: var(--purple); }
+    .comparison-card.profit .comp-value { color: var(--green); }
+
+    .roi-section {
+      background: linear-gradient(135deg, #22c55e, #0d9488);
+      border-radius: var(--radius);
+      padding: 32px;
+      color: white;
+      text-align: center;
+    }
+
+    .roi-section h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 0 0 16px;
+    }
+
+    .roi-number {
+      font-size: 3.5rem;
+      font-weight: 900;
+      margin: 0 0 8px;
+    }
+
+    .roi-desc {
+      font-size: 14px;
+      opacity: 0.9;
+      margin: 0 0 20px;
+    }
+
+    .hourly-rates {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .rate-card {
+      padding: 20px;
+      background: var(--surface-2);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .rate-card.featured {
+      border: 2px solid var(--teal);
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.05), var(--surface-2));
+    }
+
+    .rate-price {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--teal);
+      margin: 8px 0;
+    }
+
+    .rate-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .time-breakdown {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .time-item {
+      padding: 16px;
+      background: var(--surface-2);
+      border-radius: 12px;
+    }
+
+    .time-bar {
+      height: 8px;
+      background: var(--line);
+      border-radius: 4px;
+      margin: 12px 0;
+      overflow: hidden;
+    }
+
+    .time-bar-fill {
+      height: 100%;
+      background: var(--teal);
+      border-radius: 4px;
+    }
+
+    .conclusion {
+      background: linear-gradient(135deg, #0d9488, #0369a1);
+      border-radius: var(--radius);
+      padding: 40px;
+      color: white;
+      text-align: center;
+    }
+
+    .conclusion h2 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      margin: 0 0 20px;
+    }
+
+    .conclusion-grid {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .conclusion-stat {
+      text-align: center;
+    }
+
+    .conclusion-value {
+      font-size: 2.5rem;
+      font-weight: 900;
+    }
+
+    .conclusion-label {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 800px) {
+      .hero-stats { grid-template-columns: repeat(2, 1fr); }
+      .comparison-grid { grid-template-columns: 1fr; }
+      .hourly-rates { grid-template-columns: 1fr; }
+      .time-breakdown { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 500px) {
+      .hero-stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-inner">
+      <h1>💸 Costo Real del Desarrollo</h1>
+      <p>ROVI COPIM - Análisis honesto de cuánto costó realmente desarrollar usando IA</p>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Hero Stats -->
+    <div class="hero-stats">
+      <div class="stat-card investment">
+        <div class="stat-label">Tu Inversión Real</div>
+        <div class="stat-value">$353K</div>
+        <div class="stat-sub">MXN totales</div>
+      </div>
+      <div class="stat-card market">
+        <div class="stat-label">Valor Mercado</div>
+        <div class="stat-value">$4,500K</div>
+        <div class="stat-sub">Precio recomendado</div>
+      </div>
+      <div class="stat-card profit">
+        <div class="stat-label">Tu Ganancia</div>
+        <div class="stat-value">$4,147K</div>
+        <div class="stat-sub">MXN neta</div>
+      </div>
+      <div class="stat-card roi">
+        <div class="stat-label">Tu ROI</div>
+        <div class="stat-value">12.7x</div>
+        <div class="stat-sub">Return on Investment</div>
+      </div>
+    </div>
+
+    <!-- Costos Directos -->
+    <div class="card">
+      <h2 class="card-title">📊 Costos Directos del Desarrollo</h2>
+      <p class="card-subtitle">Dinero que realmente pagaste de tu bolsillo</p>
+
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Detalle</th>
+            <th class="number">Costo Real</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>ChatGPT Plus / Claude Pro</strong></td>
+            <td>Suscripción mensual durante 6 meses de desarrollo</td>
+            <td class="number">$120 USD</td>
+          </tr>
+          <tr>
+            <td><strong>Servidores de desarrollo</strong></td>
+            <td>Heroku free tier o desarrollo local</td>
+            <td class="number">$0 USD</td>
+          </tr>
+          <tr>
+            <td><strong>Base de datos</strong></td>
+            <td>MongoDB Atlas free tier</td>
+            <td class="number">$0 USD</td>
+          </tr>
+          <tr>
+            <td><strong>Dominio de pruebas</strong></td>
+            <td>Subdominio existente o temporal</td>
+            <td class="number">$0 USD</td>
+          </tr>
+          <tr>
+            <td><strong>Herramientas de desarrollo</strong></td>
+            <td>VS Code, Git, Docker (gratuitos)</td>
+            <td class="number">$0 USD</td>
+          </tr>
+          <tr>
+            <td><strong>Electricidad e internet</strong></td>
+            <td>Costo incremental de trabajo desde casa</td>
+            <td class="number">~$50 USD</td>
+          </tr>
+          <tr class="total">
+            <td><strong>TOTAL COSTOS DIRECTOS</strong></td>
+            <td>Dinero efectivo que pagaste</td>
+            <td class="number"><strong>~$170 USD</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="padding: 16px; background: var(--surface-2); border-radius: 12px; margin-top: 20px;">
+        <div style="font-size: 14px;">
+          <strong>En pesos mexicanos:</strong> ~$3,400 MXN al tipo de cambio actual
+        </div>
+      </div>
+    </div>
+
+    <!-- Costo de Oportunidad -->
+    <div class="card">
+      <h2 class="card-title">⏰ Costo de Oportunidad (Tu Tiempo)</h2>
+      <p class="card-subtitle">Lo que "dejaste de ganar" por dedicar tiempo a este proyecto</p>
+
+      <div class="time-breakdown">
+        <div class="time-item">
+          <div style="font-weight: 700;">Tiempo estimado invertido</div>
+          <div style="font-size: 1.5rem; font-weight: 900; color: var(--teal);">600 - 800 horas</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">~4-5 meses a tiempo completo</div>
+        </div>
+        <div class="time-item">
+          <div style="font-weight: 700;">Tu salario como ingeniero</div>
+          <div style="font-size: 1.5rem; font-weight: 900; color: var(--purple);">$60K - $80K MXN</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Salario promedio senior en México</div>
+        </div>
+      </div>
+
+      <table class="cost-table" style="margin-top: 20px;">
+        <thead>
+          <tr>
+            <th>Escenario</th>
+            <th>Cálculo</th>
+            <th class="number">Costo Oportunidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Conservador (4 meses)</td>
+            <td>4 meses × $60,000 MXN/mes</td>
+            <td class="number">$240,000 MXN</td>
+          </tr>
+          <tr>
+            <td>Realista (5 meses) ⭐</td>
+            <td>5 meses × $70,000 MXN/mes</td>
+            <td class="number">$350,000 MXN</td>
+          </tr>
+          <tr>
+            <td>Extremo (6 meses)</td>
+            <td>6 meses × $80,000 MXN/mes</td>
+            <td class="number">$480,000 MXN</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 20px; padding: 16px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">
+        <div style="font-size: 13px; color: var(--amber);">
+          <strong>Nota:</strong> El costo de oportunidad es teórico. No lo pagaste, es lo que "dejaste de ganar" si no hubieras trabajado en esto.
+        </div>
+      </div>
+    </div>
+
+    <!-- RESUMEN -->
+    <div class="summary-box">
+      <h2>🎯 Tu Costo Real Total</h2>
+      <div class="summary-big">$353,400 MXN</div>
+      <p class="summary-note">
+        Costos directos ($3,400) + Costo de oportunidad promedio ($350,000)
+      </p>
+    </div>
+
+    <!-- Comparación -->
+    <div class="card">
+      <h2 class="card-title">📈 Comparación: Tu Inversión vs Valor de Mercado</h2>
+
+      <div class="comparison-grid">
+        <div class="comparison-card yours">
+          <div class="comp-label">Tu inversión real</div>
+          <div class="comp-value">$353K</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">MXN totales</div>
+        </div>
+        <div class="comparison-card market highlight">
+          <div class="comp-label">Valor de mercado</div>
+          <div class="comp-value">$4,500K</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">Precio recomendado</div>
+        </div>
+        <div class="comparison-card profit">
+          <div class="comp-label">Margen a favor</div>
+          <div class="comp-value">$4,147K</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">Ganancia neta</div>
+        </div>
+      </div>
+
+      <div class="roi-section">
+        <h3>💰 Tu Return on Investment (ROI)</h3>
+        <div class="roi-number">12.7x</div>
+        <p class="roi-desc">Por cada peso que invertiste, puedes recuperar casi 13 pesos</p>
+        <div style="margin-top: 20px; font-size: 14px;">
+          <strong>Ejemplo:</strong> Si cobras $4,500,000 MXN y tu costo real fue $353,400 MXN, tu ganancia es <strong>$4,146,600 MXN</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tarifa por Hora -->
+    <div class="card">
+      <h2 class="card-title">💵 Atribución de Ganancia por Hora Trabajada</h2>
+      <p class="card-subtitle">Cuánto ganas realmente por cada hora que invertiste</p>
+
+      <div class="hourly-rates">
+        <div class="rate-card">
+          <div class="rate-label">Precio Competitivo</div>
+          <div>$3,000,000 MXN</div>
+          <div class="rate-price">$4,286 MXN/hora</div>
+          <div class="rate-label">700 horas invertidas</div>
+        </div>
+        <div class="rate-card featured">
+          <div class="rate-label">Precio Recomendado ⭐</div>
+          <div>$4,500,000 MXN</div>
+          <div class="rate-price">$6,429 MXN/hora</div>
+          <div class="rate-label">700 horas invertidas</div>
+        </div>
+        <div class="rate-card">
+          <div class="rate-label">Precio Premium</div>
+          <div>$6,000,000 MXN</div>
+          <div class="rate-price">$8,571 MXN/hora</div>
+          <div class="rate-label">700 horas invertidas</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; padding: 16px; background: var(--surface-2); border-radius: 12px;">
+        <div style="font-size: 13px; color: var(--muted;">
+          <strong>Contexto:</strong> Un ingeniero senior freelance cobra $800-$2,000 MXN/hora en México. Estás ganando 3-8x más que una tarifa estándar gracias a la IA como acelerador.
+        </div>
+      </div>
+    </div>
+
+    <!-- Conclusión -->
+    <div class="conclusion">
+      <h2>✅ Conclusión</h2>
+      <p style="margin: 0 0 24px; opacity: 0.9;">
+        Tu inversión real fue mínima (~$353K MXN entre tiempo y dinero). El valor que creas vale ~13x más.<br>
+        Eso no significa que debas cobrar menos. Significa que eres increíblemente eficiente.
+      </p>
+      <div class="conclusion-grid">
+        <div class="conclusion-stat">
+          <div class="conclusion-value">$353K</div>
+          <div class="conclusion-label">Tu costo real</div>
+        </div>
+        <div>
+          <div class="conclusion-value">$4,500K</div>
+          <div class="conclusion-label">Valor mercado</div>
+        </div>
+        <div>
+          <div class="conclusion-value">12.7x</div>
+          <div class="conclusion-label">Tu ROI</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p><strong>Resumen:</strong> Invertiste ~$350K MXN (principalmente tiempo) y puedes venderlo en $4.5M MXN. ROI de 12.7x.</p>
+    <p style="margin-top: 12px; font-size: 11px;">Cálculo honesto • 13 de Mayo de 2026</p>
+  </div>
+</body>
+</html>

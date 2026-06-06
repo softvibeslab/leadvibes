@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel
 import os
 import logging
 from pathlib import Path
@@ -19,7 +20,9 @@ import math
 import jwt
 import base64
 import json
-from urllib.parse import quote, urlparse
+import hmac
+import hashlib
+from urllib.parse import quote, urlparse, parse_qsl
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, AuthMeResponse, SwitchWorkspaceRequest, OnboardingCompletionRequest,
@@ -44,7 +47,7 @@ from models import (
     Campaign, CampaignCreate, CampaignType, CampaignStatus,
     CallRecord, CallRecordCreate, CallStatus,
     SMSRecord, SMSRecordCreate, SMSStatus,
-    WhatsAppRecord, WhatsAppRecordCreate, WhatsAppStatus,
+    WhatsAppRecord, WhatsAppRecordCreate, WhatsAppStatus, OpenWASettingsUpdate, OpenWATestMessageRequest,
     ConversationAnalysis,
     EmailRecord, EmailRecordCreate, EmailStatus,
     EmailTemplate, EmailTemplateCreate,
@@ -113,7 +116,22 @@ from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
 from vibe_lab import create_vibe_lab_router
 from rentals import create_rentals_router
+from valuation import create_valuation_router
+from tasks import create_tasks_router
 from copim_member_import import create_copim_member_import_router
+from hermes_bridge import (
+    build_hermes_profile_spec,
+    build_qr_url,
+    build_telegram_deep_link,
+    mask_email,
+    mask_phone,
+    normalize_phone_for_match,
+    phones_match,
+    resolve_role_scope_for_hermes,
+    safe_profile_slug,
+    send_telegram_confirmation,
+    write_hermes_profile_files,
+)
 
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
@@ -121,8 +139,20 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(
+    mongo_url,
+    serverSelectionTimeoutMS=_env_int("MONGO_SERVER_SELECTION_TIMEOUT_MS", 5000),
+    connectTimeoutMS=_env_int("MONGO_CONNECT_TIMEOUT_MS", 5000),
+    socketTimeoutMS=_env_int("MONGO_SOCKET_TIMEOUT_MS", 20000),
+)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app
@@ -180,6 +210,8 @@ def resolve_account_tenant_type(account_type: str) -> str:
         return "agency"
     if account_type == "property_management":
         return "property_management"
+    if account_type == "valuation":
+        return "valuation"
     if account_type == "copim":
         return "copim"
     if account_type == "rovi_internal":
@@ -200,6 +232,9 @@ def resolve_user_role(account_type: str, requested_role: str | None) -> str:
 
     if account_type == "property_management":
         return "property_manager"
+
+    if account_type == "valuation":
+        return "certified_valuator"
 
     if requested_role in copim_roles:
         return "broker"
@@ -222,6 +257,8 @@ def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -
         return f"{base_name} Inmobiliaria"
     if tenant_type == "property_management":
         return f"{base_name} Rentas"
+    if tenant_type == "valuation":
+        return f"{base_name} Avalúos"
     if tenant_type == "association":
         return f"{base_name} Asociacion"
     if tenant_type == "council":
@@ -334,12 +371,12 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
         await ensure_membership_doc(
             personal_tenant_id,
             membership_role="owner",
-            is_default=account_type not in {"agency", "copim", "property_management"},
+            is_default=account_type not in {"agency", "copim", "property_management", "valuation"},
         )
         await ensure_membership_doc(
             current_tenant_id,
             membership_role="owner" if account_type == "agency" and role == "broker" else role,
-            is_default=account_type in {"agency", "copim", "property_management"},
+            is_default=account_type in {"agency", "copim", "property_management", "valuation"},
         )
 
     return user
@@ -4119,6 +4156,557 @@ async def cleanup_tokens(current_user: dict = Depends(require_role(["admin"]))):
     Elimina tokens expirados o revocados hace más de 30 días
     """
     return await cleanup_expired_tokens(db)
+
+
+# ==================== DEVICE LINK / HERMES TELEGRAM ROUTES ====================
+
+class DeviceLinkQrSessionRequest(BaseModel):
+    destination: str = ""
+    hermes_profile_name: str = ""
+    ttl_minutes: int = 10
+
+
+class DeviceLinkEmailConfirmRequest(BaseModel):
+    code: str
+
+
+class HermesTelegramStartRequest(BaseModel):
+    code: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    telegram_user_id: str
+    telegram_username: Optional[str] = None
+    chat_id: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
+class HermesTelegramContactRequest(BaseModel):
+    code: Optional[str] = None
+    link_id: Optional[str] = None
+    telegram_user_id: str
+    telegram_phone: str
+    chat_id: Optional[str] = None
+
+
+class TelegramMiniAppSessionRequest(BaseModel):
+    init_data: str
+    start_param: Optional[str] = None
+
+
+class TelegramMiniAppLinkLoginRequest(TelegramMiniAppSessionRequest):
+    email: str
+    password: str
+
+
+def normalize_link_code(value: str | None) -> str:
+    if not value:
+        return ""
+    code = value.strip()
+    if code.lower().startswith("rovi_"):
+        code = code[5:]
+    return "".join(ch for ch in code.upper() if ch.isalnum())
+
+
+def build_device_link_public(link: dict) -> dict:
+    result = serialize_doc(link) or {}
+    if result.get("user_phone"):
+        result["user_phone_masked"] = mask_phone(result.get("user_phone"))
+    if result.get("user_email"):
+        result["user_email_masked"] = mask_email(result.get("user_email"))
+    return result
+
+
+async def require_hermes_webhook_secret(request: Request) -> None:
+    expected = os.environ.get("ROVI_HERMES_WEBHOOK_SECRET") or os.environ.get("HERMES_WEBHOOK_SECRET")
+    if not expected:
+        return
+    received = request.headers.get("x-hermes-webhook-secret") or request.headers.get("x-rovi-webhook-secret")
+    if received != expected:
+        raise HTTPException(status_code=401, detail="Webhook Hermes no autorizado")
+
+
+async def current_user_doc_and_workspace(current_user: dict) -> tuple[dict, dict | None, list[dict]]:
+    user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(
+        workspaces,
+        current_user.get("active_tenant_id") or resolve_auth_workspace_target(user) or current_user.get("tenant_id"),
+    )
+    return user, active_workspace, workspaces
+
+
+async def find_user_for_telegram_identity(payload: HermesTelegramStartRequest) -> dict | None:
+    if payload.email:
+        user = await db.users.find_one({"email": payload.email.strip().lower()}, {"_id": 0, "password_hash": 0})
+        if user:
+            return user
+    normalized_payload_phone = normalize_phone_for_match(payload.phone)
+    if normalized_payload_phone:
+        candidates = await db.users.find(
+            {"phone": {"$exists": True, "$nin": [None, ""]}},
+            {"_id": 0, "password_hash": 0},
+        ).limit(2000).to_list(2000)
+        for candidate in candidates:
+            if phones_match(candidate.get("phone"), normalized_payload_phone):
+                return candidate
+    return None
+
+
+async def find_device_link_by_code_or_id(code: str | None = None, link_id: str | None = None) -> dict | None:
+    if link_id:
+        return await db.user_device_links.find_one({"id": link_id}, {"_id": 0})
+    normalized_code = normalize_link_code(code)
+    if not normalized_code:
+        return None
+    return await db.user_device_links.find_one({"code": normalized_code}, {"_id": 0})
+
+
+def device_link_is_expired(link: dict) -> bool:
+    expires_at = parse_iso_datetime(link.get("expires_at"))
+    return bool(expires_at and expires_at < datetime.now(timezone.utc))
+
+
+def validate_telegram_webapp_init_data(init_data: str) -> dict:
+    bot_tokens = [
+        os.environ.get("ROVI_CRM_TELEGRAM_BOT_TOKEN"),
+        os.environ.get("ROVI_BROKER_TELEGRAM_BOT_TOKEN"),
+        os.environ.get("ROVI_TELEGRAM_BOT_TOKEN"),
+        os.environ.get("HERMES_TELEGRAM_BOT_TOKEN"),
+        os.environ.get("TELEGRAM_BOT_TOKEN"),
+    ]
+    bot_tokens = [token for token in dict.fromkeys(bot_tokens) if token]
+    if not bot_tokens:
+        raise HTTPException(status_code=503, detail="Falta configurar token de Telegram en el backend")
+    if not init_data:
+        raise HTTPException(status_code=400, detail="initData de Telegram es obligatorio")
+
+    parsed = dict(parse_qsl(init_data, keep_blank_values=True))
+    received_hash = parsed.pop("hash", None)
+    if not received_hash:
+        raise HTTPException(status_code=400, detail="initData de Telegram no contiene hash")
+
+    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(parsed.items()))
+    hash_is_valid = False
+    for bot_token in bot_tokens:
+        secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
+        calculated_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(calculated_hash, received_hash):
+            hash_is_valid = True
+            break
+    if not hash_is_valid:
+        raise HTTPException(status_code=401, detail="initData de Telegram invalido")
+
+    auth_date = int(parsed.get("auth_date") or 0)
+    if auth_date and datetime.now(timezone.utc).timestamp() - auth_date > 86400:
+        raise HTTPException(status_code=401, detail="Sesion de Telegram expirada")
+
+    try:
+        telegram_user = json.loads(parsed.get("user") or "{}")
+    except json.JSONDecodeError:
+        telegram_user = {}
+    return {"raw": parsed, "user": telegram_user}
+
+
+async def build_telegram_miniapp_session_response(user: dict, active_link: dict, telegram_user_id: str) -> dict:
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, active_link.get("tenant_id") or resolve_auth_workspace_target(user))
+    access_token = create_access_token(build_access_token_payload(user, active_workspace))
+    token_jti, refresh_token = create_refresh_token({
+        "sub": user["id"],
+        "tenant_id": user["tenant_id"],
+        "active_tenant_id": active_workspace["tenant_id"] if active_workspace else user["tenant_id"],
+        "active_membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "active_role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+        "account_type": user.get("account_type", "individual"),
+    })
+    await db.refresh_tokens.update_one(
+        {"jti": token_jti},
+        {"$set": {
+            "jti": token_jti,
+            "user_id": user["id"],
+            "tenant_id": active_workspace["tenant_id"] if active_workspace else user["tenant_id"],
+            "source": "telegram_miniapp",
+            "telegram_user_id": telegram_user_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+            "revoked": False,
+            "used": False,
+        }},
+        upsert=True,
+    )
+    return {
+        "status": "active",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": JWT_EXPIRATION_MINUTES * 60,
+        "user": build_user_response_payload(user),
+        "active_workspace": active_workspace,
+        "available_workspaces": workspaces,
+        "device_link": build_device_link_public(active_link),
+    }
+
+
+async def activate_hermes_device_link(link: dict, user: dict, active_workspace: dict | None) -> dict:
+    now = datetime.now(timezone.utc).isoformat()
+    profile_spec = build_hermes_profile_spec(user=user, link=link, active_workspace=active_workspace)
+    profile_files = write_hermes_profile_files(profile_spec)
+    telegram = link.get("telegram") or {}
+    confirmation = await send_telegram_confirmation(
+        telegram.get("chat_id"),
+        (
+            "Tu cuenta ROVI fue vinculada correctamente.\n\n"
+            f"Rol activo: {profile_spec.get('role_scope')}.\n"
+            "Ya puedes usar tu agente conectado al CRM."
+        ),
+    )
+    update_payload = {
+        "status": "active",
+        "hermes_profile_name": profile_files["profile_name"],
+        "hermes_profile": profile_files,
+        "hermes_profile_spec": profile_spec,
+        "confirmation_message": confirmation,
+        "activated_at": now,
+        "updated_at": now,
+    }
+    await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+    return {**link, **update_payload}
+
+
+@api_router.get("/device-links", response_model=dict)
+async def list_device_links(current_user: dict = Depends(get_current_user)):
+    links = await db.user_device_links.find(
+        {"user_id": current_user["user_id"], "tenant_id": current_user["tenant_id"], "status": {"$ne": "revoked"}},
+        {"_id": 0, "hermes_profile_spec": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return {"links": [build_device_link_public(link) for link in links]}
+
+
+@api_router.post("/device-links/telegram/qr-session", response_model=dict)
+async def create_telegram_qr_session(
+    payload: DeviceLinkQrSessionRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    user, active_workspace, _ = await current_user_doc_and_workspace(current_user)
+    now = datetime.now(timezone.utc)
+    ttl_minutes = min(max(payload.ttl_minutes or 10, 1), 60)
+    code = uuid.uuid4().hex[:8].upper()
+    role_scope = resolve_role_scope_for_hermes(user, active_workspace)
+    profile_name = payload.hermes_profile_name.strip() if payload.hermes_profile_name.strip() else safe_profile_slug(user, role_scope)
+    deep_link = build_telegram_deep_link(code)
+    link_doc = {
+        "id": f"device-link-{uuid.uuid4()}",
+        "user_id": user["id"],
+        "tenant_id": active_workspace["tenant_id"] if active_workspace else current_user["tenant_id"],
+        "membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+        "role_scope": role_scope,
+        "account_type": user.get("account_type", "individual"),
+        "user_email": user.get("email"),
+        "user_phone": user.get("phone"),
+        "code": code,
+        "channel": "telegram",
+        "destination": payload.destination or user.get("phone") or user.get("email") or "",
+        "link_method": "qr",
+        "telegram_deep_link": deep_link,
+        "qr_url": build_qr_url(deep_link),
+        "status": "pending",
+        "hermes_profile_name": profile_name,
+        "phone_required": bool(user.get("phone")),
+        "phone_match_required": bool(user.get("phone")),
+        "expires_at": (now + timedelta(minutes=ttl_minutes)).isoformat(),
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
+    await db.user_device_links.insert_one(link_doc)
+    return build_device_link_public(link_doc)
+
+
+@api_router.post("/device-links/{link_id}/revoke", response_model=dict)
+async def revoke_device_link(link_id: str, current_user: dict = Depends(get_current_user)):
+    link = await db.user_device_links.find_one(
+        {"id": link_id, "user_id": current_user["user_id"], "tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Vinculo no encontrado")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.user_device_links.update_one(
+        {"id": link_id},
+        {"$set": {"status": "revoked", "revoked_at": now, "updated_at": now}},
+    )
+    return {"message": "Dispositivo desvinculado", "id": link_id}
+
+
+@api_router.post("/device-links/{link_id}/confirm-email", response_model=dict)
+async def confirm_device_link_email(
+    link_id: str,
+    payload: DeviceLinkEmailConfirmRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    link = await db.user_device_links.find_one(
+        {"id": link_id, "user_id": current_user["user_id"], "tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Vinculo no encontrado")
+    if link.get("status") == "revoked":
+        raise HTTPException(status_code=400, detail="El vinculo fue revocado")
+    if device_link_is_expired(link):
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired"}})
+        raise HTTPException(status_code=400, detail="El QR/codigo expiro")
+    if normalize_link_code(payload.code) != normalize_link_code(link.get("email_confirmation_code")):
+        raise HTTPException(status_code=400, detail="Codigo de email invalido")
+    user, active_workspace, _ = await current_user_doc_and_workspace(current_user)
+    activated = await activate_hermes_device_link(link, user, active_workspace)
+    return build_device_link_public(activated)
+
+
+@api_router.post("/hermes/telegram/start", response_model=dict)
+async def hermes_telegram_start(payload: HermesTelegramStartRequest, request: Request):
+    await require_hermes_webhook_secret(request)
+    link = await find_device_link_by_code_or_id(payload.code)
+    user = None
+
+    if link:
+        user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    else:
+        user = await find_user_for_telegram_identity(payload)
+        if user:
+            user = await ensure_workspace_infra_for_user(user)
+            workspaces = await get_user_workspaces(user)
+            active_workspace = select_active_workspace(workspaces, resolve_auth_workspace_target(user))
+            now = datetime.now(timezone.utc)
+            code = uuid.uuid4().hex[:8].upper()
+            role_scope = resolve_role_scope_for_hermes(user, active_workspace)
+            link = {
+                "id": f"device-link-{uuid.uuid4()}",
+                "user_id": user["id"],
+                "tenant_id": active_workspace["tenant_id"] if active_workspace else user.get("tenant_id"),
+                "membership_id": active_workspace.get("membership_id") if active_workspace else None,
+                "role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+                "role_scope": role_scope,
+                "account_type": user.get("account_type", "individual"),
+                "user_email": user.get("email"),
+                "user_phone": user.get("phone"),
+                "code": code,
+                "channel": "telegram",
+                "destination": payload.phone or payload.email or "",
+                "link_method": "phone" if payload.phone else "email",
+                "telegram_deep_link": build_telegram_deep_link(code),
+                "qr_url": build_qr_url(build_telegram_deep_link(code)),
+                "status": "pending",
+                "hermes_profile_name": safe_profile_slug(user, role_scope),
+                "phone_required": bool(user.get("phone")),
+                "phone_match_required": bool(user.get("phone")),
+                "expires_at": (now + timedelta(minutes=30)).isoformat(),
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            await db.user_device_links.insert_one(link)
+
+    if not link or not user:
+        raise HTTPException(status_code=404, detail="No encontre una cuenta ROVI para ese codigo, email o telefono")
+    if link.get("status") in {"active", "revoked"}:
+        return {"status": link.get("status"), "link": build_device_link_public(link)}
+    if device_link_is_expired(link):
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired"}})
+        raise HTTPException(status_code=400, detail="El QR/codigo expiro")
+
+    now = datetime.now(timezone.utc).isoformat()
+    email_code = uuid.uuid4().hex[:6].upper()
+    update_payload = {
+        "status": "awaiting_contact" if user.get("phone") else "pending_email_confirmation",
+        "telegram": {
+            "user_id": payload.telegram_user_id,
+            "username": payload.telegram_username,
+            "chat_id": payload.chat_id,
+            "first_name": payload.first_name,
+            "last_name": payload.last_name,
+            "started_at": now,
+        },
+        "email_confirmation_code": email_code,
+        "updated_at": now,
+    }
+    await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+    updated = {**link, **update_payload}
+    response = {
+        "status": updated["status"],
+        "request_contact": bool(user.get("phone")),
+        "requires_email_confirmation": not bool(user.get("phone")),
+        "message": (
+            "Comparte tu telefono desde Telegram para validar que coincide con ROVI."
+            if user.get("phone")
+            else "Tu cuenta ROVI no tiene telefono. Confirma con el codigo enviado/visible para activar."
+        ),
+        "link": build_device_link_public(updated),
+    }
+    if os.environ.get("ROVI_DEVICE_LINK_RETURN_EMAIL_CODE", "false").lower() == "true":
+        response["email_confirmation_code"] = email_code
+    return response
+
+
+@api_router.post("/hermes/telegram/contact", response_model=dict)
+async def hermes_telegram_contact(payload: HermesTelegramContactRequest, request: Request):
+    await require_hermes_webhook_secret(request)
+    link = await find_device_link_by_code_or_id(payload.code, payload.link_id)
+    if not link:
+        raise HTTPException(status_code=404, detail="Vinculo no encontrado")
+    if link.get("status") == "revoked":
+        raise HTTPException(status_code=400, detail="El vinculo fue revocado")
+    if device_link_is_expired(link):
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired"}})
+        raise HTTPException(status_code=400, detail="El QR/codigo expiro")
+
+    telegram = link.get("telegram") or {}
+    if telegram.get("user_id") and str(telegram.get("user_id")) != str(payload.telegram_user_id):
+        raise HTTPException(status_code=403, detail="El usuario de Telegram no coincide con la sesion")
+
+    user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario ROVI no encontrado")
+
+    phone_ok = phones_match(user.get("phone"), payload.telegram_phone)
+    now = datetime.now(timezone.utc).isoformat()
+    contact_payload = {
+        **telegram,
+        "user_id": payload.telegram_user_id,
+        "chat_id": payload.chat_id or telegram.get("chat_id"),
+        "phone": payload.telegram_phone,
+        "phone_normalized": normalize_phone_for_match(payload.telegram_phone),
+        "contact_received_at": now,
+    }
+
+    if not phone_ok:
+        update_payload = {
+            "status": "phone_mismatch",
+            "telegram": contact_payload,
+            "phone_match": False,
+            "updated_at": now,
+        }
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+        return {
+            "status": "phone_mismatch",
+            "message": "El telefono compartido en Telegram no coincide con el telefono de ROVI.",
+            "expected_phone_masked": mask_phone(user.get("phone")),
+            "received_phone_masked": mask_phone(payload.telegram_phone),
+            "link": build_device_link_public({**link, **update_payload}),
+        }
+
+    await db.user_device_links.update_one(
+        {"id": link["id"]},
+        {"$set": {"telegram": contact_payload, "phone_match": True, "updated_at": now}},
+    )
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, link.get("tenant_id") or resolve_auth_workspace_target(user))
+    activated = await activate_hermes_device_link({**link, "telegram": contact_payload, "phone_match": True}, user, active_workspace)
+    return {
+        "status": "active",
+        "message": "Cuenta ROVI vinculada con Telegram y Hermes.",
+        "link": build_device_link_public(activated),
+    }
+
+
+@api_router.post("/telegram-miniapp/session", response_model=dict)
+async def create_telegram_miniapp_session(payload: TelegramMiniAppSessionRequest):
+    telegram_data = validate_telegram_webapp_init_data(payload.init_data)
+    telegram_user = telegram_data.get("user") or {}
+    telegram_user_id = str(telegram_user.get("id") or "")
+    if not telegram_user_id:
+        raise HTTPException(status_code=400, detail="No se pudo identificar el usuario de Telegram")
+
+    active_link = await db.user_device_links.find_one(
+        {"telegram.user_id": telegram_user_id, "status": "active"},
+        {"_id": 0, "hermes_profile_spec": 0},
+        sort=[("activated_at", -1)],
+    )
+    if not active_link:
+        return {
+            "status": "link_required",
+            "telegram_user": telegram_user,
+            "start_code": normalize_link_code(payload.start_param),
+            "message": "Este Telegram todavia no esta vinculado a una cuenta ROVI activa.",
+        }
+
+    user = await db.users.find_one({"id": active_link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="La cuenta ROVI vinculada no esta activa")
+
+    return await build_telegram_miniapp_session_response(user, active_link, telegram_user_id)
+
+
+@api_router.post("/telegram-miniapp/link-with-login", response_model=dict)
+async def link_telegram_miniapp_with_login(payload: TelegramMiniAppLinkLoginRequest):
+    telegram_data = validate_telegram_webapp_init_data(payload.init_data)
+    telegram_user = telegram_data.get("user") or {}
+    telegram_user_id = str(telegram_user.get("id") or "")
+    if not telegram_user_id:
+        raise HTTPException(status_code=400, detail="No se pudo identificar el usuario de Telegram")
+
+    user = await db.users.find_one({"email": payload.email.strip().lower()}, {"_id": 0})
+    if not user or not verify_password(payload.password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Credenciales ROVI invalidas")
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="La cuenta ROVI no esta activa")
+
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, resolve_auth_workspace_target(user))
+    now = datetime.now(timezone.utc).isoformat()
+
+    existing_link = await db.user_device_links.find_one(
+        {"telegram.user_id": telegram_user_id, "status": {"$ne": "revoked"}},
+        {"_id": 0},
+        sort=[("activated_at", -1)],
+    )
+    if existing_link and existing_link.get("user_id") != user["id"]:
+        raise HTTPException(status_code=409, detail="Este Telegram ya esta vinculado a otra cuenta ROVI")
+
+    link = existing_link or {
+        "id": f"device-link-{uuid.uuid4()}",
+        "created_at": now,
+        "channel": "telegram",
+        "link_method": "miniapp_login",
+        "code": normalize_link_code(payload.start_param) or uuid.uuid4().hex[:8].upper(),
+    }
+    link.update({
+        "user_id": user["id"],
+        "tenant_id": active_workspace["tenant_id"] if active_workspace else user.get("tenant_id"),
+        "membership_id": active_workspace.get("membership_id") if active_workspace else None,
+        "role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
+        "role_scope": resolve_role_scope_for_hermes(user, active_workspace),
+        "account_type": user.get("account_type", "individual"),
+        "user_email": user.get("email"),
+        "user_phone": user.get("phone"),
+        "destination": user.get("phone") or user.get("email") or "",
+        "telegram": {
+            "user_id": telegram_user_id,
+            "username": telegram_user.get("username"),
+            "first_name": telegram_user.get("first_name"),
+            "last_name": telegram_user.get("last_name"),
+            "linked_from": "miniapp_login",
+            "linked_at": now,
+        },
+        "status": "active",
+        "phone_required": False,
+        "phone_match_required": False,
+        "phone_match": None,
+        "activated_at": now,
+        "updated_at": now,
+        "hermes_profile_name": safe_profile_slug(user, resolve_role_scope_for_hermes(user, active_workspace)),
+    })
+    profile_spec = build_hermes_profile_spec(user=user, link=link, active_workspace=active_workspace)
+    link["hermes_profile"] = write_hermes_profile_files(profile_spec)
+    link["hermes_profile_spec"] = profile_spec
+
+    await db.user_device_links.update_one({"id": link["id"]}, {"$set": link}, upsert=True)
+    public_link = await db.user_device_links.find_one({"id": link["id"]}, {"_id": 0, "hermes_profile_spec": 0})
+    return await build_telegram_miniapp_session_response(user, public_link or link, telegram_user_id)
 
 
 # ==================== COPIM MODULE ROUTES ====================
@@ -9382,6 +9970,32 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+
+@api_router.get("/health/db")
+async def database_health_check():
+    started_at = datetime.now(timezone.utc)
+    try:
+        await db.command("ping")
+    except Exception as exc:
+        logger.exception("MongoDB health check failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "status": "unhealthy",
+                "service": "mongodb",
+                "error": exc.__class__.__name__,
+                "message": str(exc),
+            },
+        )
+
+    elapsed_ms = (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
+    return {
+        "status": "healthy",
+        "service": "mongodb",
+        "latency_ms": round(elapsed_ms, 2),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
 # ==================== LANDING PAGE LEADS ====================
 
 @api_router.post("/landing/lead")
@@ -9538,12 +10152,26 @@ def normalize_whatsapp_address(value: Optional[str]) -> str:
     return f"whatsapp:{normalized_phone}"
 
 
-def get_twilio_status_callback_url() -> Optional[str]:
-    base_url = (
+def normalize_openwa_chat_id(value: Optional[str]) -> str:
+    normalized_phone = normalize_phone_like_value(value)
+    if not normalized_phone:
+        return ""
+    digits = "".join(ch for ch in normalized_phone if ch.isdigit())
+    if not digits:
+        return ""
+    return f"{digits}@c.us"
+
+
+def get_public_api_base_url() -> Optional[str]:
+    return (
         os.environ.get("PUBLIC_API_BASE_URL")
         or os.environ.get("WEBHOOK_URL")
         or os.environ.get("APP_BASE_URL")
     )
+
+
+def get_twilio_status_callback_url() -> Optional[str]:
+    base_url = get_public_api_base_url()
     if not base_url:
         return None
     parsed = urlparse(base_url)
@@ -9727,6 +10355,10 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
             "twilio_auth_token": "",
             "twilio_phone_number": "",
             "twilio_whatsapp_number": "",
+            "openwa_base_url": "",
+            "openwa_api_key": "",
+            "openwa_session_id": "default",
+            "openwa_webhook_secret": "",
             "sendgrid_api_key": "",
             "sendgrid_sender_email": "",
             "sendgrid_sender_name": "",
@@ -9736,6 +10368,7 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
             "vapi_enabled": False,
             "twilio_enabled": False,
             "twilio_whatsapp_enabled": False,
+            "openwa_enabled": False,
             "sendgrid_enabled": False,
             "google_calendar_enabled": False
         }
@@ -9745,6 +10378,10 @@ async def get_integration_settings(current_user: dict = Depends(get_current_user
         result["vapi_api_key"] = "••••••••" + result["vapi_api_key"][-4:]
     if result.get("twilio_auth_token"):
         result["twilio_auth_token"] = "••••••••" + result["twilio_auth_token"][-4:]
+    if result.get("openwa_api_key"):
+        result["openwa_api_key"] = "••••••••" + result["openwa_api_key"][-4:]
+    if result.get("openwa_webhook_secret"):
+        result["openwa_webhook_secret"] = "••••••••" + result["openwa_webhook_secret"][-4:]
     if result.get("sendgrid_api_key"):
         result["sendgrid_api_key"] = "••••••••" + result["sendgrid_api_key"][-4:]
     if result.get("google_client_secret"):
@@ -9822,6 +10459,7 @@ async def update_integration_settings(
         "vapi_enabled": update_dict.get("vapi_enabled", False), 
         "twilio_enabled": update_dict.get("twilio_enabled", False),
         "twilio_whatsapp_enabled": update_dict.get("twilio_whatsapp_enabled", False),
+        "openwa_enabled": current.get("openwa_enabled", False),
         "sendgrid_enabled": update_dict.get("sendgrid_enabled", False),
         "google_calendar_enabled": current.get("google_calendar_enabled", False)
     }
@@ -9886,6 +10524,393 @@ async def test_twilio_whatsapp_connection(current_user: dict = Depends(get_curre
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error de conexión WhatsApp: {str(e)}")
+
+
+# ==================== OPENWA MANAGEMENT ====================
+
+def mask_secret(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    raw = str(value)
+    if len(raw) <= 4:
+        return "••••"
+    return f"••••••••{raw[-4:]}"
+
+
+def openwa_webhook_url_for_tenant(tenant_id: str) -> Optional[str]:
+    base_url = get_public_api_base_url()
+    if not base_url:
+        return None
+    return f"{base_url.rstrip('/')}/api/webhooks/openwa/{tenant_id}"
+
+
+def openwa_public_config(settings: Optional[Dict[str, Any]], tenant_id: str) -> Dict[str, Any]:
+    settings = settings or {}
+    return {
+        "tenant_id": tenant_id,
+        "openwa_base_url": settings.get("openwa_base_url") or "",
+        "openwa_api_key": mask_secret(settings.get("openwa_api_key")),
+        "openwa_session_id": settings.get("openwa_session_id") or "default",
+        "openwa_webhook_secret": mask_secret(settings.get("openwa_webhook_secret")),
+        "openwa_enabled": bool(settings.get("openwa_enabled")),
+        "openwa_last_connection_state": settings.get("openwa_last_connection_state"),
+        "openwa_last_tested_at": settings.get("openwa_last_tested_at"),
+        "webhook_url": openwa_webhook_url_for_tenant(tenant_id),
+    }
+
+
+def openwa_auth_headers(settings: Dict[str, Any]) -> Dict[str, str]:
+    api_key = str(settings.get("openwa_api_key") or "").strip()
+    if not api_key:
+        return {}
+    return {
+        "x-api-key": api_key,
+        "Authorization": f"Bearer {api_key}",
+    }
+
+
+async def call_openwa_method(settings: Dict[str, Any], method: str, args: Any = None) -> Any:
+    base_url = str(settings.get("openwa_base_url") or "").strip().rstrip("/")
+    if not base_url:
+        raise HTTPException(status_code=400, detail="OpenWA no tiene URL base configurada")
+
+    args = [] if args is None else args
+    payload = {"method": method, "args": args}
+    api_key = str(settings.get("openwa_api_key") or "").strip()
+    if api_key:
+        payload["apiKey"] = api_key
+
+    import httpx
+
+    headers = openwa_auth_headers(settings)
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.post(f"{base_url}/{method}", json={"args": args}, headers=headers)
+        if response.status_code == 404:
+            response = await client.post(base_url, json=payload, headers=headers)
+        response.raise_for_status()
+
+    try:
+        return response.json()
+    except ValueError:
+        return {"raw": response.text}
+
+
+def openwa_chat_id_to_phone(chat_id: Optional[str]) -> str:
+    raw = str(chat_id or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("whatsapp:"):
+        return normalize_phone_like_value(raw)
+    local = raw.split("@", 1)[0]
+    digits = "".join(ch for ch in local if ch.isdigit())
+    return f"+{digits}" if digits else raw
+
+
+def extract_openwa_message(payload: Any) -> Dict[str, Any]:
+    candidate = payload
+    if isinstance(candidate, dict):
+        candidate = candidate.get("data") or candidate.get("message") or candidate.get("payload") or candidate
+    if isinstance(candidate, list):
+        candidate = candidate[0] if candidate else {}
+    if not isinstance(candidate, dict):
+        candidate = {}
+
+    raw_id = candidate.get("id") or candidate.get("messageId") or candidate.get("_serialized")
+    if isinstance(raw_id, dict):
+        raw_id = raw_id.get("_serialized") or raw_id.get("id")
+
+    from_me = bool(
+        candidate.get("fromMe")
+        or candidate.get("from_me")
+        or candidate.get("isSentByMe")
+    )
+    from_chat = (
+        candidate.get("from")
+        or candidate.get("chatId")
+        or candidate.get("sender", {}).get("id")
+        or candidate.get("author")
+    )
+    to_chat = candidate.get("to") or candidate.get("receiver") or candidate.get("chat", {}).get("id")
+    body = (
+        candidate.get("body")
+        or candidate.get("caption")
+        or candidate.get("text")
+        or candidate.get("content")
+        or ""
+    )
+    chat_for_phone = to_chat if from_me else from_chat
+
+    return {
+        "message_id": str(raw_id or ""),
+        "direction": "outbound" if from_me else "inbound",
+        "from_chat": from_chat,
+        "to_chat": to_chat,
+        "phone": openwa_chat_id_to_phone(chat_for_phone),
+        "body": str(body or ""),
+        "sender_name": (
+            candidate.get("sender", {}).get("pushname")
+            or candidate.get("sender", {}).get("name")
+            or candidate.get("notifyName")
+            or candidate.get("senderName")
+            or ""
+        ),
+        "is_group": "@g.us" in str(from_chat or "") or "@g.us" in str(to_chat or ""),
+        "raw": candidate,
+    }
+
+
+async def find_or_create_openwa_lead(tenant_id: str, settings: Dict[str, Any], message: Dict[str, Any]) -> Dict[str, Any]:
+    phone = normalize_phone_like_value(message.get("phone"))
+    if not phone:
+        raise HTTPException(status_code=400, detail="El webhook OpenWA no incluye teléfono identificable")
+
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    phone_candidates = [phone]
+    if digits:
+        phone_candidates.extend([digits, f"+{digits}"])
+
+    lead = await db.leads.find_one(
+        {"tenant_id": tenant_id, "phone": {"$in": list(set(phone_candidates))}},
+        {"_id": 0}
+    )
+    if lead:
+        return lead
+
+    lead = Lead(
+        name=message.get("sender_name") or f"WhatsApp {phone}",
+        phone=phone,
+        source="openwa",
+        tenant_id=tenant_id,
+        created_by=settings.get("user_id"),
+        notes="Lead creado automáticamente desde OpenWA."
+    )
+    await db.leads.insert_one(lead.model_dump())
+    return lead.model_dump()
+
+
+@api_router.get("/openwa/dashboard")
+async def get_openwa_dashboard(current_user: dict = Depends(get_current_user)):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+    recent_records = await db.whatsapp_records.find(
+        {"tenant_id": tenant_id, "provider": "openwa"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(25)
+    total_records = await db.whatsapp_records.count_documents({"tenant_id": tenant_id, "provider": "openwa"})
+    inbound_records = await db.whatsapp_records.count_documents({"tenant_id": tenant_id, "provider": "openwa", "direction": "inbound"})
+    outbound_records = await db.whatsapp_records.count_documents({"tenant_id": tenant_id, "provider": "openwa", "direction": "outbound"})
+
+    return {
+        "config": openwa_public_config(settings, tenant_id),
+        "stats": {
+            "total": total_records,
+            "inbound": inbound_records,
+            "outbound": outbound_records,
+        },
+        "recent_records": [serialize_doc(record) for record in recent_records],
+    }
+
+
+@api_router.put("/openwa/settings")
+async def update_openwa_settings(
+    update_data: OpenWASettingsUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    existing = await get_workspace_integration_settings(current_user, clone_legacy=True)
+    data = update_data.model_dump(exclude_unset=True)
+
+    update_dict = {}
+    for key, value in data.items():
+        if value is None:
+            continue
+        if key in {"openwa_api_key", "openwa_webhook_secret"} and "••••" in str(value):
+            continue
+        update_dict[key] = value
+
+    current = {k: v for k, v in (existing or {}).items() if k != "_id"}
+    current.update(update_dict)
+    current_base_url = str(current.get("openwa_base_url") or "").strip()
+    requested_enabled = current.get("openwa_enabled")
+    update_dict["openwa_enabled"] = bool(requested_enabled and current_base_url)
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+
+    if existing:
+        await db.integration_settings.update_one(
+            {"id": existing["id"]},
+            {"$set": update_dict}
+        )
+        next_settings = {**existing, **update_dict}
+    else:
+        next_settings = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user["user_id"],
+            "tenant_id": tenant_id,
+            **update_dict
+        }
+        await db.integration_settings.insert_one(next_settings)
+
+    return {
+        "message": "OpenWA actualizado",
+        "config": openwa_public_config(next_settings, tenant_id),
+    }
+
+
+@api_router.post("/openwa/test-connection")
+async def test_openwa_connection(current_user: dict = Depends(get_current_user)):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+    if not settings or not settings.get("openwa_base_url"):
+        raise HTTPException(status_code=400, detail="OpenWA no configurado")
+
+    try:
+        response = await call_openwa_method(settings, "getConnectionState")
+        connection_state = response.get("response") if isinstance(response, dict) else response
+        if isinstance(response, str):
+            connection_state = response
+        await db.integration_settings.update_one(
+            {"tenant_id": tenant_id},
+            {"$set": {
+                "openwa_last_connection_state": str(connection_state),
+                "openwa_last_tested_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }}
+        )
+        return {
+            "status": "success",
+            "message": "OpenWA respondió correctamente",
+            "connection_state": connection_state,
+            "raw": response,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error OpenWA: {str(e)}")
+
+
+@api_router.post("/openwa/send-test")
+async def send_openwa_test_message(
+    message_data: OpenWATestMessageRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    tenant_id = await resolve_active_tenant_id(current_user)
+    settings = await get_workspace_integration_settings(current_user, clone_legacy=True)
+    if not settings or not settings.get("openwa_enabled"):
+        raise HTTPException(status_code=400, detail="OpenWA no está activo")
+
+    chat_id = normalize_openwa_chat_id(message_data.phone_number)
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="Número de WhatsApp inválido")
+
+    try:
+        response = await call_openwa_method(settings, "sendText", [chat_id, message_data.message])
+        provider_message_id = ""
+        if isinstance(response, dict):
+            provider_message_id = str(response.get("response") or response.get("id") or "")
+        else:
+            provider_message_id = str(response or "")
+
+        lead = None
+        if message_data.lead_id:
+            lead = await db.leads.find_one({"id": message_data.lead_id, "tenant_id": tenant_id}, {"_id": 0})
+
+        record = WhatsAppRecord(
+            user_id=current_user["user_id"],
+            tenant_id=tenant_id,
+            lead_id=lead["id"] if lead else "openwa-test",
+            lead_name=lead.get("name") if lead else "Prueba OpenWA",
+            phone_number=normalize_phone_like_value(message_data.phone_number),
+            message=message_data.message,
+            status=WhatsAppStatus.SENT,
+            sent_at=datetime.now(timezone.utc)
+        ).model_dump()
+        record.update({
+            "provider": "openwa",
+            "provider_message_id": provider_message_id,
+            "direction": "outbound",
+            "raw_payload": response,
+        })
+        await db.whatsapp_records.insert_one(record)
+
+        return {
+            "status": "success",
+            "message": "Mensaje enviado por OpenWA",
+            "record": serialize_doc(record),
+            "raw": response,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error enviando por OpenWA: {str(e)}")
+
+
+@api_router.post("/webhooks/openwa/{tenant_id}")
+async def openwa_webhook(
+    tenant_id: str,
+    request: Request,
+    token: Optional[str] = Query(None),
+):
+    settings = await db.integration_settings.find_one({"tenant_id": tenant_id}, {"_id": 0})
+    if not settings:
+        raise HTTPException(status_code=404, detail="Workspace no encontrado para OpenWA")
+
+    expected_secret = str(settings.get("openwa_webhook_secret") or "").strip()
+    provided_secret = (
+        request.headers.get("x-openwa-webhook-secret")
+        or request.headers.get("x-rovi-webhook-secret")
+        or token
+        or ""
+    )
+    if expected_secret and provided_secret != expected_secret:
+        raise HTTPException(status_code=401, detail="OpenWA webhook no autorizado")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {"raw": (await request.body()).decode("utf-8", errors="ignore")}
+
+    message = extract_openwa_message(payload)
+    if message.get("is_group"):
+        return {"status": "ignored", "reason": "group_message"}
+
+    lead = await find_or_create_openwa_lead(tenant_id, settings, message)
+    timestamp = datetime.now(timezone.utc)
+    record = WhatsAppRecord(
+        user_id=settings.get("user_id") or lead.get("created_by") or "",
+        tenant_id=tenant_id,
+        lead_id=lead["id"],
+        lead_name=lead.get("name"),
+        phone_number=normalize_phone_like_value(message.get("phone")),
+        message=message.get("body") or "Mensaje OpenWA sin texto",
+        status=WhatsAppStatus.DELIVERED if message.get("direction") == "inbound" else WhatsAppStatus.SENT,
+        delivered_at=timestamp if message.get("direction") == "inbound" else None,
+        sent_at=timestamp if message.get("direction") == "outbound" else None,
+    ).model_dump()
+    record.update({
+        "provider": "openwa",
+        "provider_message_id": message.get("message_id"),
+        "direction": message.get("direction"),
+        "raw_payload": payload,
+    })
+    await db.whatsapp_records.insert_one(record)
+
+    await db.activities.insert_one(Activity(
+        lead_id=lead["id"],
+        activity_type=ActivityType.WHATSAPP,
+        description=message.get("body") or "Mensaje recibido por OpenWA",
+        broker_id=settings.get("user_id") or "",
+        tenant_id=tenant_id,
+    ).model_dump())
+    await db.leads.update_one(
+        {"id": lead["id"], "tenant_id": tenant_id},
+        {"$set": {
+            "last_contact": timestamp,
+            "updated_at": timestamp,
+            "whatsapp_last_inbound_at": timestamp if message.get("direction") == "inbound" else lead.get("whatsapp_last_inbound_at"),
+        }}
+    )
+
+    return {
+        "status": "ok",
+        "lead_id": lead["id"],
+        "record_id": record["id"],
+    }
 
 # ==================== CAMPAIGNS ====================
 
@@ -15161,11 +16186,526 @@ async def receive_external_lead_webhook(
 
 
 # Include the router in the main app
+
+
+# ==================== TELEGRAM MINIAPP E2E ROUTES ====================
+
+MINIAPP_AGENCY_ROLES = {"owner", "admin", "manager"}
+MINIAPP_LEAD_STATUSES = {item.value for item in LeadStatus}
+MINIAPP_LEAD_PRIORITIES = {item.value for item in LeadPriority}
+
+
+class MiniAppLeadCreate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    raw_text: Optional[str] = None
+    source: str = "telegram_miniapp"
+    status: str = "nuevo"
+    priority: str = "media"
+    operation_type: str = "rent"
+    preferred_zone: Optional[str] = None
+    budget_mxn: Optional[float] = None
+    next_action: Optional[str] = None
+    assigned_broker_id: Optional[str] = None
+
+
+class MiniAppLeadPatch(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    preferred_zone: Optional[str] = None
+    budget_mxn: Optional[float] = None
+    notes: Optional[str] = None
+    next_action: Optional[str] = None
+    assigned_broker_id: Optional[str] = None
+
+
+class MiniAppStageUpdate(BaseModel):
+    status: str
+
+
+class MiniAppAssignLead(BaseModel):
+    assigned_broker_id: str
+
+
+class MiniAppTaskCreate(BaseModel):
+    title: str
+    lead_id: Optional[str] = None
+    assigned_to: Optional[str] = None
+    due_at: Optional[datetime] = None
+    priority: str = "media"
+    status: str = "pending"
+
+
+class MiniAppTaskPatch(BaseModel):
+    title: Optional[str] = None
+    assigned_to: Optional[str] = None
+    due_at: Optional[datetime] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+
+
+class MiniAppCalendarEventCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_type: str = "seguimiento"
+    starts_at: datetime
+    ends_at: Optional[datetime] = None
+    lead_id: Optional[str] = None
+    assigned_to: Optional[str] = None
+
+
+class MiniAppHermesRequest(BaseModel):
+    text: str
+    lead_id: Optional[str] = None
+    action: str = "classify"
+
+
+def miniapp_is_agency_user(current_user: dict) -> bool:
+    return current_user.get("account_type") == "agency" and current_user.get("active_role") in MINIAPP_AGENCY_ROLES
+
+
+def miniapp_scope_lead_query(current_user: dict, extra: Optional[dict] = None) -> dict:
+    query = {"tenant_id": current_user["tenant_id"], "deleted": {"$ne": True}}
+    if not miniapp_is_agency_user(current_user) and current_user.get("account_type") != "individual":
+        query["$or"] = [
+            {"assigned_broker_id": current_user["user_id"]},
+            {"created_by": current_user["user_id"]},
+            {"assigned_broker_id": {"$in": [None, ""]}},
+        ]
+    elif current_user.get("account_type") == "individual":
+        query["$or"] = [
+            {"created_by": current_user["user_id"]},
+            {"assigned_broker_id": current_user["user_id"]},
+            {"assigned_broker_id": {"$in": [None, ""]}},
+        ]
+    if extra:
+        query.update(extra)
+    return query
+
+
+def miniapp_extract_contact_name(text: str | None) -> str:
+    if not text:
+        return "Contacto MiniApp"
+    markers = ("cliente", "contacto", "nombre")
+    lowered = text.lower()
+    for marker in markers:
+        idx = lowered.find(marker)
+        if idx >= 0:
+            chunk = text[idx + len(marker):].replace(":", " ").strip()
+            words = [word.strip(",.;") for word in chunk.split()[:3] if word.strip(",.;")]
+            if words:
+                return " ".join(words)[:80]
+    return "Contacto MiniApp"
+
+
+def miniapp_extract_phone(text: str | None) -> str:
+    if not text:
+        return ""
+    import re
+    match = re.search(r"(?:\+?\d[\d\s().-]{7,}\d)", text)
+    return match.group(0).strip() if match else ""
+
+
+def miniapp_guess_priority(text: str | None) -> str:
+    haystack = (text or "").lower()
+    if any(token in haystack for token in ("urgente", "hoy", "esta semana", "visita", "apartado")):
+        return "alta"
+    if any(token in haystack for token in ("presupuesto", "budget", "renta", "compra", "busco", "looking")):
+        return "media"
+    return "media"
+
+
+def miniapp_hermes_fallback(text: str) -> dict:
+    haystack = text.lower()
+    lead_type = "buyer"
+    if any(token in haystack for token in ("vendo", "listing", "disponible", "comision", "comisión")):
+        lead_type = "broker"
+    if any(token in haystack for token in ("plomero", "electricista", "carpintero", "abogado")):
+        lead_type = "noise"
+    priority = miniapp_guess_priority(text)
+    intent_score = 82 if priority == "alta" else 62 if lead_type != "noise" else 25
+    operation_type = "rent" if any(token in haystack for token in ("renta", "rent", "alquiler")) else "sale"
+    next_action = (
+        "Confirmar zona, presupuesto, fecha ideal y agendar siguiente contacto."
+        if lead_type != "noise"
+        else "Revisar manualmente antes de convertir a lead."
+    )
+    return {
+        "provider": "local_fallback",
+        "lead_type": lead_type,
+        "intent_score": intent_score,
+        "priority": priority,
+        "operation_type": operation_type,
+        "summary": text[:280],
+        "next_action": next_action,
+        "suggested_message": (
+            "Hola, gracias por tu mensaje. Para ayudarte mejor, me confirmas zona, presupuesto y fecha ideal?"
+            if lead_type != "noise"
+            else "Gracias por compartir. Lo reviso y te confirmo si aplica para una oportunidad inmobiliaria."
+        ),
+    }
+
+
+def miniapp_leads_data_dir() -> Path:
+    return Path(os.environ.get("ROVI_LEADS_DATA_DIR") or (ROOT_DIR.parent / "leads")).expanduser()
+
+
+async def miniapp_build_summary(current_user: dict) -> dict:
+    lead_query = miniapp_scope_lead_query(current_user)
+    open_statuses = ["nuevo", "contactado", "calificacion", "presentacion", "apartado"]
+    total_leads = await db.leads.count_documents(lead_query)
+    hot_leads = await db.leads.count_documents({**lead_query, "priority": {"$in": ["alta", "urgente"]}})
+    open_leads = await db.leads.count_documents({**lead_query, "status": {"$in": open_statuses}})
+    task_query = {"tenant_id": current_user["tenant_id"], "status": {"$ne": "done"}}
+    if not miniapp_is_agency_user(current_user):
+        task_query["assigned_to"] = current_user["user_id"]
+    pending_tasks = await db.miniapp_tasks.count_documents(task_query)
+    today = datetime.now(timezone.utc).date()
+    start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc).isoformat()
+    end = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc).isoformat()
+    event_query = {"tenant_id": current_user["tenant_id"], "start_time": {"$gte": start, "$lte": end}}
+    if not miniapp_is_agency_user(current_user):
+        event_query["user_id"] = current_user["user_id"]
+    today_events = await db.calendar_events.count_documents(event_query)
+    return {
+        "role": current_user.get("active_role") or current_user.get("role"),
+        "account_type": current_user.get("account_type", "individual"),
+        "is_agency_user": miniapp_is_agency_user(current_user),
+        "metrics": {
+            "total_leads": total_leads,
+            "open_leads": open_leads,
+            "hot_leads": hot_leads,
+            "pending_tasks": pending_tasks,
+            "today_events": today_events,
+        },
+    }
+
+
+@api_router.get("/miniapp/summary", response_model=dict)
+async def miniapp_summary(current_user: dict = Depends(get_current_user)):
+    return await miniapp_build_summary(current_user)
+
+
+@api_router.get("/miniapp/leads", response_model=dict)
+async def miniapp_get_leads(
+    search: Optional[str] = None,
+    status_filter: Optional[str] = Query(None, alias="status"),
+    assigned_broker_id: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 25,
+    current_user: dict = Depends(get_current_user),
+):
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
+    extra = {}
+    if status_filter:
+        extra["status"] = status_filter
+    if assigned_broker_id and miniapp_is_agency_user(current_user):
+        extra["assigned_broker_id"] = assigned_broker_id
+    query = miniapp_scope_lead_query(current_user, extra)
+    if search:
+        query["$and"] = query.get("$and", []) + [{
+            "$or": [
+                {"name": {"$regex": search, "$options": "i"}},
+                {"email": {"$regex": search, "$options": "i"}},
+                {"phone": {"$regex": search, "$options": "i"}},
+                {"preferred_zone": {"$regex": search, "$options": "i"}},
+                {"raw_interest_text": {"$regex": search, "$options": "i"}},
+                {"notes": {"$regex": search, "$options": "i"}},
+            ]
+        }]
+    total = await db.leads.count_documents(query)
+    leads = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size).to_list(page_size)
+    return {
+        "leads": [serialize_doc(lead) for lead in leads],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": math.ceil(total / page_size) if total else 0,
+    }
+
+
+@api_router.post("/miniapp/leads", response_model=dict)
+async def miniapp_create_lead(payload: MiniAppLeadCreate, current_user: dict = Depends(get_current_user)):
+    raw_text = payload.raw_text or ""
+    analysis = miniapp_hermes_fallback(raw_text)
+    status_value = payload.status if payload.status in MINIAPP_LEAD_STATUSES else "nuevo"
+    priority_value = payload.priority if payload.priority in MINIAPP_LEAD_PRIORITIES else analysis["priority"]
+    assigned_broker_id = payload.assigned_broker_id if miniapp_is_agency_user(current_user) else current_user["user_id"]
+    lead_doc = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": current_user["tenant_id"],
+        "created_by": current_user["user_id"],
+        "assigned_broker_id": assigned_broker_id,
+        "name": payload.name or miniapp_extract_contact_name(raw_text),
+        "phone": payload.phone or miniapp_extract_phone(raw_text),
+        "email": payload.email,
+        "status": status_value,
+        "priority": priority_value,
+        "source": payload.source or "telegram_miniapp",
+        "operation_type": payload.operation_type or analysis["operation_type"],
+        "pipeline_type": "rentals" if (payload.operation_type or analysis["operation_type"]) == "rent" else "sales",
+        "preferred_zone": payload.preferred_zone,
+        "budget_mxn": payload.budget_mxn or 0.0,
+        "raw_interest_text": raw_text,
+        "interest_source": "telegram_miniapp",
+        "notes": raw_text[:1000] if raw_text else None,
+        "intent_score": analysis["intent_score"],
+        "next_action": payload.next_action or analysis["next_action"],
+        "ai_analysis": analysis,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.leads.insert_one(lead_doc)
+    await emit_lead_created(current_user["tenant_id"], serialize_realtime_payload(lead_doc), current_user["user_id"])
+    return {"message": "Lead creado desde MiniApp", "lead": serialize_doc(lead_doc)}
+
+
+@api_router.patch("/miniapp/leads/{lead_id}", response_model=dict)
+async def miniapp_patch_lead(lead_id: str, payload: MiniAppLeadPatch, current_user: dict = Depends(get_current_user)):
+    existing = await db.leads.find_one(miniapp_scope_lead_query(current_user, {"id": lead_id}), {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    update_data = {key: value for key, value in payload.model_dump(exclude_unset=True).items() if value is not None}
+    if "status" in update_data and update_data["status"] not in MINIAPP_LEAD_STATUSES:
+        raise HTTPException(status_code=400, detail="Estado de lead invalido")
+    if "priority" in update_data and update_data["priority"] not in MINIAPP_LEAD_PRIORITIES:
+        raise HTTPException(status_code=400, detail="Prioridad de lead invalida")
+    if "assigned_broker_id" in update_data and not miniapp_is_agency_user(current_user):
+        raise HTTPException(status_code=403, detail="Solo inmobiliarias pueden reasignar leads")
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.leads.update_one({"id": lead_id, "tenant_id": current_user["tenant_id"]}, {"$set": update_data})
+    await emit_lead_updated(current_user["tenant_id"], lead_id, serialize_realtime_payload(update_data), current_user["user_id"])
+    updated = await db.leads.find_one({"id": lead_id, "tenant_id": current_user["tenant_id"]}, {"_id": 0})
+    return {"message": "Lead actualizado", "lead": serialize_doc(updated)}
+
+
+@api_router.post("/miniapp/leads/{lead_id}/stage", response_model=dict)
+async def miniapp_update_lead_stage(lead_id: str, payload: MiniAppStageUpdate, current_user: dict = Depends(get_current_user)):
+    if payload.status not in MINIAPP_LEAD_STATUSES:
+        raise HTTPException(status_code=400, detail="Estado de lead invalido")
+    return await miniapp_patch_lead(lead_id, MiniAppLeadPatch(status=payload.status), current_user)
+
+
+@api_router.post("/miniapp/leads/{lead_id}/assign", response_model=dict)
+async def miniapp_assign_lead(lead_id: str, payload: MiniAppAssignLead, current_user: dict = Depends(get_current_user)):
+    if not miniapp_is_agency_user(current_user):
+        raise HTTPException(status_code=403, detail="Solo inmobiliarias pueden asignar leads")
+    return await miniapp_patch_lead(lead_id, MiniAppLeadPatch(assigned_broker_id=payload.assigned_broker_id), current_user)
+
+
+@api_router.get("/miniapp/pipeline", response_model=dict)
+async def miniapp_pipeline(current_user: dict = Depends(get_current_user)):
+    query = miniapp_scope_lead_query(current_user)
+    pipeline = [
+        {"$match": query},
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+    ]
+    counts = await db.leads.aggregate(pipeline).to_list(None)
+    by_status = {status_value: 0 for status_value in MINIAPP_LEAD_STATUSES}
+    for row in counts:
+        by_status[row["_id"] or "nuevo"] = row["count"]
+    return {"stages": by_status, "order": [item.value for item in LeadStatus]}
+
+
+@api_router.get("/miniapp/tasks", response_model=dict)
+async def miniapp_tasks(current_user: dict = Depends(get_current_user)):
+    query = {"tenant_id": current_user["tenant_id"]}
+    if not miniapp_is_agency_user(current_user):
+        query["assigned_to"] = current_user["user_id"]
+    tasks = await db.miniapp_tasks.find(query, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
+    return {"tasks": [serialize_doc(task) for task in tasks]}
+
+
+@api_router.post("/miniapp/tasks", response_model=dict)
+async def miniapp_create_task(payload: MiniAppTaskCreate, current_user: dict = Depends(get_current_user)):
+    assigned_to = payload.assigned_to if miniapp_is_agency_user(current_user) and payload.assigned_to else current_user["user_id"]
+    task = {
+        "id": str(uuid.uuid4()),
+        "tenant_id": current_user["tenant_id"],
+        "created_by": current_user["user_id"],
+        "assigned_to": assigned_to,
+        "lead_id": payload.lead_id,
+        "title": payload.title,
+        "priority": payload.priority,
+        "status": payload.status,
+        "due_at": payload.due_at.isoformat() if payload.due_at else None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.miniapp_tasks.insert_one(task)
+    return {"message": "Tarea creada", "task": serialize_doc(task)}
+
+
+@api_router.patch("/miniapp/tasks/{task_id}", response_model=dict)
+async def miniapp_patch_task(task_id: str, payload: MiniAppTaskPatch, current_user: dict = Depends(get_current_user)):
+    query = {"id": task_id, "tenant_id": current_user["tenant_id"]}
+    if not miniapp_is_agency_user(current_user):
+        query["assigned_to"] = current_user["user_id"]
+    existing = await db.miniapp_tasks.find_one(query, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+    update_data = {key: value for key, value in payload.model_dump(exclude_unset=True).items() if value is not None}
+    if "due_at" in update_data and isinstance(update_data["due_at"], datetime):
+        update_data["due_at"] = update_data["due_at"].isoformat()
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.miniapp_tasks.update_one({"id": task_id, "tenant_id": current_user["tenant_id"]}, {"$set": update_data})
+    task = await db.miniapp_tasks.find_one({"id": task_id, "tenant_id": current_user["tenant_id"]}, {"_id": 0})
+    return {"message": "Tarea actualizada", "task": serialize_doc(task)}
+
+
+@api_router.get("/miniapp/calendar", response_model=dict)
+async def miniapp_calendar(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    query = {"tenant_id": current_user["tenant_id"]}
+    if not miniapp_is_agency_user(current_user):
+        query["user_id"] = current_user["user_id"]
+    if start_date or end_date:
+        query["start_time"] = {}
+        if start_date:
+            query["start_time"]["$gte"] = start_date
+        if end_date:
+            query["start_time"]["$lte"] = end_date
+    events = await db.calendar_events.find(query, {"_id": 0}).sort("start_time", 1).limit(200).to_list(200)
+    return {"events": [serialize_doc(event) for event in events]}
+
+
+@api_router.post("/miniapp/calendar/events", response_model=dict)
+async def miniapp_create_calendar_event(payload: MiniAppCalendarEventCreate, current_user: dict = Depends(get_current_user)):
+    assigned_to = payload.assigned_to if miniapp_is_agency_user(current_user) and payload.assigned_to else current_user["user_id"]
+    event = {
+        "id": str(uuid.uuid4()),
+        "user_id": assigned_to,
+        "tenant_id": current_user["tenant_id"],
+        "title": payload.title,
+        "description": payload.description,
+        "event_type": payload.event_type,
+        "start_time": payload.starts_at.isoformat(),
+        "end_time": payload.ends_at.isoformat() if payload.ends_at else None,
+        "lead_id": payload.lead_id,
+        "reminder_minutes": 30,
+        "completed": False,
+        "source": "telegram_miniapp",
+        "created_by": current_user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.calendar_events.insert_one(event)
+    await emit_calendar_event_created(current_user["tenant_id"], serialize_realtime_payload(event), current_user["user_id"])
+    return {"message": "Evento creado", "event": serialize_doc(event)}
+
+
+@api_router.get("/miniapp/agency/team", response_model=dict)
+async def miniapp_agency_team(current_user: dict = Depends(get_current_user)):
+    if not miniapp_is_agency_user(current_user):
+        raise HTTPException(status_code=403, detail="Solo inmobiliarias pueden ver equipo")
+    return {"team": await build_broker_roster(current_user["tenant_id"])}
+
+
+@api_router.get("/miniapp/lead-candidates", response_model=dict)
+async def miniapp_lead_candidates(
+    search: Optional[str] = None,
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user),
+):
+    query = {"tenant_id": current_user["tenant_id"]}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}},
+            {"raw_text": {"$regex": search, "$options": "i"}},
+            {"source_file": {"$regex": search, "$options": "i"}},
+        ]
+    candidates = await db.lead_candidates.find(query, {"_id": 0}).sort("created_at", -1).limit(min(limit, 200)).to_list(min(limit, 200))
+    return {"candidates": [serialize_doc(candidate) for candidate in candidates]}
+
+
+@api_router.post("/miniapp/lead-candidates/import-local", response_model=dict)
+async def miniapp_import_local_lead_candidates(
+    limit: int = 200,
+    current_user: dict = Depends(get_current_user),
+):
+    if not miniapp_is_agency_user(current_user) and current_user.get("account_type") != "individual":
+        raise HTTPException(status_code=403, detail="No tienes permisos para importar candidatos")
+    data_dir = miniapp_leads_data_dir() / "processed"
+    if not data_dir.exists():
+        raise HTTPException(status_code=404, detail="No encontre leads/processed en el VPS")
+    imported = 0
+    now = datetime.now(timezone.utc).isoformat()
+    for csv_file in sorted(data_dir.glob("*.csv")):
+        if imported >= limit:
+            break
+        with csv_file.open("r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                if imported >= limit:
+                    break
+                raw_text = " | ".join(str(value) for value in row.values() if value)[:4000]
+                candidate_id = hashlib.sha256(f"{csv_file.name}:{raw_text}".encode("utf-8")).hexdigest()[:24]
+                candidate = {
+                    "id": candidate_id,
+                    "tenant_id": current_user["tenant_id"],
+                    "source": "leads_processed_csv",
+                    "source_file": csv_file.name,
+                    "name": row.get("name") or row.get("nombre") or row.get("Nombre") or miniapp_extract_contact_name(raw_text),
+                    "phone": row.get("phone") or row.get("telefono") or row.get("teléfono") or miniapp_extract_phone(raw_text),
+                    "raw_text": raw_text,
+                    "status": "candidate",
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                await db.lead_candidates.update_one(
+                    {"id": candidate_id, "tenant_id": current_user["tenant_id"]},
+                    {"$setOnInsert": candidate},
+                    upsert=True,
+                )
+                imported += 1
+    return {"message": "Candidatos importados desde leads/processed", "imported": imported}
+
+
+@api_router.post("/miniapp/lead-candidates/{candidate_id}/convert", response_model=dict)
+async def miniapp_convert_candidate(candidate_id: str, current_user: dict = Depends(get_current_user)):
+    candidate = await db.lead_candidates.find_one({"id": candidate_id, "tenant_id": current_user["tenant_id"]}, {"_id": 0})
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidato no encontrado")
+    created = await miniapp_create_lead(
+        MiniAppLeadCreate(
+            name=candidate.get("name"),
+            phone=candidate.get("phone"),
+            raw_text=candidate.get("raw_text"),
+            source=f"lead_candidate:{candidate.get('source_file') or 'local'}",
+        ),
+        current_user,
+    )
+    await db.lead_candidates.update_one(
+        {"id": candidate_id, "tenant_id": current_user["tenant_id"]},
+        {"$set": {"status": "converted", "lead_id": created["lead"]["id"], "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"message": "Candidato convertido", "lead": created["lead"]}
+
+
+@api_router.post("/miniapp/hermes/classify", response_model=dict)
+async def miniapp_hermes_classify(payload: MiniAppHermesRequest, current_user: dict = Depends(get_current_user)):
+    return {
+        "analysis": miniapp_hermes_fallback(payload.text),
+        "source": "fallback_until_hermes_gateway_is_enabled",
+        "tenant_id": current_user["tenant_id"],
+    }
+
+
 api_router.include_router(create_marketplace_router(db, analyze_lead))
 api_router.include_router(create_rovi_internal_router(db))
 api_router.include_router(create_agent_control_router(db))
 api_router.include_router(create_vibe_lab_router(db))
 api_router.include_router(create_rentals_router(db))
+api_router.include_router(create_valuation_router(db))
+api_router.include_router(create_tasks_router(db))
 api_router.include_router(create_copim_member_import_router(
     db,
     require_copim_admin_workspace=require_copim_admin_workspace,

@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROVI x COPIM | Wireframe Onboarding de Decision</title>
+  <style>
+    :root {
+      --ink: #111f32;
+      --muted: #627186;
+      --line: #d9e2ec;
+      --paper: #f6f9fc;
+      --surface: #ffffff;
+      --surface-2: #eef7f7;
+      --navy: #0f172a;
+      --teal: #0d9488;
+      --teal-dark: #0f766e;
+      --blue: #0b4f9c;
+      --green: #4d7c0f;
+      --amber: #d97706;
+      --purple: #7c3aed;
+      --red: #dc2626;
+      --shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, #eefaf8 0%, #f8fafc 45%, #eef4ff 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid rgba(217, 226, 236, 0.92);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar-inner {
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 950;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: #fff;
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      box-shadow: 0 10px 24px rgba(13, 148, 136, 0.22);
+      font-size: 13px;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 850;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+    }
+
+    .nav a:hover {
+      color: var(--ink);
+      background: #e7f6f3;
+    }
+
+    .page {
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 24px 20px 64px;
+    }
+
+    .hero {
+      min-height: 430px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.75fr);
+      gap: 18px;
+    }
+
+    .hero-main {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 42px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(11, 79, 156, 0.84)),
+        radial-gradient(circle at 78% 20%, rgba(20, 184, 166, 0.34), transparent 36%),
+        linear-gradient(120deg, #0f172a, #0d9488);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -18% 34%;
+      height: 250px;
+      opacity: 0.55;
+      transform: rotate(-8deg);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.11), transparent),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0 1px, transparent 1px 76px);
+    }
+
+    .hero-content,
+    .hero-metrics {
+      position: relative;
+      z-index: 2;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.86);
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      letter-spacing: 0;
+    }
+
+    .hero h1 {
+      margin: 22px 0 14px;
+      max-width: 900px;
+      font-size: clamp(40px, 6vw, 74px);
+      line-height: 0.96;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 760px;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 18px;
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .metric {
+      min-height: 104px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 30px;
+      line-height: 1.05;
+      font-weight: 950;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      padding: 22px;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card h2,
+    .card h3,
+    .section-head h2 {
+      margin: 0;
+    }
+
+    .card p {
+      margin: 9px 0 0;
+      color: var(--muted);
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 9px;
+      border: 1px solid #cfe8e6;
+      border-radius: 999px;
+      color: var(--ink);
+      background: #eef7f7;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .tag.blue {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+    }
+
+    .tag.good {
+      border-color: #bbf7d0;
+      background: #ecfdf5;
+    }
+
+    .tag.warn {
+      border-color: #fed7aa;
+      background: #fff7ed;
+    }
+
+    .tag.purple {
+      border-color: #ddd6fe;
+      background: #f5f3ff;
+    }
+
+    section {
+      margin-top: 28px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 14px;
+    }
+
+    .section-head p {
+      margin: 8px 0 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .kicker {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .wireframe {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.78fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .step-panel {
+      position: sticky;
+      top: 76px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .step-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 18px;
+    }
+
+    .step-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .step-title h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .step-index {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--teal);
+      font-size: 13px;
+      font-weight: 950;
+      flex: 0 0 auto;
+    }
+
+    .option-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .option {
+      position: relative;
+      display: grid;
+      gap: 4px;
+      padding: 12px 12px 12px 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+
+    .option:hover {
+      border-color: var(--teal);
+      box-shadow: 0 10px 22px rgba(13, 148, 136, 0.12);
+    }
+
+    .option input {
+      position: absolute;
+      left: 12px;
+      top: 14px;
+      accent-color: var(--teal);
+    }
+
+    .option strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .option span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .control {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .control label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .control output {
+      color: var(--ink);
+      font-weight: 950;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin-top: 14px;
+      accent-color: var(--teal);
+    }
+
+    .number-input {
+      width: 100%;
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 10px 11px;
+      font: inherit;
+      font-weight: 850;
+    }
+
+    .number-input:focus {
+      outline: 2px solid rgba(13, 148, 136, 0.22);
+      border-color: var(--teal);
+    }
+
+    .screen-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .screen-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .screen-tab {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      padding: 9px 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .screen-tab.active {
+      color: #fff;
+      border-color: var(--teal);
+      background: var(--teal);
+    }
+
+    .wire-screen {
+      min-height: 300px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.98)),
+        repeating-linear-gradient(0deg, transparent 0 38px, rgba(15, 23, 42, 0.03) 38px 39px);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      padding: 24px;
+    }
+
+    .wire-screen.is-hidden {
+      display: none;
+    }
+
+    .wire-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+    }
+
+    .wire-header h3 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--teal);
+      font-size: 12px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .primary-button {
+      border: 0;
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--teal);
+      padding: 11px 14px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .primary-button:hover {
+      background: var(--teal-dark);
+    }
+
+    .calc-status {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .result-box {
+      min-height: 100px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .result-box span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .result-box strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .lane {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .lane-card {
+      min-height: 160px;
+      padding: 16px;
+      border: 1px dashed #c3cfdd;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.74);
+    }
+
+    .lane-card h4 {
+      margin: 0 0 8px;
+    }
+
+    .lane-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .deal-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .deal-table th,
+    .deal-table td {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    .deal-table th {
+      color: var(--muted);
+      background: #f8fafc;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .deal-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .source {
+      margin-top: 28px;
+      padding: 18px;
+      border: 1px dashed #b8c5d4;
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.62);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .wireframe {
+        grid-template-columns: 1fr;
+      }
+
+      .step-panel {
+        position: static;
+      }
+
+      .result-grid,
+      .lane {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar-inner,
+      .section-head,
+      .wire-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .nav {
+        justify-content: flex-start;
+      }
+
+      .hero-main {
+        padding: 28px;
+      }
+
+      .hero-metrics,
+      .control-grid,
+      .result-grid,
+      .lane {
+        grid-template-columns: 1fr;
+      }
+
+      .deal-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">RV</div>
+        <span>ROVI x COPIM | Onboarding de Decision</span>
+      </div>
+      <nav class="nav" aria-label="Secciones">
+        <a href="#onboarding">Onboarding</a>
+        <a href="#escenario">Escenario</a>
+        <a href="#proyeccion">Proyeccion</a>
+        <a href="#cierre">Cierre</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <div class="hero-main">
+        <div class="hero-content">
+          <span class="eyebrow">Wireframe para reunion con Mario</span>
+          <h1>Preguntar primero, proponer despues.</h1>
+          <p>
+            Este onboarding guia a Mario por las decisiones criticas: que quiere construir,
+            cuanto quiere invertir, cuanta exclusividad busca, que nivel de adopcion puede
+            garantizar y que retorno espera del ecosistema ROVI.
+          </p>
+        </div>
+        <div class="hero-metrics">
+          <div class="metric"><strong>6</strong><span>preguntas que definen camino, alcance y reglas</span></div>
+          <div class="metric"><strong>4</strong><span>escenarios: base, comunidad, monopolio, ecosistema</span></div>
+          <div class="metric"><strong>ROI</strong><span>inversion, comisiones, retorno y payback en vivo</span></div>
+        </div>
+      </div>
+
+      <aside class="hero-side">
+        <article class="card">
+          <h2>Objetivo del wireframe</h2>
+          <p>
+            Evitar negociar a ciegas. Cada respuesta ajusta el alcance de ROVI y muestra si el camino
+            recomendado es institucional, comunidad, exclusividad condicionada o expansion nacional.
+          </p>
+          <div class="tag-row">
+            <span class="tag">diagnostico</span>
+            <span class="tag blue">alcance</span>
+            <span class="tag good">ROI</span>
+          </div>
+        </article>
+        <article class="card">
+          <h2>Regla de la conversacion</h2>
+          <p>
+            Mayor inversion y mayor compromiso operativo desbloquean mayor upside. Menor inversion
+            implica menos comision, menos exclusividad y una ruta mas conservadora.
+          </p>
+          <div class="tag-row">
+            <span class="tag warn">OKRs</span>
+            <span class="tag purple">exclusividad</span>
+            <span class="tag">marketplace</span>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <section id="onboarding">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Onboarding de decision</span>
+          <h2>Las preguntas que determinan el camino</h2>
+          <p>
+            Este bloque funciona como wireframe de producto y como guion comercial. La pantalla derecha
+            se recalcula con cada respuesta.
+          </p>
+        </div>
+      </div>
+
+      <div class="wireframe">
+        <aside class="step-panel">
+          <div class="step-card">
+            <div class="step-title">
+              <h3>Vision principal</h3>
+              <div class="step-index">1</div>
+            </div>
+            <div class="option-grid">
+              <label class="option"><input type="radio" name="vision" value="institutional" checked><strong>Ordenar COPIM</strong><span>Padron, pagos, documentos, asociaciones, beneficios.</span></label>
+              <label class="option"><input type="radio" name="vision" value="community"><strong>Monetizar comunidad</strong><span>Cursos, marketplace, eventos, sponsors y creadores.</span></label>
+              <label class="option"><input type="radio" name="vision" value="monopoly"><strong>Defender exclusividad COPIM</strong><span>Ventaja institucional para atraer asociaciones y territorios.</span></label>
+              <label class="option"><input type="radio" name="vision" value="ecosystem"><strong>Escalar caso nacional</strong><span>COPIM como caso de exito para otros consejos y DCC.</span></label>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-title">
+              <h3>Alcance ROVI</h3>
+              <div class="step-index">2</div>
+            </div>
+            <div class="option-grid">
+              <label class="option"><input type="radio" name="scope" value="core" checked><strong>Core institucional</strong><span>Consejo, asociaciones, miembros, documentos y pagos.</span></label>
+              <label class="option"><input type="radio" name="scope" value="community"><strong>Comunidad + marketplace</strong><span>Eventos, contenido, productos, sponsors y crowdfunding.</span></label>
+              <label class="option"><input type="radio" name="scope" value="full"><strong>Ecosistema completo</strong><span>Core + marketplace + IA + control tower + crowdfunding.</span></label>
+              <label class="option"><input type="radio" name="scope" value="dcc"><strong>DCC / desarrolladores</strong><span>CRM alineado a confianza, NOM, PLD y postventa.</span></label>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-title">
+              <h3>Exclusividad</h3>
+              <div class="step-index">3</div>
+            </div>
+            <div class="option-grid">
+              <label class="option"><input type="radio" name="exclusivity" value="none" checked><strong>Sin exclusividad</strong><span>ROVI puede vender a otros consejos; COPIM puede comisionar si origina.</span></label>
+              <label class="option"><input type="radio" name="exclusivity" value="conditional"><strong>12 meses condicionada</strong><span>OKRs a 90 dias, fee por faltante y renegociacion al mes 9.</span></label>
+              <label class="option"><input type="radio" name="exclusivity" value="premium"><strong>Monopolio premium</strong><span>Exclusividad extendida con fee anual o minimo garantizado.</span></label>
+            </div>
+          </div>
+        </aside>
+
+        <div class="screen-grid">
+          <div class="screen-tabs" aria-label="Pantallas del onboarding">
+            <button class="screen-tab active" type="button" data-screen="escenario">Pantalla 1 · Recomendacion</button>
+            <button class="screen-tab" type="button" data-screen="proyeccion">Pantalla 2 · Proyeccion</button>
+            <button class="screen-tab" type="button" data-screen="all">Ver ambas</button>
+          </div>
+
+          <div class="wire-screen" id="escenario">
+            <div class="wire-header">
+              <div>
+                <span class="kicker">Pantalla 1 / Recomendacion</span>
+                <h3 id="scenarioTitle">Ruta Base Institucional</h3>
+                <p id="scenarioSummary">La prioridad es ordenar COPIM sin sobrecargar alcance. Ideal para validar adopcion antes de abrir marketplace o exclusividad amplia.</p>
+              </div>
+              <span class="status-pill" id="scenarioPill">Riesgo bajo</span>
+            </div>
+
+            <div class="result-grid">
+              <div class="result-box"><span>Inversion inicial</span><strong id="investmentBox">$75,000</strong><input class="number-input" id="investmentNumber" type="number" min="0" max="500000" step="5000" value="75000" aria-label="Editar inversion inicial"></div>
+              <div class="result-box"><span>ROI 12m</span><strong id="roiBox">-29%</strong></div>
+              <div class="result-box"><span>Payback</span><strong id="paybackBox">16.9m</strong></div>
+              <div class="result-box"><span>Score</span><strong id="scoreBox">71/100</strong></div>
+            </div>
+
+            <div class="result-grid" style="margin-top: 16px;">
+              <div class="result-box"><span>Bruto generado Q1</span><strong id="grossMiniBox">$215,657</strong></div>
+              <div class="result-box"><span>ROVI recibe Q1</span><strong id="roviMiniTakeBox">$87,913</strong></div>
+              <div class="result-box"><span>COPIM recibe Q1</span><strong id="copimMiniTakeBox">$16,926</strong></div>
+              <div class="result-box"><span>Mario/CCIB recibe Q1</span><strong id="marioMiniTakeBox">$13,324</strong></div>
+            </div>
+
+            <div class="lane">
+              <div class="lane-card">
+                <h4>Alcance ROVI</h4>
+                <ul id="scopeList">
+                  <li>Padron de miembros</li>
+                  <li>Asociaciones y territorios</li>
+                  <li>Pagos y beneficios</li>
+                </ul>
+              </div>
+              <div class="lane-card">
+                <h4>Reglas de negocio</h4>
+                <ul id="rulesList">
+                  <li>Sin cesion de IP</li>
+                  <li>OKRs de adopcion</li>
+                  <li>Comisiones atribuidas</li>
+                </ul>
+              </div>
+              <div class="lane-card">
+                <h4>Ruta siguiente</h4>
+                <ul id="nextList">
+                  <li>MVC 90 dias</li>
+                  <li>Primer reporte ejecutivo</li>
+                  <li>Decision de expansion</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="wire-screen is-hidden" id="proyeccion">
+            <div class="wire-header">
+              <div>
+                <span class="kicker">Pantalla 2 / Proyeccion</span>
+                <h3>Inversion, adopcion y retorno</h3>
+                <p>Los sliders simulan si el camino elegido puede sostener la exclusividad, el marketplace y el retorno para Mario/CCIB, separando quien recibe el dinero: ROVI, COPIM y Mario/CCIB.</p>
+              </div>
+              <span class="status-pill">Calculadora viva</span>
+            </div>
+
+            <div class="control-grid">
+              <div class="control"><label>Aporte implementacion <output id="investmentOut">$75,000</output></label><input id="investment" type="range" min="0" max="250000" step="5000" value="75000"></div>
+              <div class="control"><label>OKR esperado <output id="okrOut">100%</output></label><input id="okr" type="range" min="40" max="140" step="5" value="100"></div>
+              <div class="control"><label>Adopcion esperada <output id="adoptionOut">85%</output></label><input id="adoption" type="range" min="30" max="120" step="5" value="85"></div>
+              <div class="control"><label>Comunidad potencial <output id="communityOut">745</output></label><input id="community" type="range" min="100" max="5000" step="25" value="745"></div>
+              <div class="control"><label>Conversion paga <output id="conversionOut">12%</output></label><input id="conversion" type="range" min="1" max="40" step="1" value="12"></div>
+              <div class="control"><label>Ticket mensual <output id="ticketOut">$690</output></label><input id="ticket" type="range" min="199" max="2500" step="50" value="690"></div>
+              <div class="control"><label>GMV marketplace Q <output id="gmvOut">$180,000</output></label><input id="gmv" type="range" min="0" max="1200000" step="10000" value="180000"></div>
+              <div class="control"><label>Crowdfunding/Sponsors Q <output id="crowdOut">$150,000</output></label><input id="crowd" type="range" min="0" max="1200000" step="10000" value="150000"></div>
+            </div>
+
+            <div class="result-grid" style="margin-top: 16px;">
+              <div class="result-box"><span>Miembros pagos</span><strong id="paidMembersBox">50</strong></div>
+              <div class="result-box"><span>MRR estimado</span><strong id="mrrBox">$34,544</strong></div>
+              <div class="result-box"><span>Comision mensual</span><strong id="monthlyBox">$4,441</strong></div>
+              <div class="result-box"><span>Comision anual</span><strong id="annualBox">$53,296</strong></div>
+            </div>
+
+            <div class="result-grid" style="margin-top: 16px;">
+              <div class="result-box"><span>Escalon comisiones</span><strong id="commissionTierBox">Lider</strong></div>
+              <div class="result-box"><span>Tasas efectivas</span><strong id="commissionRatesBox">13% / 13% / 3%</strong></div>
+              <div class="result-box"><span>Comision trimestral</span><strong id="quarterlyBox">$13,324</strong></div>
+              <div class="result-box"><span>Multiplicador aporte</span><strong id="capitalBoostBox">1.06x</strong></div>
+            </div>
+
+            <div class="result-grid" style="margin-top: 16px;">
+              <div class="result-box"><span>Costos ROVI Q1</span><strong id="roviCostsBox">$49,500</strong></div>
+              <div class="result-box"><span>Costos COPIM Q1</span><strong id="copimCostsBox">$23,500</strong></div>
+              <div class="result-box"><span>Neto ROVI Q1</span><strong id="roviNetBox">$38,413</strong></div>
+              <div class="result-box"><span>Fondo COPIM Q1</span><strong id="copimFundBox">-$6,574</strong></div>
+            </div>
+
+            <div class="result-grid" style="margin-top: 16px;">
+              <div class="result-box"><span>Bruto generado Q1</span><strong id="grossBox">$215,657</strong></div>
+              <div class="result-box"><span>ROVI recibe Q1</span><strong id="roviTakeBox">$87,913</strong></div>
+              <div class="result-box"><span>COPIM recibe Q1</span><strong id="copimTakeBox">$16,926</strong></div>
+              <div class="result-box"><span>Mario/CCIB recibe Q1</span><strong id="marioTakeBox">$13,324</strong></div>
+            </div>
+
+            <div class="lane" style="margin-top: 16px;">
+              <div class="lane-card">
+                <h4>ROVI recibe</h4>
+                <ul id="roviBreakdown">
+                  <li>Implementacion neta</li>
+                  <li>Comision plataforma</li>
+                  <li>Menos costos tecnicos</li>
+                </ul>
+              </div>
+              <div class="lane-card">
+                <h4>COPIM recibe</h4>
+                <ul id="copimBreakdown">
+                  <li>Fondo de sponsors</li>
+                  <li>Participacion membresias</li>
+                  <li>Menos activacion</li>
+                </ul>
+              </div>
+              <div class="lane-card">
+                <h4>Mario/CCIB recibe</h4>
+                <ul id="marioBreakdown">
+                  <li>Comision por add-ons</li>
+                  <li>Comision marketplace</li>
+                  <li>Override por red</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="action-row">
+              <button class="primary-button" type="button" id="recalculateButton">Recalcular escenario</button>
+              <span class="calc-status" id="calcStatus">Calculado con valores iniciales.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="cierre">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Pantalla 3 / Cierre ejecutivo</span>
+          <h2>Como presentarlo en reunion</h2>
+          <p>
+            La conversacion debe cerrar en una ruta, no en una lista infinita de modulos. Este resumen se actualiza con el escenario recomendado.
+          </p>
+        </div>
+      </div>
+
+      <table class="deal-table">
+        <thead>
+          <tr>
+            <th>Decision</th>
+            <th>Pregunta a Mario</th>
+            <th>Si responde si</th>
+            <th>Si responde no</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Inversion</strong></td>
+            <td>Quieres pagar menos ahora o capturar mayor upside?</td>
+            <td>Sube escalon de comisiones y alcance.</td>
+            <td>Ruta base con menos exclusividad y menos comision.</td>
+          </tr>
+          <tr>
+            <td><strong>Exclusividad</strong></td>
+            <td>Quieres bloquear otros consejos o convertir COPIM en caso vendible?</td>
+            <td>Fee anual, OKRs y minimo garantizado.</td>
+            <td>ROVI vende a otros consejos y COPIM comisiona si origina.</td>
+          </tr>
+          <tr>
+            <td><strong>Comunidad</strong></td>
+            <td>Quieres solo beneficios o una economia comunitaria?</td>
+            <td>Marketplace, crowdfunding, sponsors, eventos y creadores.</td>
+            <td>Portal institucional y capacitaciones base.</td>
+          </tr>
+          <tr>
+            <td><strong>Gobernanza</strong></td>
+            <td>Estas dispuesto a medir OKRs y transparentar adopcion?</td>
+            <td>Se habilitan comisiones, exclusividad y crecimiento.</td>
+            <td>Se limita alcance hasta tener datos confiables.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="source">
+      <strong>Uso esperado:</strong> documento wireframe para guiar la conversacion con Mario.
+      Sintetiza reglas de exclusividad COPIM, escalera Mario/CCIB, monetizacion comunitaria, crowdfunding,
+      marketplace, OKRs e inversion/ROI en un onboarding de decision.
+    </div>
+  </main>
+
+  <script>
+    const money = new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      maximumFractionDigits: 0
+    });
+
+    const scenarios = {
+      base: {
+        title: 'Ruta Base Institucional',
+        pill: 'Riesgo bajo',
+        summary: 'La prioridad es ordenar COPIM sin sobrecargar alcance. Ideal para validar adopcion antes de abrir marketplace o exclusividad amplia.',
+        scope: ['Padron de miembros', 'Asociaciones y territorios', 'Pagos y beneficios', 'Documentos y perfiles'],
+        rules: ['Sin cesion de IP', 'OKRs de adopcion', 'Comisiones atribuidas', 'Sin exclusividad amplia'],
+        next: ['MVC 90 dias', 'Primer reporte ejecutivo', 'Decision de expansion', 'Activar marketplace fase 2']
+      },
+      community: {
+        title: 'Ruta Comunidad Monetizable',
+        pill: 'Upside medio/alto',
+        summary: 'La prioridad es convertir capacitacion, comunidad, creadores, sponsors y eventos en ingresos medibles dentro de ROVI.',
+        scope: ['Core COPIM', 'Marketplace', 'Eventos y crowdfunding', 'Creadores y sponsors'],
+        rules: ['Take rate marketplace', 'Comisiones por atribucion', 'Portal de sponsors', 'Reporte de transparencia'],
+        next: ['Primer evento trimestral', 'Lanzar 10 productos digitales', 'Activar sponsors', 'Medir GMV y conversion']
+      },
+      monopoly: {
+        title: 'Ruta Monopolio Condicionado',
+        pill: 'Exclusividad con OKRs',
+        summary: 'La prioridad es darle a COPIM una ventaja exclusiva, pero con validacion a 90 dias, fee por faltante y renegociacion al mes 9.',
+        scope: ['Paquete institucional COPIM', 'Beneficios por territorio', 'Comisiones escalonadas', 'Control tower OKR'],
+        rules: ['12 meses condicionados', 'Fee por faltante', 'No cesion de IP', 'Renegociacion mes 9'],
+        next: ['Definir OKRs Q1', 'Contrato de exclusividad', 'Score de adopcion', 'Renovar o liberar caso']
+      },
+      ecosystem: {
+        title: 'Ruta Ecosistema Nacional',
+        pill: 'Crecimiento alto',
+        summary: 'COPIM se vuelve caso de exito y canal para otros consejos, desarrolladores y DCC. Requiere mayor inversion y gobernanza.',
+        scope: ['ROVI COPIM completo', 'DCC / desarrolladores', 'Otros consejos', 'IA + dashboards + marketplace'],
+        rules: ['Comision por ventas originadas', 'Caso de exito publicable', 'Gobernanza formal', 'Data y atribucion completa'],
+        next: ['Caso de exito COPIM', 'Pipeline otros consejos', 'Canal DCC', 'Expansion nacional']
+      }
+    };
+
+    const tierRates = [
+      { min: 0, name: 'Exploracion', addons: 0.02, marketplace: 0.05, network: 0 },
+      { min: 25000, name: 'Base', addons: 0.05, marketplace: 0.08, network: 0.01 },
+      { min: 50000, name: 'Growth', addons: 0.08, marketplace: 0.10, network: 0.02 },
+      { min: 75000, name: 'Lider', addons: 0.12, marketplace: 0.12, network: 0.03 },
+      { min: 120000, name: 'Premium', addons: 0.15, marketplace: 0.15, network: 0.05 }
+    ];
+
+    const costModel = {
+      core: { roviSetup: 0.42, roviOpsQ: 18000, copimActivation: 0.18, copimOpsQ: 10000 },
+      community: { roviSetup: 0.48, roviOpsQ: 28000, copimActivation: 0.22, copimOpsQ: 18000 },
+      full: { roviSetup: 0.55, roviOpsQ: 42000, copimActivation: 0.25, copimOpsQ: 25000 },
+      dcc: { roviSetup: 0.52, roviOpsQ: 36000, copimActivation: 0.15, copimOpsQ: 14000 }
+    };
+
+    const exclusivityCost = {
+      none: { roviSetup: 0, roviOpsQ: 0, copimOpsQ: 0 },
+      conditional: { roviSetup: 0.06, roviOpsQ: 8000, copimOpsQ: 5000 },
+      premium: { roviSetup: 0.10, roviOpsQ: 14000, copimOpsQ: 9000 }
+    };
+
+    const economicImpact = {
+      vision: {
+        institutional: { members: 0.70, gmv: 0.30, crowd: 0.25, strategicQ: 5000, score: -4 },
+        community: { members: 1.10, gmv: 1.30, crowd: 1.15, strategicQ: 18000, score: 8 },
+        monopoly: { members: 0.95, gmv: 0.85, crowd: 0.80, strategicQ: 35000, score: 6 },
+        ecosystem: { members: 1.20, gmv: 1.65, crowd: 1.35, strategicQ: 60000, score: 12 }
+      },
+      scope: {
+        core: { members: 0.80, gmv: 0.35, crowd: 0.35, strategicQ: 0, score: -3 },
+        community: { members: 1.05, gmv: 1.10, crowd: 1.10, strategicQ: 15000, score: 6 },
+        full: { members: 1.18, gmv: 1.35, crowd: 1.25, strategicQ: 28000, score: 10 },
+        dcc: { members: 0.90, gmv: 0.85, crowd: 0.75, strategicQ: 52000, score: 8 }
+      },
+      exclusivity: {
+        none: { members: 1.00, gmv: 1.00, crowd: 1.00, strategicQ: 0, score: 0, risk: 0 },
+        conditional: { members: 1.08, gmv: 1.04, crowd: 1.04, strategicQ: 25000, score: 5, risk: 5 },
+        premium: { members: 1.15, gmv: 1.08, crowd: 1.08, strategicQ: 60000, score: 8, risk: 12 }
+      }
+    };
+
+    function combineImpact(vision, scope, exclusivity) {
+      const a = economicImpact.vision[vision];
+      const b = economicImpact.scope[scope];
+      const c = economicImpact.exclusivity[exclusivity];
+      return {
+        members: a.members * b.members * c.members,
+        gmv: a.gmv * b.gmv * c.gmv,
+        crowd: a.crowd * b.crowd * c.crowd,
+        strategicQ: a.strategicQ + b.strategicQ + c.strategicQ,
+        score: a.score + b.score + c.score - c.risk
+      };
+    }
+
+    const controls = {
+      investment: document.getElementById('investment'),
+      investmentNumber: document.getElementById('investmentNumber'),
+      okr: document.getElementById('okr'),
+      adoption: document.getElementById('adoption'),
+      community: document.getElementById('community'),
+      conversion: document.getElementById('conversion'),
+      ticket: document.getElementById('ticket'),
+      gmv: document.getElementById('gmv'),
+      crowd: document.getElementById('crowd')
+    };
+
+    function setScreen(screen) {
+      document.querySelectorAll('.screen-tab').forEach((button) => {
+        button.classList.toggle('active', button.dataset.screen === screen);
+      });
+
+      const showAll = screen === 'all';
+      document.getElementById('escenario').classList.toggle('is-hidden', !showAll && screen !== 'escenario');
+      document.getElementById('proyeccion').classList.toggle('is-hidden', !showAll && screen !== 'proyeccion');
+    }
+
+    function readInvestment() {
+      const value = Number(controls.investmentNumber.value || controls.investment.value || 0);
+      return Math.max(0, value);
+    }
+
+    function syncInvestmentFromSlider() {
+      controls.investmentNumber.value = controls.investment.value;
+      update();
+    }
+
+    function syncInvestmentFromNumber() {
+      const value = readInvestment();
+      const sliderMax = Number(controls.investment.max);
+      controls.investment.value = Math.min(sliderMax, value);
+      update();
+    }
+
+    function getRadio(name) {
+      return document.querySelector(`input[name="${name}"]:checked`).value;
+    }
+
+    function getTier(investment) {
+      return tierRates.reduce((selected, tier) => investment >= tier.min ? tier : selected, tierRates[0]);
+    }
+
+    function cap(value, max) {
+      return Math.min(max, value);
+    }
+
+    function getEffectiveRates(tier, investment) {
+      const capitalBoost = cap(0.75 + (investment / 240000), 1.25);
+      return {
+        boost: capitalBoost,
+        addons: cap(tier.addons * capitalBoost, 0.18),
+        marketplace: cap(tier.marketplace * capitalBoost, 0.18),
+        network: cap(tier.network * capitalBoost, 0.06)
+      };
+    }
+
+    function percent(value) {
+      return `${Math.round(value * 100)}%`;
+    }
+
+    function chooseScenario() {
+      const vision = getRadio('vision');
+      const scope = getRadio('scope');
+      const exclusivity = getRadio('exclusivity');
+      const investment = readInvestment();
+      const scores = { base: 0, community: 0, monopoly: 0, ecosystem: 0 };
+
+      if (vision === 'institutional') scores.base += 4;
+      if (vision === 'community') scores.community += 4;
+      if (vision === 'monopoly') scores.monopoly += 4;
+      if (vision === 'ecosystem') scores.ecosystem += 4;
+
+      if (scope === 'core') scores.base += 3;
+      if (scope === 'community') scores.community += 3;
+      if (scope === 'full') {
+        scores.community += 2;
+        scores.ecosystem += 2;
+      }
+      if (scope === 'dcc') scores.ecosystem += 3;
+
+      if (exclusivity === 'none') {
+        scores.base += 1;
+        scores.ecosystem += 1;
+      }
+      if (exclusivity === 'conditional') scores.monopoly += 3;
+      if (exclusivity === 'premium') scores.monopoly += 4;
+
+      if (investment < 30000) scores.base += 2;
+      if (investment >= 50000 && investment < 75000) scores.community += 2;
+      if (investment >= 75000 && investment < 120000) {
+        scores.community += 1;
+        scores.monopoly += 2;
+      }
+      if (investment >= 120000) {
+        scores.monopoly += 2;
+        scores.ecosystem += 3;
+      }
+
+      return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    function renderList(id, items) {
+      document.getElementById(id).innerHTML = items.map((item) => `<li>${item}</li>`).join('');
+    }
+
+    function update() {
+      const vision = getRadio('vision');
+      const scopeChoice = getRadio('scope');
+      const exclusivity = getRadio('exclusivity');
+      const investment = readInvestment();
+      const okr = Number(controls.okr.value);
+      const adoption = Number(controls.adoption.value);
+      const community = Number(controls.community.value);
+      const conversion = Number(controls.conversion.value) / 100;
+      const ticket = Number(controls.ticket.value);
+      const gmv = Number(controls.gmv.value);
+      const crowd = Number(controls.crowd.value);
+      const scenarioKey = chooseScenario();
+      const scenario = scenarios[scenarioKey];
+      const tier = getTier(investment);
+      const rates = getEffectiveRates(tier, investment);
+      const impact = combineImpact(vision, scopeChoice, exclusivity);
+      const performance = Math.min(1.25, Math.max(0.35, (okr / 100 * 0.55) + (adoption / 100 * 0.45)));
+      const paidMembers = community * conversion * impact.members;
+      const mrr = paidMembers * ticket;
+      const platformTake = 0.18;
+      const adjustedGmv = gmv * impact.gmv;
+      const adjustedCrowd = crowd * impact.crowd;
+      const membershipRevenueQ = mrr * 3;
+      const marketplacePlatformQ = adjustedGmv * platformTake;
+      const sponsorPoolQ = adjustedCrowd * 0.25;
+      const strategicPlatformQ = impact.strategicQ * 0.18;
+      const marioAddonsQ = membershipRevenueQ * rates.addons * performance;
+      const marioMarketplaceQ = marketplacePlatformQ * rates.marketplace * performance;
+      const marioSponsorsQ = sponsorPoolQ * rates.marketplace * performance;
+      const marioNetworkQ = marketplacePlatformQ * rates.network * performance;
+      const marioStrategicQ = strategicPlatformQ * rates.marketplace * performance;
+      const marioQuarter = marioAddonsQ + marioMarketplaceQ + marioSponsorsQ + marioNetworkQ + marioStrategicQ;
+      const marioMonthly = marioQuarter / 3;
+      const annual = marioQuarter * 4;
+      const roi = investment === 0 ? 0 : ((annual - investment) / investment) * 100;
+      const payback = investment === 0 ? 0 : investment / Math.max(marioMonthly, 1);
+      const score = Math.max(0, Math.min(100, Math.round((okr * 0.35) + (adoption * 0.30) + (conversion * 100 * 0.18) + (investment / 5000) + impact.score)));
+      const scopeCosts = costModel[scopeChoice];
+      const exclusivityCosts = exclusivityCost[exclusivity];
+      const roviSetupCost = investment * (scopeCosts.roviSetup + exclusivityCosts.roviSetup);
+      const roviCostsQ = roviSetupCost + scopeCosts.roviOpsQ + exclusivityCosts.roviOpsQ;
+      const copimActivationCost = investment * scopeCosts.copimActivation;
+      const copimCostsQ = copimActivationCost + scopeCosts.copimOpsQ + exclusivityCosts.copimOpsQ;
+      const roviMembershipTakeQ = membershipRevenueQ * 0.18;
+      const roviMarketplaceTakeQ = marketplacePlatformQ;
+      const roviSponsorTakeQ = sponsorPoolQ;
+      const roviStrategicTakeQ = strategicPlatformQ;
+      const roviPlatformRevenueQ = roviMembershipTakeQ + roviMarketplaceTakeQ + roviSponsorTakeQ + roviStrategicTakeQ;
+      const roviGrossTakeQ = investment + roviPlatformRevenueQ - marioQuarter;
+      const copimSponsorTakeQ = adjustedCrowd * 0.50;
+      const copimMembershipTakeQ = membershipRevenueQ * 0.10;
+      const copimGrossTakeQ = copimSponsorTakeQ + copimMembershipTakeQ;
+      const grossGeneratedQ = investment + membershipRevenueQ + adjustedGmv + adjustedCrowd + impact.strategicQ;
+      const roviNetQ = roviGrossTakeQ - roviCostsQ;
+      const copimFundQ = copimGrossTakeQ - copimCostsQ;
+
+      document.getElementById('scenarioTitle').textContent = scenario.title;
+      document.getElementById('scenarioSummary').textContent = scenario.summary;
+      document.getElementById('scenarioPill').textContent = `${scenario.pill} · ${tier.name}`;
+      document.getElementById('investmentBox').textContent = money.format(investment);
+      document.getElementById('roiBox').textContent = `${Math.round(roi)}%`;
+      document.getElementById('paybackBox').textContent = `${payback.toFixed(1)}m`;
+      document.getElementById('scoreBox').textContent = `${score}/100`;
+      document.getElementById('grossMiniBox').textContent = money.format(grossGeneratedQ);
+      document.getElementById('roviMiniTakeBox').textContent = money.format(roviGrossTakeQ);
+      document.getElementById('copimMiniTakeBox').textContent = money.format(copimGrossTakeQ);
+      document.getElementById('marioMiniTakeBox').textContent = money.format(marioQuarter);
+      renderList('scopeList', scenario.scope);
+      renderList('rulesList', scenario.rules);
+      renderList('nextList', scenario.next);
+
+      document.getElementById('investmentOut').textContent = money.format(investment);
+      controls.investment.value = Math.min(Number(controls.investment.max), investment);
+      controls.investmentNumber.value = investment;
+      document.getElementById('okrOut').textContent = `${okr}%`;
+      document.getElementById('adoptionOut').textContent = `${adoption}%`;
+      document.getElementById('communityOut').textContent = Math.round(community).toLocaleString('es-MX');
+      document.getElementById('conversionOut').textContent = `${Math.round(conversion * 100)}%`;
+      document.getElementById('ticketOut').textContent = money.format(ticket);
+      document.getElementById('gmvOut').textContent = money.format(gmv);
+      document.getElementById('crowdOut').textContent = money.format(crowd);
+      document.getElementById('paidMembersBox').textContent = Math.round(paidMembers).toLocaleString('es-MX');
+      document.getElementById('mrrBox').textContent = money.format(mrr);
+      document.getElementById('monthlyBox').textContent = money.format(marioMonthly);
+      document.getElementById('annualBox').textContent = money.format(annual);
+      document.getElementById('commissionTierBox').textContent = tier.name;
+      document.getElementById('commissionRatesBox').textContent = `${percent(rates.addons)} / ${percent(rates.marketplace)} / ${percent(rates.network)}`;
+      document.getElementById('quarterlyBox').textContent = money.format(marioQuarter);
+      document.getElementById('capitalBoostBox').textContent = `${rates.boost.toFixed(2)}x`;
+      document.getElementById('roviCostsBox').textContent = money.format(roviCostsQ);
+      document.getElementById('copimCostsBox').textContent = money.format(copimCostsQ);
+      document.getElementById('roviNetBox').textContent = money.format(roviNetQ);
+      document.getElementById('copimFundBox').textContent = money.format(copimFundQ);
+      document.getElementById('grossBox').textContent = money.format(grossGeneratedQ);
+      document.getElementById('roviTakeBox').textContent = money.format(roviGrossTakeQ);
+      document.getElementById('copimTakeBox').textContent = money.format(copimGrossTakeQ);
+      document.getElementById('marioTakeBox').textContent = money.format(marioQuarter);
+      renderList('roviBreakdown', [
+        `Aporte implementacion que recibe ROVI: ${money.format(investment)}`,
+        `Membresias / SaaS para ROVI: ${money.format(roviMembershipTakeQ)}`,
+        `Marketplace y add-ons para ROVI: ${money.format(roviMarketplaceTakeQ)}`,
+        `Sponsors / crowdfunding para ROVI: ${money.format(roviSponsorTakeQ)}`,
+        `Venta estrategica para ROVI: ${money.format(roviStrategicTakeQ)}`,
+        `Comision pagada a Mario/CCIB: -${money.format(marioQuarter)}`,
+        `Costos ROVI Q1: -${money.format(roviCostsQ)}`,
+        `Neto ROVI Q1: ${money.format(roviNetQ)}`
+      ]);
+      renderList('copimBreakdown', [
+        `Sponsors / crowdfunding para COPIM: ${money.format(copimSponsorTakeQ)}`,
+        `Participacion de membresias COPIM: ${money.format(copimMembershipTakeQ)}`,
+        `Costos COPIM Q1: -${money.format(copimCostsQ)}`,
+        `Fondo neto COPIM Q1: ${money.format(copimFundQ)}`,
+        `Si el OKR no se cumple, el fee cubre el faltante antes de renovar exclusividad.`
+      ]);
+      renderList('marioBreakdown', [
+        `Add-ons / membresias originadas: ${money.format(marioAddonsQ)}`,
+        `Marketplace directo: ${money.format(marioMarketplaceQ)}`,
+        `Sponsors y ventas estrategicas: ${money.format(marioSponsorsQ + marioStrategicQ)}`,
+        `Override por red: ${money.format(marioNetworkQ)}`,
+        `Total Mario/CCIB Q1: ${money.format(marioQuarter)}`
+      ]);
+      document.getElementById('calcStatus').textContent = `Actualizado: ${scenario.title} · ${tier.name} · ROVI recibe ${money.format(roviGrossTakeQ)} · COPIM recibe ${money.format(copimGrossTakeQ)} · Mario/CCIB recibe ${money.format(marioQuarter)}`;
+    }
+
+    document.querySelectorAll('.screen-tab').forEach((button) => {
+      button.addEventListener('click', () => setScreen(button.dataset.screen));
+    });
+    document.querySelectorAll('input[type="radio"]').forEach((input) => input.addEventListener('change', update));
+    controls.investment.addEventListener('input', syncInvestmentFromSlider);
+    controls.investment.addEventListener('change', syncInvestmentFromSlider);
+    controls.investmentNumber.addEventListener('input', syncInvestmentFromNumber);
+    controls.investmentNumber.addEventListener('change', syncInvestmentFromNumber);
+    Object.entries(controls).forEach(([key, input]) => {
+      if (key === 'investment' || key === 'investmentNumber') return;
+      input.addEventListener('input', update);
+      input.addEventListener('change', update);
+    });
+    document.getElementById('recalculateButton').addEventListener('click', update);
+    setScreen('escenario');
+    update();
+  </script>
+</body>
+</html>

@@ -80,7 +80,7 @@ async def get_leads_advanced_filters(
     """
     try:
         # Build query
-        query = {"tenant_id": tenant_id}
+        query = {"tenant_id": tenant_id, "deleted": {"$ne": True}}
 
         # Filtros de status (múltiples)
         if status:

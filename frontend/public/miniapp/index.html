@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ROVI Leads MiniApp</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">ROVI CRM</p>
+          <h1>Leads</h1>
+        </div>
+        <div class="top-actions">
+          <button id="refreshBtn" class="icon-btn" aria-label="Actualizar" title="Actualizar">↻</button>
+          <span id="tgStatus" class="status-chip">Telegram</span>
+        </div>
+      </header>
+
+      <section class="connection-strip">
+        <div>
+          <strong id="syncTitle">Modo local</strong>
+          <p id="crmStatus">Abre desde Telegram vinculado para conectar ROVI CRM.</p>
+        </div>
+        <button id="importBtn" class="soft-btn">Importar</button>
+      </section>
+
+      <section id="linkAccountPanel" class="panel link-panel hidden">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Cuenta ROVI</p>
+            <h2>Conectar con Telegram</h2>
+          </div>
+          <span class="safe-pill">Una cuenta</span>
+        </div>
+        <form id="linkAccountForm" class="link-form">
+          <input id="linkEmail" type="email" autocomplete="email" placeholder="Email de ROVI CRM" required />
+          <input id="linkPassword" type="password" autocomplete="current-password" placeholder="Password" required />
+          <button id="linkAccountBtn" class="primary-btn" type="submit">Conectar cuenta</button>
+        </form>
+        <p id="linkHelp" class="form-help">Al conectar, este Telegram, la MiniApp y Hermes usarán la misma cuenta ROVI.</p>
+      </section>
+
+      <section id="viewHome" class="view active">
+        <section class="metric-grid" aria-label="Resumen">
+          <article class="metric-card primary">
+            <span id="statOpen">0</span>
+            <small>Abiertos</small>
+          </article>
+          <article class="metric-card">
+            <span id="statHot">0</span>
+            <small>Prioridad</small>
+          </article>
+          <article class="metric-card">
+            <span id="statTasks">0</span>
+            <small>Tareas</small>
+          </article>
+          <article class="metric-card">
+            <span id="statToday">0</span>
+            <small>Hoy</small>
+          </article>
+        </section>
+
+        <section class="focus-card">
+          <div>
+            <p class="section-kicker">Siguiente mejor acción</p>
+            <h2 id="nowAction">Captura un lead o actualiza para ver prioridades.</h2>
+          </div>
+          <button id="quickCaptureBtn" class="primary-btn">Capturar</button>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">Pipeline</p>
+              <h2>Vista rápida</h2>
+            </div>
+            <button class="text-btn" data-go="Pipeline">Ver tablero</button>
+          </div>
+          <div id="pipelineSummary" class="pipeline-summary"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">Agenda</p>
+              <h2>Próximos eventos</h2>
+            </div>
+            <button id="addEventBtn" class="soft-btn">Nuevo</button>
+          </div>
+          <div id="homeAgendaList" class="stack-list"></div>
+        </section>
+      </section>
+
+      <section id="viewPipeline" class="view">
+        <div class="section-head sticky-section">
+          <div>
+            <p class="section-kicker">Pipeline visual</p>
+            <h2>Arrastra mentalmente, avanza con un toque</h2>
+          </div>
+          <button id="refreshPipelineBtn" class="soft-btn">Actualizar</button>
+        </div>
+        <div id="pipelineBoard" class="pipeline-board"></div>
+      </section>
+
+      <section id="viewLeads" class="view">
+        <div class="toolbar">
+          <input id="searchLeads" class="search-input" placeholder="Buscar nombre, zona, teléfono..." />
+          <select id="leadStatusFilter" class="select-input">
+            <option value="">Todos</option>
+            <option value="nuevo">Nuevo</option>
+            <option value="contactado">Contactado</option>
+            <option value="calificacion">Calificación</option>
+            <option value="presentacion">Presentación</option>
+            <option value="apartado">Apartado</option>
+            <option value="venta">Venta</option>
+            <option value="perdido">Perdido</option>
+          </select>
+        </div>
+        <div id="leadsList" class="stack-list lead-stack"></div>
+      </section>
+
+      <section id="viewCalendar" class="view">
+        <div class="section-head sticky-section">
+          <div>
+            <p class="section-kicker">Calendario</p>
+            <h2>Seguimientos y visitas</h2>
+          </div>
+          <button id="calendarEventBtn" class="soft-btn">Nuevo</button>
+        </div>
+        <div id="calendarList" class="timeline-list"></div>
+      </section>
+
+      <section id="viewCapture" class="view">
+        <section class="panel capture-panel">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">Captura rápida</p>
+              <h2>Texto de WhatsApp o Telegram</h2>
+            </div>
+            <span class="safe-pill">Seguro</span>
+          </div>
+          <textarea id="captureText" rows="8" placeholder="Ej. Cliente Ana busca renta en Playa del Carmen, 2 recámaras, presupuesto 45k, entrada en junio, quiere visitar esta semana..."></textarea>
+          <div class="button-row">
+            <button id="createLeadBtn" class="primary-btn">Crear lead</button>
+            <button id="analyzeBtn" class="soft-btn">Analizar</button>
+          </div>
+          <div id="analysisBox" class="analysis-box">El análisis de Hermes aparecerá aquí antes de guardar.</div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">Candidatos</p>
+              <h2>Datos de leads/processed</h2>
+            </div>
+            <button id="importCandidatesBtn" class="soft-btn">Importar</button>
+          </div>
+          <div id="candidateList" class="stack-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navegación principal">
+      <button class="nav-item active" data-view="Home"><span>⌂</span><small>Inicio</small></button>
+      <button class="nav-item" data-view="Pipeline"><span>▥</span><small>Pipeline</small></button>
+      <button class="nav-item" data-view="Leads"><span>☰</span><small>Leads</small></button>
+      <button class="nav-item" data-view="Calendar"><span>◷</span><small>Agenda</small></button>
+      <button class="nav-item" data-view="Capture"><span>＋</span><small>Captura</small></button>
+    </nav>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

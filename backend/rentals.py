@@ -34,6 +34,12 @@ from models import (
     MediaAsset,
     RentalOwner,
     RentalOwnerCreate,
+    RentalPipeline,
+    RentalPipelineCreate,
+    RentalPipelineStage,
+    RentalPipelineStageCreate,
+    RentalPipelineStageUpdate,
+    RentalPipelineUpdate,
     RentalProperty,
     RentalPropertyCreate,
     RentalPropertyStatus,
@@ -213,6 +219,64 @@ DEMO_CHANNEL_INTEGRATIONS: list[dict[str, Any]] = [
         "description": "Demo para centralizar disponibilidad desde Guesty, Hospitable, Smoobu o iCal.",
         "capabilities": ["iCal", "Disponibilidad", "Bloqueos", "Propiedades"],
         "demo_notes": "Mock multi-canal para futuras integraciones reales.",
+    },
+]
+
+DEFAULT_BOOKING_PIPELINE_STAGES: list[dict[str, Any]] = [
+    {
+        "name": "Solicitud recibida",
+        "description": "Lead o huésped pregunta disponibilidad, precio o condiciones.",
+        "booking_status": BookingStatus.INQUIRY.value,
+        "color": "#0EA5E9",
+        "probability": 10,
+        "sort_order": 10,
+        "automation_notes": "Enviar disponibilidad, reglas de casa y condiciones de apartado.",
+    },
+    {
+        "name": "Apartada",
+        "description": "Fechas separadas, pendiente de confirmación final o anticipo.",
+        "booking_status": BookingStatus.RESERVED.value,
+        "color": "#F59E0B",
+        "probability": 35,
+        "sort_order": 20,
+        "automation_notes": "Solicitar anticipo, documento y hora estimada de llegada.",
+    },
+    {
+        "name": "Confirmada",
+        "description": "Reserva validada con pago, datos de huésped y condiciones aceptadas.",
+        "booking_status": BookingStatus.CONFIRMED.value,
+        "color": "#14B8A6",
+        "probability": 70,
+        "sort_order": 30,
+        "automation_notes": "Crear tareas de limpieza/check-in y enviar instrucciones previas.",
+    },
+    {
+        "name": "En estancia",
+        "description": "Huésped dentro de la propiedad; seguimiento operativo activo.",
+        "booking_status": BookingStatus.CHECKED_IN.value,
+        "color": "#6366F1",
+        "probability": 90,
+        "sort_order": 40,
+        "automation_notes": "Monitorear incidencias, amenidades, upsells y satisfacción.",
+    },
+    {
+        "name": "Check-out / cierre",
+        "description": "Salida terminada, revisión, cobranza final y solicitud de reseña.",
+        "booking_status": BookingStatus.CHECKED_OUT.value,
+        "color": "#22C55E",
+        "probability": 100,
+        "sort_order": 50,
+        "is_closing_stage": True,
+        "automation_notes": "Crear inspección, cerrar caja, liberar depósito y pedir reseña.",
+    },
+    {
+        "name": "Cancelada",
+        "description": "Reserva perdida o cancelada; útil para medir causas y recuperación.",
+        "booking_status": BookingStatus.CANCELLED.value,
+        "color": "#EF4444",
+        "probability": 0,
+        "sort_order": 60,
+        "automation_notes": "Registrar motivo, política aplicada y oportunidad de rebooking.",
     },
 ]
 
@@ -543,6 +607,174 @@ async def get_property_or_404(db: AsyncIOMotorDatabase, tenant_id: str, property
     if not rental_property:
         raise HTTPException(status_code=404, detail="Propiedad de renta no encontrada")
     return rental_property
+
+
+async def ensure_default_booking_pipeline(db: AsyncIOMotorDatabase, tenant_id: str, user_id: str) -> dict:
+    existing = await db.rental_pipelines.find_one(
+        {"tenant_id": tenant_id, "entity_type": "booking", "status": {"$ne": "archived"}},
+        {"_id": 0},
+        sort=[("is_default", -1), ("created_at", 1)],
+    )
+    if existing:
+        stage_count = await db.rental_pipeline_stages.count_documents({
+            "tenant_id": tenant_id,
+            "pipeline_id": existing["id"],
+        })
+        if stage_count:
+            return existing
+
+    pipeline = RentalPipeline(
+        tenant_id=tenant_id,
+        created_by=user_id,
+        name="Reservas de propiedades",
+        description="Pipeline operativo para transformar solicitudes en check-in, estancia, check-out y cierre.",
+        entity_type="booking",
+        status="active",
+        is_default=True,
+    )
+    await db.rental_pipelines.insert_one(pipeline.model_dump())
+    stages = [
+        RentalPipelineStage(
+            tenant_id=tenant_id,
+            created_by=user_id,
+            pipeline_id=pipeline.id,
+            **stage_data,
+        ).model_dump()
+        for stage_data in DEFAULT_BOOKING_PIPELINE_STAGES
+    ]
+    await db.rental_pipeline_stages.insert_many(stages)
+    return pipeline.model_dump()
+
+
+async def get_pipeline_or_404(db: AsyncIOMotorDatabase, tenant_id: str, pipeline_id: str) -> dict:
+    pipeline = await db.rental_pipelines.find_one(
+        {"id": pipeline_id, "tenant_id": tenant_id, "status": {"$ne": "archived"}},
+        {"_id": 0},
+    )
+    if not pipeline:
+        raise HTTPException(status_code=404, detail="Pipeline de rentas no encontrado")
+    return pipeline
+
+
+async def get_stage_or_404(db: AsyncIOMotorDatabase, tenant_id: str, stage_id: str) -> dict:
+    stage = await db.rental_pipeline_stages.find_one(
+        {"id": stage_id, "tenant_id": tenant_id},
+        {"_id": 0},
+    )
+    if not stage:
+        raise HTTPException(status_code=404, detail="Stage de pipeline no encontrado")
+    return stage
+
+
+async def build_pipeline_board(db: AsyncIOMotorDatabase, tenant_id: str, pipeline_id: str) -> dict:
+    pipeline = await get_pipeline_or_404(db, tenant_id, pipeline_id)
+    stages = await db.rental_pipeline_stages.find(
+        {"tenant_id": tenant_id, "pipeline_id": pipeline_id},
+        {"_id": 0},
+    ).sort("sort_order", 1).to_list(100)
+
+    bookings = await db.rental_bookings.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0},
+    ).sort("check_in", 1).to_list(500)
+    property_ids = list({booking.get("property_id") for booking in bookings if booking.get("property_id")})
+    properties = await db.rental_properties.find(
+        {"tenant_id": tenant_id, "id": {"$in": property_ids}},
+        {"_id": 0, "id": 1, "title": 1, "zone": 1, "address": 1, "images": 1},
+    ).to_list(None)
+    property_lookup = {item["id"]: item for item in properties}
+
+    stage_by_id = {stage["id"]: stage for stage in stages}
+    status_stage_lookup = {
+        stage.get("booking_status"): stage
+        for stage in stages
+        if stage.get("booking_status")
+    }
+    fallback_stage = stages[0] if stages else None
+    board_stages = []
+    stage_metrics: dict[str, dict[str, Any]] = {}
+
+    for stage in stages:
+        stage_metrics[stage["id"]] = {
+            "bookings": [],
+            "bookings_count": 0,
+            "revenue_mxn": 0.0,
+            "paid_mxn": 0.0,
+            "balance_due_mxn": 0.0,
+            "nights": 0,
+            "properties": [],
+            "properties_count": 0,
+            "nightly_potential_mxn": 0.0,
+            "monthly_potential_mxn": 0.0,
+        }
+
+    for booking in bookings:
+        explicit_stage = stage_by_id.get(booking.get("stage_id")) if booking.get("pipeline_id") == pipeline_id else None
+        mapped_stage = explicit_stage or status_stage_lookup.get(booking.get("status")) or fallback_stage
+        if not mapped_stage:
+            continue
+
+        metrics = stage_metrics[mapped_stage["id"]]
+        metrics["bookings_count"] += 1
+        metrics["revenue_mxn"] += float(booking.get("total_amount_mxn") or 0)
+        metrics["paid_mxn"] += float(booking.get("paid_amount_mxn") or 0)
+        metrics["balance_due_mxn"] += float(booking.get("balance_due_mxn") or 0)
+        metrics["nights"] += int(booking.get("nights") or 0)
+
+        if len(metrics["bookings"]) < 12:
+            rental_property = property_lookup.get(booking.get("property_id"))
+            metrics["bookings"].append({
+                **serialize_doc(booking),
+                "property": serialize_doc(rental_property),
+            })
+
+    rental_properties = await db.rental_properties.find(
+        {"tenant_id": tenant_id, "status": {"$ne": RentalPropertyStatus.ARCHIVED.value}},
+        {"_id": 0},
+    ).sort("updated_at", -1).to_list(500)
+
+    for rental_property in rental_properties:
+        explicit_stage = stage_by_id.get(rental_property.get("stage_id")) if rental_property.get("pipeline_id") == pipeline_id else None
+        mapped_stage = explicit_stage or fallback_stage
+        if not mapped_stage:
+            continue
+
+        metrics = stage_metrics[mapped_stage["id"]]
+        metrics["properties_count"] += 1
+        metrics["nightly_potential_mxn"] += float(rental_property.get("nightly_price_mxn") or 0)
+        metrics["monthly_potential_mxn"] += float(rental_property.get("monthly_price_mxn") or 0)
+        metrics["properties"].append(serialize_doc(rental_property))
+
+    for stage in stages:
+        metrics = stage_metrics.get(stage["id"], {})
+        board_stages.append({
+            **serialize_doc(stage),
+            "bookings": metrics.get("bookings", []),
+            "bookings_count": metrics.get("bookings_count", 0),
+            "revenue_mxn": round(metrics.get("revenue_mxn", 0), 2),
+            "paid_mxn": round(metrics.get("paid_mxn", 0), 2),
+            "balance_due_mxn": round(metrics.get("balance_due_mxn", 0), 2),
+            "nights": metrics.get("nights", 0),
+            "properties": metrics.get("properties", []),
+            "properties_count": metrics.get("properties_count", 0),
+            "nightly_potential_mxn": round(metrics.get("nightly_potential_mxn", 0), 2),
+            "monthly_potential_mxn": round(metrics.get("monthly_potential_mxn", 0), 2),
+        })
+
+    return {
+        "pipeline": serialize_doc(pipeline),
+        "stages": board_stages,
+        "summary": {
+            "stages_count": len(stages),
+            "bookings_count": sum(stage["bookings_count"] for stage in board_stages),
+            "revenue_mxn": round(sum(stage["revenue_mxn"] for stage in board_stages), 2),
+            "paid_mxn": round(sum(stage["paid_mxn"] for stage in board_stages), 2),
+            "balance_due_mxn": round(sum(stage["balance_due_mxn"] for stage in board_stages), 2),
+            "properties_count": sum(stage["properties_count"] for stage in board_stages),
+            "nightly_potential_mxn": round(sum(stage["nightly_potential_mxn"] for stage in board_stages), 2),
+            "monthly_potential_mxn": round(sum(stage["monthly_potential_mxn"] for stage in board_stages), 2),
+        },
+    }
 
 
 async def attach_booking_context(db: AsyncIOMotorDatabase, tenant_id: str, bookings: list[dict]) -> list[dict]:
@@ -1084,6 +1316,157 @@ def create_rentals_router(db: AsyncIOMotorDatabase) -> APIRouter:
             "created": created,
             "summary": integration_summary(updated_channels),
         }
+
+    @router.get("/pipelines")
+    async def list_rental_pipelines(current_user: dict = Depends(get_current_user)):
+        tenant_id = resolve_tenant_id(current_user)
+        await ensure_default_booking_pipeline(db, tenant_id, current_user["user_id"])
+        pipelines = await db.rental_pipelines.find(
+            {"tenant_id": tenant_id, "status": {"$ne": "archived"}},
+            {"_id": 0},
+        ).sort([("is_default", -1), ("created_at", 1)]).to_list(100)
+        pipeline_ids = [pipeline["id"] for pipeline in pipelines]
+        stages = await db.rental_pipeline_stages.find(
+            {"tenant_id": tenant_id, "pipeline_id": {"$in": pipeline_ids}},
+            {"_id": 0},
+        ).sort("sort_order", 1).to_list(300)
+        stages_by_pipeline: dict[str, list[dict]] = {}
+        for stage in stages:
+            stages_by_pipeline.setdefault(stage["pipeline_id"], []).append(serialize_doc(stage))
+
+        return [
+            {
+                **serialize_doc(pipeline),
+                "stages": stages_by_pipeline.get(pipeline["id"], []),
+                "stages_count": len(stages_by_pipeline.get(pipeline["id"], [])),
+            }
+            for pipeline in pipelines
+        ]
+
+    @router.post("/pipelines")
+    async def create_rental_pipeline(
+        pipeline_data: RentalPipelineCreate,
+        current_user: dict = Depends(get_current_user),
+    ):
+        tenant_id = resolve_tenant_id(current_user)
+        if pipeline_data.is_default:
+            await db.rental_pipelines.update_many(
+                {"tenant_id": tenant_id, "entity_type": pipeline_data.entity_type},
+                {"$set": {"is_default": False, "updated_at": now_utc()}},
+            )
+        pipeline = RentalPipeline(
+            tenant_id=tenant_id,
+            created_by=current_user["user_id"],
+            **pipeline_data.model_dump(),
+        )
+        await db.rental_pipelines.insert_one(pipeline.model_dump())
+        return {"message": "Pipeline creado", "id": pipeline.id}
+
+    @router.get("/pipelines/{pipeline_id}/board")
+    async def get_rental_pipeline_board(pipeline_id: str, current_user: dict = Depends(get_current_user)):
+        tenant_id = resolve_tenant_id(current_user)
+        return await build_pipeline_board(db, tenant_id, pipeline_id)
+
+    @router.put("/pipelines/{pipeline_id}")
+    async def update_rental_pipeline(
+        pipeline_id: str,
+        pipeline_data: RentalPipelineUpdate,
+        current_user: dict = Depends(get_current_user),
+    ):
+        tenant_id = resolve_tenant_id(current_user)
+        existing = await get_pipeline_or_404(db, tenant_id, pipeline_id)
+        update = pipeline_data.model_dump(exclude_unset=True)
+        if not update:
+            raise HTTPException(status_code=400, detail="No se proporcionaron campos para actualizar")
+        if update.get("is_default"):
+            await db.rental_pipelines.update_many(
+                {"tenant_id": tenant_id, "entity_type": update.get("entity_type") or existing.get("entity_type", "booking")},
+                {"$set": {"is_default": False, "updated_at": now_utc()}},
+            )
+        update["updated_at"] = now_utc()
+        await db.rental_pipelines.update_one({"id": pipeline_id, "tenant_id": tenant_id}, {"$set": update})
+        return {"message": "Pipeline actualizado"}
+
+    @router.delete("/pipelines/{pipeline_id}")
+    async def archive_rental_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
+        tenant_id = resolve_tenant_id(current_user)
+        pipeline = await get_pipeline_or_404(db, tenant_id, pipeline_id)
+        if pipeline.get("is_default"):
+            raise HTTPException(status_code=400, detail="No se puede archivar el pipeline default")
+        await db.rental_pipelines.update_one(
+            {"id": pipeline_id, "tenant_id": tenant_id},
+            {"$set": {"status": "archived", "updated_at": now_utc()}},
+        )
+        await db.rental_bookings.update_many(
+            {"tenant_id": tenant_id, "pipeline_id": pipeline_id},
+            {"$set": {"pipeline_id": None, "stage_id": None, "updated_at": now_utc()}},
+        )
+        await db.rental_properties.update_many(
+            {"tenant_id": tenant_id, "pipeline_id": pipeline_id},
+            {"$set": {"pipeline_id": None, "stage_id": None, "updated_at": now_utc()}},
+        )
+        return {"message": "Pipeline archivado"}
+
+    @router.post("/pipelines/{pipeline_id}/stages")
+    async def create_rental_pipeline_stage(
+        pipeline_id: str,
+        stage_data: RentalPipelineStageCreate,
+        current_user: dict = Depends(get_current_user),
+    ):
+        tenant_id = resolve_tenant_id(current_user)
+        await get_pipeline_or_404(db, tenant_id, pipeline_id)
+        payload = stage_data.model_dump()
+        if payload.get("sort_order") is None:
+            last_stage = await db.rental_pipeline_stages.find_one(
+                {"tenant_id": tenant_id, "pipeline_id": pipeline_id},
+                {"_id": 0, "sort_order": 1},
+                sort=[("sort_order", -1)],
+            )
+            payload["sort_order"] = int((last_stage or {}).get("sort_order") or 0) + 10
+        stage = RentalPipelineStage(
+            tenant_id=tenant_id,
+            created_by=current_user["user_id"],
+            pipeline_id=pipeline_id,
+            **payload,
+        )
+        await db.rental_pipeline_stages.insert_one(stage.model_dump())
+        return {"message": "Stage creado", "id": stage.id}
+
+    @router.put("/pipeline-stages/{stage_id}")
+    async def update_rental_pipeline_stage(
+        stage_id: str,
+        stage_data: RentalPipelineStageUpdate,
+        current_user: dict = Depends(get_current_user),
+    ):
+        tenant_id = resolve_tenant_id(current_user)
+        await get_stage_or_404(db, tenant_id, stage_id)
+        update = stage_data.model_dump(exclude_unset=True)
+        if not update:
+            raise HTTPException(status_code=400, detail="No se proporcionaron campos para actualizar")
+        update["updated_at"] = now_utc()
+        await db.rental_pipeline_stages.update_one({"id": stage_id, "tenant_id": tenant_id}, {"$set": update})
+        return {"message": "Stage actualizado"}
+
+    @router.delete("/pipeline-stages/{stage_id}")
+    async def delete_rental_pipeline_stage(stage_id: str, current_user: dict = Depends(get_current_user)):
+        tenant_id = resolve_tenant_id(current_user)
+        stage = await get_stage_or_404(db, tenant_id, stage_id)
+        stages_count = await db.rental_pipeline_stages.count_documents({
+            "tenant_id": tenant_id,
+            "pipeline_id": stage["pipeline_id"],
+        })
+        if stages_count <= 1:
+            raise HTTPException(status_code=400, detail="El pipeline debe conservar al menos un stage")
+        await db.rental_pipeline_stages.delete_one({"id": stage_id, "tenant_id": tenant_id})
+        await db.rental_bookings.update_many(
+            {"tenant_id": tenant_id, "stage_id": stage_id},
+            {"$set": {"stage_id": None, "updated_at": now_utc()}},
+        )
+        await db.rental_properties.update_many(
+            {"tenant_id": tenant_id, "stage_id": stage_id},
+            {"$set": {"stage_id": None, "updated_at": now_utc()}},
+        )
+        return {"message": "Stage eliminado"}
 
     @router.get("/properties")
     async def list_rental_properties(

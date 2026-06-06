@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROVI x COPIM | Framework de Comunidad</title>
+  <style>
+    :root {
+      --ink: #112033;
+      --muted: #637184;
+      --line: #d9e1ea;
+      --paper: #f6f9fc;
+      --surface: #ffffff;
+      --navy: #0f172a;
+      --teal: #0d9488;
+      --teal-dark: #0f766e;
+      --blue: #0b4f9c;
+      --green: #4d7c0f;
+      --amber: #d97706;
+      --purple: #7c3aed;
+      --red: #dc2626;
+      --shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, #effaf8 0%, #f8fafc 42%, #eef4ff 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid rgba(217, 225, 234, 0.9);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar-inner {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 950;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: #fff;
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      box-shadow: 0 10px 24px rgba(13, 148, 136, 0.22);
+      font-size: 13px;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 850;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+    }
+
+    .nav a:hover {
+      color: var(--ink);
+      background: #e7f6f3;
+    }
+
+    .page {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+
+    .hero {
+      min-height: 500px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+      gap: 18px;
+    }
+
+    .hero-main {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 42px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(13, 148, 136, 0.82)),
+        radial-gradient(circle at 76% 22%, rgba(20, 184, 166, 0.34), transparent 35%),
+        linear-gradient(120deg, #0f172a, #0b4f9c);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -20% 22%;
+      height: 270px;
+      opacity: 0.55;
+      transform: rotate(-7deg);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.11), transparent),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0 1px, transparent 1px 76px);
+    }
+
+    .hero-content,
+    .hero-metrics {
+      position: relative;
+      z-index: 2;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.86);
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 22px 0 14px;
+      max-width: 900px;
+      font-size: clamp(42px, 6vw, 76px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 760px;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 18px;
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .metric {
+      min-height: 104px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 30px;
+      line-height: 1.05;
+      font-weight: 950;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      padding: 22px;
+    }
+
+    .card h2,
+    .card h3,
+    .section-head h2 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .card p {
+      margin: 9px 0 0;
+      color: var(--muted);
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 9px;
+      border: 1px solid #cfe8e6;
+      border-radius: 999px;
+      color: var(--ink);
+      background: #eef7f7;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .tag.blue {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+    }
+
+    .tag.good {
+      border-color: #bbf7d0;
+      background: #ecfdf5;
+    }
+
+    .tag.warn {
+      border-color: #fed7aa;
+      background: #fff7ed;
+    }
+
+    .tag.purple {
+      border-color: #ddd6fe;
+      background: #f5f3ff;
+    }
+
+    section {
+      margin-top: 28px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 14px;
+    }
+
+    .section-head p {
+      margin: 8px 0 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .kicker {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .accent {
+      border-top: 5px solid var(--teal);
+    }
+
+    .accent.blue {
+      border-top-color: var(--blue);
+    }
+
+    .accent.amber {
+      border-top-color: var(--amber);
+    }
+
+    .accent.purple {
+      border-top-color: var(--purple);
+    }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .check-icon {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--teal);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .check strong {
+      display: block;
+    }
+
+    .check span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .canvas-map {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .pillar-menu {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pillar-button {
+      width: 100%;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+
+    .pillar-button:hover,
+    .pillar-button.active {
+      border-color: var(--teal);
+      box-shadow: 0 12px 28px rgba(13, 148, 136, 0.14);
+      transform: translateY(-1px);
+    }
+
+    .pillar-button strong,
+    .pillar-button span {
+      display: block;
+    }
+
+    .pillar-button span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .deal-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .deal-table th,
+    .deal-table td {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    .deal-table th {
+      color: var(--muted);
+      background: #f8fafc;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .deal-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .flow-step {
+      min-height: 180px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .step-num {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      border-radius: 999px;
+      background: var(--teal);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .flow-step h4 {
+      margin: 14px 0 8px;
+    }
+
+    .flow-step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .calc {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(320px, 0.55fr);
+      gap: 16px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .control {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .control label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .control output {
+      color: var(--ink);
+      font-weight: 950;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin-top: 14px;
+      accent-color: var(--teal);
+    }
+
+    .result-panel {
+      color: #fff;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--navy), var(--teal-dark));
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .result-panel h3 {
+      margin: 0 0 16px;
+    }
+
+    .result-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .result-item span {
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 13px;
+    }
+
+    .result-item strong {
+      font-size: 18px;
+      text-align: right;
+    }
+
+    .source {
+      margin-top: 28px;
+      padding: 18px;
+      border: 1px dashed #b8c5d4;
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.62);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .hero,
+      .canvas-map,
+      .calc {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-4,
+      .grid-3,
+      .flow {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar-inner,
+      .section-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav {
+        justify-content: flex-start;
+      }
+
+      .hero-main {
+        padding: 28px;
+      }
+
+      .hero-metrics,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .flow,
+      .control-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .deal-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">RV</div>
+        <span>ROVI x COPIM | Community OS</span>
+      </div>
+      <nav class="nav" aria-label="Secciones">
+        <a href="#framework">Framework</a>
+        <a href="#aplicacion">Aplicacion</a>
+        <a href="#rovi">ROVI</a>
+        <a href="#flywheel">Flywheel</a>
+        <a href="#calculadora">Calculadora</a>
+        <a href="#roadmap">Roadmap</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <div class="hero-main">
+        <div class="hero-content">
+          <span class="eyebrow">Community Canvas + ROVI CRM</span>
+          <h1>COPIM como comunidad operable, medible y monetizable.</h1>
+          <p>
+            El framework muestra que una comunidad sana no vive solo de miembros: necesita identidad,
+            experiencias repetibles y estructura financiera. ROVI puede convertirse en el sistema
+            operativo que conecta esas tres capas para COPIM.
+          </p>
+        </div>
+        <div class="hero-metrics">
+          <div class="metric"><strong>3</strong><span>capas del framework: identidad, experiencia, estructura</span></div>
+          <div class="metric"><strong>17</strong><span>temas para convertir comunidad en operacion</span></div>
+          <div class="metric"><strong>90d</strong><span>ruta MVC para validar valor, roles y monetizacion</span></div>
+        </div>
+      </div>
+
+      <aside class="hero-side">
+        <article class="card">
+          <h2>Hipotesis central</h2>
+          <p>
+            COPIM no necesita solo una intranet. Necesita una comunidad con membresia clara,
+            rituales de participacion, beneficios visibles, gobernanza, financiamiento y datos.
+          </p>
+          <div class="tag-row">
+            <span class="tag">pertenencia</span>
+            <span class="tag blue">rituales</span>
+            <span class="tag good">ingresos</span>
+            <span class="tag warn">datos</span>
+          </div>
+        </article>
+        <article class="card">
+          <h2>Rol de ROVI</h2>
+          <p>
+            ROVI traduce el Community Canvas a producto: CRM de miembros, marketplace, eventos,
+            crowdfunding, sponsors, IA, analitica, comisiones, OKRs y trazabilidad comercial.
+          </p>
+          <div class="tag-row">
+            <span class="tag good">operacion</span>
+            <span class="tag purple">marketplace</span>
+            <span class="tag blue">control tower</span>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <section id="framework">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Lectura del framework</span>
+          <h2>Las tres preguntas que ordenan COPIM</h2>
+          <p>
+            Community Canvas no entrega respuestas universales; da preguntas para disenar comunidades.
+            Al aplicarlo a COPIM, el objetivo es pasar de "asociacion con miembros" a "ecosistema con
+            identidad, experiencias y estructura financiera".
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <article class="card accent">
+          <h3>Identidad</h3>
+          <p>Quienes somos, para quien existimos, que valores defendemos, como definimos exito y como nos expresamos.</p>
+          <div class="checklist">
+            <div class="check"><div class="check-icon">1</div><div><strong>Proposito</strong><span>Profesionalizar y activar economicamente al sector inmobiliario formal.</span></div></div>
+            <div class="check"><div class="check-icon">2</div><div><strong>Miembro ideal</strong><span>Asociaciones, brokers, desarrolladores, certificadoras, sponsors y proveedores.</span></div></div>
+            <div class="check"><div class="check-icon">3</div><div><strong>Exito</strong><span>Adopcion, ingresos, cumplimiento, confianza, retencion y expansion territorial.</span></div></div>
+          </div>
+        </article>
+
+        <article class="card accent amber">
+          <h3>Experiencia</h3>
+          <p>Como se entra, que se vive, que rituales existen, que contenido aporta valor, que reglas protegen la cultura y que roles puede asumir cada miembro.</p>
+          <div class="checklist">
+            <div class="check"><div class="check-icon">1</div><div><strong>Onboarding</strong><span>Alta, validacion, perfil, beneficios, comunidad y primera accion en ROVI.</span></div></div>
+            <div class="check"><div class="check-icon">2</div><div><strong>Rituales</strong><span>Capacitacion semanal, demo day trimestral, rankings, sponsors y retos.</span></div></div>
+            <div class="check"><div class="check-icon">3</div><div><strong>Contenido</strong><span>Cursos, contratos, plantillas, playbooks, videos, eventos y skills de IA.</span></div></div>
+          </div>
+        </article>
+
+        <article class="card accent purple">
+          <h3>Estructura</h3>
+          <p>Quien opera, como se decide, como se financia, por donde se comunica y como se administran datos y comisiones.</p>
+          <div class="checklist">
+            <div class="check"><div class="check-icon">1</div><div><strong>Gobernanza</strong><span>Consejo, comite de comunidad, reglas de marketplace y reglas de exclusividad.</span></div></div>
+            <div class="check"><div class="check-icon">2</div><div><strong>Finanzas</strong><span>Membresias, eventos, sponsors, crowdfunding, add-ons, marketplace y referidos.</span></div></div>
+            <div class="check"><div class="check-icon">3</div><div><strong>Datos</strong><span>CRM de miembros, trazabilidad de origen, consentimientos, KPI y reportes.</span></div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="aplicacion">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Aplicacion a COPIM</span>
+          <h2>Los 17 temas convertidos en decisiones de negocio</h2>
+          <p>
+            Esta matriz traduce el framework a modulos concretos y decisiones para la negociacion con Mario.
+          </p>
+        </div>
+      </div>
+
+      <table class="deal-table">
+        <thead>
+          <tr>
+            <th>Seccion</th>
+            <th>Tema</th>
+            <th>Decision COPIM</th>
+            <th>Modulo ROVI</th>
+            <th>Monetizacion / KPI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Identidad</strong></td><td>Purpose</td><td>Profesionalizar, ordenar y monetizar comunidad inmobiliaria.</td><td>Landing institucional + dashboard de impacto.</td><td>Retencion, crecimiento territorial, adopcion.</td></tr>
+          <tr><td><strong>Identidad</strong></td><td>Member Identity</td><td>Definir miembros: consejo, asociacion, broker, sponsor, creador, desarrollador.</td><td>Roles, perfiles y permisos.</td><td>Planes por rol y beneficios diferenciados.</td></tr>
+          <tr><td><strong>Identidad</strong></td><td>Values</td><td>Confianza, cumplimiento, colaboracion, profesionalismo, transparencia.</td><td>Reglas de comunidad y politicas de marketplace.</td><td>NPS, reputacion, reviews, disputas.</td></tr>
+          <tr><td><strong>Identidad</strong></td><td>Success</td><td>Definir OKRs: usuarios activos, pagos, eventos, marketplace, sponsors.</td><td>Control tower y analitica.</td><td>MRR, GMV, activacion, payback.</td></tr>
+          <tr><td><strong>Identidad</strong></td><td>Brand</td><td>COPIM como comunidad tech y Mario como lider de transformacion.</td><td>Portal, comunicados, assets y casos de exito.</td><td>Sponsors premium y ventas a otros consejos.</td></tr>
+          <tr><td><strong>Experiencia</strong></td><td>Selection</td><td>Quien entra gratis, quien paga, quien crea y quien vende.</td><td>Onboarding, validacion y tiers.</td><td>Conversion paga y upgrade rate.</td></tr>
+          <tr><td><strong>Experiencia</strong></td><td>Transition</td><td>Reactivar, pausar o egresar miembros sin perder datos ni relacion.</td><td>Estados de membresia y automatizaciones.</td><td>Churn, winback, renovaciones.</td></tr>
+          <tr><td><strong>Experiencia</strong></td><td>Shared Experiences</td><td>Eventos, demo days, crowdfunding, capacitaciones y retos.</td><td>Event builder, check-in QR y CRM de eventos.</td><td>Tickets, sponsors, asistencia, leads.</td></tr>
+          <tr><td><strong>Experiencia</strong></td><td>Rituals</td><td>Ritmo semanal y trimestral que mantenga viva la comunidad.</td><td>Calendario, campañas, recordatorios y rankings.</td><td>Asistencia, frecuencia, participacion.</td></tr>
+          <tr><td><strong>Experiencia</strong></td><td>Content</td><td>Biblioteca, cursos, contratos, plantillas, playbooks y skills.</td><td>Marketplace + knowledge base + IA.</td><td>Ventas, descargas, completion rate.</td></tr>
+          <tr><td><strong>Experiencia</strong></td><td>Rules</td><td>Reglas de calidad, comportamiento, comisiones y publicacion.</td><td>Moderacion, contratos y workflows.</td><td>Disputas, refunds, calidad.</td></tr>
+          <tr><td><strong>Experiencia</strong></td><td>Roles</td><td>Miembro, mentor, creador, sponsor, partner, administrador, embajador.</td><td>RBAC, directorio y wallet de comisiones.</td><td>Creadores activos y referidos.</td></tr>
+          <tr><td><strong>Estructura</strong></td><td>Organization</td><td>Quien opera comunidad, adopcion, marketplace y sponsors.</td><td>Workspace interno y tareas.</td><td>SLA, cumplimiento de entregables.</td></tr>
+          <tr><td><strong>Estructura</strong></td><td>Governance</td><td>Como se decide exclusividad, tiers, revenue share y comite.</td><td>Control tower, aprobaciones y auditoria.</td><td>OKRs, transparencia, renovaciones.</td></tr>
+          <tr><td><strong>Estructura</strong></td><td>Financing</td><td>Modelo mixto: membresia, marketplace, crowdfunding, sponsors, DCC.</td><td>Pagos, conciliacion y comisiones.</td><td>MRR, GMV, sponsorship revenue.</td></tr>
+          <tr><td><strong>Estructura</strong></td><td>Channels</td><td>WhatsApp, email, portal, eventos, CRM, redes y comunidad externa.</td><td>Campañas multicanal y segmentacion.</td><td>Open rate, conversion, asistencia.</td></tr>
+          <tr><td><strong>Estructura</strong></td><td>Data Management</td><td>Consentimiento, origen, trazabilidad, historial, metricas y privacidad.</td><td>Data layer, auditoria y dashboards.</td><td>Calidad de datos y atribucion.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="rovi">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Conexion con ROVI</span>
+          <h2>ROVI como Community Operating System</h2>
+          <p>
+            La propuesta deja de ser "software para administrar COPIM" y se convierte en una arquitectura
+            de comunidad: cada modulo de ROVI resuelve una parte del canvas.
+          </p>
+        </div>
+      </div>
+
+      <div class="canvas-map">
+        <div class="pillar-menu">
+          <button class="pillar-button active" data-pillar="identity"><strong>Identidad</strong><span>Marca, miembros, valores y OKRs.</span></button>
+          <button class="pillar-button" data-pillar="experience"><strong>Experiencia</strong><span>Onboarding, rituales, eventos y contenido.</span></button>
+          <button class="pillar-button" data-pillar="structure"><strong>Estructura</strong><span>Gobernanza, financiamiento, canales y datos.</span></button>
+        </div>
+        <article class="card">
+          <span class="kicker" id="pillarKicker">Capa 1</span>
+          <h3 id="pillarTitle">Identidad: de padron a pertenencia</h3>
+          <p id="pillarSummary">
+            ROVI ayuda a que COPIM no sea solo una lista de asociaciones. Convierte la identidad en perfiles, beneficios, permisos, casos de exito y tableros de impacto.
+          </p>
+          <div class="checklist" id="pillarList">
+            <div class="check"><div class="check-icon">1</div><div><strong>Perfiles por rol</strong><span>Consejo, asociacion, miembro, sponsor, creador y partner.</span></div></div>
+            <div class="check"><div class="check-icon">2</div><div><strong>Beneficios visibles</strong><span>Lo que obtiene cada miembro segun su tipo y estado.</span></div></div>
+            <div class="check"><div class="check-icon">3</div><div><strong>OKRs de comunidad</strong><span>Indicadores de pertenencia, adopcion, monetizacion y retencion.</span></div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="flywheel">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Flywheel COPIM x ROVI</span>
+          <h2>Como la comunidad se vuelve negocio</h2>
+          <p>
+            El framework se vuelve accion cuando cada ritual genera datos, cada dato mejora la experiencia,
+            y cada experiencia abre monetizacion.
+          </p>
+        </div>
+      </div>
+
+      <div class="flow">
+        <div class="flow-step"><div class="step-num">1</div><h4>Identidad</h4><p>Mario/COPIM articulan proposito: profesionalizacion, confianza, cumplimiento y comunidad.</p></div>
+        <div class="flow-step"><div class="step-num">2</div><h4>Onboarding</h4><p>ROVI registra miembros, roles, beneficios, permisos, estado de pago y perfil operativo.</p></div>
+        <div class="flow-step"><div class="step-num">3</div><h4>Rituales</h4><p>Capacitaciones, demo days, eventos trimestrales, retos de adopcion y sesiones DCC.</p></div>
+        <div class="flow-step"><div class="step-num">4</div><h4>Monetizacion</h4><p>Marketplace, sponsors, crowdfunding, planes premium, add-ons, referidos y cursos.</p></div>
+        <div class="flow-step"><div class="step-num">5</div><h4>Datos</h4><p>Control tower mide adopcion, revenue, asistencia, conversion, comisiones y oportunidades.</p></div>
+      </div>
+    </section>
+
+    <section id="calculadora">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Calculadora estrategica</span>
+          <h2>Potencial economico de la comunidad COPIM</h2>
+          <p>
+            Ajusta supuestos para estimar el retorno de una comunidad operada con ROVI. Sirve para
+            mostrarle a Mario que el valor no esta solo en cobrar membresias, sino en activar experiencias
+            y estructura financiera.
+          </p>
+        </div>
+      </div>
+
+      <div class="calc">
+        <div class="card">
+          <div class="control-grid">
+            <div class="control"><label>Miembros comunidad <output id="membersOut">745</output></label><input id="members" type="range" min="100" max="5000" step="25" value="745"></div>
+            <div class="control"><label>Conversion premium <output id="premiumOut">12%</output></label><input id="premium" type="range" min="1" max="40" step="1" value="12"></div>
+            <div class="control"><label>Ticket premium mensual <output id="ticketOut">$690</output></label><input id="ticket" type="range" min="199" max="2500" step="50" value="690"></div>
+            <div class="control"><label>GMV marketplace Q <output id="gmvOut">$180,000</output></label><input id="gmv" type="range" min="0" max="1200000" step="10000" value="180000"></div>
+            <div class="control"><label>Sponsors Q <output id="sponsorsOut">$150,000</output></label><input id="sponsors" type="range" min="0" max="1200000" step="10000" value="150000"></div>
+            <div class="control"><label>Eventos Q <output id="eventsOut">$75,000</output></label><input id="events" type="range" min="0" max="500000" step="5000" value="75000"></div>
+            <div class="control"><label>Take rate marketplace <output id="takeOut">18%</output></label><input id="take" type="range" min="5" max="35" step="1" value="18"></div>
+            <div class="control"><label>Adopcion ROVI <output id="adoptionOut">85%</output></label><input id="adoption" type="range" min="30" max="120" step="5" value="85"></div>
+          </div>
+        </div>
+        <aside class="result-panel">
+          <h3>Resultado estimado</h3>
+          <div class="result-list">
+            <div class="result-item"><span>Miembros premium</span><strong id="premiumMembers">89</strong></div>
+            <div class="result-item"><span>MRR premium</span><strong id="mrr">$61,686</strong></div>
+            <div class="result-item"><span>Economia trimestral</span><strong id="quarterEconomy">$590,058</strong></div>
+            <div class="result-item"><span>Comision plataforma Q</span><strong id="platformQ">$95,379</strong></div>
+            <div class="result-item"><span>Comision plataforma anual</span><strong id="platformAnnual">$381,515</strong></div>
+            <div class="result-item"><span>Score comunidad</span><strong id="communityScore">71/100</strong></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head">
+        <div>
+          <span class="kicker">Roadmap MVC</span>
+          <h2>Como llevarlo a la negociacion</h2>
+          <p>
+            La salida practica es proponer una Comunidad Minima Viable: pocas preguntas, pocos rituales,
+            metrica clara y monetizacion temprana.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-4">
+        <article class="card accent"><h3>0-30 dias</h3><p>Definir proposito, roles, beneficios, onboarding, canales y OKRs. Cargar miembros base y asociaciones piloto.</p></article>
+        <article class="card accent blue"><h3>31-60 dias</h3><p>Activar rituales: capacitacion semanal, primer marketplace interno, calendario y dashboard de adopcion.</p></article>
+        <article class="card accent amber"><h3>61-90 dias</h3><p>Primer evento/crowdfunding, sponsors, productos digitales, control de comisiones y reporte ejecutivo.</p></article>
+        <article class="card accent purple"><h3>90+ dias</h3><p>Renegociar exclusividad con datos: adopcion, revenue, miembros activos, sponsors, GMV y pipeline.</p></article>
+      </div>
+
+      <table class="deal-table" style="margin-top: 16px;">
+        <thead>
+          <tr>
+            <th>Pregunta MVC</th>
+            <th>Respuesta para COPIM</th>
+            <th>Accion ROVI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Por que existe la comunidad?</td><td>Para profesionalizar, conectar y activar economicamente al ecosistema inmobiliario.</td><td>Landing, manifiesto, onboarding y metricas de impacto.</td></tr>
+          <tr><td>Quien es y como entra?</td><td>Miembros validados, externos pagos, creadores, sponsors y partners.</td><td>Roles, permisos, tiers y validacion.</td></tr>
+          <tr><td>Que pasa recurrentemente?</td><td>Capacitacion semanal, demo day trimestral, retos, marketplace y crowdfunding.</td><td>Calendario, eventos, campañas, QR y seguimiento.</td></tr>
+          <tr><td>Que roles puede jugar?</td><td>Aprendiz, miembro, creador, mentor, sponsor, embajador, asociacion anfitriona.</td><td>Directorios, wallet, comisiones, badges y tareas.</td></tr>
+          <tr><td>Como se decide?</td><td>Comite COPIM/ROVI con reglas de calidad, revenue share y exclusividad.</td><td>Control tower, aprobaciones y auditoria.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="source">
+      <strong>Fuentes locales analizadas:</strong>
+      `docs/framework/CommunityCanvas-Summary.pdf`,
+      `docs/framework/CommunityCanvas-Guidebook.pdf`,
+      `docs/framework/CommunityCanvas-Worksheet-Summary.pdf` y
+      `docs/framework/CommunityCanvas-MinimumViableCommunity.pdf`.
+      El dashboard aplica el framework a la comunidad COPIM y lo conecta con los modulos actuales y propuestos de ROVI.
+    </div>
+  </main>
+
+  <script>
+    const money = new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      maximumFractionDigits: 0
+    });
+
+    const pillarData = {
+      identity: {
+        kicker: 'Capa 1',
+        title: 'Identidad: de padron a pertenencia',
+        summary: 'ROVI ayuda a que COPIM no sea solo una lista de asociaciones. Convierte la identidad en perfiles, beneficios, permisos, casos de exito y tableros de impacto.',
+        items: [
+          ['Perfiles por rol', 'Consejo, asociacion, miembro, sponsor, creador y partner.'],
+          ['Beneficios visibles', 'Lo que obtiene cada miembro segun su tipo y estado.'],
+          ['OKRs de comunidad', 'Indicadores de pertenencia, adopcion, monetizacion y retencion.']
+        ]
+      },
+      experience: {
+        kicker: 'Capa 2',
+        title: 'Experiencia: rituales que crean valor',
+        summary: 'La comunidad se sostiene cuando el miembro vive algo recurrente. ROVI administra eventos, capacitaciones, marketplace, contenido, campanas y seguimiento.',
+        items: [
+          ['Onboarding accionable', 'Registro, validacion, perfil, primera capacitacion y primer beneficio.'],
+          ['Rituales medibles', 'Asistencia, participacion, descargas, completitud y referidos.'],
+          ['Contenido monetizable', 'Cursos, contratos, plantillas, servicios, eventos y skills de IA.']
+        ]
+      },
+      structure: {
+        kicker: 'Capa 3',
+        title: 'Estructura: comunidad que se sostiene',
+        summary: 'ROVI convierte gobernanza y finanzas en operacion: pagos, comisiones, sponsors, crowdfunding, permisos, datos y tableros ejecutivos.',
+        items: [
+          ['Gobernanza', 'Comites, aprobaciones, reglas, exclusividad y auditoria.'],
+          ['Financiamiento', 'Membresias, marketplace, sponsors, eventos, add-ons y DCC.'],
+          ['Data management', 'Consentimiento, origen, trazabilidad, atribucion y KPI.']
+        ]
+      }
+    };
+
+    document.querySelectorAll('.pillar-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.pillar-button').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        const data = pillarData[button.dataset.pillar];
+        document.getElementById('pillarKicker').textContent = data.kicker;
+        document.getElementById('pillarTitle').textContent = data.title;
+        document.getElementById('pillarSummary').textContent = data.summary;
+        document.getElementById('pillarList').innerHTML = data.items.map((item, index) => `
+          <div class="check"><div class="check-icon">${index + 1}</div><div><strong>${item[0]}</strong><span>${item[1]}</span></div></div>
+        `).join('');
+      });
+    });
+
+    const inputs = {
+      members: document.getElementById('members'),
+      premium: document.getElementById('premium'),
+      ticket: document.getElementById('ticket'),
+      gmv: document.getElementById('gmv'),
+      sponsors: document.getElementById('sponsors'),
+      events: document.getElementById('events'),
+      take: document.getElementById('take'),
+      adoption: document.getElementById('adoption')
+    };
+
+    function updateCalculator() {
+      const members = Number(inputs.members.value);
+      const premiumRate = Number(inputs.premium.value) / 100;
+      const ticket = Number(inputs.ticket.value);
+      const gmv = Number(inputs.gmv.value);
+      const sponsors = Number(inputs.sponsors.value);
+      const events = Number(inputs.events.value);
+      const take = Number(inputs.take.value) / 100;
+      const adoption = Number(inputs.adoption.value) / 100;
+      const premiumMembers = members * premiumRate;
+      const mrr = premiumMembers * ticket;
+      const quarterEconomy = (mrr * 3) + gmv + sponsors + events;
+      const platformQuarter = ((mrr * 3 * 0.18) + (gmv * take) + (sponsors * 0.25) + (events * 0.12)) * Math.min(1.25, adoption);
+      const score = Math.min(100, Math.round((premiumRate * 180) + (adoption * 45) + (take * 60)));
+
+      document.getElementById('membersOut').textContent = Math.round(members).toLocaleString('es-MX');
+      document.getElementById('premiumOut').textContent = `${Math.round(premiumRate * 100)}%`;
+      document.getElementById('ticketOut').textContent = money.format(ticket);
+      document.getElementById('gmvOut').textContent = money.format(gmv);
+      document.getElementById('sponsorsOut').textContent = money.format(sponsors);
+      document.getElementById('eventsOut').textContent = money.format(events);
+      document.getElementById('takeOut').textContent = `${Math.round(take * 100)}%`;
+      document.getElementById('adoptionOut').textContent = `${Math.round(adoption * 100)}%`;
+      document.getElementById('premiumMembers').textContent = Math.round(premiumMembers).toLocaleString('es-MX');
+      document.getElementById('mrr').textContent = money.format(mrr);
+      document.getElementById('quarterEconomy').textContent = money.format(quarterEconomy);
+      document.getElementById('platformQ').textContent = money.format(platformQuarter);
+      document.getElementById('platformAnnual').textContent = money.format(platformQuarter * 4);
+      document.getElementById('communityScore').textContent = `${score}/100`;
+    }
+
+    Object.values(inputs).forEach((input) => input.addEventListener('input', updateCalculator));
+    updateCalculator();
+  </script>
+</body>
+</html>

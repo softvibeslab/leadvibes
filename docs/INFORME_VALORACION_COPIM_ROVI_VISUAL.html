@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROVI x COPIM | Informe de Valoración del Desarrollo</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --paper: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --navy: #0c4a6e;
+      --teal: #0d9488;
+      --teal-light: #14b8a6;
+      --teal-dark: #0f766e;
+      --blue: #0369a1;
+      --blue-light: #0ea5e9;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --purple: #8b5cf6;
+      --red: #ef4444;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+      --shadow-lg: 0 32px 80px rgba(15, 23, 42, 0.16);
+      --radius: 16px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 20%, rgba(13, 148, 136, 0.08), transparent 35%),
+        radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.06), transparent 30%),
+        radial-gradient(circle at 50% 85%, rgba(3, 105, 161, 0.05), transparent 25%),
+        linear-gradient(180deg, #f0fdfa 0%, #f8fafc 50%, #eff6ff 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    /* Header */
+    .header {
+      position: relative;
+      background: linear-gradient(135deg, #0d9488 0%, #0369a1 50%, #8b5cf6 100%);
+      color: white;
+      padding: 60px 20px 80px;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .header-inner {
+      position: relative;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      font-size: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin: 0 0 16px;
+      max-width: 900px;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      max-width: 700px;
+      margin: 0;
+    }
+
+    /* Navigation */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 20px;
+    }
+
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .nav a:hover {
+      color: var(--teal);
+      background: var(--surface-2);
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 1200px;
+      margin: -40px auto 0;
+      padding: 0 20px 80px;
+      position: relative;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 8px;
+      color: var(--ink);
+    }
+
+    .card-subtitle {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin: 0 0 24px;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--teal), var(--purple));
+    }
+
+    .metric-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, var(--teal), var(--blue));
+      border-radius: var(--radius);
+      padding: 24px;
+      color: white;
+    }
+
+    .stat-card.purple {
+      background: linear-gradient(135deg, var(--purple), #a855f7);
+    }
+
+    .stat-card.amber {
+      background: linear-gradient(135deg, var(--amber), #f97316);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .stat-sub {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(180deg, var(--teal), var(--blue));
+      border-radius: 2px;
+    }
+
+    /* Table */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      background: var(--surface-2);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Status */
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status.done {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status.partial {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status.pending {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Module Grid */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .module-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+    }
+
+    .module-icon {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      background: white;
+      border-radius: 10px;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .module-info {
+      flex: 1;
+    }
+
+    .module-name {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .module-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Chart Bar */
+    .chart-container {
+      margin-top: 24px;
+    }
+
+    .chart-bar {
+      display: flex;
+      height: 200px;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .bar {
+      flex: 1;
+      background: linear-gradient(180deg, var(--teal-light), var(--teal));
+      border-radius: 8px 8px 0 0;
+      position: relative;
+      min-height: 8px;
+      transition: height 0.5s ease;
+    }
+
+    .bar.frontend { background: linear-gradient(180deg, var(--blue-light), var(--blue)); }
+    .bar.backend { background: linear-gradient(180deg, var(--green), #16a34a); }
+    .bar.pm { background: linear-gradient(180deg, var(--purple), #7c3aed); }
+    .bar.docs { background: linear-gradient(180deg, var(--amber), #d97706); }
+    .bar.devops { background: linear-gradient(180deg, var(--red), #dc2626); }
+
+    .bar::before {
+      content: attr(data-label);
+      position: absolute;
+      bottom: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .bar::after {
+      content: attr(data-value);
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* Pricing Cards */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .pricing-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 28px;
+      border: 2px solid var(--line);
+      text-align: center;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--teal);
+      background: linear-gradient(180deg, #f0fdfa, var(--surface));
+      position: relative;
+    }
+
+    .pricing-card.featured::before {
+      content: "RECOMENDADO";
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--teal);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.1em;
+    }
+
+    .pricing-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+
+    .pricing-price {
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .pricing-currency {
+      font-size: 1.2rem;
+      vertical-align: super;
+    }
+
+    .pricing-range {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .pricing-mxn {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* Comparison */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .comparison-item {
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .comparison-icon {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    .comparison-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .comparison-price {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--teal);
+      margin-bottom: 4px;
+    }
+
+    .comparison-time {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ROI Box */
+    .roi-box {
+      background: linear-gradient(135deg, #f0fdfa, #ecfdf5);
+      border: 2px solid var(--teal);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .roi-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--teal);
+      margin: 0 0 16px;
+    }
+
+    .roi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .roi-item {
+      background: white;
+      border-radius: var(--radius-sm);
+      padding: 16px;
+    }
+
+    .roi-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .roi-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    /* Conclusion */
+    .conclusion {
+      background: linear-gradient(135deg, var(--navy), var(--teal));
+      border-radius: var(--radius);
+      padding: 40px;
+      color: white;
+      text-align: center;
+    }
+
+    .conclusion h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0 0 16px;
+    }
+
+    .conclusion p {
+      font-size: 1.05rem;
+      opacity: 0.9;
+      margin: 0 0 24px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .conclusion-stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .conclusion-stat {
+      text-align: center;
+    }
+
+    .conclusion-stat-value {
+      font-size: 2.5rem;
+      font-weight: 900;
+    }
+
+    .conclusion-stat-label {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footer p {
+      margin: 0 0 4px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .stats-row {
+        grid-template-columns: 1fr;
+      }
+
+      .module-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-bar {
+        height: 160px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .header {
+        padding: 40px 20px 60px;
+      }
+
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 20px;
+      }
+    }
+
+    /* Tags */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 4px 4px 4px 0;
+    }
+
+    /* Highlight */
+    .highlight {
+      background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.1), transparent);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-top">
+        <div class="logo">
+          <div class="logo-mark">🏛️</div>
+          <span>ROVI x COPIM</span>
+        </div>
+        <div class="badge">
+          📊 Informe de Valoración
+        </div>
+      </div>
+      <h1>Análisis del Desarrollo<br>e Inversión</h1>
+      <p>Informe técnico detallado sobre el trabajo realizado para la plataforma institucional de gestión de asociaciones inmobiliarias, incluyendo cálculo de horas hombre y valoración de mercado.</p>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="nav">
+    <div class="nav-inner">
+      <a href="#resumen">Resumen</a>
+      <a href="#tecnico">Análisis Técnico</a>
+      <a href="#horas">Horas Hombre</a>
+      <a href="#modulos">Módulos</a>
+      <a href="#valoracion">Valoración</a>
+      <a href="#roi">ROI</a>
+      <a href="#conclusion">Conclusión</a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <!-- Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Líneas de Código</div>
+        <div class="metric-value">23,725+</div>
+        <div class="metric-sub">Commit principal COPIM</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Horas Hombre</div>
+        <div class="metric-value">2,751</div>
+        <div class="metric-sub">~344 días laborales</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Valor USD</div>
+        <div class="metric-value">$278K</div>
+        <div class="metric-sub">Rango: $244K - $334K</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Valor MXN</div>
+        <div class="metric-value">$5.5M</div>
+        <div class="metric-sub">Rango: $4.4M - $6.7M</div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Archivos Modificados</div>
+        <div class="stat-value">42</div>
+        <div class="stat-sub">En commit principal</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">Páginas Frontend</div>
+        <div class="stat-value">27</div>
+        <div class="stat-sub">Componentes COPIM</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-label">Módulos Completos</div>
+        <div class="stat-value">8</div>
+        <div class="stat-sub">Institucionales</div>
+      </div>
+    </div>
+
+    <!-- Resumen -->
+    <section id="resumen" class="section">
+      <div class="card">
+        <h2 class="card-title">📋 Resumen Ejecutivo</h2>
+        <p class="card-subtitle">Análisis del alcance del desarrollo COPIM x ROVI</p>
+
+        <p>El desarrollo realizado para COPIM representa una inversión significativa que incluye:</p>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;">
+          <span class="tag">✅ 8 módulos institucionales</span>
+          <span class="tag">✅ 27 páginas frontend</span>
+          <span class="tag">✅ Auth multi-rol JWT</span>
+          <span class="tag">✅ IA integrada por entidad</span>
+          <span class="tag">✅ 10+ documentos estratégicos</span>
+          <span class="tag">✅ Multi-tenancy completo</span>
+        </div>
+
+        <div class="roi-box">
+          <div class="roi-title">🎯 Lo que se entregó</div>
+          <div class="roi-grid">
+            <div class="roi-item">
+              <div class="roi-label">Plataforma</div>
+              <div class="roi-value">8 módulos completos</div>
+            </div>
+            <div class="roi-item">
+              <div class="roi-label">Experiencias</div>
+              <div class="roi-value">3 roles diferenciados</div>
+            </div>
+            <div class="roi-item">
+              <div class="roi-label">Código</div>
+              <div class="roi-value">+23,000 líneas</div>
+            </div>
+            <div class="roi-item">
+              <div class="roi-label">Documentación</div>
+              <div class="roi-value">10+ documentos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Análisis Técnico -->
+    <section id="tecnico" class="section">
+      <div class="card">
+        <h2 class="card-title">🔧 Análisis Técnico del Código</h2>
+        <p class="card-subtitle">Métricas detalladas por componente</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Líneas</th>
+                <th>Archivos</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Frontend COPIM</strong></td>
+                <td>14,539</td>
+                <td>27 páginas</td>
+                <td><span class="status done">Completo</span></td>
+              </tr>
+              <tr>
+                <td><strong>Backend COPIM</strong></td>
+                <td>8,300</td>
+                <td>4 archivos</td>
+                <td><span class="status done">Completo</span></td>
+              </tr>
+              <tr>
+                <td><strong>Auth/Routing</strong></td>
+                <td>900</td>
+                <td>5 archivos</td>
+                <td><span class="status done">Completo</span></td>
+              </tr>
+              <tr style="background: var(--surface-2);">
+                <td><strong>TOTAL COPIM</strong></td>
+                <td><strong>23,739</strong></td>
+                <td><strong>36</strong></td>
+                <td><span class="status done">Producción</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <div class="section-title">Desglose Frontend</div>
+          <div class="module-grid">
+            <div class="module-item">
+              <div class="module-icon">🏛️</div>
+              <div class="module-info">
+                <div class="module-name">Dashboard Nacional</div>
+                <div class="module-desc">620 líneas</div>
+              </div>
+            </div>
+            <div class="module-item">
+              <div class="module-icon">🏢</div>
+              <div class="module-info">
+                <div class="module-name">Asociaciones</div>
+                <div class="module-desc">865 líneas</div>
+              </div>
+            </div>
+            <div class="module-item">
+              <div class="module-icon">👥</div>
+              <div class="module-info">
+                <div class="module-name">Socios</div>
+                <div class="module-desc">1,083 líneas</div>
+              </div>
+            </div>
+            <div class="module-item">
+              <div class="module-icon">💳</div>
+              <div class="module-info">
+                <div class="module-name">Membresías</div>
+                <div class="module-desc">927 líneas</div>
+              </div>
+            </div>
+            <div class="module-item">
+              <div class="module-icon">🧾</div>
+              <div class="module-info">
+                <div class="module-name">Facturación</div>
+                <div class="module-desc">869 líneas</div>
+              </div>
+            </div>
+            <div class="module-item">
+              <div class="module-icon">📅</div>
+              <div class="module-info">
+                <div class="module-name">Eventos</div>
+                <div class="module-desc">861 líneas</div>
+              </div>
+            </div>
+            <div class="module-item">
+              <div class="module-icon">📚</div>
+              <div class="module-info">
+                <div class="module-name">Cursos LMS</div>
+                <div class="module-desc">1,836 líneas</div>
+              </div>
+            </div>
+            <div class="module-item">
+              <div class="module-icon">🎨</div>
+              <div class="module-info">
+                <div class="module-name">Demo/Presentación</div>
+                <div class="module-desc">2,636 líneas</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Horas Hombre -->
+    <section id="horas" class="section">
+      <div class="card">
+        <h2 class="card-title">⏱️ Desglose de Horas Hombre</h2>
+        <p class="card-subtitle">Estimación basada en líneas de código y complejidad</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Horas</th>
+                <th>%</th>
+                <th>Justificación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Frontend Development</strong></td>
+                <td><strong>1,412</strong></td>
+                <td>52%</td>
+                <td>27 páginas, componentes, estados, UI/UX</td>
+              </tr>
+              <tr>
+                <td><strong>Backend Development</strong></td>
+                <td><strong>999</strong></td>
+                <td>37%</td>
+                <td>API, modelos, IA, auth, lógica de negocio</td>
+              </tr>
+              <tr>
+                <td><strong>Product Management & QA</strong></td>
+                <td><strong>180</strong></td>
+                <td>7%</td>
+                <td>Requerimientos, testing, correcciones</td>
+              </tr>
+              <tr>
+                <td><strong>Documentación</strong></td>
+                <td><strong>100</strong></td>
+                <td>4%</td>
+                <td>10 documentos técnicos y de negocio</td>
+              </tr>
+              <tr>
+                <td><strong>DevOps</strong></td>
+                <td><strong>60</strong></td>
+                <td>2%</td>
+                <td>Docker, CI/CD, staging</td>
+              </tr>
+              <tr style="background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.1), transparent);">
+                <td><strong>TOTAL</strong></td>
+                <td><strong>2,751</strong></td>
+                <td><strong>100%</strong></td>
+                <td>~344 días laborales (8 meses con 1 dev)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="chart-container">
+          <div class="section-title">Distribución de Horas</div>
+          <div class="chart-bar">
+            <div class="bar frontend" style="height: 52%;" data-label="Frontend" data-value="52%"></div>
+            <div class="bar backend" style="height: 37%;" data-label="Backend" data-value="37%"></div>
+            <div class="bar pm" style="height: 7%;" data-label="PM/QA" data-value="7%"></div>
+            <div class="bar docs" style="height: 4%;" data-label="Docs" data-value="4%"></div>
+            <div class="bar devops" style="height: 2%;" data-label="DevOps" data-value="2%"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Módulos -->
+    <section id="modulos" class="section">
+      <div class="card">
+        <h2 class="card-title">📦 Módulos Implementados</h2>
+        <p class="card-subtitle">Funcionalidades completas entregadas</p>
+
+        <div class="module-grid">
+          <div class="module-item">
+            <div class="module-icon">🏛️</div>
+            <div class="module-info">
+              <div class="module-name">Dashboard Nacional COPIM</div>
+              <div class="module-desc">KPIs, alertas, accesos rápidos</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+          <div class="module-item">
+            <div class="module-icon">🏢</div>
+            <div class="module-info">
+              <div class="module-name">Gestión de Asociaciones</div>
+              <div class="module-desc">CRUD, análisis IA, health score</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+          <div class="module-item">
+            <div class="module-icon">👥</div>
+            <div class="module-info">
+              <div class="module-name">Padrón de Socios</div>
+              <div class="module-desc">Aprobación, suspensión, credencial</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+          <div class="module-item">
+            <div class="module-icon">💳</div>
+            <div class="module-info">
+              <div class="module-name">Membresías</div>
+              <div class="module-desc">Renovaciones, recordatorios</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+          <div class="module-item">
+            <div class="module-icon">🧾</div>
+            <div class="module-info">
+              <div class="module-name">Facturación</div>
+              <div class="module-desc">Emisión, seguimiento, estados</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+          <div class="module-item">
+            <div class="module-icon">📅</div>
+            <div class="module-info">
+              <div class="module-name">Eventos</div>
+              <div class="module-desc">CRUD, check-in, capacidad</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+          <div class="module-item">
+            <div class="module-icon">📚</div>
+            <div class="module-info">
+              <div class="module-name">Academia/Cursos</div>
+              <div class="module-desc">LMS completo, wizard, IA</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+          <div class="module-item">
+            <div class="module-icon">🤖</div>
+            <div class="module-info">
+              <div class="module-name">Inteligencia IA</div>
+              <div class="module-desc">Análisis por entidad</div>
+            </div>
+            <span class="status done">✓</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px; padding: 20px; background: var(--surface-2); border-radius: var(--radius-sm);">
+          <div class="section-title">Experiencias por Rol</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px;">
+            <div style="flex: 1; min-width: 200px; padding: 16px; background: white; border-radius: var(--radius-sm);">
+              <div style="font-weight: 700; margin-bottom: 8px;">🏛️ COPIM Nacional</div>
+              <div style="font-size: 13px; color: var(--muted);">Dashboard nacional, gestión multi-asociación, control ejecutivo</div>
+            </div>
+            <div style="flex: 1; min-width: 200px; padding: 16px; background: white; border-radius: var(--radius-sm);">
+              <div style="font-weight: 700; margin-bottom: 8px;">🏢 Asociación Local</div>
+              <div style="font-size: 13px; color: var(--muted);">Perfil institucional, campañas, inventario, cursos</div>
+            </div>
+            <div style="flex: 1; min-width: 200px; padding: 16px; background: white; border-radius: var(--radius-sm);">
+              <div style="font-weight: 700; margin-bottom: 8px;">👤 Socio Individual</div>
+              <div style="font-size: 13px; color: var(--muted);">Perfil, membresía, pagos, credencial, eventos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Valoración -->
+    <section id="valoracion" class="section">
+      <div class="card">
+        <h2 class="card-title">💰 Valoración Monetaria</h2>
+        <p class="card-subtitle">Basado en tarifas de mercado 2026</p>
+
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <div class="pricing-title">Conservador</div>
+            <div class="pricing-price">
+              <span class="pricing-currency">$</span>278,700
+            </div>
+            <div class="pricing-range">USD</div>
+            <div class="pricing-mxn">$5,574,000 MXN</div>
+            <div style="font-size: 12px; color: var(--muted); text-align: left;">
+              Tarifas medias de mercado<br>
+              1 USD = 20 MXN
+            </div>
+          </div>
+
+          <div class="pricing-card featured">
+            <div class="pricing-title">Premium</div>
+            <div class="pricing-price">
+              <span class="pricing-currency">$</span>334,120
+            </div>
+            <div class="pricing-range">USD</div>
+            <div class="pricing-mxn">$6,682,400 MXN</div>
+            <div style="font-size: 12px; color: var(--muted); text-align: left;">
+              Tarifas enterprise/consultoría<br>
+              Proyectos alta complejidad
+            </div>
+          </div>
+
+          <div class="pricing-card">
+            <div class="pricing-title">Recomendado</div>
+            <div class="pricing-price">
+              <span class="pricing-currency">$</span>244K<span style="font-size: 1.2rem;">-321K</span>
+            </div>
+            <div class="pricing-range">USD</div>
+            <div class="pricing-mxn">$4.4M - $5.8M MXN</div>
+            <div style="font-size: 12px; color: var(--muted); text-align: left;">
+              Valor justo de mercado<br>
+              Para negociación
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <div class="section-title">Tarifas de Mercado por Rol</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rol</th>
+                  <th>Tarifa USD/hora</th>
+                  <th>Tarifa MXN/hora</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Senior Backend Developer</td>
+                  <td>$80 - $120</td>
+                  <td>$1,600 - $2,400</td>
+                </tr>
+                <tr>
+                  <td>Senior Frontend Developer</td>
+                  <td>$80 - $120</td>
+                  <td>$1,600 - $2,400</td>
+                </tr>
+                <tr>
+                  <td>DevOps Engineer</td>
+                  <td>$90 - $130</td>
+                  <td>$1,800 - $2,600</td>
+                </tr>
+                <tr>
+                  <td>Product Manager</td>
+                  <td>$100 - $150</td>
+                  <td>$2,000 - $3,000</td>
+                </tr>
+                <tr>
+                  <td>QA Engineer</td>
+                  <td>$60 - $90</td>
+                  <td>$1,200 - $1,800</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <div class="section-title">Comparación con Alternativas</div>
+          <div class="comparison-grid">
+            <div class="comparison-item">
+              <div class="comparison-icon">🏗️</div>
+              <div class="comparison-title">Desde Cero</div>
+              <div class="comparison-price">$350K-500K</div>
+              <div class="comparison-time">USD • 8-12 meses</div>
+            </div>
+            <div class="comparison-item">
+              <div class="comparison-icon">🔧</div>
+              <div class="comparison-title">SaaS Comercial</div>
+              <div class="comparison-price">$2K-5K</div>
+              <div class="comparison-time">USD/mes + setup</div>
+            </div>
+            <div class="comparison-item" style="border: 2px solid var(--teal); background: #f0fdfa;">
+              <div class="comparison-icon">✅</div>
+              <div class="comparison-title">COPIM x ROVI</div>
+              <div class="comparison-price">$244K-321K</div>
+              <div class="comparison-time">USD • Ya completado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROI -->
+    <section id="roi" class="section">
+      <div class="card">
+        <h2 class="card-title">📊 ROI Potencial para COPIM</h2>
+        <p class="card-subtitle">Proyección según plan de negocio</p>
+
+        <div class="roi-box">
+          <div class="roi-title">Escenario: 10 Asociaciones, 50 Socios c/u</div>
+          <div style="margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(13, 148, 136, 0.2);">
+              <span>Sistema base (10 × $1,000 × 12)</span>
+              <span style="font-weight: 700; color: var(--green);">$120,000 MXN/año</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(13, 148, 136, 0.2);">
+              <span>Broker Pro 20% (100 × $500 × 12)</span>
+              <span style="font-weight: 700; color: var(--green);">$600,000 MXN/año</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px 0;">
+              <span>Association Pro 50% (5 × $1,200 × 12)</span>
+              <span style="font-weight: 700; color: var(--green);">$72,000 MXN/año</span>
+            </div>
+          </div>
+          <div style="margin-top: 20px; padding: 16px; background: white; border-radius: var(--radius-sm); text-align: center;">
+            <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px;">Total potencial anual</div>
+            <div style="font-size: 2rem; font-weight: 900; color: var(--teal);">$792,000 MXN</div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px;">
+          <div style="padding: 20px; background: var(--surface-2); border-radius: var(--radius-sm); text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 900; color: var(--teal);">~7 años</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Punto de equilibrio</div>
+          </div>
+          <div style="padding: 20px; background: var(--surface-2); border-radius: var(--radius-sm); text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 900; color: var(--purple);">10-20</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Asociaciones objetivo</div>
+          </div>
+          <div style="padding: 20px; background: var(--surface-2); border-radius: var(--radius-sm); text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 900; color: var(--amber);">500-1000</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">Socios para monetizar</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Conclusión -->
+    <section id="conclusion" class="section">
+      <div class="conclusion">
+        <h2>✅ Conclusión</h2>
+        <p>El desarrollo realizado para COPIM representa una inversión significativa que entrega una plataforma completamente funcional para la gestión institucional de asociaciones inmobiliarias.</p>
+        <div class="conclusion-stats">
+          <div class="conclusion-stat">
+            <div class="conclusion-stat-value">2,751</div>
+            <div class="conclusion-stat-label">Horas hombre</div>
+          </div>
+          <div class="conclusion-stat">
+            <div class="conclusion-stat-value">8</div>
+            <div class="conclusion-stat-label">Módulos completos</div>
+          </div>
+          <div class="conclusion-stat">
+            <div class="conclusion-stat-value">27</div>
+            <div class="conclusion-stat-label">Páginas frontend</div>
+          </div>
+          <div class="conclusion-stat">
+            <div class="conclusion-stat-value">23K+</div>
+            <div class="conclusion-stat-label">Líneas de código</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p><strong>ROVI Development Team</strong></p>
+    <p>Informe preparado el 13 de Mayo de 2026 • Versión 1.0</p>
+    <p style="margin-top: 12px; font-size: 11px;">Este documento es confidencial y para uso exclusivo de COPIM</p>
+  </div>
+</body>
+</html>

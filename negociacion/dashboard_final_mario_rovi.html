@@ -1,0 +1,1298 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Final | ROVI x Mario</title>
+  <style>
+    :root {
+      --bg: #f4f7f5;
+      --surface: #ffffff;
+      --soft: #eef6f3;
+      --ink: #142238;
+      --muted: #637089;
+      --line: #d7dfdc;
+      --teal: #0d9488;
+      --green: #4d7c0f;
+      --gold: #d97706;
+      --blue: #1d4ed8;
+      --red: #c2410c;
+      --shadow: 0 18px 46px rgba(20, 34, 56, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(238, 246, 243, 0.9), rgba(244, 247, 245, 0.98)),
+        var(--bg);
+      line-height: 1.45;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background: var(--teal);
+      color: white;
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
+    .brand strong {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 1px;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .nav a,
+    .nav button {
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      background: transparent;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .nav a:hover,
+    .nav button:hover {
+      border-color: var(--line);
+      background: var(--soft);
+      color: var(--ink);
+    }
+
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 22px 20px 64px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .pad {
+      padding: 22px;
+    }
+
+    .hero-card {
+      background:
+        linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(29, 78, 216, 0.08)),
+        var(--surface);
+      display: grid;
+      align-content: space-between;
+      gap: 22px;
+      min-height: 420px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: rgba(13, 148, 136, 0.12);
+      color: #0f766e;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      margin-top: 14px;
+      font-size: clamp(36px, 5vw, 72px);
+      line-height: 0.96;
+      letter-spacing: 0;
+      max-width: 10ch;
+    }
+
+    h2 {
+      font-size: 26px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 15px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .lead {
+      margin-top: 16px;
+      color: #3c485d;
+      font-size: 18px;
+      max-width: 64ch;
+    }
+
+    .thesis {
+      border-left: 5px solid var(--teal);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      background: rgba(13, 148, 136, 0.08);
+      color: #153f3a;
+      padding: 14px 16px;
+      font-weight: 900;
+      font-size: 17px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfb;
+      padding: 16px;
+      min-height: 138px;
+      display: grid;
+      align-content: space-between;
+      gap: 10px;
+    }
+
+    .kpi small {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .kpi strong {
+      display: block;
+      font-size: 31px;
+      line-height: 1;
+    }
+
+    .kpi span {
+      color: #59667a;
+      font-size: 13px;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 24px 0 10px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      margin-top: 6px;
+      max-width: 78ch;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .market-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .market-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .market-kpi {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfb;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      min-height: 128px;
+    }
+
+    .market-kpi small {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .market-kpi strong {
+      font-size: 25px;
+      line-height: 1.05;
+    }
+
+    .market-kpi span {
+      color: #536176;
+      font-size: 13px;
+    }
+
+    .positioning {
+      display: grid;
+      gap: 14px;
+      background:
+        linear-gradient(135deg, rgba(77, 124, 15, 0.09), rgba(217, 119, 6, 0.08)),
+        var(--surface);
+    }
+
+    .positioning h2 {
+      max-width: 24ch;
+    }
+
+    .tag {
+      display: inline-flex;
+      width: fit-content;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: var(--soft);
+      color: #244a45;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .score {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 74px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: rgba(13, 148, 136, 0.11);
+      color: #0f766e;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .score.mid {
+      background: rgba(217, 119, 6, 0.13);
+      color: #92400e;
+    }
+
+    .score.low {
+      background: rgba(99, 112, 137, 0.13);
+      color: #4b5563;
+    }
+
+    .source-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .source-list a {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #244a45;
+      background: #fbfcfb;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .source-list a:hover {
+      border-color: var(--teal);
+      color: #0f766e;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      min-height: 270px;
+    }
+
+    .card.teal {
+      border-top: 5px solid var(--teal);
+    }
+
+    .card.gold {
+      border-top: 5px solid var(--gold);
+    }
+
+    .card.blue {
+      border-top: 5px solid var(--blue);
+    }
+
+    .card.green {
+      border-top: 5px solid var(--green);
+    }
+
+    .card h3 {
+      color: var(--ink);
+      font-size: 19px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .price {
+      font-size: 32px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .list {
+      display: grid;
+      gap: 9px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .list li {
+      position: relative;
+      padding-left: 16px;
+      color: #445166;
+      font-size: 14px;
+    }
+
+    .list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--teal);
+    }
+
+    .finance-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+      gap: 14px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 12px;
+      font-weight: 800;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .result {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfb;
+      padding: 14px;
+      min-height: 112px;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+    }
+
+    .result small {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .result strong {
+      display: block;
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .result span {
+      color: #5a6678;
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 13px 14px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f1f6f4;
+      color: #26344a;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(180px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .route-card {
+      min-width: 180px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 15px;
+      display: grid;
+      gap: 9px;
+      align-content: start;
+    }
+
+    .owner {
+      width: fit-content;
+      border-radius: 999px;
+      padding: 5px 8px;
+      background: #edf4ff;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .route-card strong {
+      font-size: 16px;
+    }
+
+    .route-card p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footer {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .hero,
+      .finance-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid,
+      .grid-3,
+      .market-kpis,
+      .result-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        justify-content: flex-start;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+
+      .page {
+        padding: 14px 12px 44px;
+      }
+
+      .kpi-grid,
+      .grid-3,
+      .grid-2,
+      .market-kpis,
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-card {
+        min-height: auto;
+      }
+    }
+
+    @media print {
+      .topbar {
+        display: none;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      .panel,
+      .card,
+      .kpi,
+      .result,
+      .route-card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">RV</div>
+        <div>
+          <strong>Dashboard Final ROVI x Mario</strong>
+          <span>Mercado, precios, costos, comisiones, adopcion, ruta critica y plan</span>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Secciones">
+        <a href="#mercado">Mercado</a>
+        <a href="#precios">Precios</a>
+        <a href="#modelo">Modelo</a>
+        <a href="#comisiones">Comisiones</a>
+        <a href="#ruta">Ruta</a>
+        <a href="#plan">Plan</a>
+        <button type="button" onclick="window.print()">PDF</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-label="Resumen ejecutivo">
+      <div class="panel pad hero-card">
+        <div>
+          <span class="eyebrow">Decision final</span>
+          <h1>Arrancar chico, medir rapido, escalar con reglas.</h1>
+          <p class="lead">El piloto debe durar 1 mes y probar operacion real: asociaciones activas, usuarios, membresias, eventos, cursos, add-ons y costo operativo.</p>
+        </div>
+        <p class="thesis">La concesion economica solo tiene sentido si el pago, adopcion, recuperacion y exclusividad tienen gatillos claros.</p>
+      </div>
+
+      <div class="panel pad">
+        <div class="kpi-grid">
+          <div class="kpi">
+            <small>Piloto</small>
+            <strong>1 mes</strong>
+            <span>Decision formal al dia 30.</span>
+          </div>
+          <div class="kpi">
+            <small>Fee reconocido</small>
+            <strong>$75k</strong>
+            <span>Implementacion completa reconocida.</span>
+          </div>
+          <div class="kpi">
+            <small>Arranque minimo</small>
+            <strong>$25k</strong>
+            <span>Solo con alcance cerrado.</span>
+          </div>
+          <div class="kpi">
+            <small>Adopcion meta</small>
+            <strong>2-3</strong>
+            <span>Asociaciones piloto activas.</span>
+          </div>
+          <div class="kpi">
+            <small>Usuarios meta</small>
+            <strong>50</strong>
+            <span>Registrados con accion verificable.</span>
+          </div>
+          <div class="kpi">
+            <small>Infra</small>
+            <strong>$5k-$13k</strong>
+            <span>Facturable aparte.</span>
+          </div>
+          <div class="kpi">
+            <small>DCC</small>
+            <strong>20%</strong>
+            <span>Primer ano de referidos cobrados.</span>
+          </div>
+          <div class="kpi">
+            <small>Regla clave</small>
+            <strong>IP</strong>
+            <span>ROVI conserva codigo y roadmap.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="mercado" class="section">
+      <div class="section-head">
+        <div>
+          <h2>Mercado Actual Y Comparativa</h2>
+          <p>Benchmarks revisados el 13 de mayo de 2026. El punto clave: ROVI no debe competir como CRM barato de anuncios, sino como capa institucional para adopcion, cumplimiento, educacion y monetizacion.</p>
+        </div>
+      </div>
+
+      <div class="market-stack">
+        <div class="market-kpis">
+          <div class="market-kpi">
+            <small>Mexico / LATAM</small>
+            <strong>$490-$1,490 MXN</strong>
+            <span>EasyBroker fija el piso de precio para publicar anuncios con usuarios ilimitados.</span>
+          </div>
+          <div class="market-kpi">
+            <small>Conversion USA</small>
+            <strong>$58-$1,000 USD</strong>
+            <span>Follow Up Boss vende seguimiento, routing, llamadas/textos y AI por usuario o equipo.</span>
+          </div>
+          <div class="market-kpi">
+            <small>Lujo / enterprise</small>
+            <strong>Cotizacion</strong>
+            <span>Luxury Presence, Lofty y Propertybase empujan demo, setup, contrato o paquete.</span>
+          </div>
+          <div class="market-kpi">
+            <small>Rango ROVI</small>
+            <strong>$4.9k-$19.9k MXN</strong>
+            <span>DCC-Ready mensual + setup. Precio medio si se vende como plataforma institucional.</span>
+          </div>
+        </div>
+
+        <div class="panel pad positioning">
+          <span class="eyebrow">Tesis para Mario</span>
+          <h2>ROVI debe venderse como infraestructura institucional, no como otro CRM.</h2>
+          <p class="lead">Si Mario compara ROVI contra EasyBroker, va a negociar precio. Si lo compara contra Luxury Presence, Propertybase o Salesforce, va a negociar alcance, adopcion, exclusividad y datos. La estrategia correcta es decir: ROVI puede convivir con CRMs existentes, pero agrega la capa que hoy no tienen: cumplimiento DCC/NOM-247, comunidad COPIM, educacion, marketplace y control de adopcion.</p>
+          <p class="thesis">Frase de defensa: "Si lo ves como CRM de fichas, ROVI parece caro; si lo ves como sistema institucional para certificar, operar y monetizar asociaciones, ROVI esta barato."</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Competidor</th>
+                <th>Precio publico / modelo</th>
+                <th>Fuerte en</th>
+                <th>Brecha frente a ROVI</th>
+                <th>Respuesta de negociacion</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>EasyBroker</strong><br><span class="tag">Mexico / LATAM</span></td>
+                <td>$490, $990 y $1,490 MXN/mes para 10, 25 y 50 anuncios; sitio web +$500 MXN/mes.</td>
+                <td>Publicacion, portales, fichas, CMA, colaboracion y precio bajo.</td>
+                <td>No resuelve comunidad institucional, educacion, DCC, gobierno de adopcion ni revenue share.</td>
+                <td>No competirle. Posicionar ROVI como capa COPIM/DCC que puede integrarse encima.</td>
+              </tr>
+              <tr>
+                <td><strong>Follow Up Boss</strong><br><span class="tag">Conversion CRM</span></td>
+                <td>Grow $58-$69 USD/usuario/mes; Pro $416-$499 USD/mes incluye 10 usuarios; Platform $833-$1,000 USD/mes incluye 30.</td>
+                <td>Seguimiento de leads, routing, smart lists, llamadas, texting, reportes, AI y ecosistema abierto.</td>
+                <td>Fuerte en conversion, pero no localizado a COPIM, DCC, certificacion o operacion asociativa mexicana.</td>
+                <td>ROVI no tiene que reemplazarlo: debe capturar datos institucionales y oportunidades DCC.</td>
+              </tr>
+              <tr>
+                <td><strong>Lofty</strong><br><span class="tag">AI + IDX</span></td>
+                <td>Pricing por solicitud para Agent, Team, Broker y Enterprise; ads con fees de gestion.</td>
+                <td>IDX, AI CRM, lead scoring, routing, AI Copilot, anuncios y estructura para equipos.</td>
+                <td>Potente para equipos inmobiliarios, pero no para una confederacion con cursos, socios, cumplimiento y DCC.</td>
+                <td>Usarlo como referencia de "plataforma AI" y defender que ROVI es mas especifico para Mexico.</td>
+              </tr>
+              <tr>
+                <td><strong>Luxury Presence</strong><br><span class="tag">Lujo digital</span></td>
+                <td>Planes Launch, Brand, Scale, All In y Enterprise; setup fee, contrato de 12 meses y presupuesto de ads aparte.</td>
+                <td>Marca premium, web, IDX, AI CRM, alertas, nurture, SEO/GEO, ads y app de lujo.</td>
+                <td>Muy fuerte en presencia y experiencia de marca; menos orientado a certificacion institucional y governance local.</td>
+                <td>Comparar contra "plataforma de crecimiento", no contra CRM barato. ROVI gana por contexto COPIM/DCC.</td>
+              </tr>
+              <tr>
+                <td><strong>HubSpot / Salesforce</strong><br><span class="tag">Horizontal enterprise</span></td>
+                <td>HubSpot Sales: gratis, $9-$20 Starter, $90-$100 Pro + onboarding, $150 Enterprise + onboarding. Salesforce Sales: $25-$550 USD/usuario/mes.</td>
+                <td>CRM general, automatizacion, reporting, integraciones, AI y gobierno empresarial.</td>
+                <td>Requieren configuracion fuerte para real estate, cursos, asociaciones, DCC y workflows inmobiliarios.</td>
+                <td>Si Mario pide "hacerlo en HubSpot/Salesforce", pedir presupuesto real de implementacion y soporte.</td>
+              </tr>
+              <tr>
+                <td><strong>Propertybase</strong><br><span class="tag">Real estate enterprise</span></td>
+                <td>Salesforce-powered, venta por demo/cotizacion y orientacion a marcas inmobiliarias grandes.</td>
+                <td>Leads, listados, marketing, deals, Salesforce, brokerage governance y reporting.</td>
+                <td>Enterprise y pesado para un piloto COPIM de 1 mes; no trae por defecto educacion ni DCC mexicano.</td>
+                <td>Sirve para justificar que la categoria de ROVI es enterprise, pero con entrada de piloto local.</td>
+              </tr>
+              <tr>
+                <td><strong>ROVI</strong><br><span class="tag">Institucional Mexico</span></td>
+                <td>Setup $25k-$75k MXN; DCC-Ready $4,900-$19,900 MXN/mes; COPIM piloto $25k-$75k reconocido.</td>
+                <td>CRM + AI + DCC/NOM-247 + comunidad + cursos + marketplace + adopcion + revenue share.</td>
+                <td>Debe probar madurez operativa, soporte, migracion de datos, integraciones y uso real en 30 dias.</td>
+                <td>Conceder precio solo si hay exclusividad, datos, responsables, KPIs y recuperacion del saldo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dimension</th>
+                <th>ROVI</th>
+                <th>EasyBroker</th>
+                <th>Follow Up Boss</th>
+                <th>Luxury Presence</th>
+                <th>Salesforce / HubSpot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Fit Mexico / COPIM / asociaciones</td>
+                <td><span class="score">Alto</span></td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score mid">Medio</span></td>
+              </tr>
+              <tr>
+                <td>Seguimiento comercial puro</td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score">Alto</span></td>
+                <td><span class="score">Alto</span></td>
+                <td><span class="score">Alto</span></td>
+              </tr>
+              <tr>
+                <td>Lujo, branding y presencia digital</td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score">Alto</span></td>
+                <td><span class="score mid">Medio</span></td>
+              </tr>
+              <tr>
+                <td>Cumplimiento DCC / NOM-247 / certificacion</td>
+                <td><span class="score">Alto</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score mid">Medio</span></td>
+              </tr>
+              <tr>
+                <td>Educacion, comunidad y marketplace</td>
+                <td><span class="score">Alto</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score mid">Medio</span></td>
+              </tr>
+              <tr>
+                <td>Precio de entrada</td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score">Alto</span></td>
+                <td><span class="score mid">Medio</span></td>
+                <td><span class="score low">Bajo</span></td>
+                <td><span class="score low">Bajo</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-3">
+          <article class="card teal">
+            <h3>Escenario 1: Mario presiona precio</h3>
+            <ul class="list">
+              <li>Conceder piloto de $25k solo con alcance cerrado.</li>
+              <li>Sin customizaciones DCC profundas hasta contrato anual.</li>
+              <li>Recuperar saldo contra add-ons en maximo 3 meses.</li>
+              <li>Usar EasyBroker como ancla de "eso es CRM basico, no plataforma institucional".</li>
+            </ul>
+          </article>
+
+          <article class="card gold">
+            <h3>Escenario 2: compara contra CRMs premium</h3>
+            <ul class="list">
+              <li>Aceptar la comparacion, porque sube la categoria.</li>
+              <li>Defender ROVI por contexto Mexico, COPIM, DCC, educacion y comunidad.</li>
+              <li>Ofrecer integracion o convivencia, no reemplazo forzado.</li>
+              <li>Pedir decision al dia 30 con KPIs y responsables.</li>
+            </ul>
+          </article>
+
+          <article class="card blue">
+            <h3>Escenario 3: quiere exclusividad</h3>
+            <ul class="list">
+              <li>Exclusividad solo por segmento, territorio, plazo y meta.</li>
+              <li>Debe incluir minimo anual, datos, casos de uso y comunicacion oficial.</li>
+              <li>IP, codigo, producto base y roadmap se quedan en ROVI.</li>
+              <li>Si no hay adopcion, se libera exclusividad automaticamente.</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="panel pad">
+          <h3>Fuentes De Mercado</h3>
+          <ul class="source-list">
+            <li><a href="https://ayuda.easybroker.com/article/371-conoce-como-funciona-la-suscripcion">EasyBroker planes 2026</a></li>
+            <li><a href="https://www.followupboss.com/pricing?lang=en">Follow Up Boss pricing</a></li>
+            <li><a href="https://official.lofty.com/price-packages">Lofty price packages</a></li>
+            <li><a href="https://www.luxurypresence.com/plans/">Luxury Presence plans</a></li>
+            <li><a href="https://www.hubspot.es/pricing/sales?web=1">HubSpot Sales Hub pricing</a></li>
+            <li><a href="https://www.salesforce.com/sales/pricing/">Salesforce Sales pricing</a></li>
+            <li><a href="https://wiseagent.com/pricing/">Wise Agent pricing</a></li>
+            <li><a href="https://get.lwolf.com/propertybase">Propertybase by Lone Wolf</a></li>
+            <li><a href="https://ampi.org/a/wp-content/uploads/2025/10/Resultados-de-la-Encuesta-AMPI-2025-V.02.pdf">AMPI Encuesta 2025</a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="precios" class="section">
+      <div class="section-head">
+        <div>
+          <h2>Precios Finales Por Linea</h2>
+          <p>Una negociacion sana separa COPIM institucional, educacion abierta y DCC-Ready.</p>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <article class="card teal">
+          <span class="eyebrow">COPIM institucional</span>
+          <h3>Piloto + licencia</h3>
+          <div class="price">$25k inicio</div>
+          <ul class="list">
+            <li>Fee reconocido: $75,000 MXN.</li>
+            <li>Saldo diferido: $0-$50,000 segun esquema.</li>
+            <li>Infra: $5,000-$13,000/mes.</li>
+            <li>Post-piloto: $7,900/mes nacional + $990/asociacion.</li>
+          </ul>
+        </article>
+
+        <article class="card gold">
+          <span class="eyebrow">Educacion abierta</span>
+          <h3>Cursos y marketplace</h3>
+          <div class="price">$490-$7.5k</div>
+          <ul class="list">
+            <li>Curso unitario: $490-$1,490.</li>
+            <li>Membresia educativa: $299-$499/mes.</li>
+            <li>Masterclass o diplomado: $2,900-$7,500.</li>
+            <li>Split CIIB/ROVI 60/40 solo contenido CIIB.</li>
+          </ul>
+        </article>
+
+        <article class="card blue">
+          <span class="eyebrow">ROVI DCC-Ready</span>
+          <h3>Desarrolladores</h3>
+          <div class="price">$4.9k-$19.9k/mes</div>
+          <ul class="list">
+            <li>Setup: $25,000-$75,000.</li>
+            <li>Starter: $4,900/mes.</li>
+            <li>Growth: $9,900/mes.</li>
+            <li>Enterprise: $19,900/mes.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="modelo" class="section">
+      <div class="section-head">
+        <div>
+          <h2>Modelo Financiero Interactivo</h2>
+          <p>Elige pago de implementacion y adopcion para calcular caja ROVI, saldo recuperado, comision COPIM y outlay neto.</p>
+        </div>
+      </div>
+
+      <div class="finance-layout">
+        <div class="panel pad controls">
+          <h3>Variables</h3>
+          <div class="field">
+            <label for="implementationPlan">Pago de implementacion</label>
+            <select id="implementationPlan">
+              <option value="balanced">Balanceado ROVI: $50k piloto + $25k diferido</option>
+              <option value="flexible">Flexible Mario: $25k inicio + $50k diferido</option>
+              <option value="full">Pago completo: $75k sin diferido</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="adoptionLevel">Nivel de adopcion</label>
+            <select id="adoptionLevel">
+              <option value="base">Base: 3 asociaciones, 75 usuarios</option>
+              <option value="low">Minimo: 2 asociaciones, 50 usuarios</option>
+              <option value="high">Alto: 5 asociaciones, 150 usuarios</option>
+            </select>
+          </div>
+          <p class="thesis">Si baja el pago inicial, suben los candados: alcance cerrado, decision al dia 30 y recuperacion maximo a 3 meses.</p>
+        </div>
+
+        <div class="panel pad">
+          <div class="result-grid">
+            <div class="result">
+              <small>Caja ROVI mes 1</small>
+              <strong id="roviCash">$0</strong>
+              <span>Implementacion + share add-ons - costo ROVI.</span>
+            </div>
+            <div class="result">
+              <small>Saldo recuperado</small>
+              <strong id="recovered">$0</strong>
+              <span>Recuperacion del diferido por add-ons.</span>
+            </div>
+            <div class="result">
+              <small>Saldo pendiente</small>
+              <strong id="remaining">$0</strong>
+              <span>Gatillo de continuidad.</span>
+            </div>
+            <div class="result">
+              <small>Share ROVI add-ons</small>
+              <strong id="roviShare">$0</strong>
+              <span>Ingreso neto ROVI por add-ons.</span>
+            </div>
+            <div class="result">
+              <small>Share COPIM</small>
+              <strong id="copimShare">$0</strong>
+              <span>Ingreso neto COPIM por add-ons.</span>
+            </div>
+            <div class="result">
+              <small>Outlay neto COPIM</small>
+              <strong id="copimOutlay">$0</strong>
+              <span>Implementacion + infra - share.</span>
+            </div>
+            <div class="result">
+              <small>Infra facturable</small>
+              <strong id="infra">$0</strong>
+              <span>Costo comprobable.</span>
+            </div>
+            <div class="result">
+              <small>Costo operativo ROVI</small>
+              <strong id="ops">$0</strong>
+              <span>Soporte, QA, onboarding y PM.</span>
+            </div>
+            <div class="result">
+              <small>Add-ons netos</small>
+              <strong id="addons">$0</strong>
+              <span>Antes del split.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="comisiones" class="section">
+      <div class="section-head">
+        <div>
+          <h2>Comisiones Y Reglas De Recuperacion</h2>
+          <p>El split se aplica por origen del ingreso. No todo debe caer en el mismo acuerdo.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Linea</th>
+              <th>Base de calculo</th>
+              <th>Comision / split</th>
+              <th>Condicion de proteccion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>COPIM add-ons</td>
+              <td>Ingresos netos cobrados, sin IVA, pasarela ni devoluciones.</td>
+              <td>70% ROVI / 30% COPIM hasta recuperar saldo; luego 60% / 40%.</td>
+              <td>Solo add-ons dentro de COPIM institucional.</td>
+            </tr>
+            <tr>
+              <td>Educacion CIIB</td>
+              <td>Cursos, webinars, grabaciones y diplomados aportados o convocados por CIIB.</td>
+              <td>60% CIIB / 40% ROVI.</td>
+              <td>No aplica a productos ROVI, agent skills ni marketplace general.</td>
+            </tr>
+            <tr>
+              <td>DCC referidos</td>
+              <td>Clientes registrados por escrito y efectivamente cobrados.</td>
+              <td>20% primer ano; 5%-10% renovaciones por 24-36 meses.</td>
+              <td>No aplica a clientes organicos o ya existentes en pipeline.</td>
+            </tr>
+            <tr>
+              <td>PM de implementacion</td>
+              <td>Bolsa desde participacion ROVI, solo contra hitos.</td>
+              <td>Hasta $25,000 maximo.</td>
+              <td>No sale de recursos COPIM ni de presupuesto institucional.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="ruta" class="section">
+      <div class="section-head">
+        <div>
+          <h2>Ruta Critica Del Piloto De 1 Mes</h2>
+          <p>El piloto debe producir una decision financiera y operativa al dia 30.</p>
+        </div>
+      </div>
+      <div class="route">
+        <article class="route-card">
+          <span class="owner">Dia 0-2 · ROVI + Mario</span>
+          <strong>Cerrar alcance</strong>
+          <p>Pago, datos, exclusividad, responsables y regla de continuidad.</p>
+        </article>
+        <article class="route-card">
+          <span class="owner">Dia 3-7 · COPIM</span>
+          <strong>Convocar pilotos</strong>
+          <p>2-3 asociaciones, responsables, base de socios y calendario.</p>
+        </article>
+        <article class="route-card">
+          <span class="owner">Semana 2 · ROVI</span>
+          <strong>Activar operacion</strong>
+          <p>Socios, membresias, eventos, cursos, credenciales y capacitacion.</p>
+        </article>
+        <article class="route-card">
+          <span class="owner">Semana 3 · Todos</span>
+          <strong>Medir adopcion</strong>
+          <p>Usuarios activos, tickets, add-ons, friccion y costos.</p>
+        </article>
+        <article class="route-card">
+          <span class="owner">Dia 30 · Decision</span>
+          <strong>Formalizar o cerrar</strong>
+          <p>Contrato anual, recuperacion del saldo, expansion o cierre ordenado.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="plan" class="section">
+      <div class="section-head">
+        <div>
+          <h2>Plan De Accion Por Responsable</h2>
+          <p>La adopcion no se delega al software. Cada parte debe traer una pieza concreta.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        <article class="card teal">
+          <h3>ROVI</h3>
+          <ul class="list">
+            <li>Configurar entorno y workspaces.</li>
+            <li>Capacitar operadores.</li>
+            <li>Medir adopcion, costos y tickets.</li>
+            <li>Preparar contrato anual y anexos.</li>
+          </ul>
+        </article>
+        <article class="card gold">
+          <h3>Mario / COPIM / PM</h3>
+          <ul class="list">
+            <li>Designar asociaciones piloto.</li>
+            <li>Convocar usuarios y entregar datos.</li>
+            <li>Operar rituales: bienvenida, evento, curso.</li>
+            <li>Validar decision al dia 30.</li>
+          </ul>
+        </article>
+        <article class="card blue">
+          <h3>CIIB / DCC</h3>
+          <ul class="list">
+            <li>Entregar matriz bajo NDA.</li>
+            <li>Autorizar uso DCC-Ready.</li>
+            <li>Definir contenido educativo.</li>
+            <li>Registrar oportunidades referidas.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Dashboard HTML standalone para negociacion ROVI x Mario con benchmark de mercado.</span>
+      <span>Usa el boton PDF para imprimir o exportar.</span>
+    </footer>
+  </main>
+
+  <script>
+    const implementationPlans = {
+      balanced: { paid: 50000, deferred: 25000 },
+      flexible: { paid: 25000, deferred: 50000 },
+      full: { paid: 75000, deferred: 0 }
+    };
+
+    const adoptionLevels = {
+      low: { infra: 5000, ops: 18000, addons: 10000, pm: 0 },
+      base: { infra: 7500, ops: 28000, addons: 25000, pm: 10000 },
+      high: { infra: 9500, ops: 42000, addons: 60000, pm: 25000 }
+    };
+
+    const money = (value) => new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+      maximumFractionDigits: 0
+    }).format(Math.round(value));
+
+    function splitAddons(addons, deferred) {
+      if (deferred <= 0) {
+        return { rovi: addons * 0.60, copim: addons * 0.40, recovered: 0, remaining: 0 };
+      }
+
+      const threshold = deferred / 0.70;
+      if (addons <= threshold) {
+        const rovi = addons * 0.70;
+        return { rovi, copim: addons * 0.30, recovered: rovi, remaining: deferred - rovi };
+      }
+
+      const excess = addons - threshold;
+      return {
+        rovi: deferred + (excess * 0.60),
+        copim: (threshold * 0.30) + (excess * 0.40),
+        recovered: deferred,
+        remaining: 0
+      };
+    }
+
+    function updateModel() {
+      const plan = implementationPlans[document.getElementById("implementationPlan").value];
+      const adoption = adoptionLevels[document.getElementById("adoptionLevel").value];
+      const split = splitAddons(adoption.addons, plan.deferred);
+      const roviCash = plan.paid + split.rovi - adoption.ops - adoption.pm;
+      const copimOutlay = plan.paid + adoption.infra - split.copim;
+
+      document.getElementById("roviCash").textContent = money(roviCash);
+      document.getElementById("recovered").textContent = money(split.recovered);
+      document.getElementById("remaining").textContent = money(split.remaining);
+      document.getElementById("roviShare").textContent = money(split.rovi);
+      document.getElementById("copimShare").textContent = money(split.copim);
+      document.getElementById("copimOutlay").textContent = money(copimOutlay);
+      document.getElementById("infra").textContent = money(adoption.infra);
+      document.getElementById("ops").textContent = money(adoption.ops + adoption.pm);
+      document.getElementById("addons").textContent = money(adoption.addons);
+    }
+
+    document.getElementById("implementationPlan").addEventListener("change", updateModel);
+    document.getElementById("adoptionLevel").addEventListener("change", updateModel);
+    updateModel();
+  </script>
+</body>
+</html>

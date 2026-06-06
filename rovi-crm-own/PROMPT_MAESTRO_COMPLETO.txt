@@ -1,0 +1,395 @@
+# PROMPT MAESTRO COMPLETO - ROVI OWNERS
+# Guía Detallada para Crear el Sistema desde Cero
+
+# Version: 2.0 - Actualizada con 15 Módulos Completos
+# Fecha: Mayo 2026
+# Duración Estimada: 8-10 semanas
+# Nivel: Experto - Para desarrolladores Full Stack
+# Stack: FastAPI + MongoDB + React 19 + Tailwind CSS
+
+# ===================================================================
+# INDICE DEL PROMPT
+# ===================================================================
+
+1. CONTEXTO COMPLETO DEL PROYECTO
+2. ARQUITECTURA DEL SISTEMA
+3. MODELOS DE DATOS
+4. ENDPOINTS API COMPLETOS
+5. FRONTEND - COMPONENTES POR NIVEL
+6. BASE DE DATOS Y MIGRACIÓN
+7. INTEGRACIONES EXTERNAS
+8. PLAN DE IMPLEMENTACIÓN
+
+# ===================================================================
+# 1. CONTEXTO COMPLETO DEL PROYECTO
+# ===================================================================
+
+# ¿QUÉ ES ROVI OWNERS?
+
+# Transformación de ROVI CRM: De plataforma inmobiliaria a plataforma B2B SaaS para venta de software.
+
+# Modelo de Negocio:
+# - Antes: Vendíamos ROVI CRM a inmobiliarias para vender casas
+# - Ahora: Usamos ROVI CRM para vender ROVI CRM a inmobiliarias
+# - Estrategia: "Dogfooding" - Usamos nuestro propio producto para venderlo
+
+# Público Objetivo (ICP - Ideal Customer Profile):
+# - Inmobiliarias en México (zonas turísticas: Tulum, Playa del Carmen, Cancún)
+# - Tamaño: 2-50 brokers
+# - CRM actual: Excel, CRM básico, o buscando reemplazar Salesforce/HubSpot
+# - Presupuesto: $3,000 - $15,000 MXN mensuales
+# - Pain Points: Pierden leads, no hacen seguimiento, proceso manual
+
+# Oferta de Productos:
+# 1. Essential: $2,999/mes - 1 broker
+# 2. Standard: $7,999/mes - 2-10 brokers
+# 3. Professional: $14,999/mes - 11-50 brokers
+# 4. Enterprise: Cotización - 50+ brokers
+
+# LOS 3 NIVELES DE ACCESO
+
+# NIVEL 1: ROVI ADMIN GENERAL (Control Total)
+# Usuarios: CEO, COO, Directivos, Gerentes Generales
+# Permisos: Visibilidad global de toda la empresa
+# Responsabilidad: Estrategia, decisiones de inversión, supervisión
+
+# Módulos Exclusivos:
+# - Dashboard Global (Marketing + Sales metrics)
+# - Analytics Avanzado (ROI, Churn, Conversiones)
+# - Control Total de Base de Datos
+# - Encuentra Leads (Scraper configuración)
+# - Gamificación (configurar reglas y bonos)
+# - Gestión de Equipo (crear, editar, eliminar usuarios)
+# - Integraciones y Settings (Stripe, Vapi, Twilio, SendGrid, Google Calendar)
+
+# NIVEL 2: ROVI SALES (Conversión)
+# Usuarios: Sales Executives, Account Executives, Closers
+# Permisos: Solo SUS prospectos y SUS métricas
+# Responsabilidad: Cerrar ventas, cumplir meta mensual
+
+# Módulos Exclusivos:
+# - Dashboard Personal ("Mi Performance")
+# - Pipeline de Prospectos (Kanban board)
+# - Scripts de Venta (guiones probados)
+# - Productos/Servicios (catálogo de planes)
+# - Calendario (agenda personal)
+# - Analytics Personal (mis métricas)
+# - Importación de Leads (cargar bases externas)
+# - Automatizaciones (follow-ups automáticos)
+# - Chat con IA (asistente de redacción)
+
+# NIVEL 3: ROVI MARKETING (Generación de Demanda)
+# Usuarios: Marketing Specialists, Campaign Managers, Content Creators
+# Permisos: Campañas, leads generados, métricas de marketing
+# Responsabilidad: Generar leads calificados para Sales
+
+# Módulos Exclusivos:
+# - Dashboard Marketing (leads, campañas, CPL)
+# - Campañas (Email, SMS, VAPI Calls)
+# - Email Templates (crear/editar plantillas)
+# - Automatizaciones (flujo de nutrición)
+# - Importación de Leads (cargar bases externas)
+# - Analytics Marketing (CPL, aperture rate, clicks)
+# - Chat con IA (generar copy, posts, contenido)
+
+# ===================================================================
+# 2. ARQUITECTURA DEL SISTEMA
+# ===================================================================
+
+# STACK TECNOLÓGICO
+# - FRONTEND: React 19 con 3 niveles (Admin, Sales, Marketing)
+# - BACKEND: FastAPI con 40+ endpoints
+# - DATABASE: MongoDB v7 con collections para prospects, service_plans, users, campaigns, gamification
+
+# ESTRUCTURA DE CARPETAS
+# leadvibes_2704/
+# ├── backend/
+# │   ├── server.py                 # Main FastAPI app
+# │   ├── models.py                 # Pydantic models (todos)
+# │   ├── auth.py                   # JWT authentication
+# │   ├── scoring_algorithms.py    # Prospect scoring logic
+# │   ├── gamification_engine.py   # Points calculation
+# │   ├── ai_service.py            # OpenAI integration
+# │   ├── import_export.py         # Lead import/export
+# │   ├── automation_engine.py     # Workflow automation
+# │   ├── integration_stripe.py   # Stripe payments
+# │   ├── integration_vapi.py     # VAPI AI calls
+# │   ├── integration_twilio.py   # SMS messaging
+# │   ├── integration_sendgrid.py # Email marketing
+# │   └── scripts/
+# │       ├── export_db_backup.py
+# │       ├── migrate_to_rovi_owners.py
+# │       └── seed_gamification_rules.py
+# │
+# ├── frontend/
+# │   ├── src/
+# │   │   ├── App.js               # React Router con rutas por nivel
+# │   │   ├── context/
+# │   │   │   └── AuthContext.js   # JWT auth, axios instance
+# │   │   ├── pages/
+# │   │   │   ├── Dashboard/
+# │   │   │   │   ├── AdminDashboard.js
+# │   │   │   │   ├── SalesDashboard.js
+# │   │   │   │   └── MarketingDashboard.js
+# │   │   │   ├── ProspectsPage.js
+# │   │   │   ├── CampaignsPage.js
+# │   │   │   ├── TeamPage.js
+# │   │   │   ├── ServicePlansPage.js
+# │   │   │   ├── ImportLeadsPage.js
+# │   │   │   ├── AutomationsPage.js
+# │   │   │   ├── AIChatPage.js
+# │   │   │   ├── AnalyticsPage.js
+# │   │   │   ├── GamificationPage.js
+# │   │   │   ├── CalendarPage.js
+# │   │   │   ├── ScriptsPage.js
+# │   │   │   ├── OnboardingPage.js
+# │   │   │   ├── ChurnPredictionPage.js
+# │   │   │   └── ReferralsPage.js
+# │   │   └── components/
+# │   │       ├── Sidebar.js       # Navegación por nivel
+# │   │       ├── ProspectCard.js
+# │   │       ├── PipelineBoard.js
+# │   │       ├── GamificationBadge.js
+# │   │       └── ui/               # shadcn/ui components
+# │   └── package.json
+# │
+# └── docker-compose.yml           # Multi-container deployment
+
+# ===================================================================
+# 3. MODELOS DE DATOS
+# ===================================================================
+
+# IMPORTAR ESTE CÓDIGO EN backend/models.py:
+
+# Modelos principales incluyen:
+# - Prospect (reemplaza a Lead)
+# - ServicePlan (catálogo de planes)
+# - TeamMember (actualización de User)
+# - GamificationRule v2 (cross-level)
+# - Campaign (para Marketing)
+# - Automation (automatizaciones)
+# - EmailTemplate
+# - ImportJob (importación de leads)
+
+# Enums clave:
+# - ProspectStatus: prospecto, discovery_call, demo_agendada, demo_completada, propuesta_enviada, negociacion, contrato_cerrado, onboarding, active_user, perdido
+# - CompanySize: solo, small, medium, large
+# - ServiceTier: essential, standard, professional, enterprise
+# - Department: sales, marketing, customer_success, operations, management
+
+# ===================================================================
+# 4. ENDPOINTS API COMPLETOS
+# ===================================================================
+
+# AGREGAR ESTE CÓDIGO EN backend/server.py:
+
+# Endpoints principales (40+ en total):
+# 1-5. PROSPECTS (CRUD + Scoring)
+# 6-8. SERVICE PLANS
+# 9-11. GAMIFICATION
+# 12-14. CAMPAIGNS (Marketing)
+# 15-17. IMPORT LEADS
+# 18-20. AUTOMATIZATIONS
+# 21-23. AI CHAT
+# 24-26. ANALYTICS
+# 27-30. TEAM MANAGEMENT
+# 31-33. CALENDARIO
+# 34-36. SCRIPTS DE VENTA
+# 37-40. CONFIGURACIÓN E INTEGRACIONES
+
+# Ejemplos de endpoints clave:
+# POST /api/prospects - Crear nuevo prospecto B2B con scoring automático
+# GET /api/prospects - Listar prospects con filtros avanzados
+# PUT /api/prospects/{prospect_id} - Actualizar prospecto
+# POST /api/prospects/{prospect_id}/score - Recalcular score manualmente
+
+# GET /api/service-plans - Listar planes de servicio
+# POST /api/service-plans - Crear nuevo plan (solo Admin)
+
+# GET /api/gamification/rules - Listar reglas de gamificación
+# POST /api/gamification/rules - Crear nueva regla (solo Admin)
+# GET /api/gamification/leaderboard - Obtener ranking cross-level
+
+# POST /api/campaigns - Crear nueva campaña de marketing
+# POST /api/campaigns/{campaign_id}/send - Ejecutar campaña
+
+# POST /api/import/leads - Importar leads desde CSV/Excel
+# GET /api/import/{import_id}/status - Verificar estado de importación
+
+# POST /api/automations - Crear nueva automatización
+# POST /api/automations/{automation_id}/run - Ejecutar automatización
+
+# POST /api/ai-chat/generate - Generar contenido con IA
+# POST /api/ai-chat/improve - Mejorar contenido existente
+
+# GET /api/analytics/dashboard - Métricas de dashboard
+# GET /api/analytics/conversions - Tasas de conversión del pipeline
+# GET /api/analytics/roi - ROI por canal de marketing
+
+# GET /api/team - Listar miembros del equipo
+# POST /api/team - Crear nuevo miembro (solo Admin)
+# PUT /api/team/{user_id}/status - Actualizar estado de miembro
+
+# ===================================================================
+# 5. FRONTEND - COMPONENTES POR NIVEL
+# ===================================================================
+
+# ESTRUCTURA DE RUTAS EN frontend/src/App.js:
+
+# Rutas principales por nivel:
+# - Nivel 1 (Admin): /team, /analytics, /settings
+# - Nivel 2 (Sales): /prospects, /import-leads, /service-plans, /scripts
+# - Nivel 3 (Marketing): /campaigns, /email-templates
+# - Compartidos: /gamification, /calendar, /automations, /ai-chat
+
+# Componentes principales:
+# - AdminDashboard.js - Vista global de métricas
+# - SalesDashboard.js - Métricas personales y metas
+# - MarketingDashboard.js - Métricas de campañas
+# - ProspectsPage.js - Pipeline Kanban con arrastrar y soltar
+# - CampaignsPage.js - Gestión de campañas de marketing
+# - ImportLeadsPage.js - Importación de CSV/Excel
+# - AutomationsPage.js - Configuración de automatizaciones
+# - AIChatPage.js - Chat con IA para generar contenido
+# - GamificationPage.js - Leaderboard cross-level
+
+# ===================================================================
+# 6. BASE DE DATOS Y MIGRACIÓN
+# ===================================================================
+
+# SCRIPT DE MIGRACIÓN COMPLETO
+# Crear archivo backend/scripts/migrate_to_rovi_owners.py
+
+# El script incluye:
+# 1. Migración de leads → prospects con campos B2B
+# 2. Creación de planes de servicio por defecto (4 tiers)
+# 3. Creación de reglas de gamificación cross-level
+# 4. Mapeo de estados de real estate a software sales
+# 5. Índices de MongoDB para performance
+
+# Comandos para ejecutar migración:
+# cd backend
+# python scripts/migrate_to_rovi_owners.py
+
+# ===================================================================
+# 7. INTEGRACIONES EXTERNAS
+# ===================================================================
+
+# INTEGRACIÓN CON STRIPE (Pagos)
+# Archivo: backend/integration_stripe.py
+# - create_stripe_customer() - Crear customer al cerrar contrato
+# - create_subscription() - Crear suscripción mensual/anual
+# - handle_webhook_event() - Procesar pagos y cancelaciones
+
+# INTEGRACIÓN CON VAPI.AI (Llamadas IA)
+# Archivo: backend/integration_vapi.py
+# - create_vapi_call() - Crear llamada automatizada
+# - get_vapi_call_status() - Obtener estado de llamada
+# - transcribe_vapi_call() - Transcribir llamada completada
+
+# INTEGRACIÓN CON TWILIO (SMS)
+# Archivo: backend/integration_twilio.py
+# - send_sms() - Enviar SMS individual
+# - send_bulk_sms() - Enviar SMS masivo
+
+# INTEGRACIÓN CON SENDGRID (Email Marketing)
+# Archivo: backend/integration_sendgrid.py
+# - send_email() - Enviar email individual
+# - send_bulk_email() - Enviar email masivo con templates
+# - get_email_stats() - Obtener estadísticas (aperturas, clics)
+
+# ===================================================================
+# 8. PLAN DE IMPLEMENTACIÓN
+# ===================================================================
+
+# SEMANA 1: FUNDACIÓN Y ARQUITECTURA
+# - Crear repositorio feature/rovi-owners-adaptation
+# - Configurar Docker Compose para desarrollo
+# - Actualizar backend/models.py con nuevos enums y modelos
+# - Probar imports y sintaxis
+
+# SEMANA 2: ENDPOINTS CORE
+# - Prospects Endpoints (POST, GET, PUT, DELETE, Score)
+# - Service Plans Endpoints (GET, POST)
+# - Tests de integración
+
+# SEMANA 3: GAMIFICACIÓN Y ANALYTICS
+# - Gamification endpoints (rules, leaderboard)
+# - Analytics endpoints (dashboard, conversions, ROI)
+# - Implementar gamification_engine.py
+
+# SEMANA 4: CAMPAÑAS Y MARKETING
+# - Campaigns endpoints (create, list, send)
+# - Email Templates endpoints
+# - Integración con SendGrid, Twilio, VAPI
+
+# SEMANA 5: IMPORTACIÓN Y AUTOMATIZACIONES
+# - Import Leads endpoints (POST, status check)
+# - Automatizaciones endpoints (create, list, run)
+# - Script de migración de datos
+
+# SEMANA 6: AI CHAT Y SCRIPTS
+# - AI Chat endpoints (generate, improve)
+# - Sales Scripts endpoints
+# - Integración con OpenAI API
+
+# SEMANA 7: FRONTEND - DASHBOARDS
+# - AdminDashboard.js (vista global)
+# - SalesDashboard.js (métricas personales)
+# - MarketingDashboard.js (métricas de campañas)
+
+# SEMANA 8: FRONTEND - MÓDULOS ESPECIALES
+# - ProspectsPage.js (Pipeline Kanban)
+# - CampaignsPage.js, AutomationsPage.js, ImportLeadsPage.js
+# - AIChatPage.js, ScriptsPage.js
+
+# SEMANA 9-10: TESTING Y VALIDACIÓN
+# - Testing unitario (>80% cobertura)
+# - Testing de integración (flujo completo)
+# - Bug fixes y polish
+# - Documentación y handoff
+
+# ===================================================================
+# CRITERIOS DE ÉXITO DEL PROYECTO
+# ===================================================================
+
+# Técnicos:
+# - Todos los 15 módulos implementados
+# - <5 bugs críticos en producción
+# - Performance: <200ms response time
+# - Frontend y backend se comunican sin errores
+
+# Funcionales:
+# - Pipeline de prospects funciona para software sales
+# - Scoring algorithms calculan correctamente
+# - Gamificación cross-level otorga puntos justos
+# - Cross-level visibility (Marketing ve impacto en Sales)
+
+# De Negocio:
+# - Equipo interno usando el sistema diariamente
+# - +20% en productividad de Sales
+# - +15% en qualification rate de Marketing
+# - Primer cliente externo cerrado usando el sistema
+
+# ===================================================================
+# REQUISITOS PREVIOS
+# ===================================================================
+
+# - Python 3.11+ instalado
+# - Node.js 18+ instalado
+# - MongoDB 7+ corriendo
+# - Docker y Docker Compose instalados
+# - Cuenta de OpenAI (para Chat IA)
+
+# COMENZAR:
+# 1. Clonar este repositorio
+# 2. Crear branch: git checkout -b feature/rovi-owners-adaptation
+# 3. Leer este prompt completo
+# 4. Seguir plan de 8 semanas
+# 5. ¡Construir el futuro de ROVI CRM!
+
+# ===================================================================
+# Documento creado: Mayo 2026
+# Version: 2.0 - Con 15 Módulos Completos
+# Para desarrolladores Full Stack
+# ===================================================================

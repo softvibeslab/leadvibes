@@ -13,6 +13,7 @@ import {
   isPropertyManagerUser,
   isRoviControlTowerOwner,
   isRoviInternalUser,
+  isValuationUser,
   resolveAuthenticatedHome,
 } from '../lib/copimAccess';
 import {
@@ -39,13 +40,17 @@ import {
   WalletCards,
   Bot,
   MessageSquareShare,
+  MessageCircle,
   CreditCard,
   IdCard,
+  ListChecks,
   FolderKanban,
   BriefcaseBusiness,
   Store,
   Handshake,
   FlaskConical,
+  Calculator,
+  Scale,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -60,8 +65,10 @@ const individualNavItems = [
   { to: '/products', icon: Package, label: 'Productos' },
   { to: '/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/openwa', icon: MessageCircle, label: 'OpenWA' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
+  { to: '/tasks', icon: ListChecks, label: 'Tareas' },
   { to: '/database-chat', icon: Database, label: 'Chat BD' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
@@ -80,8 +87,10 @@ const agencyNavItems = [
   { to: '/marketplace', icon: Store, label: 'Marketplace' },
   { to: '/brokers', icon: UserCircle, label: 'Brokers' },
   { to: '/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/openwa', icon: MessageCircle, label: 'OpenWA' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
+  { to: '/tasks', icon: ListChecks, label: 'Tareas' },
   { to: '/gamification', icon: Trophy, label: 'Gamificacion' },
   { to: '/database-chat', icon: Database, label: 'Chat BD' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
@@ -116,8 +125,18 @@ const propertyManagerNavItems = [
   { to: '/rentals/integrations', icon: Zap, label: 'Integraciones' },
   { to: '/rentals/import', icon: Upload, label: 'Importador' },
   { to: '/leads', icon: Users, label: 'Leads' },
-  { to: '/campaigns', icon: Radio, label: 'Campanas' },
+  { to: '/automations', icon: Zap, label: 'Automatizaciones' },
   { to: '/analytics', icon: BarChart3, label: 'Analiticas' },
+  { to: '/database-chat', icon: Database, label: 'Estratega IA' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const valuationNavItems = [
+  { to: '/valuations', icon: LayoutDashboard, label: 'Avalúos HQ' },
+  { to: '/valuations/cases', icon: Scale, label: 'Casos' },
+  { to: '/valuations/regulations', icon: Building2, label: 'PDU / POEL' },
+  { to: '/valuations/comparables', icon: BarChart3, label: 'Comparables' },
+  { to: '/valuations/calculator', icon: Calculator, label: 'Calculadora' },
   { to: '/database-chat', icon: Database, label: 'Estratega IA' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
 ];
@@ -186,6 +205,7 @@ export const Sidebar = ({ onClose }) => {
   const isRoviInternalWorkspace = isRoviInternalUser(user);
   const isControlTowerOwner = isRoviControlTowerOwner(user);
   const isPropertyManagerWorkspace = isPropertyManagerUser(user);
+  const isValuationWorkspace = isValuationUser(user);
 
   const handleWorkspaceChange = async (tenantId) => {
     if (!tenantId || tenantId === activeWorkspace?.tenant_id) return;
@@ -198,6 +218,8 @@ export const Sidebar = ({ onClose }) => {
         ? '/rovi/dashboard'
         : targetWorkspace?.tenant_type === 'property_management' || targetRole === 'property_manager'
         ? '/rentals'
+        : targetWorkspace?.tenant_type === 'valuation' || targetRole === 'certified_valuator'
+        ? '/valuations'
         : targetRole === 'copim_member'
         ? '/copim/member'
         : targetRole === 'copim_operator'
@@ -224,6 +246,8 @@ export const Sidebar = ({ onClose }) => {
     ? roviInternalNavItems.filter((item) => item.to !== '/rovi/ai-control' || isControlTowerOwner)
     : isPropertyManagerWorkspace || location.pathname.startsWith('/rentals')
     ? propertyManagerNavItems
+    : isValuationWorkspace || location.pathname.startsWith('/valuations')
+    ? valuationNavItems
     : currentModeValue === 'copim'
     ? (isMemberPortal ? copimMemberNavItems : (isLocalAssociationWorkspace ? copimLocalAssociationNavItems : copimNationalNavItems))
     : isIndividual

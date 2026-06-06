@@ -23,6 +23,7 @@ PREVIEW_PASSWORD = os.environ.get("PREVIEW_ACCESS_PASSWORD", "RoviPreview2026!")
 NATIONAL_COPIM_TENANT_ID = "tenant-preview-copim"
 LOCAL_COPIM_TENANT_ID = "tenant-preview-copim-local"
 RENTALS_TENANT_ID = "tenant-preview-rentals"
+VALUATION_TENANT_ID = "tenant-preview-valuation"
 
 
 PREVIEW_USERS = [
@@ -55,6 +56,16 @@ PREVIEW_USERS = [
         "tenant_id": RENTALS_TENANT_ID,
         "tenant_type": "property_management",
         "workspace_name": "Preview Rentas Operacion",
+    },
+    {
+        "id": "preview-valuator-user",
+        "email": "preview.valuator@rovicrm.com",
+        "name": "Preview Valuador Certificado",
+        "role": "certified_valuator",
+        "account_type": "valuation",
+        "tenant_id": VALUATION_TENANT_ID,
+        "tenant_type": "valuation",
+        "workspace_name": "Preview Valuacion Normativa",
     },
     {
         "id": "preview-copim-admin-user",

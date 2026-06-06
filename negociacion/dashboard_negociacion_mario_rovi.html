@@ -1,0 +1,1884 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard de Negociacion | ROVI x Mario</title>
+  <style>
+    :root {
+      --bg: #f6f7f5;
+      --surface: #ffffff;
+      --surface-2: #eef4f2;
+      --ink: #152238;
+      --muted: #667085;
+      --line: #d9e0dc;
+      --teal: #0d9488;
+      --teal-dark: #0f766e;
+      --green: #4d7c0f;
+      --amber: #d97706;
+      --blue: #1d4ed8;
+      --red: #c2410c;
+      --sand: #e7e5e4;
+      --shadow: 0 16px 42px rgba(21, 34, 56, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(238, 244, 242, 0.86), rgba(246, 247, 245, 0.96)),
+        var(--bg);
+      line-height: 1.48;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background: var(--teal);
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: 0;
+      flex: 0 0 auto;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 1px;
+    }
+
+    .nav {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav a,
+    .mini-button {
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .nav a:hover,
+    .mini-button:hover {
+      background: var(--surface-2);
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 22px 20px 64px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.05fr) minmax(320px, 1.95fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-pad {
+      padding: 20px;
+    }
+
+    .headline {
+      min-height: 100%;
+      display: grid;
+      gap: 18px;
+      align-content: space-between;
+      background:
+        linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(29, 78, 216, 0.08)),
+        var(--surface);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #e7f6f3;
+      color: var(--teal-dark);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(30px, 4vw, 56px);
+      line-height: 0.98;
+      letter-spacing: 0;
+      max-width: 10ch;
+    }
+
+    h2 {
+      font-size: 24px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .lead {
+      color: #384459;
+      font-size: 17px;
+      max-width: 62ch;
+    }
+
+    .thesis {
+      border-left: 4px solid var(--teal);
+      padding: 12px 14px;
+      background: rgba(13, 148, 136, 0.08);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-weight: 800;
+      color: #163a3b;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: #fbfcfb;
+      min-height: 118px;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+    }
+
+    .stat small {
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .stat span {
+      color: #576171;
+      font-size: 13px;
+    }
+
+    .section {
+      margin-top: 16px;
+    }
+
+    .section-header {
+      display: flex;
+      gap: 16px;
+      align-items: end;
+      justify-content: space-between;
+      padding: 22px 0 10px;
+    }
+
+    .section-header p {
+      color: var(--muted);
+      max-width: 78ch;
+      margin-top: 6px;
+    }
+
+    .three-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .canvas-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .canvas-card {
+      min-height: 310px;
+      padding: 18px;
+      display: grid;
+      gap: 13px;
+      align-content: start;
+      border-left: 5px solid var(--teal);
+    }
+
+    .canvas-card:nth-child(2) {
+      border-left-color: var(--blue);
+    }
+
+    .canvas-card:nth-child(3) {
+      border-left-color: var(--amber);
+    }
+
+    .canvas-card h3 {
+      color: var(--ink);
+      font-size: 19px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .canvas-themes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .canvas-theme {
+      border-radius: 999px;
+      padding: 5px 8px;
+      background: #f1f5f4;
+      color: #475467;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .mvc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mvc-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 13px;
+      background: #fbfcfb;
+      min-height: 118px;
+    }
+
+    .mvc-item strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 7px;
+    }
+
+    .mvc-item p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .scenario-community-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(220px, 1fr));
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .finance-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .control-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px;
+      font: inherit;
+      font-weight: 800;
+    }
+
+    .finance-result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .finance-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfb;
+      padding: 13px;
+      min-height: 112px;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+    }
+
+    .finance-card small {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .finance-card strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .finance-card span {
+      color: #5a6678;
+      font-size: 12px;
+    }
+
+    .price-lane {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .price-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      min-height: 245px;
+    }
+
+    .price-card h3 {
+      color: var(--ink);
+      font-size: 18px;
+      text-transform: none;
+      letter-spacing: 0;
+      margin-bottom: 2px;
+    }
+
+    .price {
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .route-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(170px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .route-card {
+      min-width: 170px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .route-card strong {
+      font-size: 15px;
+    }
+
+    .route-card p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .owner-pill {
+      width: fit-content;
+      border-radius: 999px;
+      padding: 5px 8px;
+      background: #edf4ff;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .community-scenario {
+      min-width: 220px;
+      padding: 16px;
+      display: grid;
+      gap: 11px;
+      align-content: start;
+    }
+
+    .community-scenario strong {
+      font-size: 16px;
+    }
+
+    .community-scenario p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .two-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .front {
+      padding: 18px;
+      border-top: 5px solid var(--teal);
+      min-height: 330px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .front:nth-child(2) {
+      border-top-color: var(--blue);
+    }
+
+    .front:nth-child(3) {
+      border-top-color: var(--amber);
+    }
+
+    .front-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .front-title strong {
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      background: #edf4ff;
+      color: var(--blue);
+      white-space: nowrap;
+    }
+
+    .list {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      position: relative;
+      padding-left: 16px;
+      color: #475467;
+      font-size: 14px;
+    }
+
+    .list li::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      background: var(--teal);
+    }
+
+    .front:nth-child(2) .list li::before {
+      background: var(--blue);
+    }
+
+    .front:nth-child(3) .list li::before {
+      background: var(--amber);
+    }
+
+    .matrix {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    th {
+      color: #24324a;
+      background: #f2f6f5;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status.accept {
+      color: #065f46;
+      background: #dcfce7;
+    }
+
+    .status.cond {
+      color: #92400e;
+      background: #fef3c7;
+    }
+
+    .status.no {
+      color: #991b1b;
+      background: #fee2e2;
+    }
+
+    .scenario-panel {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .scenario-menu {
+      display: grid;
+      gap: 8px;
+    }
+
+    .scenario-button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      padding: 13px 14px;
+      text-align: left;
+      font-weight: 800;
+    }
+
+    .scenario-button small {
+      display: block;
+      color: var(--muted);
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .scenario-button.is-active {
+      border-color: var(--teal);
+      background: #e7f6f3;
+      color: #064e4a;
+    }
+
+    .scenario-output {
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .deal-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .deal-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 13px;
+      background: #fbfcfb;
+    }
+
+    .deal-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .deal-item strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .bar-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 64px;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+      color: #475467;
+    }
+
+    .track {
+      height: 12px;
+      border-radius: 999px;
+      background: #e6ece9;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--teal);
+    }
+
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(180px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .risk {
+      min-width: 180px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 15px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .risk strong {
+      font-size: 15px;
+    }
+
+    .risk p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .risk-meter {
+      height: 8px;
+      border-radius: 999px;
+      background: #e6ece9;
+      overflow: hidden;
+    }
+
+    .risk-meter span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--red);
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .step {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 16px;
+      min-height: 150px;
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: #fff;
+      font-weight: 900;
+      margin-bottom: 12px;
+    }
+
+    .step strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .script {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #101b2d;
+      color: #eef7ff;
+      padding: 18px;
+      font-size: 15px;
+    }
+
+    .script p + p {
+      margin-top: 12px;
+    }
+
+    .copy-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .copy-row strong {
+      color: #fff;
+    }
+
+    .copy-row button {
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .copy-row button:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 800;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details[open] summary {
+      border-bottom: 1px solid var(--line);
+      background: #f7faf8;
+    }
+
+    .details-body {
+      padding: 14px 16px 16px;
+    }
+
+    .question-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .question {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 13px;
+      color: #3c485c;
+      font-size: 14px;
+    }
+
+    .footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+    }
+
+    @media (max-width: 1100px) {
+      .summary-grid,
+      .scenario-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .finance-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid,
+      .three-grid,
+      .canvas-grid,
+      .mvc-grid,
+      .finance-result-grid,
+      .price-lane,
+      .timeline,
+      .deal-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        justify-content: flex-start;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 2px;
+      }
+
+      .page {
+        padding: 14px 12px 44px;
+      }
+
+      .panel-pad {
+        padding: 16px;
+      }
+
+      .stats-grid,
+      .three-grid,
+      .canvas-grid,
+      .mvc-grid,
+      .two-grid,
+      .finance-result-grid,
+      .price-lane,
+      .timeline,
+      .deal-grid,
+      .question-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .bar-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      h1 {
+        max-width: 12ch;
+      }
+    }
+
+    @media print {
+      .topbar,
+      .copy-row button,
+      .mini-button {
+        display: none !important;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      .page {
+        padding: 0;
+      }
+
+      .panel,
+      .stat,
+      .front,
+      .risk,
+      .step,
+      details {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">RV</div>
+        <div>
+          <strong>Dashboard de Negociacion ROVI x Mario</strong>
+          <span>COPIM institucional, DCC-Ready y marketplace educativo</span>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Secciones del dashboard">
+        <a href="#canvas">Canvas</a>
+        <a href="#frentes">Frentes</a>
+        <a href="#finanzas">Finanzas</a>
+        <a href="#concesiones">Concesiones</a>
+        <a href="#escenarios">Escenarios</a>
+        <a href="#riesgos">Riesgos</a>
+        <a href="#piloto">Piloto</a>
+        <a href="#guion">Guion</a>
+        <button class="mini-button" type="button" onclick="window.print()">Imprimir</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="summary-grid" aria-label="Resumen ejecutivo">
+      <div class="panel panel-pad headline">
+        <div>
+          <span class="eyebrow">Postura recomendada</span>
+          <h1>Separar para ganar</h1>
+        </div>
+        <p class="lead">Aceptar la vision de tres frentes de Mario, pero cerrar reglas propias para cada linea: alcance, exclusividad, revenue share, datos, comisiones y vigencia.</p>
+        <p class="thesis">La alianza es buena si ROVI entra como infraestructura estrategica, no como proveedor barato con exclusividad amplia.</p>
+      </div>
+
+      <div class="panel panel-pad">
+        <div class="stats-grid">
+          <div class="stat">
+            <small>Frentes</small>
+            <strong>3</strong>
+            <span>COPIM, DCC-Ready, capacitaciones.</span>
+          </div>
+          <div class="stat">
+            <small>Piloto</small>
+            <strong>1 mes</strong>
+            <span>Validar operacion real.</span>
+          </div>
+          <div class="stat">
+            <small>Fee reconocido</small>
+            <strong>$75k</strong>
+            <span>$25k inicio + $50k diferido.</span>
+          </div>
+          <div class="stat">
+            <small>No negociable</small>
+            <strong>IP</strong>
+            <span>ROVI conserva codigo, producto y roadmap.</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Lectura rapida de la mesa</h2>
+          <p class="lead">Mario quiere reducir riesgo politico y financiero para COPIM, convertir SIGA en beneficio exclusivo de afiliacion y usar ROVI como palanca de confianza para desarrolladores. Tu respuesta debe validar esa vision, pero convertirla en contratos separados.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="canvas" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Community Canvas Aplicado</h2>
+          <p>Mario no esta describiendo solamente un CRM. Esta describiendo una comunidad profesional con identidad, experiencia y estructura. ROVI debe negociarse como la infraestructura que vuelve esa comunidad medible y sostenible.</p>
+        </div>
+      </div>
+
+      <div class="canvas-grid">
+        <article class="panel canvas-card">
+          <span class="eyebrow">Seccion 1</span>
+          <h3>Identidad</h3>
+          <p>Define por que existe la comunidad, para quien es, que valores defiende y como se mide el exito.</p>
+          <div class="canvas-themes">
+            <span class="canvas-theme">Proposito</span>
+            <span class="canvas-theme">Miembro ideal</span>
+            <span class="canvas-theme">Valores</span>
+            <span class="canvas-theme">Exito</span>
+            <span class="canvas-theme">Marca</span>
+          </div>
+          <p class="thesis">Uso en mesa: si COPIM pide exclusividad, primero debe definir que comunidad quiere activar y que metricas probaran valor real.</p>
+        </article>
+
+        <article class="panel canvas-card">
+          <span class="eyebrow">Seccion 2</span>
+          <h3>Experiencia</h3>
+          <p>Disena como entra, participa, aprende, se relaciona, aporta y evoluciona cada miembro.</p>
+          <div class="canvas-themes">
+            <span class="canvas-theme">Entrada</span>
+            <span class="canvas-theme">Salida</span>
+            <span class="canvas-theme">Experiencias</span>
+            <span class="canvas-theme">Rituales</span>
+            <span class="canvas-theme">Contenido</span>
+            <span class="canvas-theme">Reglas</span>
+            <span class="canvas-theme">Roles</span>
+          </div>
+          <p class="thesis">Uso en mesa: ROVI mide y amplifica capacitaciones, eventos, credenciales y networking; COPIM debe comprometer ritmo operativo.</p>
+        </article>
+
+        <article class="panel canvas-card">
+          <span class="eyebrow">Seccion 3</span>
+          <h3>Estructura</h3>
+          <p>Aterriza quien opera, como se decide, como se financia, que canales se usan y como se protegen los datos.</p>
+          <div class="canvas-themes">
+            <span class="canvas-theme">Organizacion</span>
+            <span class="canvas-theme">Gobernanza</span>
+            <span class="canvas-theme">Finanzas</span>
+            <span class="canvas-theme">Canales</span>
+            <span class="canvas-theme">Datos</span>
+          </div>
+          <p class="thesis">Uso en mesa: tres comunidades requieren tres anexos: COPIM institucional, educacion abierta y DCC-Ready.</p>
+        </article>
+      </div>
+
+      <div class="section panel panel-pad">
+        <div class="section-header" style="padding-top: 0;">
+          <div>
+            <h2>Minimum Viable Community Del Piloto</h2>
+            <p>Estas 9 respuestas deben quedar claras antes de aceptar exclusividad fuerte o fee diferido abierto.</p>
+          </div>
+        </div>
+        <div class="mvc-grid">
+          <div class="mvc-item">
+            <strong>1. Proposito</strong>
+            <p>Profesionalizar, conectar y dar confianza al gremio inmobiliario.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>2. Para quien</strong>
+            <p>Asociaciones, socios, externos educativos y desarrolladores como frentes separados.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>3. Principios</strong>
+            <p>Transparencia, utilidad real para el socio y trazabilidad profesional.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>4. Metricas 12 meses</strong>
+            <p>Asociaciones activas, usuarios activos e ingresos/renovaciones gestionadas.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>5. Ritmo recurrente</strong>
+            <p>Capacitacion semanal, cierre mensual de membresias y bienvenida de socios.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>6. Canales</strong>
+            <p>WhatsApp para convocatoria; ROVI para operacion, trazabilidad y beneficios.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>7. Roles y give/get</strong>
+            <p>Socio recibe beneficios; COPIM visibilidad; ROVI fee/revenue; Mario canal.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>8. Reglas</strong>
+            <p>Datos, comisiones, exclusividad, contenido, marca y no conflicto de interes.</p>
+          </div>
+          <div class="mvc-item">
+            <strong>9. Decision</strong>
+            <p>Roadmap ROVI, reglas COPIM, matriz DCC y marketplace por anexo separado.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div>
+            <h2>Escenarios Comunitarios</h2>
+            <p>Estos escenarios conectan Community Canvas con la negociacion economica y contractual.</p>
+          </div>
+        </div>
+        <div class="scenario-community-grid">
+          <article class="panel community-scenario">
+            <span class="pill">Bajo riesgo</span>
+            <strong>MVC COPIM</strong>
+            <p>Solo COPIM institucional. 2-3 asociaciones, 50 usuarios, socios, membresias, eventos y credencial.</p>
+            <p><strong>Condicion:</strong> exclusividad solo piloto y KPIs claros.</p>
+          </article>
+          <article class="panel community-scenario">
+            <span class="pill">Monetizacion</span>
+            <strong>Educacion abierta</strong>
+            <p>Capacitaciones de lunes, cursos pagados para externos, grabaciones, plantillas y marketplace.</p>
+            <p><strong>Condicion:</strong> 60/40 solo contenido CIIB; productos ROVI excluidos.</p>
+          </article>
+          <article class="panel community-scenario">
+            <span class="pill">Diferenciacion</span>
+            <strong>DCC Trust Network</strong>
+            <p>Desarrolladores, NOM-247, evidencias, postventa, trazabilidad y CRM DCC-Ready.</p>
+            <p><strong>Condicion:</strong> matriz y derechos de uso por escrito.</p>
+          </article>
+          <article class="panel community-scenario">
+            <span class="pill">Vision completa</span>
+            <strong>Ecosistema ROVI</strong>
+            <p>COPIM institucional + educacion + DCC + marketplace + referidos + patrocinadores.</p>
+            <p><strong>Condicion:</strong> tres frentes, tres anexos y datos separados.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="frentes" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Mapa De Frentes</h2>
+          <p>La clave no es decir que no. Es decir que si con fronteras claras.</p>
+        </div>
+      </div>
+
+      <div class="three-grid">
+        <article class="panel front">
+          <div class="front-title">
+            <strong>COPIM institucional</strong>
+            <span class="pill">Piloto</span>
+          </div>
+          <p>Plataforma de gestion para COPIM y asociaciones: socios, membresias, eventos, facturacion, cursos, credencial y operacion.</p>
+          <ul class="list">
+            <li>Aceptar piloto de 1 mes y pago inicial bajo.</li>
+            <li>Exclusividad limitada al paquete institucional COPIM/SIGA.</li>
+            <li>Add-ons 70/30 hasta recuperar saldo; luego 60/40.</li>
+            <li>Infraestructura escalonada separada de soporte y customizaciones.</li>
+          </ul>
+        </article>
+
+        <article class="panel front">
+          <div class="front-title">
+            <strong>ROVI DCC-Ready</strong>
+            <span class="pill">Upside</span>
+          </div>
+          <p>Linea privada para desarrolladores: trazabilidad, NOM-247, evidencias, postventa, documentacion comercial y matriz DCC.</p>
+          <ul class="list">
+            <li>Convenio separado con derechos de uso comercial por escrito.</li>
+            <li>ROVI no certifica; ROVI habilita evidencia y control.</li>
+            <li>Comisiones solo sobre oportunidades registradas y cobradas.</li>
+            <li>Pedir matriz DCC bajo NDA antes de comprometer roadmap.</li>
+          </ul>
+        </article>
+
+        <article class="panel front">
+          <div class="front-title">
+            <strong>Cursos y marketplace</strong>
+            <span class="pill">Monetizacion</span>
+          </div>
+          <p>Capacitaciones, eventos digitales, masterclasses, productos descargables, servicios y agent skills para socios y externos.</p>
+          <ul class="list">
+            <li>60/40 solo para contenido CIIB/COPIM con convocatoria real.</li>
+            <li>Marketplace general con split por listing.</li>
+            <li>Productos ROVI, CRM, agent skills y servicios quedan excluidos.</li>
+            <li>Costos directos se descuentan antes de repartir.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="finanzas" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Precios, Costos Y Comisiones Finales</h2>
+          <p>Modelo variable para decidir que tanto puede conceder ROVI segun pago de implementacion, costo operativo, adopcion y add-ons reales cobrados.</p>
+        </div>
+      </div>
+
+      <div class="price-lane">
+        <article class="price-card">
+          <span class="eyebrow">COPIM institucional</span>
+          <h3>Piloto de 1 mes</h3>
+          <div class="price">$25k inicio</div>
+          <ul class="list">
+            <li>Fee reconocido: $75,000 MXN.</li>
+            <li>Saldo diferido: $0-$50,000 segun esquema.</li>
+            <li>Infra mensual: $5,000-$13,000 segun usuarios.</li>
+            <li>Post-piloto sugerido: $7,900/mes nacional + $990/asociacion.</li>
+          </ul>
+        </article>
+        <article class="price-card">
+          <span class="eyebrow">Educacion y marketplace</span>
+          <h3>Contenido externo</h3>
+          <div class="price">$490-$7.5k</div>
+          <ul class="list">
+            <li>Curso unitario: $490-$1,490 MXN.</li>
+            <li>Membresia educativa: $299-$499/mes.</li>
+            <li>Masterclass/diplomado: $2,900-$7,500.</li>
+            <li>Split CIIB/ROVI 60/40 solo para contenido CIIB.</li>
+          </ul>
+        </article>
+        <article class="price-card">
+          <span class="eyebrow">ROVI DCC-Ready</span>
+          <h3>Desarrolladores</h3>
+          <div class="price">$4.9k-$19.9k/mes</div>
+          <ul class="list">
+            <li>Setup: $25,000-$75,000 segun complejidad.</li>
+            <li>Licencia Starter: $4,900/mes.</li>
+            <li>Growth: $9,900/mes; Enterprise: $19,900/mes.</li>
+            <li>Comision referidos: 20% primer ano; 5%-10% renovaciones.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="section finance-layout">
+        <div class="panel panel-pad control-stack">
+          <h3>Calculadora de escenario</h3>
+          <div class="field">
+            <label for="implementationPlan">Pago de implementacion</label>
+            <select id="implementationPlan">
+              <option value="balanced">Balanceado ROVI: $50k en piloto + $25k diferido</option>
+              <option value="flexible">Flexible Mario: $25k inicio + $50k diferido</option>
+              <option value="full">Pago completo: $75k sin diferido</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="adoptionLevel">Nivel de adopcion</label>
+            <select id="adoptionLevel">
+              <option value="base">Base: 3 asociaciones, 75 usuarios</option>
+              <option value="low">Minimo: 2 asociaciones, 50 usuarios</option>
+              <option value="high">Alto: 5 asociaciones, 150 usuarios</option>
+            </select>
+          </div>
+          <p class="thesis">Regla: mientras haya saldo diferido, add-ons COPIM se reparten 70/30 hasta recuperar; despues vuelven a 60/40.</p>
+        </div>
+
+        <div class="panel panel-pad">
+          <div class="finance-result-grid">
+            <div class="finance-card">
+              <small>Caja ROVI mes 1</small>
+              <strong id="financeRoviCash">$0</strong>
+              <span>Implementacion + share add-ons - costo operativo - PM.</span>
+            </div>
+            <div class="finance-card">
+              <small>Saldo recuperado</small>
+              <strong id="financeRecovered">$0</strong>
+              <span>Del diferido por share ROVI en add-ons.</span>
+            </div>
+            <div class="finance-card">
+              <small>Saldo pendiente</small>
+              <strong id="financeRemaining">$0</strong>
+              <span>Debe gatillar continuidad al dia 30.</span>
+            </div>
+            <div class="finance-card">
+              <small>Share ROVI add-ons</small>
+              <strong id="financeRoviShare">$0</strong>
+              <span>Ingreso neto para ROVI por add-ons.</span>
+            </div>
+            <div class="finance-card">
+              <small>Share COPIM</small>
+              <strong id="financeCopimShare">$0</strong>
+              <span>Ingreso neto para COPIM por add-ons.</span>
+            </div>
+            <div class="finance-card">
+              <small>Outlay neto COPIM</small>
+              <strong id="financeCopimOutlay">$0</strong>
+              <span>Implementacion + infra - share COPIM.</span>
+            </div>
+            <div class="finance-card">
+              <small>Infra facturable</small>
+              <strong id="financeInfra">$0</strong>
+              <span>Passthrough segun usuarios activos.</span>
+            </div>
+            <div class="finance-card">
+              <small>Costo operativo ROVI</small>
+              <strong id="financeOps">$0</strong>
+              <span>Onboarding, soporte, QA y seguimiento.</span>
+            </div>
+            <div class="finance-card">
+              <small>Add-ons netos</small>
+              <strong id="financeAddons">$0</strong>
+              <span>Ingresos cobrados antes del split.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <div>
+            <h2>Ruta Critica Y Plan De Accion</h2>
+            <p>Lo que debe ocurrir para que el piloto de 1 mes produzca una decision financiera, no solo una percepcion.</p>
+          </div>
+        </div>
+        <div class="route-grid">
+          <article class="route-card">
+            <span class="owner-pill">Dia 0-2 · ROVI + Mario</span>
+            <strong>Cerrar alcance</strong>
+            <p>Firmar piloto, esquema de pago, anexos pendientes y reglas de datos.</p>
+          </article>
+          <article class="route-card">
+            <span class="owner-pill">Dia 3-7 · COPIM</span>
+            <strong>Convocar pilotos</strong>
+            <p>Elegir 2-3 asociaciones, responsables, base de socios y calendario.</p>
+          </article>
+          <article class="route-card">
+            <span class="owner-pill">Semana 2 · ROVI</span>
+            <strong>Activar operacion</strong>
+            <p>Cargar socios, membresias, eventos, credenciales y capacitación.</p>
+          </article>
+          <article class="route-card">
+            <span class="owner-pill">Semana 3 · Todos</span>
+            <strong>Medir adopcion</strong>
+            <p>Usuarios activos, flujos reales, tickets, cursos, add-ons y friccion.</p>
+          </article>
+          <article class="route-card">
+            <span class="owner-pill">Dia 30 · Decision</span>
+            <strong>Formalizar o cerrar</strong>
+            <p>Contrato anual, recuperacion del saldo, expansion o cierre ordenado.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="concesiones" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Semaforo De Negociacion</h2>
+          <p>Usalo para decidir rapido que aceptar, que condicionar y que mantener fuera del acuerdo.</p>
+        </div>
+      </div>
+
+      <div class="matrix">
+        <table>
+          <thead>
+            <tr>
+              <th>Tema</th>
+              <th>Decision</th>
+              <th>Condicion operativa</th>
+              <th>Frase sugerida</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Piloto COPIM 1 mes</td>
+              <td><span class="status accept">Aceptar</span></td>
+              <td>Alcance cerrado, KPIs y responsables de adopcion.</td>
+              <td>Probemos operacion real, no solo usuarios cargados.</td>
+            </tr>
+            <tr>
+              <td>Pago inicial $25,000</td>
+              <td><span class="status accept">Aceptar</span></td>
+              <td>No incluye desarrollo ilimitado ni customizaciones fuera de alcance.</td>
+              <td>Funciona como arranque si dejamos claro que cubre el piloto base.</td>
+            </tr>
+            <tr>
+              <td>Saldo diferido $50,000</td>
+              <td><span class="status cond">Condicionar</span></td>
+              <td>Fecha limite o gatillo de continuidad al dia 30 o mes 3.</td>
+              <td>Puede recuperarse por add-ons, pero no quedar indefinido.</td>
+            </tr>
+            <tr>
+              <td>Exclusividad COPIM</td>
+              <td><span class="status cond">Condicionar</span></td>
+              <td>Solo paquete SIGA/COPIM, con vigencia y metas de adopcion.</td>
+              <td>Exclusividad institucional, no exclusividad sobre ROVI.</td>
+            </tr>
+            <tr>
+              <td>Comisiones DCC</td>
+              <td><span class="status cond">Condicionar</span></td>
+              <td>Oportunidades registradas, cerradas y cobradas.</td>
+              <td>Comisionamos referidos reales, no mercado abierto.</td>
+            </tr>
+            <tr>
+              <td>IP, codigo y roadmap</td>
+              <td><span class="status no">No conceder</span></td>
+              <td>ROVI conserva propiedad del producto y componentes genericos.</td>
+              <td>Podemos configurar un paquete exclusivo, no ceder la tecnologia base.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="escenarios" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Escenarios De Contraoferta</h2>
+          <p>Elige el escenario segun el tono de Mario: ideal para anclar, razonable para cerrar, minimo para proteger margen.</p>
+        </div>
+      </div>
+
+      <div class="scenario-panel">
+        <div class="panel panel-pad scenario-menu" role="tablist" aria-label="Escenarios">
+          <button class="scenario-button is-active" type="button" data-scenario="ideal">
+            Opcion ideal
+            <small>Mejor equilibrio para ROVI.</small>
+          </button>
+          <button class="scenario-button" type="button" data-scenario="reasonable">
+            Concesion razonable
+            <small>Probable cierre sin regalar upside.</small>
+          </button>
+          <button class="scenario-button" type="button" data-scenario="floor">
+            Minimo aceptable
+            <small>Protege IP, alcance y caja.</small>
+          </button>
+        </div>
+
+        <article class="panel scenario-output" aria-live="polite">
+          <div>
+            <span class="eyebrow" id="scenarioTag">Ancla recomendada</span>
+            <h2 id="scenarioTitle">Opcion ideal de ROVI</h2>
+          </div>
+          <p class="lead" id="scenarioSummary">Divide el fee en hitos y evita que el saldo diferido quede flotando indefinidamente.</p>
+          <div class="deal-grid">
+            <div class="deal-item">
+              <span>Arranque</span>
+              <strong id="dealStart">$25,000</strong>
+            </div>
+            <div class="deal-item">
+              <span>Hito piloto</span>
+              <strong id="dealMilestone">$25,000</strong>
+            </div>
+            <div class="deal-item">
+              <span>Diferido</span>
+              <strong id="dealDeferred">$25,000</strong>
+            </div>
+            <div class="deal-item">
+              <span>DCC renovacion</span>
+              <strong id="dealRenewal">5% / 24m</strong>
+            </div>
+          </div>
+          <ul class="list" id="scenarioBullets">
+            <li>Infraestructura escalonada y soporte separado.</li>
+            <li>Add-ons COPIM 70/30 hasta recuperar diferido; 60/40 despues.</li>
+            <li>Exclusividad solo para paquete institucional con KPIs.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="riesgos" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Riesgos Criticos</h2>
+          <p>Estos son los puntos donde una buena alianza se puede volver cara para ROVI si no quedan escritos.</p>
+        </div>
+      </div>
+
+      <div class="risk-grid" aria-label="Riesgos">
+        <article class="risk">
+          <strong>Exclusividad amplia</strong>
+          <p>Puede bloquear ventas de CRM, marketplace o modulos genericos.</p>
+          <div class="risk-meter"><span style="width: 92%"></span></div>
+          <p>Defensa: solo SIGA/COPIM, con KPIs.</p>
+        </article>
+        <article class="risk">
+          <strong>Fee diferido sin fecha</strong>
+          <p>ROVI termina financiando implementacion y soporte.</p>
+          <div class="risk-meter"><span style="width: 86%"></span></div>
+          <p>Defensa: gatillo al dia 30 o mes 3.</p>
+        </article>
+        <article class="risk">
+          <strong>DCC verbal</strong>
+          <p>El mayor diferenciador queda sin valor contractual.</p>
+          <div class="risk-meter"><span style="width: 88%"></span></div>
+          <p>Defensa: carta, matriz y derechos de uso.</p>
+        </article>
+        <article class="risk">
+          <strong>Comisiones abiertas</strong>
+          <p>Se pagan renovaciones por clientes no originados por Mario.</p>
+          <div class="risk-meter"><span style="width: 74%"></span></div>
+          <p>Defensa: registro previo y cliente protegido.</p>
+        </article>
+        <article class="risk">
+          <strong>Infra sin margen</strong>
+          <p>Se confunden servidores con soporte, mantenimiento y CS.</p>
+          <div class="risk-meter"><span style="width: 82%"></span></div>
+          <p>Defensa: separar rubros y horas incluidas.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="piloto" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Piloto De 1 Mes</h2>
+          <p>El piloto debe probar adopcion y operacion real. Esta secuencia ayuda a que no se convierta en una demo eterna.</p>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <article class="step">
+          <div class="step-num">1</div>
+          <strong>Semana 1</strong>
+          <p>Configurar entorno, alcance, responsables, asociaciones iniciales y datos base.</p>
+        </article>
+        <article class="step">
+          <div class="step-num">2</div>
+          <strong>Semana 2</strong>
+          <p>Cargar socios, membresias, eventos y primeras operaciones de asociacion.</p>
+        </article>
+        <article class="step">
+          <div class="step-num">3</div>
+          <strong>Semana 3</strong>
+          <p>Medir usuarios activos, capacitacion, tickets, pagos, check-ins y uso real.</p>
+        </article>
+        <article class="step">
+          <div class="step-num">4</div>
+          <strong>Semana 4</strong>
+          <p>Decision: contrato anual, recuperacion del saldo, expansion o cierre ordenado.</p>
+        </article>
+      </div>
+
+      <div class="section two-grid">
+        <div class="panel panel-pad">
+          <h3>KPIs minimos</h3>
+          <div class="bar-stack" style="margin-top: 14px;">
+            <div class="bar-row">
+              <span>Asociaciones activas</span>
+              <div class="track"><div class="fill" style="width: 80%"></div></div>
+              <strong>2-3</strong>
+            </div>
+            <div class="bar-row">
+              <span>Usuarios registrados</span>
+              <div class="track"><div class="fill" style="width: 70%"></div></div>
+              <strong>50</strong>
+            </div>
+            <div class="bar-row">
+              <span>Usuarios activos mensuales</span>
+              <div class="track"><div class="fill" style="width: 52%"></div></div>
+              <strong>40%</strong>
+            </div>
+            <div class="bar-row">
+              <span>Operacion real</span>
+              <div class="track"><div class="fill" style="width: 68%; background: var(--green);"></div></div>
+              <strong>4 flujos</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel panel-pad">
+          <h3>Criterio de exito</h3>
+          <p class="lead" style="margin-top: 12px;">El piloto es exitoso si demuestra operacion real: socios, membresias, pagos o facturas, eventos/check-in, cursos o comunidad. No basta con "tener usuarios".</p>
+          <p class="thesis" style="margin-top: 14px;">Si COPIM continua despues del piloto, el saldo de implementacion debe convertirse en add-ons recuperados, mensualidad adicional o contrato anual.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="guion" class="section">
+      <div class="section-header">
+        <div>
+          <h2>Guion Para La Reunion</h2>
+          <p>Un discurso directo para abrir fuerte, sin sonar defensivo.</p>
+        </div>
+      </div>
+
+      <div class="script">
+        <div class="copy-row">
+          <strong>Opening de 90 segundos</strong>
+          <button type="button" id="copyScript">Copiar</button>
+        </div>
+        <div id="scriptText">
+          <p>Mario, revisamos tu planteamiento y creemos que la estructura de tres frentes tiene mucho sentido. De hecho, nos gusta porque evita forzar todo dentro de un solo contrato y permite que cada linea tenga su propia logica: COPIM institucional, ROVI DCC-Ready y capacitaciones/marketplace.</p>
+          <p>Donde si queremos ser muy cuidadosos es en separar bien los alcances. ROVI puede dar una exclusividad institucional para COPIM sobre el sistema de gestion de asociaciones, pero no podemos convertir eso en una limitacion sobre el CRM, la tecnologia base, el marketplace, la IA o la comercializacion a desarrolladores.</p>
+          <p>Tambien estamos abiertos al esquema de $25,000 de arranque y recuperacion contra ingresos, siempre que el piloto tenga alcance cerrado, KPIs claros y una regla de continuidad al dia 30. Si la plataforma genera adopcion y COPIM decide continuar, el saldo pendiente no puede quedar indefinidamente sujeto a que algun add-on se venda.</p>
+          <p>Sobre DCC-Ready, lo vemos como la oportunidad estrategica mas grande. Para activarla bien, necesitamos que la matriz, el reconocimiento y los derechos de uso comercial queden por escrito. ROVI puede ser la herramienta tecnologica alineada al estandar; DCC Alliance conserva la certificacion y evaluacion. Esa separacion nos protege a todos.</p>
+        </div>
+      </div>
+
+      <div class="section two-grid">
+        <details open>
+          <summary>Preguntas que debes hacer</summary>
+          <div class="details-body question-grid">
+            <div class="question">¿Cual es exactamente el alcance que quieren llamar SIGA?</div>
+            <div class="question">¿Que modulos consideran exclusivos para COPIM?</div>
+            <div class="question">¿Cuantas asociaciones pueden comprometer para el piloto?</div>
+            <div class="question">¿Que metricas haran que COPIM continue al dia 30?</div>
+            <div class="question">¿Quien autoriza formalmente el uso de DCC-Ready?</div>
+            <div class="question">¿La matriz DCC se entrega a ROVI bajo NDA?</div>
+            <div class="question">¿El 60/40 aplica a todo marketplace o solo contenido CIIB?</div>
+            <div class="question">¿Como se registra una oportunidad comercial protegida?</div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Frases de control</summary>
+          <div class="details-body">
+            <ul class="list">
+              <li>Exclusividad institucional, no exclusividad sobre ROVI.</li>
+              <li>Comisionamos oportunidades reales, registradas y cobradas.</li>
+              <li>Infraestructura comprobable, soporte y mantenimiento como rubro separado.</li>
+              <li>ROVI no certifica; ROVI habilita evidencia y trazabilidad.</li>
+              <li>El objetivo es sostenibilidad, no ganarle a COPIM.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>ROVI x Mario - Dashboard HTML5 de negociacion</span>
+      <span>Archivo standalone: no requiere servidor ni dependencias externas.</span>
+    </footer>
+  </main>
+
+  <script>
+    const scenarios = {
+      ideal: {
+        tag: "Ancla recomendada",
+        title: "Opcion ideal de ROVI",
+        summary: "Divide el fee en hitos y evita que el saldo diferido quede flotando indefinidamente.",
+        start: "$25,000",
+        milestone: "$25,000",
+        deferred: "$25,000",
+        renewal: "5% / 24m",
+        bullets: [
+          "Infraestructura escalonada y soporte separado.",
+          "Add-ons COPIM 70/30 hasta recuperar diferido; 60/40 despues.",
+          "Exclusividad solo para paquete institucional con KPIs."
+        ]
+      },
+      reasonable: {
+        tag: "Cierre probable",
+        title: "Concesion razonable",
+        summary: "Acepta $25,000 de arranque y $50,000 recuperables, pero con fecha maxima y continuidad contractual.",
+        start: "$25,000",
+        milestone: "N/A",
+        deferred: "$50,000",
+        renewal: "10% / 24m",
+        bullets: [
+          "Saldo recuperable por add-ons durante maximo 3 meses.",
+          "Si COPIM continua, saldo se convierte en mensualidad o contrato anual.",
+          "Soporte incluido limitado por horas; adicional se cotiza aparte."
+        ]
+      },
+      floor: {
+        tag: "Piso de proteccion",
+        title: "Minimo aceptable",
+        summary: "Acepta el piloto con alcance muy cerrado y sin comprometer DCC, IP ni marketplace hasta convenios separados.",
+        start: "$25,000",
+        milestone: "Cerrado",
+        deferred: "$50,000",
+        renewal: "Por negociar",
+        bullets: [
+          "Exclusividad solo durante piloto y solo para COPIM/SIGA.",
+          "Customizaciones fuera de alcance se cotizan aparte.",
+          "DCC-Ready y marketplace no se activan sin anexos separados."
+        ]
+      }
+    };
+
+    const buttons = document.querySelectorAll(".scenario-button");
+    const scenarioTag = document.getElementById("scenarioTag");
+    const scenarioTitle = document.getElementById("scenarioTitle");
+    const scenarioSummary = document.getElementById("scenarioSummary");
+    const dealStart = document.getElementById("dealStart");
+    const dealMilestone = document.getElementById("dealMilestone");
+    const dealDeferred = document.getElementById("dealDeferred");
+    const dealRenewal = document.getElementById("dealRenewal");
+    const scenarioBullets = document.getElementById("scenarioBullets");
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const scenario = scenarios[button.dataset.scenario];
+        buttons.forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+
+        scenarioTag.textContent = scenario.tag;
+        scenarioTitle.textContent = scenario.title;
+        scenarioSummary.textContent = scenario.summary;
+        dealStart.textContent = scenario.start;
+        dealMilestone.textContent = scenario.milestone;
+        dealDeferred.textContent = scenario.deferred;
+        dealRenewal.textContent = scenario.renewal;
+        scenarioBullets.innerHTML = scenario.bullets.map((item) => `<li>${item}</li>`).join("");
+      });
+    });
+
+    const implementationPlans = {
+      balanced: { paid: 50000, deferred: 25000 },
+      flexible: { paid: 25000, deferred: 50000 },
+      full: { paid: 75000, deferred: 0 }
+    };
+
+    const adoptionLevels = {
+      low: { infra: 5000, ops: 18000, addons: 10000, pm: 0 },
+      base: { infra: 7500, ops: 28000, addons: 25000, pm: 10000 },
+      high: { infra: 9500, ops: 42000, addons: 60000, pm: 25000 }
+    };
+
+    const money = (value) => new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+      maximumFractionDigits: 0
+    }).format(Math.round(value));
+
+    function splitAddons(addons, deferred) {
+      if (deferred <= 0) {
+        return {
+          rovi: addons * 0.60,
+          copim: addons * 0.40,
+          recovered: 0,
+          remaining: 0
+        };
+      }
+
+      const addonsNeededForRecovery = deferred / 0.70;
+      if (addons <= addonsNeededForRecovery) {
+        const rovi = addons * 0.70;
+        return {
+          rovi,
+          copim: addons * 0.30,
+          recovered: rovi,
+          remaining: deferred - rovi
+        };
+      }
+
+      const excess = addons - addonsNeededForRecovery;
+      return {
+        rovi: deferred + (excess * 0.60),
+        copim: (addonsNeededForRecovery * 0.30) + (excess * 0.40),
+        recovered: deferred,
+        remaining: 0
+      };
+    }
+
+    function updateFinanceModel() {
+      const plan = implementationPlans[document.getElementById("implementationPlan").value];
+      const adoption = adoptionLevels[document.getElementById("adoptionLevel").value];
+      const split = splitAddons(adoption.addons, plan.deferred);
+      const roviCash = plan.paid + split.rovi - adoption.ops - adoption.pm;
+      const copimOutlay = plan.paid + adoption.infra - split.copim;
+
+      document.getElementById("financeRoviCash").textContent = money(roviCash);
+      document.getElementById("financeRecovered").textContent = money(split.recovered);
+      document.getElementById("financeRemaining").textContent = money(split.remaining);
+      document.getElementById("financeRoviShare").textContent = money(split.rovi);
+      document.getElementById("financeCopimShare").textContent = money(split.copim);
+      document.getElementById("financeCopimOutlay").textContent = money(copimOutlay);
+      document.getElementById("financeInfra").textContent = money(adoption.infra);
+      document.getElementById("financeOps").textContent = money(adoption.ops + adoption.pm);
+      document.getElementById("financeAddons").textContent = money(adoption.addons);
+    }
+
+    document.getElementById("implementationPlan").addEventListener("change", updateFinanceModel);
+    document.getElementById("adoptionLevel").addEventListener("change", updateFinanceModel);
+    updateFinanceModel();
+
+    const copyButton = document.getElementById("copyScript");
+    copyButton.addEventListener("click", async () => {
+      const text = document.getElementById("scriptText").innerText.trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        copyButton.textContent = "Copiado";
+        setTimeout(() => {
+          copyButton.textContent = "Copiar";
+        }, 1400);
+      } catch (error) {
+        copyButton.textContent = "Selecciona texto";
+        setTimeout(() => {
+          copyButton.textContent = "Copiar";
+        }, 1600);
+      }
+    });
+  </script>
+</body>
+</html>

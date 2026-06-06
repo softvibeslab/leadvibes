@@ -7,6 +7,11 @@ module.exports = {
   ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			heading: ['Outfit', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			mono: ['Source Code Pro', 'ui-monospace', 'SFMono-Regular', 'monospace']
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

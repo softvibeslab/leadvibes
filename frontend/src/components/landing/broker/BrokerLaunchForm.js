@@ -30,7 +30,7 @@ export const BrokerLaunchForm = () => {
 
     try {
       // Enviar lead al backend
-      const response = await fetch(`/api/landing/broker-launch`, {
+      const response = await fetch(`/api/landing/lead`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

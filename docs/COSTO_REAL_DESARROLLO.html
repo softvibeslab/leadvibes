@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Costo Real del Desarrollo ROVI COPIM</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --teal: #0d9488;
+      --purple: #8b5cf6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f0fdfa 0%, #f8fafc 50%, #eff6ff 100%);
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ef4444 0%, #f59e0b 50%, #22c55e 100%);
+      color: white;
+      padding: 60px 20px 80px;
+    }
+
+    .header-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin: 0 0 16px;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin: 0;
+    }
+
+    .main {
+      max-width: 1000px;
+      margin: -40px auto 0;
+      padding: 0 20px 80px;
+    }
+
+    .cost-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .cost-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .cost-subtitle {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin: 0 0 24px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 24px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 4px;
+      height: 20px;
+      background: var(--teal);
+      border-radius: 2px;
+    }
+
+    .cost-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+
+    .cost-table th,
+    .cost-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cost-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .cost-table .number {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .cost-table .total {
+      background: linear-gradient(90deg, rgba(13, 148, 136, 0.1), transparent);
+    }
+
+    .cost-table .total .number {
+      font-size: 1.2rem;
+      color: var(--teal);
+    }
+
+    .summary-box {
+      background: linear-gradient(135deg, #ef4444, #f59e0b);
+      border-radius: var(--radius);
+      padding: 32px;
+      color: white;
+      text-align: center;
+      margin: 32px 0;
+    }
+
+    .summary-box h2 {
+      font-size: 2rem;
+      font-weight: 900;
+      margin: 0 0 16px;
+    }
+
+    .summary-box .big-number {
+      font-size: 4rem;
+      font-weight: 900;
+      margin: 0 0 16px;
+    }
+
+    .roi-box {
+      background: linear-gradient(135deg, #22c55e, #0d9488);
+      border-radius: var(--radius);
+      padding: 32px;
+      color: white;
+      text-align: center;
+    }
+
+    .roi-box h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 0 0 16px;
+    }
+
+    .roi-multiple {
+      font-size: 3rem;
+      font-weight: 900;
+      margin: 0 0 8px;
+    }
+
+    .roi-desc {
+      font-size: 14px;
+      opacity: 0.9;
+      margin: 0;
+    }
+
+    .breakdown-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .breakdown-item {
+      padding: 20px;
+      background: var(--surface-2);
+      border-radius: 12px;
+    }
+
+    .breakdown-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .breakdown-value {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--teal);
+    }
+
+    .breakdown-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .vs-comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .vs-card {
+      padding: 24px;
+      background: var(--surface-2);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .vs-card.highlight {
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.1), var(--surface-2));
+      border: 2px solid var(--teal);
+    }
+
+    .vs-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .vs-value {
+      font-size: 1.8rem;
+      font-weight: 900;
+    }
+
+    .vs-card.yours .vs-value { color: var(--green); }
+    .vs-card.market .vs-value { color: var(--purple); }
+
+    .footer {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+      .breakdown-grid { grid-template-columns: 1fr; }
+      .vs-comparison { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-inner">
+      <h1>💸 Costo Real de Tu Inversión</h1>
+      <p>Desglose honesto de cuánto te costó realmente desarrollar ROVI COPIM usando IA</p>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Costos Directos -->
+    <div class="cost-card">
+      <h2 class="cost-title">📊 Costos Directos del Desarrollo</h2>
+      <p class="cost-subtitle">Lo que realmente pagaste de tu bolsillo</p>
+
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Detalle</th>
+            <th class="number">Costo Real</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>ChatGPT Plus / Claude Pro</strong></td>
+            <td>Suscripción mensual durante desarrollo (6 meses)</td>
+            <td class="number">$120 USD</td>
+          </tr>
+          <tr>
+            <td><strong>Servidores de desarrollo</strong></td>
+            <td>Heroku free tier o servidor local ($0)</td>
+            <td class="number">$0</td>
+          </tr>
+          <tr>
+            <td><strong>Base de datos desarrollo</strong></td>
+            <td>MongoDB Atlas free tier</td>
+            <td class="number">$0</td>
+          </tr>
+          <tr>
+            <td><strong>Dominio de pruebas</strong></td>
+            <td>Subdominio existente o temporal</td>
+            <td class="number">$0</td>
+          </tr>
+          <tr>
+            <td><strong>Herramientas de desarrollo</strong></td>
+            <td>VS Code, Git, Docker (gratuitos)</td>
+            <td class="number">$0</td>
+          </tr>
+          <tr>
+            <td><strong>Electricidad e internet</strong></td>
+            <td>Costo incremental de trabajo desde casa</td>
+            <td class="number">~$50 USD</td>
+          </tr>
+          <tr class="total">
+            <td><strong>TOTAL COSTOS DIRECTOS</strong></td>
+            <td>Dinero que realmente pagaste</td>
+            <td class="number"><strong>~$170 USD</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="padding: 16px; background: var(--surface-2); border-radius: 12px; margin-top: 20px;">
+        <div style="font-size: 13px; color: var(--muted);">
+          <strong>En pesos mexicanos:</strong> ~$3,400 MXN al tipo de cambio actual
+        </div>
+      </div>
+    </div>
+
+    <!-- Costo de Oportunidad -->
+    <div class="cost-card">
+      <h2 class="cost-title">⏰ Costo de Oportunidad (Tu Tiempo)</h2>
+      <p class="cost-subtitle">Lo que "dejaste de ganar" por dedicar tiempo a este proyecto</p>
+
+      <div class="breakdown-grid">
+        <div class="breakdown-item">
+          <div class="breakdown-label">Tiempo estimado invertido</div>
+          <div class="breakdown-value">600 - 800 horas</div>
+          <div class="breakdown-note">~4-5 meses a tiempo completo</div>
+        </div>
+        <div class="breakdown-item">
+          <div class="breakdown-label">Tu salario como ingeniero</div>
+          <div class="breakdown-value">$60,000 - $80,000 MXN/mes</div>
+          <div class="breakdown-note">Salario promedio senior en México</div>
+        </div>
+      </div>
+
+      <table class="cost-table" style="margin-top: 20px;">
+        <thead>
+          <tr>
+            <th>Escenario</th>
+            <th>Cálculo</th>
+            <th class="number">Costo Oportunidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Conservador (4 meses)</td>
+            <td>4 meses × $60,000 MXN/mes</td>
+            <td class="number">$240,000 MXN</td>
+          </tr>
+          <tr>
+            <td>Realista (5 meses)</td>
+            <td>5 meses × $70,000 MXN/mes</td>
+            <td class="number">$350,000 MXN</td>
+          </tr>
+          <tr>
+            <td>Extremo (6 meses)</td>
+            <td>6 meses × $80,000 MXN/mes</td>
+            <td class="number">$480,000 MXN</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 20px; padding: 16px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">
+        <div style="font-size: 13px; color: var(--amber);">
+          <strong>Nota:</strong> El costo de oportunidad es teórico. No lo pagaste, es lo que "dejaste de ganar" si no hubieras trabajado en esto.
+        </div>
+      </div>
+    </div>
+
+    <!-- RESUMEN COSTO REAL -->
+    <div class="summary-box">
+      <h2>🎯 Tu Costo Real Total</h2>
+      <div class="big-number">~$353,400 MXN</div>
+      <p style="margin: 0; font-size: 14px; opacity: 0.9;">
+        Costos directos ($3,400) + Costo de oportunidad promedio ($350,000)
+      </p>
+    </div>
+
+    <!-- Comparación y ROI -->
+    <div class="cost-card">
+      <h2 class="cost-title">📈 Comparación: Tu Inversión vs Valor de Mercado</h2>
+
+      <div class="vs-comparison">
+        <div class="vs-card yours">
+          <div class="vs-label">Tu inversión real</div>
+          <div class="vs-value">$353K</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">MXN totales</div>
+        </div>
+        <div class="vs-card highlight">
+          <div class="vs-label">Valor de mercado</div>
+          <div class="vs-value">$4,500K</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">Precio recomendado</div>
+        </div>
+        <div class="vs-card market">
+          <div class="vs-label">Margen a favor</div>
+          <div class="vs-value">$4,147K</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">Ganancia neta</div>
+        </div>
+      </div>
+
+      <div class="roi-box">
+        <h3>💰 Tu Return on Investment (ROI)</h3>
+        <div class="roi-multiple">12.7x</div>
+        <p class="roi-desc">Por cada peso que invertiste, puedes recuperar casi 13 pesos</p>
+        <div style="margin-top: 20px; font-size: 14px;">
+          <strong>Ejemplo:</strong> Si cobras $4,500,000 MXN y tu costo real fue $353,400 MXN, tu ganancia es <strong>$4,146,600 MXN</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desglose de Ganancia -->
+    <div class="cost-card">
+      <h2 class="cost-title">💵 Atribución de Ganancia por Hora Trabajada</h2>
+      <p class="cost-subtitle">Cuánto ganas realmente por cada hora que invertiste</p>
+
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Precio de Venta</th>
+            <th>Tu Horas Invertidas</th>
+            <th class="number">Tu Tarifa Real</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>$3,000,000 MXN</td>
+            <td>700 horas</td>
+            <td class="number">$4,286 MXN/hora</td>
+          </tr>
+          <tr>
+            <td>$4,500,000 MXN ⭐</td>
+            <td>700 horas</td>
+            <td class="number">$6,429 MXN/hora</td>
+          </tr>
+          <tr>
+            <td>$6,000,000 MXN</td>
+            <td>700 horas</td>
+            <td class="number">$8,571 MXN/hora</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 20px; padding: 16px; background: var(--surface-2); border-radius: 12px;">
+        <div style="font-size: 13px; color: var(--muted);">
+          <strong>Contexto:</strong> Un ingeniero senior freelance cobra $800-$2,000 MXN/hora en México. Estás ganando 3-10x más que una tarifa estándar gracias a que usaste IA como acelerador.
+        </div>
+      </div>
+    </div>
+
+    <!-- Conclusión -->
+    <div style="background: linear-gradient(135deg, #0d9488, #0369a1); border-radius: var(--radius); padding: 32px; color: white; text-align: center;">
+      <h2 style="margin: 0 0 16px;">✅ Conclusión</h2>
+      <p style="margin: 0 0 24px; opacity: 0.9;">
+        Tu inversión real fue mínima (~$353K MXN entre tiempo y dinero). El valor que creas vale ~13x más.
+        Eso no significa que debas cobrar menos. Significa que eres increíblemente eficiente.
+      </p>
+      <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
+        <div>
+          <div style="font-size: 2rem; font-weight: 900;">$353K</div>
+          <div style="font-size: 12px; opacity: 0.8;">Tu costo real</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 900;">$4,500K</div>
+          <div style="font-size: 12px; opacity: 0.8;">Valor mercado</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 900;">12.7x</div>
+          <div style="font-size: 12px; opacity: 0.8;">Tu ROI</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p><strong>Resumen:</strong> Invertiste ~$350K MXN (principalmente tiempo) y puedes venderlo en $4.5M MXN. Eso es excelente negocio.</p>
+    <p style="margin-top: 12px; font-size: 11px;">Cálculo honesto • 13 de Mayo de 2026</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Negocio ROVI + COPIM + MARIO | Modelo Amazon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0D9488;
+            --secondary: #4D7C0F;
+            --accent: #D97706;
+            --bg: #E7E5E4;
+            --bg-dark: #1a1a2e;
+            --text: #1f2937;
+            --text-light: #6b7280;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--bg);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 20px 60px rgba(13, 148, 136, 0.3);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+        }
+
+        header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            margin-bottom: 10px;
+        }
+
+        header .date {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .badge {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        .exchange-rate {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-top: 10px;
+        }
+
+        .currency {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .currency-mxn {
+            background: rgba(13, 148, 136, 0.15);
+            color: var(--primary);
+        }
+
+        .currency-usd {
+            background: rgba(217, 119, 6, 0.15);
+            color: var(--accent);
+        }
+
+        .price-mxn {
+            font-weight: 700;
+            color: var(--secondary);
+        }
+
+        .price-usd {
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 0.9em;
+        }
+
+        .price-row {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .price-row .price-mxn {
+            font-size: 1rem;
+        }
+
+        .price-row .price-usd {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        section {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        section h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        section h3 {
+            color: var(--secondary);
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 30px 0 15px;
+        }
+
+        section h4 {
+            color: var(--text);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 20px 0 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: #374151;
+        }
+
+        ul, ol {
+            margin: 15px 0 15px 30px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        .thesis-box {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.1) 0%, rgba(77, 124, 15, 0.1) 100%);
+            border-left: 5px solid var(--primary);
+            padding: 25px;
+            border-radius: 0 12px 12px 0;
+            margin: 25px 0;
+        }
+
+        .thesis-box strong {
+            color: var(--primary);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 25px 0;
+        }
+
+        .comparison-card {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .comparison-card.amazon {
+            border-color: var(--primary);
+            background: rgba(13, 148, 136, 0.05);
+        }
+
+        .comparison-card h4 {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        .comparison-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .comparison-card li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .comparison-card li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        thead {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+
+        thead th {
+            padding: 18px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        tbody td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .price {
+            font-weight: 700;
+            color: var(--secondary);
+        }
+
+        .revenue-highlight {
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 146, 60, 0.1) 100%);
+            border: 2px solid var(--accent);
+            padding: 30px;
+            border-radius: 16px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .revenue-highlight h3 {
+            color: var(--accent);
+            margin: 0 0 20px;
+            font-size: 1.5rem;
+        }
+
+        .revenue-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .revenue-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .revenue-card .label {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .revenue-card .amount {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin: 10px 0;
+        }
+
+        .revenue-card .period {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .layer-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .layer {
+            padding: 20px 25px;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .layer::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+        }
+
+        .layer-1 {
+            background: rgba(13, 148, 136, 0.1);
+            border: 2px solid var(--primary);
+        }
+
+        .layer-1::before {
+            background: var(--primary);
+        }
+
+        .layer-2 {
+            background: rgba(77, 124, 15, 0.1);
+            border: 2px solid var(--secondary);
+        }
+
+        .layer-2::before {
+            background: var(--secondary);
+        }
+
+        .layer-3 {
+            background: rgba(217, 119, 6, 0.1);
+            border: 2px solid var(--accent);
+        }
+
+        .layer-3::before {
+            background: var(--accent);
+        }
+
+        .layer-title {
+            font-weight: 700;
+            color: var(--text);
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .layer-client {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .layer-revenue {
+            font-weight: 700;
+            color: var(--secondary);
+            margin-top: 8px;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 30px 0;
+        }
+
+        .timeline::before {
+            content: "";
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+        }
+
+        .timeline-item {
+            padding: 20px 0 20px 70px;
+            position: relative;
+        }
+
+        .timeline-item::before {
+            content: "";
+            position: absolute;
+            left: 18px;
+            top: 25px;
+            width: 27px;
+            height: 27px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 4px solid white;
+            box-shadow: 0 0 0 3px var(--primary);
+        }
+
+        .timeline-phase {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .timeline-duration {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin: 5px 0;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .kpi-card {
+            background: var(--bg-dark);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .kpi-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .kpi-card .label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .pitch-box {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #2d3748 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pitch-box::before {
+            content: '"';
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            font-size: 150px;
+            opacity: 0.1;
+            font-family: Georgia, serif;
+        }
+
+        .pitch-box p {
+            font-size: 1.1rem;
+            line-height: 1.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .next-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .step-card {
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 35px;
+            height: 35px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .step-desc {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            section {
+                padding: 25px;
+            }
+
+            .revenue-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.85rem;
+            }
+
+            thead th, tbody td {
+                padding: 10px 8px;
+            }
+        }
+
+        .print-only {
+            display: none;
+        }
+
+        @media print {
+            .print-only {
+                display: block;
+            }
+
+            section {
+                page-break-inside: avoid;
+            }
+
+            header {
+                page-break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Plan de Negocio ROVI + COPIM + MARIO</h1>
+            <p class="subtitle">Modelo Amazon Marketplace + Prime Video Channels Aplicado</p>
+            <p class="date">13 de Mayo, 2026</p>
+            <p class="exchange-rate">Tipo de cambio: $1 USD = $18.50 MXN</p>
+            <span class="badge">Confidencial</span>
+        </header>
+
+        <!-- TESIS -->
+        <section>
+            <h2>1. Tesis: ¿Por qué Amazon?</h2>
+
+            <div class="thesis-box">
+                <p><strong>Amazon no vende solo productos.</strong> Amazon es una plataforma de transacciones que genera ingresos a través de múltiples capas:</p>
+                <ul>
+                    <li>Cobra comisión por cada venta (Marketplace: 8-45%)</li>
+                    <li>Vende suscripciones de competidores (Prime Video Channels)</li>
+                    <li>Retiene usuarios con ecosistema pegajoso</li>
+                    <li>Monetiza datos de comportamiento</li>
+                </ul>
+            </div>
+
+            <h3>Aplicado a ROVI + COPIM:</h3>
+            <div class="comparison-grid">
+                <div class="comparison-card amazon">
+                    <h4>Amazon</h4>
+                    <ul>
+                        <li>Plataforma base de e-commerce</li>
+                        <li>Prime como agregador de contenido</li>
+                        <li>Vendedores terceros pagan comisión</li>
+                        <li>Prime Video vende suscripciones HBO, Max, Apple TV+</li>
+                    </ul>
+                </div>
+                <div class="comparison-card">
+                    <h4>ROVI + COPIM</h4>
+                    <ul>
+                        <li>ROVI = Plataforma base (CRM inmobiliario)</li>
+                        <li>COPIM = Agregador institucional</li>
+                        <li>Asociaciones/Aliados = Vendedores terceros</li>
+                        <li>Vender servicios inmobiliarios complementarios</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- CAPAS DE INGRESOS -->
+        <section>
+            <h2>2. Modelo de Ingresos Multi-Capa</h2>
+
+            <div class="layer-diagram">
+                <div class="layer layer-1">
+                    <div class="layer-title">CAPA 1: SaaS Base (Suscripción Recurrente)</div>
+                    <div class="layer-client">Cliente: COPIM Nacional + Asociaciones afiliadas</div>
+                    <div class="layer-revenue">
+                        <div class="price-row">
+                            <span class="price-mxn">$5,000 - $22,900 MXN/mes</span>
+                            <span class="price-usd">$270 - $1,240 USD/mes</span>
+                        </div>
+                        <small>(10 asociaciones)</small>
+                    </div>
+                </div>
+
+                <div class="layer layer-2">
+                    <div class="layer-title">CAPA 2: Marketplace Digital (Comisión 15-30%)</div>
+                    <div class="layer-client">Cliente: Asociados comprando productos digitales</div>
+                    <div class="layer-revenue">
+                        <div class="price-row">
+                            <span class="price-mxn">$12,475 MXN/mes</span>
+                            <span class="price-usd">$674 USD/mes</span>
+                        </div>
+                        <small>(100 transacciones a $499 MXN promedio)</small>
+                    </div>
+                </div>
+
+                <div class="layer layer-3">
+                    <div class="layer-title">CAPA 3: Channels de Servicios (Comisión 10-25%)</div>
+                    <div class="layer-client">Cliente: Asociados suscribiéndose a servicios terceros</div>
+                    <div class="layer-revenue">
+                        <div class="price-row">
+                            <span class="price-mxn">$5,000 MXN/mes</span>
+                            <span class="price-usd">$270 USD/mes</span>
+                        </div>
+                        <small>(50 suscripciones activas)</small>
+                    </div>
+                </div>
+
+                <div class="layer layer-1">
+                    <div class="layer-title">CAPA 4: Premium Upgrades (B2B2C)</div>
+                    <div class="layer-client">Cliente: Asociado individual o Inmobiliaria</div>
+                    <div class="layer-revenue">
+                        <div class="price-row">
+                            <span class="price-mxn">$39,900 - $59,900 MXN/mes</span>
+                            <span class="price-usd">$2,157 - $3,238 USD/mes</span>
+                        </div>
+                        <small>(100 Broker Pro)</small>
+                    </div>
+                </div>
+
+                <div class="layer layer-2">
+                    <div class="layer-title">CAPA 5: Patrocinios y Publicidad</div>
+                    <div class="layer-client">Cliente: Bancos, desarrolladores, aseguradoras</div>
+                    <div class="layer-revenue">
+                        <div class="price-row">
+                            <span class="price-mxn">$45,000 MXN/mes</span>
+                            <span class="price-usd">$2,432 USD/mes</span>
+                        </div>
+                        <small>(3 patrocinadores)</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SAAS BASE -->
+        <section>
+            <h2>3. Capa 1: SaaS Base (Suscripción Recurrente)</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio MXN</th>
+                        <th>Precio USD</th>
+                        <th>Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Licencia Nacional COPIM</td>
+                        <td class="price-mxn">$4,900 - $7,900/mes</td>
+                        <td class="price-usd">$265 - $427/mes</td>
+                        <td>Dashboard multi-asociación, visibilidad nacional</td>
+                    </tr>
+                    <tr>
+                        <td>Sistema Base por Asociación</td>
+                        <td class="price-mxn">$790 - $1,490/mes</td>
+                        <td class="price-usd">$43 - $81/mes</td>
+                        <td>Socios, membresías, facturación, eventos</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Subtotal (10 asociaciones)</strong></td>
+                        <td class="price-mxn"><strong>$12,500 - $22,900/mes</strong></td>
+                        <td class="price-usd"><strong>$676 - $1,243/mes</strong></td>
+                        <td><strong>$150K - $275K MXN/año</strong><br><small>$8K - $15K USD/año</small></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- MARKETPLACE -->
+        <section>
+            <h2>4. Capa 2: Marketplace de Productos Digitales</h2>
+            <p><strong>Comisión:</strong> 15-30% por transacción (Amazon cobra 8-45%)</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Precio MXN</th>
+                        <th>Precio USD</th>
+                        <th>Comisión</th>
+                        <th>Ejemplo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Plantillas</td>
+                        <td class="price-mxn">$199 - $499</td>
+                        <td class="price-usd">$11 - $27</td>
+                        <td>20%</td>
+                        <td>Plantillas de comunicación</td>
+                    </tr>
+                    <tr>
+                        <td>Packs Legales</td>
+                        <td class="price-mxn">$599 - $1,999</td>
+                        <td class="price-usd">$32 - $108</td>
+                        <td>25%</td>
+                        <td>Contratos, promesas</td>
+                    </tr>
+                    <tr>
+                        <td>Cursos</td>
+                        <td class="price-mxn">$999 - $4,999</td>
+                        <td class="price-usd">$54 - $270</td>
+                        <td>30%</td>
+                        <td>Capacitaciones certificadas</td>
+                    </tr>
+                    <tr>
+                        <td>Agent Skills</td>
+                        <td class="price-mxn">$299 - $1,499</td>
+                        <td class="price-usd">$16 - $81</td>
+                        <td>25%</td>
+                        <td>Habilidades de IA</td>
+                    </tr>
+                    <tr>
+                        <td>Directorios</td>
+                        <td class="price-mxn">$0 (beneficio)</td>
+                        <td class="price-usd">$0</td>
+                        <td>-</td>
+                        <td>Visibilidad premium</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="thesis-box">
+                <p><strong>GMV potencial (100 transacciones/mes):</strong></p>
+                <p class="price-mxn">$49,900 MXN/mes <span class="price-usd">($2,697 USD/mes)</span></p>
+                <p><strong>Comisión ROVI (25%):</strong></p>
+                <p class="price-mxn">$12,475 MXN/mes <span class="price-usd">($674 USD/mes)</span></p>
+                <p><strong>Annualizado:</strong></p>
+                <p class="price-mxn">$149,700 MXN/año <span class="price-usd">($8,089 USD/año)</span></p>
+            </div>
+        </section>
+
+        <!-- PRIME VIDEO CHANNELS -->
+        <section>
+            <h2>5. Capa 3: Prime Video Channels (Servicios de Competidores)</h2>
+
+            <div class="thesis-box">
+                <p><strong>El modelo Amazon:</strong> Prime Video vende HBO, Max, Apple TV+ y gana comisión sin producir el contenido.</p>
+                <p><strong>Aplicado a COPIM:</strong> Vender servicios complementarios del sector inmobiliario.</p>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Servicio</th>
+                        <th>Precio MXN</th>
+                        <th>Precio USD</th>
+                        <th>Comisión</th>
+                        <th>Valor para Asociado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>CRM Competitor (Karya, etc.)</td>
+                        <td class="price-mxn">$500/mes</td>
+                        <td class="price-usd">$27/mes</td>
+                        <td>20%</td>
+                        <td>Acceso consolidado, descuento</td>
+                    </tr>
+                    <tr>
+                        <td>Portal de Propiedades (ML, Viva)</td>
+                        <td class="price-mxn">$1,000/mes</td>
+                        <td class="price-usd">$54/mes</td>
+                        <td>15%</td>
+                        <td>Descuento por volumen</td>
+                    </tr>
+                    <tr>
+                        <td>Servicios Legales</td>
+                        <td class="price-mxn">$2,000/año</td>
+                        <td class="price-usd">$108/año</td>
+                        <td>25%</td>
+                        <td>Consultoría express</td>
+                    </tr>
+                    <tr>
+                        <td>Créditos/Financieras</td>
+                        <td class="price-mxn">$500/crédito</td>
+                        <td class="price-usd">$27/crédito</td>
+                        <td>10%</td>
+                        <td>Acceso preferente</td>
+                    </tr>
+                    <tr>
+                        <td>Fotografía 360°</td>
+                        <td class="price-mxn">$3,000/paquete</td>
+                        <td class="price-usd">$162/paquete</td>
+                        <td>20%</td>
+                        <td>Proveedores curados</td>
+                    </tr>
+                    <tr>
+                        <td>Home Staging Virtual</td>
+                        <td class="price-mxn">$1,500/propiedad</td>
+                        <td class="price-usd">$81/propiedad</td>
+                        <td>20%</td>
+                        <td>Descuento asociado</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="thesis-box">
+                <p><strong>Ingreso potencial (50 suscripciones activas a $500 MXN promedio con 20% comisión):</strong></p>
+                <p class="price-mxn">$5,000 MXN/mes = $60,000 MXN/año</p>
+                <p class="price-usd">$270 USD/mes = $3,243 USD/año</p>
+            </div>
+
+            <h3>Por qué los terceros aceptarían</h3>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h4>Para el CRM competidor</h4>
+                    <ul>
+                        <li>Acceso a 2,500 leads calificados</li>
+                        <li>Adquisición sin costo de marketing</li>
+                        <li>Cobro facilitado por COPIM</li>
+                    </ul>
+                </div>
+                <div class="comparison-card">
+                    <h4>Para el portal de propiedades</h4>
+                    <ul>
+                        <li>Publicación masiva de asociados</li>
+                        <li>Ingreso recurrente garantizado</li>
+                        <li>Datos de comportamiento</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- PREMIUM -->
+        <section>
+            <h2>6. Capa 4: Premium Upgrades (B2B2C)</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio MXN</th>
+                        <th>Precio USD</th>
+                        <th>Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Broker Pro</td>
+                        <td class="price-mxn">$399 - $599/mes</td>
+                        <td class="price-usd">$22 - $32/mes</td>
+                        <td>Socio avanzado</td>
+                    </tr>
+                    <tr>
+                        <td>Team Pro (5 agentes)</td>
+                        <td class="price-mxn">$1,900/mes</td>
+                        <td class="price-usd">$103/mes</td>
+                        <td>Inmobiliaria pequeña</td>
+                    </tr>
+                    <tr>
+                        <td>Agency Pro</td>
+                        <td class="price-mxn">$4,900+/mes</td>
+                        <td class="price-usd">$265+/mes</td>
+                        <td>Inmobiliaria grande</td>
+                    </tr>
+                    <tr>
+                        <td>IA Premium (tokens)</td>
+                        <td class="price-mxn">Por uso</td>
+                        <td class="price-usd">Por uso</td>
+                        <td>Usuario intensivo</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="thesis-box">
+                <p><strong>Ingreso potencial (100 Broker Pro):</strong></p>
+                <p class="price-mxn">$39,900 - $59,900 MXN/mes = $478,800 - $718,800 MXN/año</p>
+                <p class="price-usd">$2,157 - $3,238 USD/mes = $25,881 - $38,858 USD/año</p>
+            </div>
+        </section>
+
+        <!-- PATROCINIOS -->
+        <section>
+            <h2>7. Capa 5: Patrocinios y Publicidad</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Formato</th>
+                        <th>Precio MXN</th>
+                        <th>Precio USD</th>
+                        <th>Frecuencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Banner principal</td>
+                        <td class="price-mxn">$15,000/mes</td>
+                        <td class="price-usd">$811/mes</td>
+                        <td>Recurrente</td>
+                    </tr>
+                    <tr>
+                        <td>Patrocinio evento</td>
+                        <td class="price-mxn">$25,000 - $50,000</td>
+                        <td class="price-usd">$1,351 - $2,703</td>
+                        <td>Por evento</td>
+                    </tr>
+                    <tr>
+                        <td>Beneficio exclusivo</td>
+                        <td class="price-mxn">$10,000/mes</td>
+                        <td class="price-usd">$541/mes</td>
+                        <td>Recurrente</td>
+                    </tr>
+                    <tr>
+                        <td>Email a base</td>
+                        <td class="price-mxn">$5,000/envío</td>
+                        <td class="price-usd">$270/envío</td>
+                        <td>Por campaña</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="thesis-box">
+                <p><strong>Ingreso potencial (3 patrocinadores):</strong></p>
+                <p class="price-mxn">$45,000 MXN/mes = $540,000 MXN/año</p>
+                <p class="price-usd">$2,432 USD/mes = $29,189 USD/año</p>
+            </div>
+        </section>
+
+        <!-- PROYECCIONES -->
+        <section>
+            <h2>8. Proyección Financiera Consolidada</h2>
+
+            <h3>Escenario Conservador (Año 2)</h3>
+            <p><strong>Base:</strong> 10 asociaciones, 500 asociados activos</p>
+
+            <div class="revenue-highlight">
+                <h3>ESCENARIO CONSERVADOR</h3>
+                <div class="revenue-grid">
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Mensual (MXN)</div>
+                        <div class="amount">$87.5K</div>
+                        <div class="period">MRR México</div>
+                    </div>
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Mensual (USD)</div>
+                        <div class="amount">$4.7K</div>
+                        <div class="period">MRR Global</div>
+                    </div>
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Anual (MXN)</div>
+                        <div class="amount">$1.05M</div>
+                        <div class="period">ARR México</div>
+                    </div>
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Anual (USD)</div>
+                        <div class="amount">$56.8K</div>
+                        <div class="period">ARR Global</div>
+                    </div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Mensual MXN</th>
+                        <th>Mensual USD</th>
+                        <th>Anual MXN</th>
+                        <th>Anual USD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Capa 1: SaaS Base</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Licencia COPIM</td>
+                        <td class="price-mxn">$5,000</td>
+                        <td class="price-usd">$270</td>
+                        <td class="price-mxn">$60,000</td>
+                        <td class="price-usd">$3,243</td>
+                    </tr>
+                    <tr>
+                        <td>10 Asociaciones</td>
+                        <td class="price-mxn">$10,000</td>
+                        <td class="price-usd">$541</td>
+                        <td class="price-mxn">$120,000</td>
+                        <td class="price-usd">$6,486</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Capa 2: Marketplace</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>100 transacciones @ 25%</td>
+                        <td class="price-mxn">$12,500</td>
+                        <td class="price-usd">$676</td>
+                        <td class="price-mxn">$150,000</td>
+                        <td class="price-usd">$8,108</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Capa 3: Canales Terceros</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>50 suscripciones @ 20%</td>
+                        <td class="price-mxn">$5,000</td>
+                        <td class="price-usd">$270</td>
+                        <td class="price-mxn">$60,000</td>
+                        <td class="price-usd">$3,243</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Capa 4: Premium</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>50 Broker Pro</td>
+                        <td class="price-mxn">$25,000</td>
+                        <td class="price-usd">$1,351</td>
+                        <td class="price-mxn">$300,000</td>
+                        <td class="price-usd">$16,216</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Capa 5: Patrocinios</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>2 patrocinadores</td>
+                        <td class="price-mxn">$30,000</td>
+                        <td class="price-usd">$1,622</td>
+                        <td class="price-mxn">$360,000</td>
+                        <td class="price-usd">$19,459</td>
+                    </tr>
+                    <tr style="background: rgba(13, 148, 136, 0.1);">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="price-mxn"><strong>$87,500/mes</strong></td>
+                        <td class="price-usd"><strong>$4,730/mes</strong></td>
+                        <td class="price-mxn"><strong>$1,050,000/año</strong></td>
+                        <td class="price-usd"><strong>$56,757/año</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Escenario Ambicioso (Año 2)</h3>
+            <p><strong>Base:</strong> 50 asociaciones, 2,500 asociados activos</p>
+
+            <div class="revenue-highlight">
+                <h3>ESCENARIO AMBICIOSO</h3>
+                <div class="revenue-grid">
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Mensual (MXN)</div>
+                        <div class="amount">$357.5K</div>
+                        <div class="period">MRR México</div>
+                    </div>
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Mensual (USD)</div>
+                        <div class="amount">$19.3K</div>
+                        <div class="period">MRR Global</div>
+                    </div>
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Anual (MXN)</div>
+                        <div class="amount">$4.29M</div>
+                        <div class="period">ARR México</div>
+                    </div>
+                    <div class="revenue-card">
+                        <div class="label">Ingreso Anual (USD)</div>
+                        <div class="amount">$231.9K</div>
+                        <div class="period">ARR Global</div>
+                    </div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Mensual MXN</th>
+                        <th>Mensual USD</th>
+                        <th>Anual MXN</th>
+                        <th>Anual USD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SaaS (50 asociaciones)</td>
+                        <td class="price-mxn">$50,000</td>
+                        <td class="price-usd">$2,703</td>
+                        <td class="price-mxn">$600,000</td>
+                        <td class="price-usd">$32,432</td>
+                    </tr>
+                    <tr>
+                        <td>Marketplace (500 transacciones)</td>
+                        <td class="price-mxn">$62,500</td>
+                        <td class="price-usd">$3,378</td>
+                        <td class="price-mxn">$750,000</td>
+                        <td class="price-usd">$40,541</td>
+                    </tr>
+                    <tr>
+                        <td>Canales (200 suscripciones)</td>
+                        <td class="price-mxn">$20,000</td>
+                        <td class="price-usd">$1,081</td>
+                        <td class="price-mxn">$240,000</td>
+                        <td class="price-usd">$12,973</td>
+                    </tr>
+                    <tr>
+                        <td>Premium (300 usuarios)</td>
+                        <td class="price-mxn">$150,000</td>
+                        <td class="price-usd">$8,108</td>
+                        <td class="price-mxn">$1,800,000</td>
+                        <td class="price-usd">$97,297</td>
+                    </tr>
+                    <tr>
+                        <td>Patrocinios (5 activos)</td>
+                        <td class="price-mxn">$75,000</td>
+                        <td class="price-usd">$4,054</td>
+                        <td class="price-mxn">$900,000</td>
+                        <td class="price-usd">$48,649</td>
+                    </tr>
+                    <tr style="background: rgba(13, 148, 136, 0.1);">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="price-mxn"><strong>$357,500/mes</strong></td>
+                        <td class="price-usd"><strong>$19,324/mes</strong></td>
+                        <td class="price-mxn"><strong>$4,290,000/año</strong></td>
+                        <td class="price-usd"><strong>$231,892/año</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- CHANNELS MODEL -->
+        <section>
+            <h2>9. Modelo "Channels" COPIM (El Diferenciador)</h2>
+
+            <h3>¿Qué hace único a COPIM?</h3>
+            <p>Ser el <strong>único lugar</strong> donde un broker inmobiliario puede:</p>
+            <ol>
+                <li>Ver su membresía COPIM</li>
+                <li>Pagar su cuota</li>
+                <li>Acceder a su CRM</li>
+                <li>Comprar herramientas</li>
+                <li>Suscribirse a servicios de terceros</li>
+                <li>Acceder a beneficios</li>
+            </ol>
+
+            <h3>Flujo del Usuario (Similar a Prime Video Channels)</h3>
+            <div class="comparison-card">
+                <ul>
+                    <li><strong>1.</strong> Usuario entra a COPIM → Ve su membresía</li>
+                    <li><strong>2.</strong> Sección "Marketplace" → Ve productos digitales</li>
+                    <li><strong>3.</strong> Sección "Servicios" → Ve servicios complementarios (CRM, portales)</li>
+                    <li><strong>4.</strong> Un click → Suscripción activa</li>
+                    <li><strong>5.</strong> Un pago → Todo en la factura COPIM</li>
+                    <li><strong>6.</strong> Un perfil → Todo centralizado</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- GO TO MARKET -->
+        <section>
+            <h2>10. Estrategia de Go-to-Market</h2>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-phase">FASE 1: Piloto (Meses 1-3)</div>
+                    <div class="timeline-duration">Duración: 90 días</div>
+                    <ul>
+                        <li>Implementar 3 asociaciones piloto</li>
+                        <li>Marketplace con 10 productos digitales propios</li>
+                        <li>2 partners de "Channels" (1 CRM, 1 servicio legal)</li>
+                        <li><strong>Objetivo:</strong> Probar adopción y flujo de pagos</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-phase">FASE 2: Expansión (Meses 4-9)</div>
+                    <div class="timeline-duration">Duración: 180 días</div>
+                    <ul>
+                        <li>10 asociaciones activas</li>
+                        <li>50 productos en marketplace (30% terceros)</li>
+                        <li>5 partners de Channels</li>
+                        <li>Lanzar Broker Pro</li>
+                        <li><strong>Objetivo:</strong> $50,000/mes MRR</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-phase">FASE 3: Escala (Meses 10-18)</div>
+                    <div class="timeline-duration">Duración: 270 días</div>
+                    <ul>
+                        <li>25-50 asociaciones</li>
+                        <li>Marketplace auto-serve para creadores</li>
+                        <li>10+ partners de Channels</li>
+                        <li>Patrocinadores activos</li>
+                        <li><strong>Objetivo:</strong> $200,000+/mes MRR</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- PITCH PARA MARIO -->
+        <section>
+            <h2>11. Pitch para Mario</h2>
+
+            <div class="pitch-box">
+                <p>"Mario, imagina que COPIM es como Amazon para el sector inmobiliario. Las asociaciones compran su sistema operativo base. Los asociados reciben su CRM incluido. Pero aquí está lo clave: COPIM se convierte en el lugar donde todos los servicios del sector se ofrecen.</p>
+
+                <p>Un broker entra, ve su membresía, y en la misma plataforma puede suscribirse a un CRM avanzado, comprar un pack de contratos, contratar fotografía 360°, o acceder a un portal de propiedades. COPIM gana una comisión por cada transacción, sin operar los servicios.</p>
+
+                <p><strong>No vendemos software. Vendemos la capacidad de COPIM de ser la plataforma de transacciones del sector inmobiliario mexicano.</strong>"</p>
+            </div>
+        </section>
+
+        <!-- KPIs -->
+        <section>
+            <h2>12. KPIs Críticos</h2>
+
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="value">10 → 50</div>
+                    <div class="label">Asociaciones activas</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="value">500 → 2,500</div>
+                    <div class="label">Asociados activos</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="value">$150K → $750K<br><small style="font-size: 0.5em;">($8K → $41K USD)</small></div>
+                    <div class="label">GMV Marketplace</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="value">$60K → $240K<br><small style="font-size: 0.5em;">($3K → $13K USD)</small></div>
+                    <div class="label">Revenue Share Channels</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="value">$87K → $357K<br><small style="font-size: 0.5em;">($5K → $19K USD)</small></div>
+                    <div class="label">MRR Total</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="value">80% → 90%</div>
+                    <div class="label">Retención asociaciones</div>
+                </div>
+            </div>
+
+            <table style="margin-top: 30px;">
+                <thead>
+                    <tr>
+                        <th>Métrica</th>
+                        <th>Objetivo Año 1</th>
+                        <th>Objetivo Año 2</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Asociaciones activas</td>
+                        <td>10</td>
+                        <td>50</td>
+                    </tr>
+                    <tr>
+                        <td>Asociados activos</td>
+                        <td>500</td>
+                        <td>2,500</td>
+                    </tr>
+                    <tr>
+                        <td>GMV Marketplace</td>
+                        <td><span class="price-mxn">$150K MXN</span> <span class="price-usd">($8.1K USD)</span></td>
+                        <td><span class="price-mxn">$750K MXN</span> <span class="price-usd">($40.5K USD)</span></td>
+                    </tr>
+                    <tr>
+                        <td>Revenue Share Channels</td>
+                        <td><span class="price-mxn">$60K MXN</span> <span class="price-usd">($3.2K USD)</span></td>
+                        <td><span class="price-mxn">$240K MXN</span> <span class="price-usd">($13K USD)</span></td>
+                    </tr>
+                    <tr>
+                        <td>MRR Total</td>
+                        <td><span class="price-mxn">$87.5K MXN</span> <span class="price-usd">($4.7K USD)</span></td>
+                        <td><span class="price-mxn">$357.5K MXN</span> <span class="price-usd">($19.3K USD)</span></td>
+                    </tr>
+                    <tr>
+                        <td>Retención asociaciones</td>
+                        <td>80%</td>
+                        <td>90%</td>
+                    </tr>
+                    <tr>
+                        <td>Transacciones por asociado/mes</td>
+                        <td>0.5</td>
+                        <td>2</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- VENTAJAS COMPETITIVAS -->
+        <section>
+            <h2>13. Ventajas Competitivas</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Aspecto</th>
+                        <th>Modelo Tradicional</th>
+                        <th>Modelo ROVI+COPIM Amazon</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Propuesta de valor</td>
+                        <td>Venta de software único</td>
+                        <td><strong>Plataforma de transacciones</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Estructura de ingresos</td>
+                        <td>Ingreso por licencia</td>
+                        <td><strong>Ingreso por comisión</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Escalabilidad</td>
+                        <td>Sin escala sin ventas</td>
+                        <td><strong>Escala con cada nuevo producto</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Experiencia usuario</td>
+                        <td>Usuario aislado</td>
+                        <td><strong>Ecosistema pegajoso</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Datos</td>
+                        <td>Datos perdidos</td>
+                        <td><strong>Datos capturados y monetizados</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- PRÓXIMOS PASOS -->
+        <section>
+            <h2>14. Próximos Pasos</h2>
+
+            <div class="next-steps">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Validar con Mario</div>
+                    <div class="step-desc">Presentar modelo y obtener feedback ejecutivo</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Definir第一批 partners</div>
+                    <div class="step-desc">2-3 servicios para "Channels" iniciales</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Desarrollar MVP Marketplace</div>
+                    <div class="step-desc">5-10 productos digitales propios</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">4</div>
+                    <div class="step-title">Implementar split payments</div>
+                    <div class="step-desc">Automatizar comisiones entre partes</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">5</div>
+                    <div class="step-title">Piloto con 3 asociaciones</div>
+                    <div class="step-desc">Probar modelo real y medir</div>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">6</div>
+                    <div class="step-title">Medir y iterar</div>
+                    <div class="step-desc">Ajustar comisiones y precios</div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>© 2026 ROVI + COPIM | Plan de Negocio Confidencial</p>
+            <p>Documento generado el 13 de Mayo, 2026</p>
+            <p style="margin-top: 15px; font-size: 0.85rem; opacity: 0.8;">
+                <strong>Monedas:</strong> MXN = Mercado Mexicano | USD = Mercado Internacional<br>
+                <strong>Tipo de cambio:</strong> $1 USD = $18.50 MXN (Tipo de cambio referencial para proyecciones)
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

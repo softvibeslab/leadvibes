@@ -1,6 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCorners,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
@@ -14,6 +26,7 @@ import {
   ClipboardList,
   Download,
   FileSpreadsheet,
+  GripVertical,
   Home,
   ImagePlus,
   Zap,
@@ -273,6 +286,12 @@ const rentalTypeLabels = {
   long_term: 'Larga estancia',
 };
 
+const operationTypeLabels = {
+  rent: 'Renta',
+  sale: 'Venta',
+  both: 'Venta y renta',
+};
+
 const bookingCalendarTypeMeta = {
   check_in: { label: 'Entrada', className: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-500/30' },
   stay: { label: 'Estancia', className: 'bg-blue-100 text-blue-900 border-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:border-blue-500/30' },
@@ -310,6 +329,27 @@ const EMPTY_PROPERTY = {
   images: [],
   notes: '',
 };
+
+const EMPTY_PIPELINE = {
+  name: '',
+  description: '',
+  entity_type: 'booking',
+  status: 'active',
+  is_default: false,
+};
+
+const EMPTY_STAGE = {
+  name: '',
+  description: '',
+  booking_status: 'reserved',
+  color: '#0D9488',
+  probability: 35,
+  sort_order: 10,
+  is_closing_stage: false,
+  automation_notes: '',
+};
+
+const bookingStatusOptions = ['inquiry', 'reserved', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
 
 const EMPTY_BOOKING = {
   property_id: '',
@@ -538,6 +578,29 @@ const EmptyState = ({ icon: Icon, title, description, action }) => (
   </div>
 );
 
+const PropertyViewToggle = ({ value, onChange }) => (
+  <div className="inline-flex h-10 items-center rounded-lg border border-border/70 bg-muted/30 p-1">
+    {[
+      ['table', List, 'Tabla'],
+      ['cards', Home, 'Tarjetas'],
+      ['pipeline', ClipboardList, 'Pipeline'],
+    ].map(([mode, Icon, label]) => (
+      <button
+        key={mode}
+        type="button"
+        aria-pressed={value === mode}
+        onClick={() => onChange(mode)}
+        className={`inline-flex h-8 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition ${
+          value === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+        {label}
+      </button>
+    ))}
+  </div>
+);
+
 const CalendarViewToggle = ({ value, onChange }) => (
   <div className="inline-flex h-10 items-center rounded-lg border border-border/70 bg-muted/30 p-1">
     {[
@@ -558,6 +621,197 @@ const CalendarViewToggle = ({ value, onChange }) => (
     ))}
   </div>
 );
+
+const RentalPropertyKanbanCard = ({
+  property,
+  dragAttributes,
+  dragListeners,
+  dragRef,
+  style,
+  isDragging = false,
+  isOverlay = false,
+  onOpenDetail,
+  onEdit,
+}) => {
+  const coverImage = (property.images || []).find((image) => image.is_cover) || property.images?.[0];
+  const platforms = property.platforms || [];
+
+  return (
+    <div
+      ref={dragRef}
+      style={style}
+      className={`rounded-lg border border-border/70 bg-card p-3 shadow-sm transition ${
+        isDragging ? 'opacity-50 ring-2 ring-primary' : 'hover:border-primary/50'
+      } ${isOverlay ? 'w-[292px] shadow-xl' : ''}`}
+    >
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          className="mt-1 cursor-grab rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+          {...dragAttributes}
+          {...dragListeners}
+          aria-label={`Mover ${property.title}`}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div className="h-14 w-16 shrink-0 overflow-hidden rounded-md border bg-muted">
+          {coverImage?.url ? (
+            <img src={coverImage.url} alt={coverImage.alt || property.title} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+              <Home className="h-5 w-5" />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{property.title}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{property.zone || property.address || 'Sin zona'}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Badge variant="outline">{statusLabels[property.status] || property.status}</Badge>
+            <Badge variant="secondary">{property.bedrooms || 0} rec · {property.max_guests || 0} pax</Badge>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-md border border-border/60 p-2">
+          <p className="text-muted-foreground">Noche</p>
+          <p className="font-semibold">{currency(property.nightly_price_mxn)}</p>
+        </div>
+        <div className="rounded-md border border-border/60 p-2">
+          <p className="text-muted-foreground">Mes</p>
+          <p className="font-semibold">{currency(property.monthly_price_mxn)}</p>
+        </div>
+      </div>
+
+      {platforms.length > 0 && (
+        <p className="mt-2 truncate text-xs text-muted-foreground">Canales: {platforms.slice(0, 3).join(', ')}{platforms.length > 3 ? ` +${platforms.length - 3}` : ''}</p>
+      )}
+
+      {!isOverlay && (
+        <div className="mt-3 flex justify-end gap-2 border-t border-border/70 pt-3">
+          <Button type="button" size="sm" variant="outline" onClick={() => onOpenDetail(property)}>
+            <Brain className="mr-2 h-4 w-4" />
+            Ficha
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onEdit(property)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DraggableRentalPropertyCard = ({ property, stageId, onOpenDetail, onEdit }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useDraggable({
+    id: property.id,
+    data: {
+      type: 'rental_property',
+      stageId,
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <RentalPropertyKanbanCard
+      property={property}
+      dragAttributes={attributes}
+      dragListeners={listeners}
+      dragRef={setNodeRef}
+      style={style}
+      isDragging={isDragging}
+      onOpenDetail={onOpenDetail}
+      onEdit={onEdit}
+    />
+  );
+};
+
+const RentalPropertyStageColumn = ({ stage, onOpenDetail, onEdit, onEditStage, onDeleteStage }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `property-stage-${stage.id}`,
+    data: {
+      type: 'rental_property_stage',
+      stageId: stage.id,
+    },
+  });
+  const properties = stage.properties || [];
+
+  return (
+    <div className="flex h-full w-[320px] shrink-0 flex-col rounded-lg border border-border/70 bg-background">
+      <div className="border-b border-border/70 p-4" style={{ borderTop: `4px solid ${stage.color || '#0D9488'}` }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: stage.color || '#0D9488' }} />
+              <p className="truncate font-semibold">{stage.name}</p>
+              {stage.is_closing_stage && <Badge variant="outline">Cierre</Badge>}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {properties.length} propiedades · {stage.probability || 0}% avance
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-1">
+            <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEditStage(stage)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDeleteStage(stage)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-md border border-border/60 p-2">
+            <p className="text-muted-foreground">Potencial mensual</p>
+            <p className="font-semibold">{currency(stage.monthly_potential_mxn || 0)}</p>
+          </div>
+          <div className="rounded-md border border-border/60 p-2">
+            <p className="text-muted-foreground">Tarifa noche</p>
+            <p className="font-semibold">{currency(stage.nightly_potential_mxn || 0)}</p>
+          </div>
+        </div>
+        {stage.automation_notes && (
+          <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{stage.automation_notes}</p>
+        )}
+      </div>
+
+      <div
+        ref={setNodeRef}
+        className={`flex-1 space-y-3 p-3 transition ${
+          isOver ? 'bg-primary/10' : 'bg-muted/10'
+        }`}
+      >
+        {properties.map((property) => (
+          <DraggableRentalPropertyCard
+            key={property.id}
+            property={property}
+            stageId={stage.id}
+            onOpenDetail={onOpenDetail}
+            onEdit={onEdit}
+          />
+        ))}
+        {properties.length === 0 && (
+          <div className="flex min-h-[140px] items-center justify-center rounded-lg border border-dashed border-border/70 p-4 text-center text-sm text-muted-foreground">
+            Arrastra propiedades aquí
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const RentalMonthCalendar = ({
   title,
@@ -1307,6 +1561,11 @@ export const RentalsPage = () => {
   const [financials, setFinancials] = useState(null);
   const [integrations, setIntegrations] = useState({ summary: {}, channels: [] });
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState('');
+  const [pipelineBoard, setPipelineBoard] = useState(null);
+  const [activePropertyId, setActivePropertyId] = useState(null);
+  const [propertiesView, setPropertiesView] = useState('table');
   const [bookingsView, setBookingsView] = useState('list');
   const [calendarView, setCalendarView] = useState('calendar');
   const [bookingsMonth, setBookingsMonth] = useState(() => new Date());
@@ -1333,8 +1592,14 @@ export const RentalsPage = () => {
   const [editingExternalSaleId, setEditingExternalSaleId] = useState(null);
   const [cashClosureDialogOpen, setCashClosureDialogOpen] = useState(false);
   const [editingCashClosureId, setEditingCashClosureId] = useState(null);
+  const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
+  const [editingPipelineId, setEditingPipelineId] = useState(null);
+  const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const [editingStageId, setEditingStageId] = useState(null);
   const [integrationAction, setIntegrationAction] = useState(null);
   const [propertyForm, setPropertyForm] = useState(EMPTY_PROPERTY);
+  const [pipelineForm, setPipelineForm] = useState(EMPTY_PIPELINE);
+  const [stageForm, setStageForm] = useState(EMPTY_STAGE);
   const [bookingForm, setBookingForm] = useState(EMPTY_BOOKING);
   const [taskForm, setTaskForm] = useState(EMPTY_TASK);
   const [staffForm, setStaffForm] = useState(EMPTY_STAFF);
@@ -1344,6 +1609,15 @@ export const RentalsPage = () => {
   const [calendarEventForm, setCalendarEventForm] = useState(EMPTY_CALENDAR_EVENT);
   const activeTab = resolveRentalModule(location.pathname);
   const pageCopy = rentalPageCopy[activeTab] || rentalPageCopy.overview;
+
+  const propertyKanbanSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   const propertyLookup = useMemo(
     () => Object.fromEntries(properties.map((property) => [property.id, property])),
@@ -1370,10 +1644,29 @@ export const RentalsPage = () => {
     [calendarEvents]
   );
 
+  const selectedPipeline = useMemo(
+    () => pipelines.find((pipeline) => pipeline.id === selectedPipelineId) || pipelines.find((pipeline) => pipeline.is_default) || pipelines[0] || null,
+    [pipelines, selectedPipelineId]
+  );
+
+  const pipelineStageIds = useMemo(
+    () => new Set((pipelineBoard?.stages || []).map((stage) => stage.id)),
+    [pipelineBoard]
+  );
+
+  const activeKanbanProperty = useMemo(() => {
+    if (!activePropertyId) return null;
+    for (const stage of pipelineBoard?.stages || []) {
+      const found = (stage.properties || []).find((property) => property.id === activePropertyId);
+      if (found) return found;
+    }
+    return properties.find((property) => property.id === activePropertyId) || null;
+  }, [activePropertyId, pipelineBoard, properties]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [dashboardRes, propertiesRes, bookingsRes, tasksRes, staffRes, financialsRes, integrationsRes, calendarEventsRes] = await Promise.all([
+      const [dashboardRes, propertiesRes, bookingsRes, tasksRes, staffRes, financialsRes, integrationsRes, calendarEventsRes, pipelinesRes] = await Promise.all([
         api.get('/rentals/dashboard'),
         api.get('/rentals/properties'),
         api.get('/rentals/bookings'),
@@ -1382,7 +1675,9 @@ export const RentalsPage = () => {
         api.get('/rentals/financials'),
         api.get('/rentals/integrations'),
         api.get('/rentals/calendar/events'),
+        api.get('/rentals/pipelines'),
       ]);
+      const nextPipelines = pipelinesRes.data || [];
       setDashboard(dashboardRes.data);
       setProperties(propertiesRes.data || []);
       setBookings(bookingsRes.data || []);
@@ -1391,6 +1686,13 @@ export const RentalsPage = () => {
       setFinancials(financialsRes.data || null);
       setIntegrations(integrationsRes.data || { summary: {}, channels: [] });
       setCalendarEvents(calendarEventsRes.data || []);
+      setPipelines(nextPipelines);
+      setSelectedPipelineId((current) => {
+        if (current && nextPipelines.some((pipeline) => pipeline.id === current)) {
+          return current;
+        }
+        return nextPipelines.find((pipeline) => pipeline.is_default)?.id || nextPipelines[0]?.id || '';
+      });
     } catch (error) {
       toast.error(error.response?.data?.detail || 'No se pudo cargar el módulo de rentas');
     } finally {
@@ -1401,6 +1703,24 @@ export const RentalsPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const loadPipelineBoard = useCallback(async () => {
+    if (!selectedPipelineId) {
+      setPipelineBoard(null);
+      return;
+    }
+    try {
+      const response = await api.get(`/rentals/pipelines/${selectedPipelineId}/board`);
+      setPipelineBoard(response.data);
+    } catch (error) {
+      setPipelineBoard(null);
+      toast.error(error.response?.data?.detail || 'No se pudo cargar el pipeline de reservas');
+    }
+  }, [api, selectedPipelineId]);
+
+  useEffect(() => {
+    loadPipelineBoard();
+  }, [loadPipelineBoard]);
 
   const navigateToRentalModule = (moduleKey) => {
     navigate(rentalModuleRoutes[moduleKey] || rentalModuleRoutes.overview);
@@ -1431,6 +1751,53 @@ export const RentalsPage = () => {
       setPropertyForm(EMPTY_PROPERTY);
     }
     setPropertyDialogOpen(true);
+  };
+
+  const openPipelineDialog = (pipeline = null) => {
+    if (pipeline?.id) {
+      setEditingPipelineId(pipeline.id);
+      setPipelineForm({
+        ...EMPTY_PIPELINE,
+        ...pipeline,
+        description: pipeline.description || '',
+        entity_type: pipeline.entity_type || 'booking',
+        status: pipeline.status || 'active',
+        is_default: Boolean(pipeline.is_default),
+      });
+    } else {
+      setEditingPipelineId(null);
+      setPipelineForm({
+        ...EMPTY_PIPELINE,
+        name: 'Nuevo pipeline de reservas',
+      });
+    }
+    setPipelineDialogOpen(true);
+  };
+
+  const openStageDialog = (stage = null) => {
+    if (stage?.id) {
+      setEditingStageId(stage.id);
+      setStageForm({
+        ...EMPTY_STAGE,
+        ...stage,
+        description: stage.description || '',
+        booking_status: stage.booking_status || '',
+        color: stage.color || '#0D9488',
+        probability: typeof stage.probability === 'number' ? stage.probability : 0,
+        sort_order: typeof stage.sort_order === 'number' ? stage.sort_order : 10,
+        is_closing_stage: Boolean(stage.is_closing_stage),
+        automation_notes: stage.automation_notes || '',
+      });
+    } else {
+      const nextOrder = Math.max(0, ...((pipelineBoard?.stages || []).map((item) => Number(item.sort_order) || 0))) + 10;
+      setEditingStageId(null);
+      setStageForm({
+        ...EMPTY_STAGE,
+        name: 'Nuevo stage',
+        sort_order: nextOrder,
+      });
+    }
+    setStageDialogOpen(true);
   };
 
   const openBookingDialog = (booking = null) => {
@@ -1603,6 +1970,8 @@ export const RentalsPage = () => {
   };
 
   const updatePropertyForm = (key, value) => setPropertyForm((current) => ({ ...current, [key]: value }));
+  const updatePipelineForm = (key, value) => setPipelineForm((current) => ({ ...current, [key]: value }));
+  const updateStageForm = (key, value) => setStageForm((current) => ({ ...current, [key]: value }));
   const updateBookingForm = (key, value) => setBookingForm((current) => ({ ...current, [key]: value }));
   const updateTaskForm = (key, value) => setTaskForm((current) => ({ ...current, [key]: value }));
   const updateStaffForm = (key, value) => setStaffForm((current) => ({ ...current, [key]: value }));
@@ -1714,6 +2083,206 @@ export const RentalsPage = () => {
       loadData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'No se pudo archivar la propiedad');
+    }
+  };
+
+  const savePipeline = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        ...pipelineForm,
+        description: pipelineForm.description || null,
+        entity_type: pipelineForm.entity_type || 'booking',
+        is_default: Boolean(pipelineForm.is_default),
+      };
+      if (editingPipelineId) {
+        await api.put(`/rentals/pipelines/${editingPipelineId}`, payload);
+        toast.success('Pipeline actualizado');
+      } else {
+        const response = await api.post('/rentals/pipelines', payload);
+        toast.success('Pipeline creado');
+        if (response.data?.id) {
+          setSelectedPipelineId(response.data.id);
+        }
+      }
+      setPipelineDialogOpen(false);
+      setEditingPipelineId(null);
+      await loadData();
+      await loadPipelineBoard();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo guardar el pipeline');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deletePipeline = async (pipeline) => {
+    if (!pipeline?.id) return;
+    const confirmed = window.confirm(`¿Archivar el pipeline "${pipeline.name}"?`);
+    if (!confirmed) return;
+    try {
+      await api.delete(`/rentals/pipelines/${pipeline.id}`);
+      toast.success('Pipeline archivado');
+      setSelectedPipelineId('');
+      await loadData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo archivar el pipeline');
+    }
+  };
+
+  const saveStage = async (event) => {
+    event.preventDefault();
+    if (!selectedPipelineId) {
+      toast.error('Selecciona un pipeline');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        ...stageForm,
+        description: stageForm.description || null,
+        booking_status: stageForm.booking_status || null,
+        probability: Number(stageForm.probability) || 0,
+        sort_order: Number(stageForm.sort_order) || 10,
+        is_closing_stage: Boolean(stageForm.is_closing_stage),
+        automation_notes: stageForm.automation_notes || null,
+      };
+      if (editingStageId) {
+        await api.put(`/rentals/pipeline-stages/${editingStageId}`, payload);
+        toast.success('Stage actualizado');
+      } else {
+        await api.post(`/rentals/pipelines/${selectedPipelineId}/stages`, payload);
+        toast.success('Stage creado');
+      }
+      setStageDialogOpen(false);
+      setEditingStageId(null);
+      await loadData();
+      await loadPipelineBoard();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo guardar el stage');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteStage = async (stage) => {
+    if (!stage?.id) return;
+    const confirmed = window.confirm(`¿Eliminar el stage "${stage.name}"? Las reservas quedarán mapeadas por estado.`);
+    if (!confirmed) return;
+    try {
+      await api.delete(`/rentals/pipeline-stages/${stage.id}`);
+      toast.success('Stage eliminado');
+      await loadData();
+      await loadPipelineBoard();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo eliminar el stage');
+    }
+  };
+
+  const findPropertyStageId = useCallback((propertyId) => {
+    for (const stage of pipelineBoard?.stages || []) {
+      if ((stage.properties || []).some((property) => property.id === propertyId)) {
+        return stage.id;
+      }
+    }
+    return null;
+  }, [pipelineBoard]);
+
+  const movePropertyInBoard = useCallback((propertyId, targetStageId) => {
+    setPipelineBoard((current) => {
+      if (!current?.stages?.length) return current;
+      let movedProperty = null;
+      const stagesWithoutProperty = current.stages.map((stage) => {
+        const nextProperties = (stage.properties || []).filter((property) => {
+          if (property.id === propertyId) {
+            movedProperty = property;
+            return false;
+          }
+          return true;
+        });
+        return {
+          ...stage,
+          properties: nextProperties,
+          properties_count: nextProperties.length,
+          nightly_potential_mxn: nextProperties.reduce((sum, property) => sum + Number(property.nightly_price_mxn || 0), 0),
+          monthly_potential_mxn: nextProperties.reduce((sum, property) => sum + Number(property.monthly_price_mxn || 0), 0),
+        };
+      });
+
+      if (!movedProperty) {
+        movedProperty = properties.find((property) => property.id === propertyId);
+      }
+      if (!movedProperty) return current;
+
+      const nextStages = stagesWithoutProperty.map((stage) => {
+        if (stage.id !== targetStageId) return stage;
+        const nextProperties = [
+          {
+            ...movedProperty,
+            pipeline_id: selectedPipelineId,
+            stage_id: targetStageId,
+          },
+          ...(stage.properties || []),
+        ];
+        return {
+          ...stage,
+          properties: nextProperties,
+          properties_count: nextProperties.length,
+          nightly_potential_mxn: nextProperties.reduce((sum, property) => sum + Number(property.nightly_price_mxn || 0), 0),
+          monthly_potential_mxn: nextProperties.reduce((sum, property) => sum + Number(property.monthly_price_mxn || 0), 0),
+        };
+      });
+
+      return {
+        ...current,
+        stages: nextStages,
+        summary: {
+          ...(current.summary || {}),
+          properties_count: nextStages.reduce((sum, stage) => sum + Number(stage.properties_count || 0), 0),
+          nightly_potential_mxn: nextStages.reduce((sum, stage) => sum + Number(stage.nightly_potential_mxn || 0), 0),
+          monthly_potential_mxn: nextStages.reduce((sum, stage) => sum + Number(stage.monthly_potential_mxn || 0), 0),
+        },
+      };
+    });
+
+    setProperties((current) => current.map((property) => (
+      property.id === propertyId
+        ? { ...property, pipeline_id: selectedPipelineId, stage_id: targetStageId }
+        : property
+    )));
+  }, [properties, selectedPipelineId]);
+
+  const handlePropertyKanbanDragStart = (event) => {
+    setActivePropertyId(event.active.id);
+  };
+
+  const handlePropertyKanbanDragEnd = async (event) => {
+    const { active, over } = event;
+    setActivePropertyId(null);
+    if (!active?.id || !over || !selectedPipelineId) return;
+
+    const targetStageId = over.data?.current?.stageId || String(over.id).replace('property-stage-', '');
+    if (!targetStageId || !pipelineStageIds.has(targetStageId)) return;
+
+    const propertyId = active.id;
+    const sourceStageId = active.data?.current?.stageId || findPropertyStageId(propertyId);
+    if (sourceStageId === targetStageId) return;
+
+    movePropertyInBoard(propertyId, targetStageId);
+    try {
+      await api.put(`/rentals/properties/${propertyId}`, {
+        pipeline_id: selectedPipelineId,
+        stage_id: targetStageId,
+      });
+      const targetStage = (pipelineBoard?.stages || []).find((stage) => stage.id === targetStageId);
+      toast.success(`Propiedad movida a ${targetStage?.name || 'stage seleccionado'}`);
+      await loadData();
+      await loadPipelineBoard();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No se pudo mover la propiedad');
+      await loadData();
+      await loadPipelineBoard();
     }
   };
 
@@ -2256,20 +2825,133 @@ export const RentalsPage = () => {
                 <CardTitle>Inventario de renta</CardTitle>
                 <CardDescription>Propiedades operadas por noche, mes o contratos de administración.</CardDescription>
               </div>
-              <Button onClick={openPropertyDialog}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nueva propiedad
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <PropertyViewToggle value={propertiesView} onChange={setPropertiesView} />
+                <Button onClick={openPropertyDialog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nueva propiedad
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {properties.length === 0 ? (
+              {properties.length === 0 && propertiesView !== 'pipeline' ? (
                 <EmptyState
                   icon={Home}
                   title="Sin propiedades cargadas"
                   description="Crea una propiedad manualmente o usa el importador para cargar inventario desde CSV/XLSX."
                   action={<Button onClick={() => navigateToRentalModule('import')}><Upload className="mr-2 h-4 w-4" />Importar propiedades</Button>}
                 />
-              ) : (
+              ) : propertiesView === 'table' ? (
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table className="min-w-[1080px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Propiedad</TableHead>
+                        <TableHead>Operación</TableHead>
+                        <TableHead>Capacidad</TableHead>
+                        <TableHead>Tarifas</TableHead>
+                        <TableHead>Canales</TableHead>
+                        <TableHead>Comisión</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {properties.map((property) => {
+                        const coverImage = (property.images || []).find((image) => image.is_cover) || property.images?.[0];
+                        const platforms = property.platforms || [];
+                        const amenities = property.amenities || [];
+                        const commissionPercent = Math.round((Number(property.commission_rate) || 0) * 100);
+
+                        return (
+                          <TableRow key={property.id} className="align-top">
+                            <TableCell>
+                              <div className="flex min-w-[270px] items-center gap-3">
+                                <div className="h-14 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
+                                  {coverImage?.url ? (
+                                    <img src={coverImage.url} alt={coverImage.alt || property.title} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                      <Home className="h-5 w-5" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="max-w-[240px] truncate font-medium">{property.title}</p>
+                                  <p className="max-w-[240px] truncate text-xs text-muted-foreground">{property.zone || property.address || 'Sin zona'}</p>
+                                  {property.address && property.zone && (
+                                    <p className="max-w-[240px] truncate text-xs text-muted-foreground">{property.address}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex min-w-[150px] flex-col items-start gap-2">
+                                <Badge>{rentalTypeLabels[property.rental_type] || property.rental_type}</Badge>
+                                <Badge variant="outline">{statusLabels[property.status] || property.status}</Badge>
+                                <span className="text-xs text-muted-foreground">{operationTypeLabels[property.operation_type] || property.operation_type || 'Renta'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[130px] text-sm">
+                                <p className="font-medium">{property.bedrooms || 0} rec · {property.bathrooms || 0} baños</p>
+                                <p className="text-xs text-muted-foreground">{property.max_guests || 0} huéspedes máximos</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[170px] space-y-1 text-sm">
+                                <p><span className="text-muted-foreground">Noche:</span> <span className="font-semibold">{currency(property.nightly_price_mxn)}</span></p>
+                                <p><span className="text-muted-foreground">Mes:</span> <span className="font-semibold">{currency(property.monthly_price_mxn)}</span></p>
+                                <p className="text-xs text-muted-foreground">Limpieza {currency(property.cleaning_fee_mxn)} · Depósito {currency(property.deposit_mxn)}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[180px]">
+                                {platforms.length > 0 ? (
+                                  <div className="flex max-w-[220px] flex-wrap gap-1.5">
+                                    {platforms.slice(0, 3).map((platform) => (
+                                      <Badge key={platform} variant="secondary">{platform}</Badge>
+                                    ))}
+                                    {platforms.length > 3 && <Badge variant="secondary">+{platforms.length - 3}</Badge>}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">Sin canales</span>
+                                )}
+                                {amenities.length > 0 && (
+                                  <p className="mt-2 max-w-[220px] truncate text-xs text-muted-foreground">
+                                    {amenities.slice(0, 3).join(', ')}{amenities.length > 3 ? ` +${amenities.length - 3}` : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[100px]">
+                                <p className="text-base font-semibold">{commissionPercent}%</p>
+                                <p className="text-xs text-muted-foreground">Sobre operación</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex min-w-[270px] flex-wrap justify-end gap-2">
+                                <Button type="button" size="sm" variant="outline" onClick={() => openPropertyDetail(property)}>
+                                  <Brain className="mr-2 h-4 w-4" />
+                                  Detalle
+                                </Button>
+                                <Button type="button" size="sm" variant="outline" onClick={() => openPropertyDialog(property)}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Editar
+                                </Button>
+                                <Button type="button" size="sm" variant="destructive" onClick={() => deleteProperty(property)}>
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Archivar
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : propertiesView === 'cards' ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {properties.map((property) => {
                   const coverImage = (property.images || []).find((image) => image.is_cover) || property.images?.[0];
@@ -2297,6 +2979,7 @@ export const RentalsPage = () => {
                       <div className="flex flex-wrap gap-2">
                         <Badge>{rentalTypeLabels[property.rental_type] || property.rental_type}</Badge>
                         <Badge variant="secondary">{property.bedrooms} rec · {property.bathrooms} baños · {property.max_guests} pax</Badge>
+                        <Badge variant="outline">{operationTypeLabels[property.operation_type] || property.operation_type || 'Renta'}</Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -2337,6 +3020,103 @@ export const RentalsPage = () => {
                   </Card>
                   );
                 })}
+              </div>
+              ) : null}
+
+              {propertiesView === 'pipeline' && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Kanban de propiedades por pipeline</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Arrastra propiedades entre stages para reflejar si están en captación, configuración, publicación, operación o cierre.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Select value={selectedPipelineId || undefined} onValueChange={setSelectedPipelineId}>
+                      <SelectTrigger className="w-full sm:w-[260px]">
+                        <SelectValue placeholder="Selecciona pipeline" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pipelines.map((pipeline) => (
+                          <SelectItem key={pipeline.id} value={pipeline.id}>{pipeline.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="outline" onClick={() => openPipelineDialog(selectedPipeline)} disabled={!selectedPipeline}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Pipeline
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => openStageDialog()} disabled={!selectedPipelineId}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Stage
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <p className="text-sm text-muted-foreground">Stages activos</p>
+                    <p className="mt-1 text-2xl font-semibold">{pipelineBoard?.summary?.stages_count || selectedPipeline?.stages_count || 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <p className="text-sm text-muted-foreground">Propiedades en pipeline</p>
+                    <p className="mt-1 text-2xl font-semibold">{pipelineBoard?.summary?.properties_count || 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <p className="text-sm text-muted-foreground">Potencial mensual</p>
+                    <p className="mt-1 text-2xl font-semibold">{currency(pipelineBoard?.summary?.monthly_potential_mxn || 0)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <p className="text-sm text-muted-foreground">Reservas vinculadas</p>
+                    <p className="mt-1 text-2xl font-semibold">{pipelineBoard?.summary?.bookings_count || 0}</p>
+                  </div>
+                </div>
+
+                {!pipelineBoard ? (
+                  <div className="flex min-h-[180px] items-center justify-center rounded-lg border border-dashed border-border/70">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <DndContext
+                    sensors={propertyKanbanSensors}
+                    collisionDetection={closestCorners}
+                    onDragStart={handlePropertyKanbanDragStart}
+                    onDragEnd={handlePropertyKanbanDragEnd}
+                  >
+                    <div className="overflow-x-auto rounded-lg border border-border/70 bg-muted/10 p-3">
+                      <div className="flex min-w-max gap-3 pb-2">
+                        {(pipelineBoard.stages || []).map((stage) => (
+                          <RentalPropertyStageColumn
+                            key={stage.id}
+                            stage={stage}
+                            onOpenDetail={openPropertyDetail}
+                            onEdit={openPropertyDialog}
+                            onEditStage={openStageDialog}
+                            onDeleteStage={deleteStage}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <DragOverlay>
+                      {activeKanbanProperty ? (
+                        <RentalPropertyKanbanCard property={activeKanbanProperty} isOverlay />
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
+                )}
+
+                <div className="flex flex-wrap justify-between gap-2 rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <Button type="button" variant="outline" onClick={() => openPipelineDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo pipeline
+                  </Button>
+                  <Button type="button" variant="destructive" onClick={() => deletePipeline(selectedPipeline)} disabled={!selectedPipeline || selectedPipeline.is_default}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Archivar pipeline
+                  </Button>
+                </div>
               </div>
               )}
             </CardContent>
@@ -3200,6 +3980,126 @@ export const RentalsPage = () => {
             <DialogFooter className="md:col-span-2">
               <Button type="button" variant="outline" onClick={() => setPropertyDialogOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editingPropertyId ? 'Actualizar' : 'Guardar'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pipelineDialogOpen} onOpenChange={(open) => {
+        setPipelineDialogOpen(open);
+        if (!open) setEditingPipelineId(null);
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingPipelineId ? 'Editar pipeline' : 'Nuevo pipeline'}</DialogTitle>
+            <DialogDescription>Define el flujo operativo para reservas, administración o futuros procesos de rentas.</DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={savePipeline}>
+            <div className="md:col-span-2">
+              <Label>Nombre</Label>
+              <Input required value={pipelineForm.name} onChange={(event) => updatePipelineForm('name', event.target.value)} />
+            </div>
+            <div>
+              <Label>Tipo</Label>
+              <Select value={pipelineForm.entity_type} onValueChange={(value) => updatePipelineForm('entity_type', value)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="booking">Reservas</SelectItem>
+                  <SelectItem value="property">Propiedades</SelectItem>
+                  <SelectItem value="operations">Operación</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Estatus</Label>
+              <Select value={pipelineForm.status} onValueChange={(value) => updatePipelineForm('status', value)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Activo</SelectItem>
+                  <SelectItem value="paused">Pausado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center gap-2 rounded-lg border border-border/70 p-3 text-sm md:col-span-2">
+              <input
+                type="checkbox"
+                checked={Boolean(pipelineForm.is_default)}
+                onChange={(event) => updatePipelineForm('is_default', event.target.checked)}
+              />
+              Usar como pipeline principal para reservas
+            </label>
+            <div className="md:col-span-2">
+              <Label>Descripción</Label>
+              <Textarea rows={3} value={pipelineForm.description} onChange={(event) => updatePipelineForm('description', event.target.value)} />
+            </div>
+            <DialogFooter className="md:col-span-2">
+              <Button type="button" variant="outline" onClick={() => setPipelineDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editingPipelineId ? 'Actualizar' : 'Crear pipeline'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={stageDialogOpen} onOpenChange={(open) => {
+        setStageDialogOpen(open);
+        if (!open) setEditingStageId(null);
+      }}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingStageId ? 'Editar stage' : 'Nuevo stage'}</DialogTitle>
+            <DialogDescription>Mapea cada stage con un estado de reserva para alimentar el tablero automáticamente.</DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveStage}>
+            <div>
+              <Label>Nombre</Label>
+              <Input required value={stageForm.name} onChange={(event) => updateStageForm('name', event.target.value)} />
+            </div>
+            <div>
+              <Label>Estado de reserva ligado</Label>
+              <Select value={optionalSelectValue(stageForm.booking_status)} onValueChange={(value) => updateStageForm('booking_status', optionalSelectChange(value))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_VALUE}>Sin estado automático</SelectItem>
+                  {bookingStatusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>{statusLabels[status] || status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Color</Label>
+              <div className="flex items-center gap-2">
+                <Input type="color" className="h-10 w-14 p-1" value={stageForm.color} onChange={(event) => updateStageForm('color', event.target.value)} />
+                <Input value={stageForm.color} onChange={(event) => updateStageForm('color', event.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label>Orden</Label>
+              <Input type="number" min="0" value={stageForm.sort_order} onChange={(event) => updateStageForm('sort_order', event.target.value)} />
+            </div>
+            <div>
+              <Label>Probabilidad / avance %</Label>
+              <Input type="number" min="0" max="100" value={stageForm.probability} onChange={(event) => updateStageForm('probability', event.target.value)} />
+            </div>
+            <label className="flex items-center gap-2 rounded-lg border border-border/70 p-3 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(stageForm.is_closing_stage)}
+                onChange={(event) => updateStageForm('is_closing_stage', event.target.checked)}
+              />
+              Stage de cierre
+            </label>
+            <div className="md:col-span-2">
+              <Label>Descripción</Label>
+              <Textarea rows={3} value={stageForm.description} onChange={(event) => updateStageForm('description', event.target.value)} />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Acción sugerida / automatización</Label>
+              <Textarea rows={3} value={stageForm.automation_notes} onChange={(event) => updateStageForm('automation_notes', event.target.value)} />
+            </div>
+            <DialogFooter className="md:col-span-2">
+              <Button type="button" variant="outline" onClick={() => setStageDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editingStageId ? 'Actualizar' : 'Crear stage'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

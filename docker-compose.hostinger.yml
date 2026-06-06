@@ -25,8 +25,11 @@ services:
     restart: always
     environment:
       # Database
-      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${DB_NAME:-rovi_crm}?authSource=admin
+      MONGO_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@rovi-mongodb:27017/${DB_NAME:-rovi_crm}?authSource=admin
       DB_NAME: ${DB_NAME:-rovi_crm}
+      MONGO_SERVER_SELECTION_TIMEOUT_MS: ${MONGO_SERVER_SELECTION_TIMEOUT_MS:-5000}
+      MONGO_CONNECT_TIMEOUT_MS: ${MONGO_CONNECT_TIMEOUT_MS:-5000}
+      MONGO_SOCKET_TIMEOUT_MS: ${MONGO_SOCKET_TIMEOUT_MS:-20000}
 
       # JWT
       JWT_SECRET: ${JWT_SECRET}
@@ -50,6 +53,12 @@ services:
       - mongodb
     networks:
       - rovi-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # Frontend (React + Nginx)
   frontend:

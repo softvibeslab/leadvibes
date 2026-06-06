@@ -23,6 +23,7 @@ export const LoginPage = () => {
     name: '', 
     email: '', 
     password: '',
+    inviteCode: '',
     account_type: 'individual' 
   });
   const nextPath = new URLSearchParams(window.location.search).get('next');
@@ -72,6 +73,10 @@ export const LoginPage = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (registerForm.inviteCode.trim() !== '240389') {
+      toast.error('Código de registro inválido');
+      return;
+    }
     setLoading(true);
     try {
       const registrationRole = registerForm.account_type === 'copim'
@@ -217,6 +222,12 @@ export const LoginPage = () => {
 
                 <TabsContent value="register">
                   <form onSubmit={handleRegister} className="space-y-4">
+                    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                      <p className="text-sm font-semibold text-foreground">Registro privado</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Ingresa el código de acceso para crear una cuenta nueva en ROVI.
+                      </p>
+                    </div>
                     {/* Account Type Selector */}
                     <div className="space-y-2">
                       <Label>Tipo de cuenta</Label>
@@ -328,6 +339,20 @@ export const LoginPage = () => {
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-invite-code">Código de registro</Label>
+                      <Input
+                        id="register-invite-code"
+                        name="inviteCode"
+                        type="password"
+                        inputMode="numeric"
+                        placeholder="Código de acceso"
+                        value={registerForm.inviteCode}
+                        onChange={(e) => setRegisterForm({ ...registerForm, inviteCode: e.target.value })}
+                        required
+                        data-testid="register-invite-code"
+                      />
                     </div>
                     <Button type="submit" className="w-full rounded-full" disabled={loading} data-testid="register-submit">
                       {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}

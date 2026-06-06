@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ROVI CRM - Features, Flujos y Accesos</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: #111c2c;
+      --panel-2: #162235;
+      --panel-3: #0d1726;
+      --border: rgba(214, 226, 244, 0.14);
+      --text: #f4f8ff;
+      --muted: #a7b4c8;
+      --soft: #d7deea;
+      --blue: #3b82f6;
+      --teal: #14b8a6;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --violet: #8b5cf6;
+      --shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+      --radius: 14px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #08111f 0%, #0b1321 48%, #08111f 100%);
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    a {
+      color: #78ddff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .shell {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 52px;
+    }
+
+    .hero {
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(17, 28, 44, 0.98), rgba(13, 23, 38, 0.98));
+      box-shadow: var(--shadow);
+      padding: 28px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(20, 184, 166, 0.28);
+      background: rgba(20, 184, 166, 0.08);
+      color: #79f2e5;
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 10px;
+      max-width: 980px;
+      font-size: clamp(32px, 4vw, 52px);
+      line-height: 1.02;
+      letter-spacing: -0.035em;
+    }
+
+    .lead {
+      max-width: 960px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .hero-card {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.035);
+      padding: 18px;
+    }
+
+    .hero-card strong {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .hero-card span {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .quick-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .quick-nav a,
+    .filter-button {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--soft);
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .filter-button.active,
+    .quick-nav a:hover {
+      border-color: rgba(20, 184, 166, 0.6);
+      background: rgba(20, 184, 166, 0.12);
+      color: #eafffc;
+      text-decoration: none;
+    }
+
+    .section {
+      margin-top: 26px;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: rgba(17, 28, 44, 0.88);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-end;
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .section-header h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .section-body {
+      padding: 22px 24px 24px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.features {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .grid.kpis {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 20px;
+    }
+
+    .grid.flows {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025));
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .kpi {
+      min-height: 122px;
+    }
+
+    .kpi .value {
+      display: block;
+      margin-top: 8px;
+      font-size: 30px;
+      font-weight: 850;
+      line-height: 1;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.045);
+      color: var(--soft);
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .tag.ok {
+      color: #a7f3d0;
+      border-color: rgba(34, 197, 94, 0.28);
+      background: rgba(34, 197, 94, 0.08);
+    }
+
+    .tag.warn {
+      color: #fde68a;
+      border-color: rgba(245, 158, 11, 0.28);
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    .tag.info {
+      color: #bfdbfe;
+      border-color: rgba(59, 130, 246, 0.28);
+      background: rgba(59, 130, 246, 0.08);
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      border: 1px solid rgba(214, 226, 244, 0.1);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.12);
+      padding: 10px;
+    }
+
+    .step b {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(20, 184, 166, 0.12);
+      color: #7df3e8;
+      font-size: 12px;
+    }
+
+    .step span {
+      color: var(--soft);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .route {
+      display: inline-flex;
+      max-width: 100%;
+      margin-top: 12px;
+      border-radius: 9px;
+      background: #07101d;
+      color: #dbeafe;
+      border: 1px solid rgba(214, 226, 244, 0.12);
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: collapse;
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(214, 226, 244, 0.1);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    th {
+      color: #dbeafe;
+      background: rgba(255, 255, 255, 0.04);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    td {
+      color: var(--soft);
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #dbeafe;
+    }
+
+    .access-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 16px;
+    }
+
+    .callout {
+      border: 1px solid rgba(20, 184, 166, 0.22);
+      border-radius: var(--radius);
+      background: rgba(20, 184, 166, 0.07);
+      padding: 16px;
+      color: #dffdf9;
+      line-height: 1.55;
+      font-size: 13px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 14px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .timeline-item time {
+      color: #79f2e5;
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .timeline-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+
+    .timeline-item span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1180px) {
+      .hero-grid,
+      .access-grid,
+      .grid.features,
+      .grid.kpis,
+      .grid.flows {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        width: min(100% - 20px, 1480px);
+        padding-top: 12px;
+      }
+
+      .hero,
+      .section {
+        border-radius: 16px;
+      }
+
+      .hero-grid,
+      .access-grid,
+      .grid.features,
+      .grid.kpis,
+      .grid.flows {
+        grid-template-columns: 1fr;
+      }
+
+      .section-header {
+        display: block;
+      }
+
+      .timeline-item {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">ROVI CRM | Ultimas features</span>
+          <h1>Dashboard ejecutivo de modulos, flujos y accesos</h1>
+          <p class="lead">
+            Vista rapida para explicar que quedo disponible en local: Workspace interno ROVI,
+            AI Control Tower, Dashboard Builder IA, Marketplace B2B, VibeLab, COPIM y los accesos
+            principales para validar cada rol.
+          </p>
+          <nav class="quick-nav" aria-label="Navegacion rapida">
+            <a href="#features">Features</a>
+            <a href="#flows">Flujos</a>
+            <a href="#access">Accesos</a>
+            <a href="#routes">Rutas</a>
+            <a href="#qa">QA</a>
+          </nav>
+        </div>
+        <aside class="hero-card" aria-label="Resumen local">
+          <div>
+            <strong>Ambiente local</strong>
+            <span>http://localhost:13000</span>
+          </div>
+          <div>
+            <strong>API local</strong>
+            <span>http://localhost:18080/api</span>
+          </div>
+          <div>
+            <strong>Password demo validado</strong>
+            <span>demo123</span>
+          </div>
+          <div class="tag-row">
+            <span class="tag ok">frontend healthy</span>
+            <span class="tag ok">backend healthy</span>
+            <span class="tag info">Graphify context</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <header class="section-header">
+        <div>
+          <h2>Features recientes</h2>
+          <p>Modulos nuevos o extendidos para la demo operativa y estrategica.</p>
+        </div>
+        <div class="quick-nav" role="group" aria-label="Filtros de feature">
+          <button class="filter-button active" data-filter="all">Todo</button>
+          <button class="filter-button" data-filter="ai">IA</button>
+          <button class="filter-button" data-filter="marketplace">Marketplace</button>
+          <button class="filter-button" data-filter="copim">COPIM</button>
+          <button class="filter-button" data-filter="ops">Ops</button>
+        </div>
+      </header>
+      <div class="section-body">
+        <div class="grid kpis">
+          <article class="card kpi">
+            <h3>Roles IA</h3>
+            <span class="value">10</span>
+            <p>Scopes activos para agentes: ROVI, COPIM, inmobiliaria y broker.</p>
+          </article>
+          <article class="card kpi">
+            <h3>Paneles estrategicos</h3>
+            <span class="value">13</span>
+            <p>Dashboard tipo Grafana generado por el agente en la ultima validacion.</p>
+          </article>
+          <article class="card kpi">
+            <h3>Graphify</h3>
+            <span class="value">18</span>
+            <p>Nodos relevantes devueltos por pregunta estrategica en el playground.</p>
+          </article>
+          <article class="card kpi">
+            <h3>Usuarios demo</h3>
+            <span class="value">18+</span>
+            <p>Usuarios validados por rol con password demo para QA guiada.</p>
+          </article>
+        </div>
+
+        <div class="grid features" style="margin-top: 14px;">
+          <article class="card feature" data-module="ai ops">
+            <h3>AI Control Tower</h3>
+            <p>Configura proveedor, modelo, prompts, knowledge base, prueba de agente, gasto, tokens y runs por rol.</p>
+            <span class="route">/rovi/ai-control</span>
+            <div class="tag-row">
+              <span class="tag ok">operativo</span>
+              <span class="tag info">Ollama local</span>
+              <span class="tag info">chat.z</span>
+            </div>
+          </article>
+
+          <article class="card feature" data-module="ai ops">
+            <h3>Dashboard Builder IA</h3>
+            <p>Convierte una pregunta de negocio en canvas tipo Grafana con KPIs, tablas, ruta critica, grafo y JSON exportable.</p>
+            <span class="route">/database-chat</span>
+            <div class="tag-row">
+              <span class="tag ok">cards restauradas</span>
+              <span class="tag info">export JSON</span>
+              <span class="tag info">inspector</span>
+            </div>
+          </article>
+
+          <article class="card feature" data-module="ai">
+            <h3>Graphify Knowledge Base</h3>
+            <p>Usa el grafo del proyecto y docs para dar contexto al agente estratega y a la base interna ROVI.</p>
+            <span class="route">graphify-out/rovi-project-with-docs-graph.json</span>
+            <div class="tag-row">
+              <span class="tag ok">contexto tecnico</span>
+              <span class="tag info">nodos y enlaces</span>
+            </div>
+          </article>
+
+          <article class="card feature" data-module="marketplace">
+            <h3>Marketplace B2B</h3>
+            <p>Productos digitales, servicios tipo gig, Agent Skills, compras demo, descargas y revenue split.</p>
+            <span class="route">/rovi/marketplace</span>
+            <div class="tag-row">
+              <span class="tag ok">digital artifacts</span>
+              <span class="tag ok">skills</span>
+              <span class="tag warn">entitlements demo</span>
+            </div>
+          </article>
+
+          <article class="card feature" data-module="ops">
+            <h3>VibeLab</h3>
+            <p>Laboratorio para audiencias, ofertas, experimentos, variantes, posts y metricas de validacion comercial.</p>
+            <span class="route">/rovi/vibe-lab</span>
+            <div class="tag-row">
+              <span class="tag warn">en branch local</span>
+              <span class="tag info">experimentos</span>
+            </div>
+          </article>
+
+          <article class="card feature" data-module="copim marketplace">
+            <h3>COPIM Marketplace</h3>
+            <p>Acceso al marketplace desde consejo, asociacion y miembro, con compras de recursos y skills por rol.</p>
+            <span class="route">/copim/marketplace</span>
+            <div class="tag-row">
+              <span class="tag ok">consejo</span>
+              <span class="tag ok">asociacion</span>
+              <span class="tag ok">miembro</span>
+            </div>
+          </article>
+
+          <article class="card feature" data-module="copim">
+            <h3>Workspace COPIM</h3>
+            <p>Consejo nacional, asociaciones locales y miembros con rutas protegidas, comunidad, cursos, cobranza y eventos.</p>
+            <span class="route">/copim</span>
+            <div class="tag-row">
+              <span class="tag ok">roles separados</span>
+              <span class="tag info">portales</span>
+            </div>
+          </article>
+
+          <article class="card feature" data-module="ops">
+            <h3>Workspace interno ROVI</h3>
+            <p>Revenue HQ, prospectos SaaS, planes, campanas, analytics, equipo, marketplace, AI Control y VibeLab.</p>
+            <span class="route">/rovi/dashboard</span>
+            <div class="tag-row">
+              <span class="tag ok">admin</span>
+              <span class="tag info">revenue ops</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="flows">
+      <header class="section-header">
+        <div>
+          <h2>Flujos clave</h2>
+          <p>Secuencias para probar cada modulo sin perderse entre rutas.</p>
+        </div>
+      </header>
+      <div class="section-body">
+        <div class="grid flows">
+          <article class="card flow">
+            <h3>1. Agente estratega y dashboard dinamico</h3>
+            <p>Flujo principal para la demo de decision ejecutiva.</p>
+            <div class="steps">
+              <div class="step"><b>1</b><span>Login con un usuario ROVI interno, recomendado <span class="mono">admin@rovicrm.com</span>.</span></div>
+              <div class="step"><b>2</b><span>Abrir <span class="mono">/database-chat</span> y dejar seleccionado el modo Dashboard.</span></div>
+              <div class="step"><b>3</b><span>Preguntar por ruta critica, KPIs, plan de accion, agentes o marketplace.</span></div>
+              <div class="step"><b>4</b><span>El backend llama <span class="mono">/api/strategy-playground/run</span>, consulta metricas, Graphify y knowledge base.</span></div>
+              <div class="step"><b>5</b><span>La UI renderiza canvas tipo Grafana, cards del chat, inspector y export JSON.</span></div>
+            </div>
+          </article>
+
+          <article class="card flow">
+            <h3>2. Configurar agentes por rol</h3>
+            <p>Flujo para ajustar modelo, proveedor, prompt y base de conocimiento.</p>
+            <div class="steps">
+              <div class="step"><b>1</b><span>Entrar a <span class="mono">/rovi/ai-control</span>.</span></div>
+              <div class="step"><b>2</b><span>En Agentes, elegir scope: ROVI, COPIM, inmobiliaria o broker.</span></div>
+              <div class="step"><b>3</b><span>Configurar proveedor: <span class="mono">chat.z</span>, modelo <span class="mono">glm-5</span> u Ollama local.</span></div>
+              <div class="step"><b>4</b><span>En Base, subir archivos o indexar grafo ROVI generado con Graphify.</span></div>
+              <div class="step"><b>5</b><span>En Prueba, ejecutar una consulta y revisar costo, tokens, latencia y fuentes.</span></div>
+            </div>
+          </article>
+
+          <article class="card flow">
+            <h3>3. Marketplace digital y Agent Skills</h3>
+            <p>Flujo comercial para monetizar productos, servicios y habilidades de IA.</p>
+            <div class="steps">
+              <div class="step"><b>1</b><span>Abrir marketplace segun rol: ROVI, COPIM, miembro, inmobiliaria o broker.</span></div>
+              <div class="step"><b>2</b><span>Filtrar por producto digital, servicio profesional o Agent Skill.</span></div>
+              <div class="step"><b>3</b><span>Comprar o instalar en modo demo.</span></div>
+              <div class="step"><b>4</b><span>Backend registra transaccion, comisiones y entitlement.</span></div>
+              <div class="step"><b>5</b><span>El usuario descarga archivo, ve skill instalada o sigue el servicio contratado.</span></div>
+            </div>
+          </article>
+
+          <article class="card flow">
+            <h3>4. COPIM por capas</h3>
+            <p>Separacion de consejo, asociacion local y miembro.</p>
+            <div class="steps">
+              <div class="step"><b>1</b><span>Consejo nacional: dashboard, asociaciones, socios, cursos, eventos y marketplace.</span></div>
+              <div class="step"><b>2</b><span>Asociacion local: perfil, socios propios, cobranza, eventos, campanas e inventario.</span></div>
+              <div class="step"><b>3</b><span>Miembro: portal personal, membresia, pagos, cursos, eventos, comunidad y marketplace.</span></div>
+              <div class="step"><b>4</b><span>El agente adapta el contexto con <span class="mono">copim_council</span>, <span class="mono">copim_association</span> o <span class="mono">copim_member</span>.</span></div>
+            </div>
+          </article>
+
+          <article class="card flow">
+            <h3>5. VibeLab comercial</h3>
+            <p>Flujo experimental para validar ofertas y canales.</p>
+            <div class="steps">
+              <div class="step"><b>1</b><span>Entrar a <span class="mono">/rovi/vibe-lab</span>.</span></div>
+              <div class="step"><b>2</b><span>Crear o revisar audiencias, segmentos y grupos.</span></div>
+              <div class="step"><b>3</b><span>Configurar oferta, variantes, copy y CTA.</span></div>
+              <div class="step"><b>4</b><span>Generar posts o acciones semi-manuales.</span></div>
+              <div class="step"><b>5</b><span>Registrar metricas: replies, clicks, pagos, revenue, quejas y aprendizajes.</span></div>
+            </div>
+          </article>
+
+          <article class="card flow">
+            <h3>6. Broker e inmobiliaria</h3>
+            <p>Flujo de CRM clasico conectado con IA y marketplace.</p>
+            <div class="steps">
+              <div class="step"><b>1</b><span>Broker entra a pipeline, productos, campanas, calendario y marketplace.</span></div>
+              <div class="step"><b>2</b><span>Manager/inmobiliaria ve brokers, gamificacion, analytics y tablero de equipo.</span></div>
+              <div class="step"><b>3</b><span>El agente filtra leads por tenant y asignacion para proteger datos.</span></div>
+              <div class="step"><b>4</b><span>Marketplace ofrece plantillas, servicios y skills para acelerar ventas.</span></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="access">
+      <header class="section-header">
+        <div>
+          <h2>Accesos por rol</h2>
+          <p>Usuarios validados localmente con password <span class="mono">demo123</span>.</p>
+        </div>
+      </header>
+      <div class="section-body">
+        <div class="access-grid">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Rol</th>
+                  <th>Scope IA</th>
+                  <th>Usuario</th>
+                  <th>Ruta inicial</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>ROVI interno</td><td>rovi_admin</td><td>rovi_admin</td><td class="mono">admin@rovicrm.com</td><td class="mono">/rovi/dashboard</td></tr>
+                <tr><td>ROVI interno</td><td>rovi_sales</td><td>rovi_sales</td><td class="mono">sales@rovicrm.com</td><td class="mono">/rovi/dashboard</td></tr>
+                <tr><td>ROVI interno</td><td>rovi_marketing</td><td>rovi_marketing</td><td class="mono">marketing@rovicrm.com</td><td class="mono">/rovi/dashboard</td></tr>
+                <tr><td>ROVI interno</td><td>rovi_customer_success</td><td>rovi_customer_success</td><td class="mono">cs@rovicrm.com</td><td class="mono">/rovi/dashboard</td></tr>
+                <tr><td>ROVI interno</td><td>rovi_ops</td><td>rovi_ops</td><td class="mono">ops@rovicrm.com</td><td class="mono">/rovi/dashboard</td></tr>
+                <tr><td>COPIM consejo</td><td>copim_admin</td><td>copim_council</td><td class="mono">nacional@copim.mx</td><td class="mono">/copim/dashboard</td></tr>
+                <tr><td>COPIM asociacion</td><td>copim_operator</td><td>copim_association</td><td class="mono">admin.pais@copim.mx</td><td class="mono">/copim/association/profile</td></tr>
+                <tr><td>COPIM asociacion</td><td>copim_operator</td><td>copim_association</td><td class="mono">operacion.ciib@copim.mx</td><td class="mono">/copim/association/profile</td></tr>
+                <tr><td>COPIM asociacion</td><td>copim_operator</td><td>copim_association</td><td class="mono">coordinacion.inapim@copim.mx</td><td class="mono">/copim/association/profile</td></tr>
+                <tr><td>COPIM miembro</td><td>copim_member</td><td>copim_member</td><td class="mono">andrea@copim.mx</td><td class="mono">/copim/member</td></tr>
+                <tr><td>COPIM miembro</td><td>copim_member</td><td>copim_member</td><td class="mono">carlos@copim.mx</td><td class="mono">/copim/member</td></tr>
+                <tr><td>COPIM miembro</td><td>copim_member</td><td>copim_member</td><td class="mono">fernanda@copim.mx</td><td class="mono">/copim/member</td></tr>
+                <tr><td>COPIM miembro</td><td>copim_member</td><td>copim_member</td><td class="mono">yoselin@copim.mx</td><td class="mono">/copim/member</td></tr>
+                <tr><td>Broker demo</td><td>broker</td><td>broker</td><td class="mono">carlos.mendoza@leadvibes.mx</td><td class="mono">/dashboard</td></tr>
+                <tr><td>Broker demo</td><td>broker</td><td>broker</td><td class="mono">maria.santos@leadvibes.mx</td><td class="mono">/dashboard</td></tr>
+                <tr><td>Broker demo</td><td>broker</td><td>broker</td><td class="mono">roberto.garcia@leadvibes.mx</td><td class="mono">/dashboard</td></tr>
+                <tr><td>Inmobiliaria demo</td><td>manager</td><td>agency_admin</td><td class="mono">ana.lopez@leadvibes.mx</td><td class="mono">/dashboard</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <aside class="callout">
+            <strong>Recomendacion para demo:</strong>
+            <br><br>
+            Usa <span class="mono">admin@rovicrm.com</span> para mostrar las features nuevas de IA:
+            AI Control, VibeLab, Marketplace interno y Dashboard Builder IA.
+            <br><br>
+            Para COPIM usa <span class="mono">nacional@copim.mx</span> y luego valida diferencias con
+            <span class="mono">admin.pais@copim.mx</span> o <span class="mono">andrea@copim.mx</span>.
+            <br><br>
+            Para broker usa <span class="mono">carlos.mendoza@leadvibes.mx</span>.
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="routes">
+      <header class="section-header">
+        <div>
+          <h2>Rutas y endpoints</h2>
+          <p>Mapa rapido para frontend y backend.</p>
+        </div>
+      </header>
+      <div class="section-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Modulo</th>
+                <th>Frontend</th>
+                <th>Backend / API</th>
+                <th>Que valida</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>ROVI Revenue HQ</td><td class="mono">/rovi/dashboard</td><td class="mono">/api/rovi/*</td><td>Prospectos SaaS, pipeline interno y MRR.</td></tr>
+              <tr><td>AI Control Tower</td><td class="mono">/rovi/ai-control</td><td class="mono">/api/ai-control/*</td><td>Configs, prompts, knowledge base, tokens y costos.</td></tr>
+              <tr><td>Dashboard Builder IA</td><td class="mono">/database-chat</td><td class="mono">POST /api/strategy-playground/run</td><td>Dashboard tipo Grafana, cards, Graphify y plan de accion.</td></tr>
+              <tr><td>Chat de datos</td><td class="mono">/database-chat</td><td class="mono">POST /api/database-chat</td><td>Consultas puntuales a MongoDB con aislamiento por tenant.</td></tr>
+              <tr><td>Marketplace ROVI</td><td class="mono">/rovi/marketplace</td><td class="mono">/api/marketplace/*</td><td>Listings, compras demo, comisiones, downloads y skills.</td></tr>
+              <tr><td>Marketplace general</td><td class="mono">/marketplace</td><td class="mono">/api/marketplace/*</td><td>Vista para inmobiliaria/broker.</td></tr>
+              <tr><td>Marketplace COPIM</td><td class="mono">/copim/marketplace</td><td class="mono">/api/marketplace/*</td><td>Consejo y asociacion compran recursos/skills.</td></tr>
+              <tr><td>Marketplace miembro</td><td class="mono">/copim/member/marketplace</td><td class="mono">/api/marketplace/*</td><td>Portal de asociado con acceso a recursos.</td></tr>
+              <tr><td>VibeLab</td><td class="mono">/rovi/vibe-lab</td><td class="mono">/api/vibe-lab/*</td><td>Audiencias, ofertas, experimentos, posts y metricas.</td></tr>
+              <tr><td>COPIM consejo</td><td class="mono">/copim/dashboard</td><td class="mono">/api/copim/*</td><td>Asociaciones, socios, cursos, facturacion y eventos.</td></tr>
+              <tr><td>COPIM asociacion</td><td class="mono">/copim/association/profile</td><td class="mono">/api/copim/*</td><td>Operacion local, socios, cobranza y comunidad.</td></tr>
+              <tr><td>COPIM miembro</td><td class="mono">/copim/member</td><td class="mono">/api/copim/member-portal/*</td><td>Portal individual, membresia, pagos, cursos y eventos.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="qa">
+      <header class="section-header">
+        <div>
+          <h2>Checklist de validacion</h2>
+          <p>Orden recomendado para revisar la demo end to end.</p>
+        </div>
+      </header>
+      <div class="section-body">
+        <div class="timeline">
+          <div class="timeline-item">
+            <time>Paso 1</time>
+            <div><strong>Login interno ROVI</strong><span>Entrar con <span class="mono">admin@rovicrm.com</span> y confirmar que el sidebar muestre Revenue HQ, Marketplace, AI Control, VibeLab y Estratega IA.</span></div>
+          </div>
+          <div class="timeline-item">
+            <time>Paso 2</time>
+            <div><strong>AI Control</strong><span>Revisar pestanas Agentes, Base y Prueba. Confirmar proveedor, modelo, prompt y gasto estimado.</span></div>
+          </div>
+          <div class="timeline-item">
+            <time>Paso 3</time>
+            <div><strong>Dashboard Builder IA</strong><span>Ejecutar: <span class="mono">Genera un dashboard accionable tipo Grafana con KPIs, ruta critica, grafo y plan de accion para ROVI</span>.</span></div>
+          </div>
+          <div class="timeline-item">
+            <time>Paso 4</time>
+            <div><strong>Cards restauradas</strong><span>En el chat lateral deben verse Resumen ejecutivo, KPIs, Ruta critica y Acciones, ademas del canvas central.</span></div>
+          </div>
+          <div class="timeline-item">
+            <time>Paso 5</time>
+            <div><strong>Marketplace</strong><span>Validar filtros, detalle de listing, compra demo, downloads o skill instalada segun tipo.</span></div>
+          </div>
+          <div class="timeline-item">
+            <time>Paso 6</time>
+            <div><strong>COPIM por rol</strong><span>Probar nacional, asociacion y miembro para confirmar rutas y permisos separados.</span></div>
+          </div>
+          <div class="timeline-item">
+            <time>Paso 7</time>
+            <div><strong>Broker/inmobiliaria</strong><span>Entrar con broker o manager demo y validar que Estratega IA ajuste el scope a broker o agency_admin.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const buttons = Array.from(document.querySelectorAll('[data-filter]'));
+    const cards = Array.from(document.querySelectorAll('.feature'));
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const filter = button.dataset.filter;
+        buttons.forEach((item) => item.classList.toggle('active', item === button));
+        cards.forEach((card) => {
+          const modules = (card.dataset.module || '').split(' ');
+          card.classList.toggle('hidden', filter !== 'all' && !modules.includes(filter));
+        });
+      });
+    });
+  </script>
+</body>
+</html>
