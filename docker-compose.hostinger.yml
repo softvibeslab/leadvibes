@@ -36,6 +36,11 @@ services:
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
 
+      # OpenWA gateway (internal bridge to /docker/openwa)
+      OPENWA_API_BASE_URL: ${OPENWA_API_BASE_URL:-http://openwa-api:2785/api}
+      OPENWA_API_KEY: ${OPENWA_API_KEY:-}
+      OPENWA_ROVI_WEBHOOK_SECRET: ${OPENWA_ROVI_WEBHOOK_SECRET:-}
+
       # CORS - Production domain
       CORS_ORIGINS: ${CORS_ORIGINS:-http://srv1318804.hstgr.cloud,https://srv1318804.hstgr.cloud}
 
@@ -50,6 +55,7 @@ services:
       - mongodb
     networks:
       - rovi-network
+      - openwa-network
 
   # Frontend (React + Nginx)
   frontend:
@@ -74,3 +80,5 @@ volumes:
 networks:
   rovi-network:
     driver: bridge
+  openwa-network:
+    external: true
