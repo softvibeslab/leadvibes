@@ -29,6 +29,7 @@ import { EncuentraLeadsPage } from './pages/EncuentraLeadsPage';
 import { ModuleTrackerPage } from './pages/ModuleTrackerPage';
 import { LandingPage } from './pages/LandingPage';
 import { PremiumLandingPage } from './pages/PremiumLandingPage';
+import { RoviFlowLandingPage } from './pages/RoviFlowLandingPage';
 import { BrokerLandingPage } from './pages/BrokerLandingPage';
 import { DemoRequestPage } from './pages/DemoRequestPage';
 import { LeadSearchDashboard } from './pages/LeadSearchDashboard';
@@ -273,6 +274,7 @@ function AppRoutes() {
       {/* Landing Pages - Public */}
       <Route path="/" element={<PremiumLandingPage />} />
       <Route path="/landing" element={<LandingPage />} />
+      <Route path="/brokers" element={<RoviFlowLandingPage />} />
       <Route path="/for-brokers" element={<BrokerLandingPage />} />
 
       {/* Demo Request Page - Public */}
@@ -322,7 +324,7 @@ function AppRoutes() {
       >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/leads" element={<LeadsPage />} />
-        <Route path="/brokers" element={<BrokersPage />} />
+        <Route path="/brokers/manage" element={<BrokersPage />} />
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />

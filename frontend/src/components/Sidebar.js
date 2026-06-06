@@ -71,7 +71,7 @@ const agencyNavItems = [
   { to: '/leads', icon: FolderKanban, label: 'Pipeline de Leads' },
   { to: '/import', icon: Upload, label: 'Importador' },
   { to: '/products', icon: Package, label: 'Propiedades' },
-  { to: '/brokers', icon: UserCircle, label: 'Brokers' },
+  { to: '/brokers/manage', icon: UserCircle, label: 'Brokers' },
   { to: '/tasks', icon: ListChecks, label: 'Tareas' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
