@@ -1,0 +1,441 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Rovi CRM | Design Specs</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=Outfit:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#febb29",
+                        "surface": "#faf8ff",
+                        "primary": "#00687b",
+                        "outline-variant": "#bbc9ce",
+                        "on-primary-fixed": "#001f26",
+                        "surface-dim": "#d2d9f4",
+                        "tertiary": "#7d5800",
+                        "surface-bright": "#faf8ff",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-container-high": "#e2e7ff",
+                        "surface-container-low": "#f2f3ff",
+                        "surface-container-highest": "#dae2fd",
+                        "surface-container": "#eaedff",
+                        "on-tertiary-container": "#6e4d00",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "on-background": "#131b2e",
+                        "on-tertiary-fixed-variant": "#5e4100",
+                        "secondary-fixed": "#e9ddff",
+                        "on-tertiary-fixed": "#271900",
+                        "surface-variant": "#dae2fd",
+                        "tertiary-fixed": "#ffdea9",
+                        "outline": "#6c797e",
+                        "on-error-container": "#93000a",
+                        "secondary": "#6b38d4",
+                        "error-container": "#ffdad6",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed": "#23005c",
+                        "primary-fixed": "#aeecff",
+                        "background": "#faf8ff",
+                        "surface-tint": "#00687b",
+                        "on-surface": "#131b2e",
+                        "on-primary-container": "#005b6c",
+                        "inverse-surface": "#283044",
+                        "primary-container": "#00d9ff",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#ffbb2a",
+                        "on-surface-variant": "#3c494d",
+                        "inverse-primary": "#00d9ff",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#8455ef",
+                        "primary-fixed-dim": "#00d9ff",
+                        "on-secondary-container": "#fffbff",
+                        "inverse-on-surface": "#eef0ff",
+                        "on-primary-fixed-variant": "#004e5d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "container-max": "1280px",
+                        "margin-mobile": "20px",
+                        "unit": "8px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "label-md": ["JetBrains Mono"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "outfit": ["Outfit"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .luminous-shadow {
+            box-shadow: 0 20px 40px rgba(0, 217, 255, 0.08);
+        }
+
+        .mesh-gradient {
+            background-color: #faf8ff;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(190,100%,90%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(220,100%,95%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(260,100%,92%,1) 0, transparent 50%);
+        }
+
+        .inner-glow-border {
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+        }
+
+        .primary-gradient-bg {
+            background: linear-gradient(90deg, #00d9ff 0%, #6b38d4 100%);
+        }
+
+        /* SideNav transitions */
+        .nav-item-active {
+            border-right: 4px solid #6b38d4;
+            color: #00687b;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="mesh-gradient min-h-screen text-on-surface font-body-md overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<div class="flex h-screen overflow-hidden">
+<!-- SideNavBar (Shared Component) -->
+<aside class="hidden md:flex flex-col h-full py-8 px-6 gap-8 bg-white/70 backdrop-blur-2xl border-r border-primary/10 w-72 z-40 fixed left-0 top-0 h-screen shadow-[20px_0px_40px_hsla(217,89%,36%,0.03)]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center text-primary-fixed-dim">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">domain</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight leading-none">Rovi CRM</h1>
+<p class="text-[10px] uppercase tracking-widest font-bold opacity-50">Luxury Real Estate</p>
+</div>
+</div>
+<button class="primary-gradient-bg text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary-container/20 hover:scale-[1.02] transition-transform active:scale-[0.98]">
+<span class="material-symbols-outlined">add</span>
+                New Listing
+            </button>
+<nav class="flex flex-col gap-1 flex-1 overflow-y-auto">
+<!-- Determining Dashboard as active since it is the root intent of the prompt -->
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">domain</span>
+<span class="font-label-md text-label-md">Properties</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-md text-label-md">Leads</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-label-md text-label-md">Calendar</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-primary font-bold border-r-4 border-secondary bg-primary/5" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">design_services</span>
+<span class="font-label-md text-label-md">Design Specs</span>
+</a>
+</nav>
+<div class="flex flex-col gap-1 pt-6 border-t border-primary/10">
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-0 md:ml-72 overflow-y-auto relative px-margin-mobile md:px-margin-desktop py-12">
+<!-- Atmospheric BG Elements -->
+<div class="absolute top-0 right-0 -z-10 w-[600px] h-[600px] bg-secondary-container/10 blur-[160px] rounded-full pointer-events-none"></div>
+<div class="absolute bottom-0 left-0 -z-10 w-[400px] h-[400px] bg-primary-container/10 blur-[120px] rounded-full pointer-events-none"></div>
+<!-- Page Header -->
+<header class="max-w-container-max mx-auto mb-16">
+<div class="flex flex-col gap-2">
+<span class="text-secondary font-label-md tracking-widest uppercase">System Reference</span>
+<h1 class="font-headline-lg text-headline-lg text-on-surface font-outfit">Visual Identity Specs</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">A high-fidelity documentation of the 'Luminous Ether' visual language, optimized for premium digital environments and luxury management tools.</p>
+</div>
+</header>
+<!-- Specification Bento Grid -->
+<div class="max-w-container-max mx-auto grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- 1. Color Palette Section -->
+<section class="md:col-span-8 glass-card rounded-3xl p-8 inner-glow-border luminous-shadow flex flex-col gap-8">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-3xl">palette</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">The Palette</h2>
+</div>
+<span class="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold tracking-tighter uppercase rounded-full">Primary Colors</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Surface -->
+<div class="group flex flex-col gap-4">
+<div class="h-40 w-full rounded-2xl bg-surface border border-outline/10 p-4 flex flex-col justify-end transition-transform group-hover:-translate-y-1">
+<span class="text-on-surface font-bold">Surface</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#faf8ff</span>
+<span class="font-body-md text-sm opacity-60">Base background mode</span>
+</div>
+</div>
+<!-- Surface Dim -->
+<div class="group flex flex-col gap-4">
+<div class="h-40 w-full rounded-2xl bg-surface-dim border border-outline/10 p-4 flex flex-col justify-end transition-transform group-hover:-translate-y-1">
+<span class="text-on-surface font-bold">Surface Dim</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#d2d9f4</span>
+<span class="font-body-md text-sm opacity-60">Secondary layer depth</span>
+</div>
+</div>
+<!-- Primary -->
+<div class="group flex flex-col gap-4">
+<div class="h-40 w-full rounded-2xl bg-[#1D4ED8] border border-outline/10 p-4 flex flex-col justify-end transition-transform group-hover:-translate-y-1">
+<span class="text-white font-bold">Primary</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#1D4ED8</span>
+<span class="font-body-md text-sm opacity-60">Brand anchor blue</span>
+</div>
+</div>
+<!-- Accent Cyan -->
+<div class="group flex flex-col gap-4">
+<div class="h-40 w-full rounded-2xl bg-[#00D9FF] border border-outline/10 p-4 flex flex-col justify-end transition-transform group-hover:-translate-y-1">
+<span class="text-primary font-bold">Accent Cyan</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#00D9FF</span>
+<span class="font-body-md text-sm opacity-60">Neon functional highlight</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Typography Section -->
+<section class="md:col-span-4 glass-card rounded-3xl p-8 inner-glow-border luminous-shadow flex flex-col gap-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-3xl">text_fields</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Typography</h2>
+</div>
+<div class="flex flex-col gap-10">
+<div class="space-y-4">
+<div class="font-headline-lg text-headline-lg font-outfit text-on-surface leading-tight">Outfit</div>
+<p class="font-body-md text-on-surface-variant leading-relaxed">
+                                Used exclusively for headings and displays. Its sharp geometric forms convey modern luxury and high-tech precision.
+                            </p>
+<div class="flex gap-2">
+<span class="font-label-sm px-2 py-1 rounded bg-secondary/10 text-secondary">Bold</span>
+<span class="font-label-sm px-2 py-1 rounded bg-secondary/10 text-secondary">Semibold</span>
+</div>
+</div>
+<div class="h-px w-full bg-outline-variant/20"></div>
+<div class="space-y-4">
+<div class="font-headline-md text-headline-md font-sans text-on-surface leading-tight">Plus Jakarta Sans</div>
+<p class="font-body-md text-on-surface-variant leading-relaxed">
+                                The workhorse for all body text, labels, and interaction triggers. Provides exceptional legibility at small sizes.
+                            </p>
+<div class="flex gap-2">
+<span class="font-label-sm px-2 py-1 rounded bg-primary/10 text-primary">Medium</span>
+<span class="font-label-sm px-2 py-1 rounded bg-primary/10 text-primary">Regular</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Visual Style & Glassmorphism -->
+<section class="md:col-span-6 glass-card rounded-3xl p-8 inner-glow-border luminous-shadow flex flex-col gap-8 overflow-hidden relative">
+<!-- Preview background blob for glass effect showcase -->
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-primary-container rounded-full blur-[80px] opacity-40"></div>
+<div class="flex items-center gap-3 relative z-10">
+<span class="material-symbols-outlined text-primary-container text-3xl">blur_on</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Glassmorphism Depth</h2>
+</div>
+<div class="grid grid-cols-1 gap-6 relative z-10">
+<div class="glass-card p-6 rounded-2xl flex flex-col gap-4">
+<div class="flex justify-between items-center">
+<span class="font-label-md text-on-surface font-bold">Backdrop Blur</span>
+<span class="font-label-sm text-primary">3xl (64px)</span>
+</div>
+<div class="h-1 bg-surface-dim rounded-full overflow-hidden">
+<div class="h-full w-[80%] primary-gradient-bg"></div>
+</div>
+<p class="text-sm text-on-surface-variant italic">Extreme refraction ensures content remains readable over complex backgrounds.</p>
+</div>
+<div class="flex gap-4">
+<div class="flex-1 glass-card p-6 rounded-2xl border-white/20">
+<span class="font-label-sm uppercase opacity-50 block mb-2">Layer Surface</span>
+<span class="font-body-md font-bold">White at 5% Opacity</span>
+</div>
+<div class="flex-1 glass-card p-6 rounded-2xl border-white/20">
+<span class="font-label-sm uppercase opacity-50 block mb-2">Edge Detail</span>
+<span class="font-body-md font-bold">1px Border (10%)</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. Spacing & Grid System -->
+<section class="md:col-span-6 glass-card rounded-3xl p-8 inner-glow-border luminous-shadow flex flex-col gap-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary-container text-3xl">grid_view</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Layout Architecture</h2>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between p-4 bg-surface-container rounded-xl">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-white border border-primary/10 flex items-center justify-center font-bold text-primary">24</div>
+<span class="font-body-md">Container Padding (px)</span>
+</div>
+<span class="material-symbols-outlined text-outline">check_circle</span>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container rounded-xl">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-white border border-primary/10 flex items-center justify-center font-bold text-primary">4</div>
+<span class="font-body-md">Base Atomic Grid (px)</span>
+</div>
+<span class="material-symbols-outlined text-outline">check_circle</span>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container rounded-xl">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-lg bg-white border border-primary/10 flex items-center justify-center font-bold text-primary">12</div>
+<span class="font-body-md">Max Column Width</span>
+</div>
+<span class="material-symbols-outlined text-outline">check_circle</span>
+</div>
+</div>
+</section>
+<!-- 5. Component Asset Gallery (Full Width) -->
+<section class="md:col-span-12 glass-card rounded-3xl p-8 inner-glow-border luminous-shadow flex flex-col gap-8">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-3xl">inventory_2</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Visual Language Components</h2>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-surface-container hover:bg-surface-container-high transition-colors rounded-xl font-label-md text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">download</span>
+                                Export Style Guide
+                            </button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="space-y-4">
+<h3 class="font-label-md uppercase opacity-50 tracking-widest">Buttons &amp; Interactive</h3>
+<div class="flex flex-wrap gap-4 items-center">
+<button class="primary-gradient-bg px-6 py-3 rounded-xl text-white font-bold shadow-lg shadow-primary-container/20 hover:opacity-90 transition-all">Primary Action</button>
+<button class="glass-card px-6 py-3 rounded-xl border-outline-variant font-bold text-primary hover:bg-white/50 transition-all">Secondary</button>
+</div>
+<div class="flex gap-4">
+<div class="w-12 h-6 bg-primary-container/20 rounded-full p-1 flex items-center">
+<div class="w-4 h-4 bg-primary rounded-full shadow-sm"></div>
+</div>
+<div class="w-12 h-6 bg-surface-container rounded-full p-1 flex items-center justify-end">
+<div class="w-4 h-4 bg-outline-variant rounded-full shadow-sm"></div>
+</div>
+</div>
+</div>
+<div class="space-y-4">
+<h3 class="font-label-md uppercase opacity-50 tracking-widest">Imagery &amp; Surfaces</h3>
+<div class="relative w-full aspect-video rounded-2xl overflow-hidden group">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" data-alt="Abstract 3D digital art featuring fluid geometric shapes in ethereal blue and violet tones with soft cinematic lighting and a premium high-tech aesthetic. The composition is clean and minimalist, perfectly embodying a modern light-mode luxury interface style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCxF7qZai9TfxFeyW1MXAFFwqBTgK8AIgXDojjujbEZpI02rq3otTXNz0jeya2RLd8iwhpYnXmkPF9QPSKI9fq90NV-UCXEKor9oHVdwJRFq2CDyl_e-oM2X7cb7EA2IVnvHSxLwXFuGq3JzMlUq4EJbx7upwlaDkX1SwcrwGAXzTOeppGUBApciF62DBBlfbA2gGGb_OMhyjtvk6P_ODp-8CA2uDrdLONg12yc654xYrRLwVssCdJPOA0n0K9qwAAgzlGycj-f8VO">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent"></div>
+<div class="absolute bottom-4 left-4 glass-card px-3 py-1 rounded-lg text-white font-label-sm">
+                                    Asset_Preview.png
+                                </div>
+</div>
+</div>
+<div class="space-y-4">
+<h3 class="font-label-md uppercase opacity-50 tracking-widest">Data Visualization</h3>
+<div class="glass-card rounded-2xl p-6 flex flex-col gap-6">
+<div class="flex justify-between items-center">
+<span class="text-sm font-medium">Conversion Flow</span>
+<span class="text-primary font-bold">84%</span>
+</div>
+<div class="flex items-end gap-2 h-24">
+<div class="flex-1 bg-surface-container-high rounded-t-lg transition-all hover:bg-primary-container h-[40%]"></div>
+<div class="flex-1 bg-surface-container-high rounded-t-lg transition-all hover:bg-primary-container h-[60%]"></div>
+<div class="flex-1 bg-primary-container rounded-t-lg h-[90%] luminous-shadow"></div>
+<div class="flex-1 bg-surface-container-high rounded-t-lg transition-all hover:bg-primary-container h-[75%]"></div>
+<div class="flex-1 bg-surface-container-high rounded-t-lg transition-all hover:bg-primary-container h-[55%]"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer Meta -->
+<footer class="max-w-container-max mx-auto mt-16 pt-8 border-t border-primary/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+<div class="text-sm text-on-surface-variant">
+                    © 2024 Rovi CRM Visual Identity. Version 2.4.0 (Stable)
+                </div>
+<div class="flex gap-6">
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">GitHub Repository</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Figma Source</a>
+</div>
+</footer>
+</main>
+</div>
+<!-- Floating Help / Chat Action (Suppressed on Details based on instructions but kept for system utility) -->
+<button class="fixed bottom-10 right-10 w-16 h-16 rounded-full primary-gradient-bg text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-3xl">chat_bubble</span>
+</button>
+<script>
+        // Optional micro-interactions
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+    </script>
+</body></html>

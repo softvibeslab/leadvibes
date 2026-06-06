@@ -51,14 +51,14 @@ const IMPORT_TEMPLATES = [
     badge: 'CSV',
   },
   {
-    title: 'Plantilla Productos',
-    description: 'CSV para cargar productos y servicios con SKU, alias y keywords.',
+    title: 'Plantilla Propiedades',
+    description: 'CSV para cargar propiedades con SKU, alias y keywords.',
     href: '/plantilla_importador_productos.csv',
     badge: 'CSV',
   },
   {
     title: 'Plantilla Combinada',
-    description: 'Excel con hojas de Productos, Leads e Instrucciones para vincular intereses.',
+    description: 'Excel con hojas de Propiedades, Leads e Instrucciones para vincular intereses.',
     href: '/plantilla_importador_combinada.xlsx',
     badge: 'XLSX',
   },
@@ -78,19 +78,19 @@ const IMPORT_FLOWS = [
   },
   {
     id: 'products',
-    title: 'Importar Productos',
+    title: 'Importar Propiedades',
     description: 'Prepara tu catálogo con SKU, alias, keywords y precios para futuras vinculaciones.',
     icon: Package,
     badge: 'Disponible',
     badgeVariant: 'default',
     templateHref: '/plantilla_importador_productos.csv',
-    templateLabel: 'Descargar plantilla de productos',
+    templateLabel: 'Descargar plantilla de propiedades',
     enabled: true,
   },
   {
     id: 'combined',
-    title: 'Importar Leads + Productos',
-    description: 'Usa una plantilla combinada para relacionar leads con el producto que les interesa.',
+    title: 'Importar Leads + Propiedades',
+    description: 'Usa una plantilla combinada para relacionar leads con la propiedad que les interesa.',
     icon: Link2,
     badge: 'Disponible',
     badgeVariant: 'default',
@@ -119,9 +119,10 @@ const PRODUCT_FIELD_CONFIG = {
   sku: { label: 'SKU', required: true, type: 'string' },
   title: { label: 'Título', required: true, type: 'string' },
   description: { label: 'Descripción', required: false, type: 'text' },
-  product_type: { label: 'Tipo de Producto', required: true, type: 'select' },
+  product_type: { label: 'Tipo de Propiedad', required: true, type: 'select' },
   niche: { label: 'Nicho', required: false, type: 'string' },
   price_mxn: { label: 'Precio (MXN)', required: false, type: 'number' },
+  commission_percentage: { label: 'Comisión agente (%)', required: false, type: 'number' },
   image_urls: { label: 'Image URLs', required: false, type: 'list' },
   aliases: { label: 'Alias', required: false, type: 'list' },
   keywords: { label: 'Keywords', required: false, type: 'list' },
@@ -132,8 +133,8 @@ const PRODUCT_FIELD_CONFIG = {
 const COMBINED_LEAD_FIELD_CONFIG = {
   ...LEAD_FIELD_CONFIG,
   raw_interest_text: { label: 'Interés Texto', required: false, type: 'string' },
-  product_sku: { label: 'Producto SKU', required: false, type: 'string' },
-  product_title: { label: 'Producto Título', required: false, type: 'string' },
+  product_sku: { label: 'Propiedad SKU', required: false, type: 'string' },
+  product_title: { label: 'Propiedad Título', required: false, type: 'string' },
 };
 
 const normalizeImportResult = (result) => {
@@ -218,24 +219,24 @@ export const ImportLeadsPage = () => {
       requiredHelp: 'Campos requeridos: Nombre y Teléfono',
     },
     products: {
-      uploadTitle: 'Subir archivo de productos',
+      uploadTitle: 'Subir archivo de propiedades',
       uploadDescription: 'Carga tu catálogo desde CSV o Excel con SKU, título, tipo y precio.',
-      previewAction: 'Importar productos',
-      resultSuccess: 'Se importaron los productos exitosamente',
-      resultError: 'No se pudieron importar los productos',
+      previewAction: 'Importar propiedades',
+      resultSuccess: 'Se importaron las propiedades exitosamente',
+      resultError: 'No se pudieron importar las propiedades',
       resultNavigateLabel: 'Ver catálogo',
       resultNavigateTo: '/products',
       requiredHelp: 'Campos requeridos: SKU y Título',
     },
     combined: {
       uploadTitle: 'Subir archivo combinado',
-      uploadDescription: 'Usa un Excel con hojas de Productos y Leads para crear relaciones automáticas.',
+      uploadDescription: 'Usa un Excel con hojas de Propiedades y Leads para crear relaciones automáticas.',
       previewAction: 'Importar combinado',
-      resultSuccess: 'Se importaron leads, productos y vínculos correctamente',
+      resultSuccess: 'Se importaron leads, propiedades y vínculos correctamente',
       resultError: 'No se pudo completar la importación combinada',
       resultNavigateLabel: 'Ver pipeline',
       resultNavigateTo: '/leads',
-      requiredHelp: 'En Leads: Nombre y Teléfono. En Productos: SKU y Título.',
+      requiredHelp: 'En Leads: Nombre y Teléfono. En Propiedades: SKU y Título.',
     },
   };
 
@@ -299,7 +300,7 @@ export const ImportLeadsPage = () => {
       }
       
       if (selectedFlow === 'combined') {
-        toast.success(`Archivo cargado: ${result.products_total_rows} productos y ${result.leads_total_rows} leads encontrados`);
+        toast.success(`Archivo cargado: ${result.products_total_rows} propiedades y ${result.leads_total_rows} leads encontrados`);
       } else {
         toast.success(`Archivo cargado: ${result.total_rows} filas encontradas`);
       }
@@ -379,7 +380,7 @@ export const ImportLeadsPage = () => {
         return;
       }
       if (!combinedProductMappings.sku || !combinedProductMappings.title) {
-        toast.error('Debe mapear al menos SKU y Título en la hoja de productos');
+        toast.error('Debe mapear al menos SKU y Título en la hoja de propiedades');
         return;
       }
     } else if (selectedFlow === 'products') {
@@ -558,7 +559,7 @@ export const ImportLeadsPage = () => {
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Selecciona qué quieres importar</CardTitle>
         <CardDescription>
-          Usa el mismo módulo para cargar leads, preparar productos y dejar lista la importación combinada.
+          Usa el mismo módulo para cargar leads, preparar propiedades y dejar lista la importación combinada.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -633,7 +634,7 @@ export const ImportLeadsPage = () => {
             <h4 className="mb-3 font-medium">Qué ya puedes hacer</h4>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Descargar la plantilla correcta y compartirla con tu equipo.</p>
-              <p>Definir columnas estándar para SKU, alias, keywords o relación producto-lead.</p>
+              <p>Definir columnas estándar para SKU, alias, keywords o relación propiedad-lead.</p>
               <p>Preparar datos consistentes antes de conectar la importación automática.</p>
             </div>
           </div>
@@ -894,8 +895,8 @@ export const ImportLeadsPage = () => {
         {selectedFlow === 'combined' ? (
           <>
             {renderMappingCard({
-              title: 'Mapeo de productos',
-              description: `Archivo: ${uploadResult.filename} (${uploadResult.products_total_rows} productos detectados)`,
+              title: 'Mapeo de propiedades',
+              description: `Archivo: ${uploadResult.filename} (${uploadResult.products_total_rows} propiedades detectadas)`,
               availableFields: combinedProductFieldConfig,
               sourceHeaders: uploadResult.products_headers || [],
               mappings: combinedProductMappings,
@@ -904,7 +905,7 @@ export const ImportLeadsPage = () => {
             })}
 
             {renderSourcePreview(
-              'Vista previa original de productos',
+              'Vista previa original de propiedades',
               uploadResult.products_headers || [],
               uploadResult.products_sample_data || []
             )}
@@ -1065,7 +1066,7 @@ export const ImportLeadsPage = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <Card><CardContent className="pt-6"><div className="text-2xl font-bold text-primary">{previewData.total_rows}</div><p className="text-sm text-muted-foreground">Total filas</p></CardContent></Card>
-            <Card><CardContent className="pt-6"><div className="text-2xl font-bold text-blue-500">{previewData.products_valid_rows}</div><p className="text-sm text-muted-foreground">Productos válidos</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="text-2xl font-bold text-blue-500">{previewData.products_valid_rows}</div><p className="text-sm text-muted-foreground">Propiedades válidas</p></CardContent></Card>
             <Card><CardContent className="pt-6"><div className="text-2xl font-bold text-green-500">{previewData.leads_valid_rows}</div><p className="text-sm text-muted-foreground">Leads válidos</p></CardContent></Card>
             <Card><CardContent className="pt-6"><div className="text-2xl font-bold text-violet-500">{previewData.link_matches}</div><p className="text-sm text-muted-foreground">Vínculos listos</p></CardContent></Card>
             <Card><CardContent className="pt-6"><div className="text-2xl font-bold text-amber-500">{previewData.link_warnings}</div><p className="text-sm text-muted-foreground">Sin match auto</p></CardContent></Card>
@@ -1074,7 +1075,7 @@ export const ImportLeadsPage = () => {
           {previewData.link_warnings > 0 && (
             <Alert>
               <FileWarning className="h-4 w-4" />
-              <AlertTitle>Hay leads sin producto vinculado automáticamente</AlertTitle>
+              <AlertTitle>Hay leads sin propiedad vinculada automáticamente</AlertTitle>
               <AlertDescription>
                 Esos leads sí se pueden importar. Se conservará su interés en texto y podrás vincularlos después manualmente.
               </AlertDescription>
@@ -1083,7 +1084,7 @@ export const ImportLeadsPage = () => {
 
           <div className="space-y-4">
             <div>
-              <h3 className="mb-3 text-lg font-semibold">Vista previa de productos</h3>
+              <h3 className="mb-3 text-lg font-semibold">Vista previa de propiedades</h3>
               <ImportPreviewTable
                 previewData={productsPreviewData}
                 mapping={Object.entries(combinedProductMappings).map(([target, source]) => ({
@@ -1136,7 +1137,7 @@ export const ImportLeadsPage = () => {
 
     const activeMappings = columnMappings;
     const actionLabel = selectedFlow === 'products'
-      ? `Importar ${Math.max(previewData.total_rows - previewData.error_rows - previewData.duplicates_found, 0)} productos`
+      ? `Importar ${Math.max(previewData.total_rows - previewData.error_rows - previewData.duplicates_found, 0)} propiedades`
       : `Importar ${Math.max(previewData.total_rows - previewData.duplicates_found - previewData.error_rows, 0)} leads`;
 
     return (
@@ -1174,7 +1175,7 @@ export const ImportLeadsPage = () => {
             <AlertTitle>Duplicados detectados</AlertTitle>
             <AlertDescription>
               {selectedFlow === 'products'
-                ? `Se encontraron ${previewData.duplicates_found} productos que ya existen en tu catálogo.`
+                ? `Se encontraron ${previewData.duplicates_found} propiedades que ya existen en tu catálogo.`
                 : `Se encontraron ${previewData.duplicates_found} leads que ya existen en tu base de datos.`}
               {skipDuplicates && selectedFlow !== 'products' && ' Serán omitidos durante la importación.'}
               {previewData.duplicate_values && previewData.duplicate_values.length > 0 && (
@@ -1247,7 +1248,7 @@ export const ImportLeadsPage = () => {
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 py-6 border-t">
-                <div className="text-center"><div className="text-3xl font-bold text-blue-500">{importResult.products_imported_count || 0}</div><p className="text-sm text-muted-foreground">Productos</p></div>
+                <div className="text-center"><div className="text-3xl font-bold text-blue-500">{importResult.products_imported_count || 0}</div><p className="text-sm text-muted-foreground">Propiedades</p></div>
                 <div className="text-center"><div className="text-3xl font-bold text-green-500">{importResult.leads_imported_count || 0}</div><p className="text-sm text-muted-foreground">Leads</p></div>
                 <div className="text-center"><div className="text-3xl font-bold text-violet-500">{importResult.links_created || 0}</div><p className="text-sm text-muted-foreground">Vínculos</p></div>
                 <div className="text-center"><div className="text-3xl font-bold text-amber-500">{importResult.skipped_count || 0}</div><p className="text-sm text-muted-foreground">Omitidos</p></div>
@@ -1259,7 +1260,7 @@ export const ImportLeadsPage = () => {
                   <h4 className="mb-2 font-medium text-red-700 dark:text-red-400">Detalles de errores</h4>
                   <div className="space-y-2 text-sm">
                     {(importResult.errors?.products || []).slice(0, 5).map((err, i) => (
-                      <p key={`product-${i}`} className="text-red-600 dark:text-red-400">Producto fila {err.row}: {err.errors.join(', ')}</p>
+                      <p key={`product-${i}`} className="text-red-600 dark:text-red-400">Propiedad fila {err.row}: {err.errors.join(', ')}</p>
                     ))}
                     {(importResult.errors?.leads || []).slice(0, 5).map((err, i) => (
                       <p key={`lead-${i}`} className="text-red-600 dark:text-red-400">Lead fila {err.row}: {err.errors.join(', ')}</p>
@@ -1387,7 +1388,7 @@ export const ImportLeadsPage = () => {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Importador</h1>
               <p className="text-muted-foreground mt-1">
-                Centraliza la carga de leads, productos y relaciones entre ambos desde un solo módulo.
+                Centraliza la carga de leads, propiedades y relaciones entre ambos desde un solo módulo.
               </p>
             </div>
             <Button 

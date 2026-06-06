@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   Trophy, TrendingUp, Users, Bookmark, ShoppingCart, Activity,
   Crown, Medal, Phone, Video, MessageCircle, Mail, MapPin, Loader2,
-  X, Calendar, DollarSign, Target, Star, ChevronRight
+  X, Calendar, DollarSign, Target, Star, ChevronRight, Gauge, Clock,
+  LineChart, Megaphone, Building2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
@@ -81,6 +82,323 @@ const StatCard = ({ title, value, goal, icon: Icon, color, progress, onClick, cl
     </CardContent>
   </Card>
 );
+
+const formatCurrency = (value = 0) => new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  maximumFractionDigits: 0,
+}).format(Number(value) || 0);
+
+const ExecutiveMetricCard = ({ title, value, helper, icon: Icon, tone = 'primary' }) => {
+  const toneClasses = {
+    primary: 'bg-primary/10 text-primary',
+    emerald: 'bg-emerald-500/10 text-emerald-600',
+    amber: 'bg-amber-500/10 text-amber-600',
+    blue: 'bg-blue-500/10 text-blue-600',
+    violet: 'bg-violet-500/10 text-violet-600',
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">{title}</p>
+            <p className="mt-1 text-xl sm:text-2xl font-bold font-['Outfit']">{value}</p>
+            {helper && <p className="mt-1 text-xs text-muted-foreground">{helper}</p>}
+          </div>
+          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${toneClasses[tone] || toneClasses.primary}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const AgencyExecutiveDashboard = ({ data, loading }) => {
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-72" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((item) => <Skeleton key={item} className="h-28 w-full" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const overview = data?.overview || {};
+  const team = data?.team_performance || [];
+  const marketing = data?.marketing_roi || [];
+  const properties = data?.top_properties || [];
+  const timeline = data?.timeline || [];
+  const maxTimelineLeads = Math.max(...timeline.map((item) => item.leads || 0), 1);
+
+  return (
+    <section className="space-y-4 sm:space-y-6">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold font-['Outfit'] flex items-center gap-2">
+          <LineChart className="w-5 h-5 text-primary" />
+          Panel Ejecutivo de Conversión y Ventas
+        </h2>
+        <p className="text-sm text-muted-foreground">Salud comercial, equipo, marketing y comportamiento temporal del negocio.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <ExecutiveMetricCard title="Prospectos Totales" value={overview.total_prospects || 0} helper={`${overview.qualified_leads || 0} qualified leads`} icon={Users} tone="blue" />
+        <ExecutiveMetricCard title="Oportunidades Reales" value={overview.opportunities || 0} helper="Presentación, apartado o venta" icon={Target} tone="violet" />
+        <ExecutiveMetricCard title="Ingresos Esperados" value={formatCurrency(overview.expected_revenue)} helper="Pipeline en etapas finales" icon={DollarSign} tone="emerald" />
+        <ExecutiveMetricCard title="Sales Velocity" value={`${overview.sales_velocity_days || 0} días`} helper={`${overview.conversion_rate || 0}% conversión global`} icon={Gauge} tone="amber" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="xl:col-span-2">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Crown className="w-5 h-5 text-yellow-500" />
+              Rendimiento del Equipo y Brokers
+            </CardTitle>
+            <CardDescription>Leads asignados, conversión individual, ventas, apartados y puntos.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-3">
+              {team.slice(0, 6).map((broker, index) => (
+                <div key={broker.broker_id || index} className="grid grid-cols-[1fr,auto] gap-3 rounded-xl border border-border/70 p-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={index < 3 ? 'default' : 'secondary'}>#{index + 1}</Badge>
+                      <p className="font-medium truncate">{broker.broker_name}</p>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground">
+                      <span>{broker.leads_assigned || 0} leads</span>
+                      <span>{broker.conversion_rate || 0}% conv.</span>
+                      <span>{broker.ventas || 0} ventas</span>
+                      <span>{broker.apartados || 0} apartados</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-primary">{broker.points || 0}</p>
+                    <p className="text-xs text-muted-foreground">pts</p>
+                  </div>
+                </div>
+              ))}
+              {team.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Aún no hay brokers con métricas.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-primary" />
+              ROI por Fuente
+            </CardTitle>
+            <CardDescription>CPL, CPA y retorno por canal.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-3">
+              {marketing.slice(0, 5).map((source) => (
+                <div key={source.source} className="rounded-xl bg-muted/40 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm truncate">{source.source}</p>
+                    <Badge variant={source.roi > 0 ? 'default' : 'secondary'}>{source.roi || 0}% ROI</Badge>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                    <span>CPL {formatCurrency(source.cpl)}</span>
+                    <span>CPA {formatCurrency(source.cpa)}</span>
+                    <span>{source.leads || 0} leads</span>
+                  </div>
+                </div>
+              ))}
+              {marketing.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No hay datos de fuentes todavía.</p>}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
+              Desempeño del Catálogo
+            </CardTitle>
+            <CardDescription>Propiedades más cotizadas o visitadas por clientes.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-3">
+              {properties.slice(0, 6).map((property, index) => (
+                <div key={property.product_id || property.title || index} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{property.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {property.quoted_leads || 0} cotizaciones · {property.ventas || 0} ventas
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">{property.commission_percentage || 0}%</p>
+                    <p className="text-xs text-muted-foreground">comisión</p>
+                  </div>
+                </div>
+              ))}
+              {properties.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Sin interés de propiedades registrado aún.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              Timeline Analysis
+            </CardTitle>
+            <CardDescription>Picos semanales de leads, oportunidades y ventas.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-3">
+              {timeline.map((item) => (
+                <div key={item.period} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">Semana {item.period}</span>
+                    <span className="text-muted-foreground">{item.leads || 0} leads · {item.ventas || 0} ventas</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${((item.leads || 0) / maxTimelineLeads) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+              {timeline.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No hay línea de tiempo suficiente todavía.</p>}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+};
+
+const BrokerPerformanceDashboard = ({ data, loading, onMetricClick }) => {
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-72" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((item) => <Skeleton key={item} className="h-28 w-full" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const performance = data?.performance || {};
+  const pipeline = data?.pipeline || {};
+  const feed = data?.activity_feed || [];
+  const funnelStages = [
+    ['nuevo', 'Nuevo'],
+    ['contactado', 'Contacto'],
+    ['calificacion', 'Calificación'],
+    ['presentacion', 'Presentación'],
+    ['apartado', 'Apartado'],
+    ['venta', 'Venta'],
+  ];
+  const maxStage = Math.max(...funnelStages.map(([key]) => pipeline[key] || 0), 1);
+
+  return (
+    <section className="space-y-4 sm:space-y-6">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold font-['Outfit'] flex items-center gap-2">
+          <Gauge className="w-5 h-5 text-primary" />
+          Métricas de Rendimiento del Broker
+        </h2>
+        <p className="text-sm text-muted-foreground">Tracking de metas, actividad, pipeline, ingresos y comisiones estimadas.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <ExecutiveMetricCard title="Tasa de Conversión" value={`${performance.conversion_rate || 0}%`} helper="Leads asignados que terminan en venta" icon={Target} tone="violet" />
+        <ExecutiveMetricCard title="Leads Asignados" value={performance.total_assigned_leads || 0} helper={`${performance.contacted_leads || 0} contactados`} icon={Users} tone="blue" />
+        <ExecutiveMetricCard title="Ingresos del Mes" value={formatCurrency(performance.total_revenue)} helper={`${performance.monthly_sales || 0} ventas cerradas`} icon={DollarSign} tone="emerald" />
+        <ExecutiveMetricCard title="Comisión Estimada" value={formatCurrency(performance.estimated_commission)} helper={`${performance.total_points || 0} puntos acumulados`} icon={Trophy} tone="amber" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="xl:col-span-2">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" />
+              Actividad en Tiempo Real
+            </CardTitle>
+            <CardDescription>Acciones recientes, prospectos calificados e intención del lead.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-3">
+              {feed.map((item) => (
+                <div key={item.id || `${item.lead_name}-${item.created_at}`} className="flex items-start justify-between gap-3 rounded-xl border border-border/70 p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{item.lead_name}</p>
+                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Badge variant="secondary">{item.activity_type || 'actividad'}</Badge>
+                      <Badge variant={item.intent_level === 'Alta' ? 'default' : 'secondary'}>Intención {item.intent_level}</Badge>
+                    </div>
+                  </div>
+                  {item.points_earned > 0 && (
+                    <Badge className="bg-primary text-white">+{item.points_earned} pts</Badge>
+                  )}
+                </div>
+              ))}
+              {feed.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Aún no hay actividad reciente para este broker.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <LineChart className="w-5 h-5 text-primary" />
+              Estado del Embudo
+            </CardTitle>
+            <CardDescription>Prospectos por etapa clave.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-3">
+              {funnelStages.map(([key, label]) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{label}</span>
+                    <Badge variant={key === 'venta' ? 'default' : 'outline'}>{pipeline[key] || 0}</Badge>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${((pipeline[key] || 0) / maxStage) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="cursor-pointer transition hover:shadow-md" onClick={() => onMetricClick('puntos')}>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium">Desglose de puntos</p>
+            <p className="text-xs text-muted-foreground">Cómo se ganaron los puntos.</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer transition hover:shadow-md" onClick={() => onMetricClick('apartados')}>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium">Propiedades apartadas</p>
+            <p className="text-xs text-muted-foreground">Lista reciente de apartados.</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer transition hover:shadow-md" onClick={() => onMetricClick('ventas')}>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium">Acumulado de venta</p>
+            <p className="text-xs text-muted-foreground">Ventas cerradas y monto total.</p>
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+};
 
 // KPI Detail Modal
 const KPIDetailModal = ({ isOpen, onClose, type, data, stats }) => {
@@ -474,12 +792,16 @@ export const DashboardPage = () => {
   const [comparisonData, setComparisonData] = useState(null);
   const [funnelData, setFunnelData] = useState(null);
   const [topBrokersData, setTopBrokersData] = useState(null);
+  const [agencyExecutiveData, setAgencyExecutiveData] = useState(null);
+  const [brokerPerformanceData, setBrokerPerformanceData] = useState(null);
 
   // Loading states
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [loadingComparison, setLoadingComparison] = useState(false);
   const [loadingFunnel, setLoadingFunnel] = useState(false);
   const [loadingTopBrokers, setLoadingTopBrokers] = useState(false);
+  const [loadingAgencyExecutive, setLoadingAgencyExecutive] = useState(false);
+  const [loadingBrokerPerformance, setLoadingBrokerPerformance] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -518,6 +840,11 @@ export const DashboardPage = () => {
     fetchTrendsData();
     fetchComparisonData();
     fetchFunnelData();
+    if (!isIndividual) {
+      fetchAgencyExecutiveData();
+    } else {
+      fetchBrokerPerformanceData();
+    }
     console.log('Enhanced dashboard endpoints cargando...');
   }, []);
 
@@ -592,6 +919,32 @@ export const DashboardPage = () => {
     }
   };
 
+  const fetchAgencyExecutiveData = async () => {
+    setLoadingAgencyExecutive(true);
+    try {
+      const response = await api.get('/dashboard/agency-executive');
+      setAgencyExecutiveData(response.data);
+    } catch (error) {
+      console.error('Error loading agency executive dashboard:', error);
+      setAgencyExecutiveData(null);
+    } finally {
+      setLoadingAgencyExecutive(false);
+    }
+  };
+
+  const fetchBrokerPerformanceData = async () => {
+    setLoadingBrokerPerformance(true);
+    try {
+      const response = await api.get('/dashboard/broker-performance-overview');
+      setBrokerPerformanceData(response.data);
+    } catch (error) {
+      console.error('Error loading broker performance dashboard:', error);
+      setBrokerPerformanceData(null);
+    } finally {
+      setLoadingBrokerPerformance(false);
+    }
+  };
+
   // NUEVO: Update stats when WebSocket message arrives
   useEffect(() => {
     if (realTimeStats && lastEvent?.type === 'metrics_updated') {
@@ -620,6 +973,11 @@ export const DashboardPage = () => {
       fetchTrendsData();
       fetchComparisonData();
       fetchFunnelData();
+      if (!isIndividual) {
+        fetchAgencyExecutiveData();
+      } else {
+        fetchBrokerPerformanceData();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEvent]);
@@ -701,6 +1059,21 @@ export const DashboardPage = () => {
           />
         )}
       </div>
+
+      {!isIndividual && (
+        <AgencyExecutiveDashboard
+          data={agencyExecutiveData}
+          loading={loadingAgencyExecutive}
+        />
+      )}
+
+      {isIndividual && (
+        <BrokerPerformanceDashboard
+          data={brokerPerformanceData}
+          loading={loadingBrokerPerformance}
+          onMetricClick={handleKpiClick}
+        />
+      )}
 
       {/* NUEVA SECCIÓN: Dashboard Enhanced */}
       <div className="mt-8">

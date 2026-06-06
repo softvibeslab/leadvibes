@@ -1,0 +1,435 @@
+<!DOCTYPE html><html class="light" lang="es"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Pipeline de Leads | Rovi CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px 0 rgba(0, 104, 123, 0.05);
+        }
+        .glass-card {
+            backdrop-filter: blur(32px) saturate(160%);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 217, 255, 0.15);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 104, 123, 0.1);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 104, 123, 0.2);
+        }
+        .mesh-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-color: #faf8ff;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(190, 100%, 90%, 1) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 95%, 1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(190, 100%, 92%, 1) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(260, 100%, 96%, 1) 0px, transparent 50%);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#1D4ED8",
+                        "neon-cyan": "#00D9FF",
+                        "surface-tint": "#00687b",
+                        "on-tertiary-fixed": "#271900",
+                        "outline": "#6c797e",
+                        "primary-fixed-dim": "#00D9FF",
+                        "on-error": "#ffffff",
+                        "surface-container": "#eaedff",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "background": "#faf8ff",
+                        "on-background": "#131b2e",
+                        "on-surface": "#131b2e",
+                        "surface-bright": "#faf8ff",
+                        "secondary": "#6b38d4",
+                        "tertiary": "#7d5800",
+                    },
+                    "fontFamily": {
+                        "header": ["Outfit", "sans-serif"],
+                        "data": ["Plus Jakarta Sans", "sans-serif"],
+                        "label-sm": ["JetBrains Mono"],
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-data text-on-surface bg-background min-h-screen flex overflow-hidden">
+<div class="mesh-gradient" style="background-color: #faf8ff; background-image: radial-gradient(at 0% 0%, hsla(190, 100%, 90%, 1) 0px, transparent 50%), radial-gradient(at 100% 0%, hsla(260, 100%, 95%, 1) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(190, 100%, 92%, 1) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(260, 100%, 96%, 1) 0px, transparent 50%);"></div>
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-full py-8 px-6 gap-8 bg-white/70 backdrop-blur-2xl border-r border-primary/10 shadow-[20px_0px_40px_hsla(217,89%,36%,0.03)] w-72 flex-shrink-0 z-50">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+</div>
+<div>
+<h1 class="font-header text-xl font-bold text-primary tracking-tight">Rovi CRM</h1>
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest">Luxury Real Estate</p>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="dashboard">dashboard</span>
+<span class="font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="domain">domain</span>
+<span class="font-medium">Properties</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-primary font-bold border-r-4 border-primary bg-primary/5 group active:translate-x-1" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="group">group</span>
+<span class="font-medium">Leads</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="insights">insights</span>
+<span class="font-medium">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="calendar_today">calendar_today</span>
+<span class="font-medium">Calendar</span>
+</a>
+</div>
+<button class="mt-4 bg-neon-cyan text-on-background font-bold py-4 px-6 rounded-2xl shadow-lg shadow-neon-cyan/30 hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+        New Listing
+    </button>
+<div class="mt-auto flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:rotate-12 transition-transform" data-icon="help">help</span>
+<span class="font-medium">Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="logout">logout</span>
+<span class="font-medium">Sign Out</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-w-0 relative h-screen">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-8 w-full h-20 sticky top-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-primary/10">
+<div class="flex items-center gap-6 flex-1">
+<div class="relative w-full max-w-md group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors" data-icon="search">search</span>
+<input class="w-full bg-white/40 border-none rounded-full pl-12 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 backdrop-blur-md transition-all" placeholder="Buscar leads o propiedades..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2.5 rounded-full hover:bg-primary/5 transition-colors relative group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-neon-cyan rounded-full border-2 border-white"></span>
+</button>
+<button class="p-2.5 rounded-full hover:bg-primary/5 transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant/30 mx-2"></div>
+<div class="flex items-center gap-3 pl-2">
+<div class="text-right hidden sm:block">
+<p class="font-bold text-on-surface text-sm">Santiago Rossi</p>
+<p class="text-[10px] text-outline uppercase tracking-widest font-bold">Executive Agent</p>
+</div>
+<img alt="Santiago Rossi" class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhheSx8ML7bHLyYaOzm8Z6otQwCr_XOcLzQ8YwG_9Va-plSskvvsywEsDgIYix34dSAoQyRov7MuJqifOrFTtXympiAIOabjWf1JXpTe1oUS3Z6IvUwZJWUYFJnX7Vhm59hN59pjejJKlbdPR1xcfKbkMqSjRT1IPLsoV4n7-dvUdva9j127DWy5RIRHoSGyAMxQjarR-YilR5r7K73NhP8Xx4zO4gLpUOawUp_IsyclsoTQ5jCQWpSP40UGSofC1ezOXqUYkqSlLf">
+</div>
+</div>
+</header>
+<!-- Pipeline Board -->
+<section class="flex-1 flex flex-col p-6 gap-6 overflow-hidden">
+<!-- Header -->
+<div class="flex justify-between items-end shrink-0">
+<div>
+<nav class="flex gap-2 mb-1">
+<span class="px-2 py-0.5 rounded bg-primary/10 text-primary font-bold text-[10px] uppercase tracking-tighter">CRM</span>
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-bold text-[10px] uppercase tracking-tighter">Pipeline</span>
+</nav>
+<h2 class="font-header text-3xl font-bold text-on-background tracking-tight">Pipeline Comercial</h2>
+</div>
+<div class="flex gap-3">
+<div class="flex bg-white/40 p-1 rounded-xl backdrop-blur-md border border-white/60">
+<button class="px-4 py-2 rounded-lg bg-white shadow-sm text-primary font-bold text-xs flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="view_kanban">view_kanban</span> Tablero
+                    </button>
+<button class="px-4 py-2 rounded-lg text-on-surface-variant font-medium text-xs flex items-center gap-2 hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="list">list</span> Lista
+                    </button>
+</div>
+<button class="flex items-center gap-2 bg-white/40 px-4 py-2 rounded-xl border border-white/60 text-on-surface font-bold text-xs hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="filter_list">filter_list</span> Filtros
+                </button>
+</div>
+</div>
+<!-- Full Width Grid Container -->
+<div class="flex items-center gap-3 shrink-0 mb-1 overflow-x-auto custom-scrollbar pb-1 bg-white/20 backdrop-blur-md p-2 rounded-xl border border-white/10">
+<span class="text-[10px] font-bold text-outline uppercase tracking-widest mr-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">auto_awesome</span>
+        Smart Filters
+    </span>
+<button class="px-3 py-1.5 rounded-full bg-white/40 border border-white/60 backdrop-blur-md text-[11px] font-header font-medium text-on-surface-variant hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all whitespace-nowrap flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+        High Value Leads
+    </button>
+<button class="px-3 py-1.5 rounded-full bg-white/40 border border-white/60 backdrop-blur-md text-[11px] font-header font-medium text-on-surface-variant hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all whitespace-nowrap flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+        Inactive &gt; 7 days
+    </button>
+<button class="px-3 py-1.5 rounded-full bg-white/40 border border-white/60 backdrop-blur-md text-[11px] font-header font-medium text-on-surface-variant hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all whitespace-nowrap flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+        Recent Interactions
+    </button>
+<button class="px-3 py-1.5 rounded-full bg-white/40 border border-white/60 backdrop-blur-md text-[11px] font-header font-medium text-on-surface-variant hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all whitespace-nowrap flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-neon-cyan"></span>
+        Hot Prospects
+    </button>
+</div><div class="flex-1 grid grid-cols-6 gap-3 min-h-0 backdrop-blur-2xl bg-white/10 border border-white/10 rounded-2xl p-4">
+<!-- Column 1: NUEVO -->
+<div class="flex flex-col gap-3 min-w-0">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<div class="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_8px_rgba(0,217,255,0.8)] flex-shrink-0 shadow-[0_0_12px_#00D9FF]"></div>
+<h3 class="font-header text-[11px] font-bold text-on-background uppercase tracking-wider truncate">NUEVO</h3>
+<span class="text-outline text-[10px] font-bold">4</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-1">
+<!-- Card -->
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 group cursor-pointer border-white/10 backdrop-blur-3xl bg-white/30 border-white/20 shadow-sm">
+<div class="flex justify-between items-start gap-2">
+<h4 class="font-header text-[13px] font-bold text-on-background group-hover:text-primary transition-colors leading-tight truncate">Alejandro Moreno</h4>
+<span class="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[9px] font-bold flex-shrink-0">HOT</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="apartment">apartment</span>
+<span class="text-[11px] font-medium truncate">Penthouse Lomas</span>
+</div>
+<div class="flex items-center gap-1.5 text-primary font-bold text-[11px]">
+<span>$12.4M</span>
+<span class="text-[9px] text-outline font-bold bg-white/50 px-1 rounded">CDMX</span>
+</div>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+<div class="h-full bg-neon-cyan shadow-[0_0_12px_#00D9FF]" style="width: 85%"></div>
+</div>
+</div>
+<!-- Card -->
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 group cursor-pointer opacity-80 border-white/10 backdrop-blur-3xl bg-white/30 border-white/20 shadow-sm">
+<div class="flex justify-between items-start gap-2">
+<h4 class="font-header text-[13px] font-bold text-on-background group-hover:text-primary transition-colors leading-tight truncate">Valentina Ruiz</h4>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="house">house</span>
+<span class="text-[11px] font-medium truncate">Residencial Bosque</span>
+</div>
+<div class="flex items-center gap-1.5 text-primary font-bold text-[11px]">
+<span>$8.2M</span>
+<span class="text-[9px] text-outline font-bold bg-white/50 px-1 rounded">MÉR</span>
+</div>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+<div class="h-full bg-secondary" style="width: 42%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column 2: CONTACTADO -->
+<div class="flex flex-col gap-3 min-w-0">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<div class="w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(107,56,212,0.8)] flex-shrink-0"></div>
+<h3 class="font-header text-[11px] font-bold text-on-background uppercase tracking-wider truncate">CONTACTADO</h3>
+<span class="text-outline text-[10px] font-bold">2</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-1">
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 group cursor-pointer border-white/10 backdrop-blur-3xl bg-white/30 border-white/20 shadow-sm">
+<div class="flex justify-between items-start gap-2">
+<h4 class="font-header text-[13px] font-bold text-on-background truncate">Marco Polo Jr.</h4>
+<span class="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]"><span class="material-symbols-outlined text-[10px]" data-icon="call">call</span></span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="landscape">landscape</span>
+<span class="text-[11px] font-medium truncate">Terreno Cabo</span>
+</div>
+<div class="flex items-center gap-1.5 text-primary font-bold text-[11px]">
+<span>$4.1M</span>
+<span class="text-[9px] text-outline font-bold bg-white/50 px-1 rounded">CABO</span>
+</div>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+<div class="h-full bg-neon-cyan" style="width: 92%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column 3: CALIFICACIÓN -->
+<div class="flex flex-col gap-3 min-w-0">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<div class="w-1.5 h-1.5 rounded-full bg-tertiary flex-shrink-0"></div>
+<h3 class="font-header text-[11px] font-bold text-on-background uppercase tracking-wider truncate">CALIFICACIÓN</h3>
+<span class="text-outline text-[10px] font-bold">1</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-1">
+<div class="glass-card p-3 rounded-xl border-l-4 border-l-tertiary flex flex-col gap-2 group cursor-pointer border-white/10 shadow-lg backdrop-blur-3xl bg-white/30 border-white/20 shadow-sm">
+<h4 class="font-header text-[13px] font-bold text-on-background truncate">Elena Fitzgerald</h4>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="apartment">apartment</span>
+<span class="text-[11px] font-medium truncate">Loft Condesa</span>
+</div>
+<div class="flex items-center gap-1.5 text-primary font-bold text-[11px]">
+<span>$6.8M</span>
+<span class="text-[9px] text-outline font-bold bg-white/50 px-1 rounded">CDMX</span>
+</div>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+<div class="h-full bg-neon-cyan" style="width: 78%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column 4: PRESENTACIÓN -->
+<div class="flex flex-col gap-3 min-w-0">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<div class="w-1.5 h-1.5 rounded-full bg-primary/40 flex-shrink-0"></div>
+<h3 class="font-header text-[11px] font-bold text-on-background uppercase tracking-wider truncate">PRESENTACIÓN</h3>
+<span class="text-outline text-[10px] font-bold">3</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-1">
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 group cursor-pointer border-white/10 backdrop-blur-3xl bg-white/30 border-white/20 shadow-sm">
+<h4 class="font-header text-[13px] font-bold text-on-background truncate">Roberto Cavalli</h4>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="real_estate_agent">real_estate_agent</span>
+<span class="text-[11px] font-medium truncate">Villa Paraíso</span>
+</div>
+<div class="flex items-center gap-1.5 text-primary font-bold text-[11px]">
+<span>$28.0M</span>
+<span class="text-[9px] text-outline font-bold bg-white/50 px-1 rounded">CUN</span>
+</div>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+<div class="h-full bg-neon-cyan" style="width: 95%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column 5: APARTADO -->
+<div class="flex flex-col gap-3 min-w-0">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<div class="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(29,78,216,0.6)] flex-shrink-0"></div>
+<h3 class="font-header text-[11px] font-bold text-on-background uppercase tracking-wider truncate">APARTADO</h3>
+<span class="text-outline text-[10px] font-bold">1</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-1">
+<div class="glass-card p-3 rounded-xl border-2 border-primary/30 flex flex-col gap-2 group cursor-pointer border-white/10 bg-primary/5 backdrop-blur-3xl bg-white/30 border-white/20 shadow-sm">
+<div class="flex justify-between items-start gap-2">
+<h4 class="font-header text-[13px] font-bold text-on-background truncate">Sofia Vergara</h4>
+<span class="bg-primary text-white px-1.5 py-0.5 rounded text-[8px] font-bold animate-pulse">RESERVADO</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="castle">castle</span>
+<span class="text-[11px] font-medium truncate">Mansión del Sol</span>
+</div>
+<div class="flex items-center gap-1.5 text-primary font-bold text-[11px]">
+<span>$52.0M</span>
+<span class="text-[9px] text-outline font-bold bg-white/50 px-1 rounded">TUL</span>
+</div>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+<div class="h-full bg-primary" style="width: 100%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column 6: VENTA -->
+<div class="flex flex-col gap-3 min-w-0">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<div class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] flex-shrink-0"></div>
+<h3 class="font-header text-[11px] font-bold text-on-background uppercase tracking-wider truncate">VENTA</h3>
+<span class="text-outline text-[10px] font-bold">12</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-1">
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 group cursor-pointer opacity-70 hover:opacity-100 transition-opacity border-white/10 backdrop-blur-3xl bg-white/30 border-white/20 shadow-sm">
+<div class="flex justify-between items-start gap-2">
+<h4 class="font-header text-[13px] font-bold text-on-background truncate">David Beckham</h4>
+<span class="material-symbols-outlined text-green-500 text-sm" data-icon="verified">verified</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm" data-icon="domain">domain</span>
+<span class="text-[11px] font-medium truncate">Sky Tower PH</span>
+</div>
+<div class="flex items-center justify-between text-[10px] font-bold">
+<span class="text-primary">$15.9M</span>
+<span class="text-green-600">+$795k Fee</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Floating FAB -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-neon-cyan text-on-background rounded-full shadow-2xl shadow-neon-cyan/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50 group">
+<span class="material-symbols-outlined text-[28px] group-hover:rotate-90 transition-transform" data-icon="add">add</span>
+<span class="absolute right-16 bg-inverse-surface text-inverse-on-surface px-4 py-2 rounded-xl text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl">Nuevo Lead</span>
+</button>
+</main>
+<script>
+    // Subtle interactivity
+    document.querySelectorAll('.glass-card').forEach(card => {
+        card.addEventListener('mousedown', () => {
+            card.style.transform = 'scale(0.98)';
+        });
+        card.addEventListener('mouseup', () => {
+            card.style.transform = 'scale(1) translateY(-2px)';
+        });
+    });
+</script>
+</body></html>

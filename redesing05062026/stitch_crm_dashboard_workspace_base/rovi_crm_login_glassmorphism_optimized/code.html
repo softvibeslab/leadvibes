@@ -1,0 +1,284 @@
+<!DOCTYPE html><html lang="es"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Rovi CRM | Luxury Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#7d5800",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#dae2fd",
+                        "on-surface-variant": "#3c494d",
+                        "on-secondary-container": "#fffbff",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "primary-fixed": "#aeecff",
+                        "primary-fixed-dim": "#00d9ff",
+                        "inverse-on-surface": "#eef0ff",
+                        "primary": "#00687b",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed": "#001f26",
+                        "background": "#faf8ff",
+                        "surface-bright": "#faf8ff",
+                        "surface-container-low": "#f2f3ff",
+                        "on-primary-container": "#005b6c",
+                        "tertiary-fixed-dim": "#febb29",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#ffbb2a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#5e4100",
+                        "outline-variant": "#bbc9ce",
+                        "on-error": "#ffffff",
+                        "on-surface": "#131b2e",
+                        "surface": "#faf8ff",
+                        "secondary-container": "#8455ef",
+                        "surface-container-high": "#e2e7ff",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#23005c",
+                        "tertiary-fixed": "#ffdea9",
+                        "surface-container-highest": "#dae2fd",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "primary-container": "#00d9ff",
+                        "outline": "#6c797e",
+                        "secondary": "#6b38d4",
+                        "inverse-primary": "#00d9ff",
+                        "surface-dim": "#d2d9f4",
+                        "on-tertiary-container": "#6e4d00",
+                        "inverse-surface": "#283044",
+                        "on-tertiary-fixed": "#271900",
+                        "on-background": "#131b2e",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#e9ddff",
+                        "on-secondary": "#ffffff",
+                        "surface-tint": "#00687b",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "surface-container": "#eaedff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "gutter": "24px",
+                        "unit": "8px",
+                        "margin-mobile": "20px",
+                        "margin-desktop": "64px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "label-md": ["JetBrains Mono"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "label-md": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(0, 104, 123, 0.05);
+        }
+        
+        .luminous-border {
+            border: 1px solid transparent;
+            background-image: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0)), 
+                              linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2));
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+        }
+
+        .neon-gradient {
+            background: linear-gradient(90deg, #1D4ED8 0%, #00D9FF 100%);
+            box-shadow: 0 10px 25px rgba(0, 217, 255, 0.4);
+        }
+
+        .mesh-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-color: #faf8ff;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(0, 217, 255, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(132, 85, 239, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(0, 104, 123, 0.05) 0px, transparent 50%);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-surface overflow-hidden">
+<!-- Animated Mesh Background -->
+<div class="mesh-bg"></div>
+<main class="flex min-h-screen">
+<!-- Left Side: Visual/Hero -->
+<section class="hidden lg:flex lg:w-1/2 relative overflow-hidden group">
+<img alt="Luxury Real Estate Hero" class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" data-alt="A breathtaking aerial view of a modernist luxury villa in Tulum, Mexico, featuring clean white architectural lines and expansive glass windows. The property is surrounded by dense, vibrant emerald green jungle foliage and a crystalline turquoise pool. The lighting is golden hour, casting soft, warm rays over the serene, high-end tropical setting, perfectly embodying a premium luxury lifestyle." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8g7iDT1N_FT-fap99Il_3djCFZs_zZkdCSum8ez18WjXI5w0oos_5Tfd6mdYRloZdIk0eVwVc1FIuBtfYKthcbnOC53ntRKd5iloPSFIY4YCEPofJAGd3RJfB4XuiARCz1dD-7vmpz-WqpxU_uvQGobAoED8tthzyA8VOuUHKyFDuqAW3971PkHlg55myYqUDisKgAfbP2bMsmdDTA9m-s5kWdQIsnqNpU34Vz5VP5sR4bnuCijfxgxvBD6EEoXsfOqixoKrnkX4b">
+<!-- Overlay -->
+<div class="absolute inset-0 bg-gradient-to-tr from-primary/60 via-transparent to-transparent"></div>
+<!-- Hero Content -->
+<div class="relative z-10 p-margin-desktop flex flex-col justify-between w-full h-full">
+<!-- Brand Anchor -->
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-xl glass-panel flex items-center justify-center border-white/40" style="transform: rotateY(0deg) rotateX(0deg);">
+<span class="material-symbols-outlined text-white text-[32px]">eco</span>
+</div>
+<div>
+<h1 class="font-display-lg text-headline-md text-white tracking-tight leading-none">ROVI</h1>
+<p class="font-label-sm text-white/80 uppercase tracking-widest mt-1">CRM Inmobiliario</p>
+</div>
+</div>
+<!-- Value Proposition -->
+<div class="max-w-lg mb-20">
+<h2 class="font-headline-lg text-white leading-tight mb-8">
+                        “El CRM que transforma tu gestión de ventas inmobiliarias en una experiencia de lujo.”
+                    </h2>
+<div class="flex items-center gap-4">
+<div class="flex -space-x-4">
+<img alt="User" class="w-12 h-12 rounded-full border-4 border-white/20" data-alt="Close-up portrait of a professional male real estate broker in a crisp white shirt, smiling confidently against a soft-focus office background. The lighting is bright and airy, reflecting a high-trust, premium business environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDuQt9e1PN96emX5nyd418mz2jNHyGi3OYXf4lbxr-mYJH-Ne-TwbqAllaCqkIUP-J5g9RBYkfnKLXRvVKt1n-ZpWqWA3VIcTgQfOoMesFCHkyk5O0NeVgzbWeDtduAPpSIGCdHztbUBqb51VOUPn1c3Rn8BJ7NDMEQaZUotivo7PdBsk7vbb7Bzgg0OA-vFLOg--xU8apaQvp3bSwaY-lMD73pcdzQfV9tH473bMMcaQj4heLrA417IOLgDZlHY6aWdNQVpOWw25cB">
+<img alt="User" class="w-12 h-12 rounded-full border-4 border-white/20" data-alt="Portrait of a sophisticated female luxury property agent with a friendly expression. She is wearing professional attire with subtle jewelry, set against a blurred background of a modern architectural space with warm, inviting lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOaoWXeT_Dn7Ug8xuSfpy8_JCcq8s1Y9qiRqamEAJJsV2E1pYhBZ5OPZSfQ-MrhSdJJhEBSeEQuJmDlfclqQhVNQTUPgWQIqYrYjZa8_rKwknmLuwBZh9HGEi9MUCx6R_7j-rAS138Xa9-vaCV2eEhLTAbiS3Cz2sPWWcaV1ecXvTPtmr4TOgkpGIHtCNeirKXOWbH8lAO_vSYpj9DIt_pSmt5qcVUHbHJ97Bw3gfEAA9jYIhCdGx4gl6tfEi_kQ6CwanhrWLe_qoh">
+<img alt="User" class="w-12 h-12 rounded-full border-4 border-white/20" data-alt="Minimalist professional headshot of a young entrepreneur in a stylish blazer. The composition is clean and modern, with balanced studio lighting that creates a sharp, premium editorial look consistent with a high-end fintech brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvnD0u6pha3k-qmgGIuwap8vUGJV5eDXRPbKHky4_szPshjdIVw48E9ipigKaMjoTSSTdNQmUmonSALfl1tps3wvANLQUlGj1Cv72-sVFAgMPcXJjELolNz2hnHYkFbvn0X2Gko4xmA2ZvAFgm_LlkbOD9Vn66oG76626EMTOVU1Nq2HXXuh5Ys4SZTatzdYujqAMlDK-fq7kZHrbjYhOjHdoTfEAxHhSPLk60yHuOLvdXxabffx29VlC9HIqbW598mhZtoruzCNBC">
+</div>
+<p class="text-white font-body-md font-medium">
+                            +500 brokers activos en Tulum
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Side: Login Area -->
+<section class="w-full lg:w-1/2 flex items-center justify-center p-margin-mobile lg:p-margin-desktop relative">
+<!-- Form Container -->
+<div class="w-full max-w-[480px] glass-panel p-10 rounded-[32px] luminous-border relative z-10">
+<header class="text-center mb-10">
+<h2 class="font-headline-lg text-on-surface mb-2">Bienvenido</h2>
+<p class="font-body-md text-on-surface-variant">Inicia sesión o crea tu cuenta para continuar</p>
+</header>
+<!-- Tab Switcher -->
+<div class="flex p-1.5 bg-surface-container-low rounded-2xl mb-10 border border-outline-variant/30">
+<button class="flex-1 py-3 text-body-md font-semibold rounded-xl bg-white shadow-sm transition-all duration-300" id="loginTab">
+                        Iniciar Sesión
+                    </button>
+<button class="flex-1 py-3 text-body-md font-semibold text-on-surface-variant hover:text-on-surface transition-all duration-300" id="registerTab">
+                        Registrarse
+                    </button>
+</div>
+<!-- Login Form -->
+<form class="space-y-6" onsubmit="event.preventDefault();">
+<div class="space-y-2">
+<label class="font-label-md text-on-surface-variant block ml-1" for="email">Email</label>
+<div class="relative group">
+<input class="w-full bg-white/40 border-outline-variant/50 rounded-xl py-4 px-5 focus:ring-primary-container focus:border-primary-fixed focus:bg-white/80 transition-all duration-300 placeholder:text-outline/50" id="email" placeholder="tu@email.com" type="email" value="pruebaaa@gmail.com">
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-md text-on-surface-variant block ml-1" for="password">Contraseña</label>
+<div class="relative group">
+<input class="w-full bg-white/40 border-outline-variant/50 rounded-xl py-4 px-5 focus:ring-primary-container focus:border-primary-fixed focus:bg-white/80 transition-all duration-300 placeholder:text-outline/50" id="password" placeholder="••••••••" type="password" value="123456">
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary-container" type="checkbox">
+<span class="font-body-md text-on-surface-variant group-hover:text-on-surface">Recordarme</span>
+</label>
+<a class="text-primary font-semibold font-body-md hover:underline decoration-2 underline-offset-4" href="#">¿Olvidaste tu contraseña?</a>
+</div>
+<button class="w-full neon-gradient text-white font-headline-md py-4 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-xl mt-4">
+                        Iniciar Sesión
+                    </button>
+</form>
+<footer class="mt-12 text-center space-y-6">
+<p class="font-body-md text-on-surface-variant px-8">
+                        Al continuar, aceptas nuestros 
+                        <a class="text-primary font-semibold hover:underline" href="#">términos y condiciones</a>
+</p>
+<div class="pt-8 border-t border-outline-variant/20">
+<p class="font-label-sm text-outline uppercase tracking-wider mb-2">Credenciales de Demo</p>
+<code class="font-label-md text-primary bg-primary-container/20 px-4 py-2 rounded-lg">
+                            carlos.mendoza@leadvibes.mx / demo123
+                        </code>
+</div>
+</footer>
+</div>
+<!-- Subtle Decorative Elements -->
+<div class="absolute bottom-10 right-10 flex gap-4">
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:bg-white/60 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">dark_mode</span>
+</button>
+<button class="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:bg-white/60 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">language</span>
+</button>
+</div>
+</section>
+</main>
+<script>
+        // Micro-interactions for tab switching
+        const loginTab = document.getElementById('loginTab');
+        const registerTab = document.getElementById('registerTab');
+
+        loginTab.addEventListener('click', () => {
+            loginTab.classList.add('bg-white', 'shadow-sm');
+            loginTab.classList.remove('text-on-surface-variant');
+            registerTab.classList.remove('bg-white', 'shadow-sm');
+            registerTab.classList.add('text-on-surface-variant');
+        });
+
+        registerTab.addEventListener('click', () => {
+            registerTab.classList.add('bg-white', 'shadow-sm');
+            registerTab.classList.remove('text-on-surface-variant');
+            loginTab.classList.remove('bg-white', 'shadow-sm');
+            loginTab.classList.add('text-on-surface-variant');
+        });
+
+        // Hover effect for the card tracking mouse movement (Optional polish)
+        const card = document.querySelector('.glass-panel');
+        document.addEventListener('mousemove', (e) => {
+            if (window.innerWidth > 1024) {
+                const xAxis = (window.innerWidth / 2 - e.pageX) / 50;
+                const yAxis = (window.innerHeight / 2 - e.pageY) / 50;
+                card.style.transform = `rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
+            }
+        });
+
+        document.addEventListener('mouseleave', () => {
+            card.style.transform = `rotateY(0deg) rotateX(0deg)`;
+        });
+    </script>
+
+
+</body></html>

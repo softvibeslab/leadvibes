@@ -28,6 +28,7 @@ import { RentalsPage } from './pages/RentalsPage';
 import { EncuentraLeadsPage } from './pages/EncuentraLeadsPage';
 import { ModuleTrackerPage } from './pages/ModuleTrackerPage';
 import { LandingPage } from './pages/LandingPage';
+import { PremiumLandingPage } from './pages/PremiumLandingPage';
 import { BrokerLandingPage } from './pages/BrokerLandingPage';
 import { DemoRequestPage } from './pages/DemoRequestPage';
 import { LeadSearchDashboard } from './pages/LeadSearchDashboard';
@@ -270,7 +271,7 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Landing Pages - Public */}
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<PremiumLandingPage />} />
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/for-brokers" element={<BrokerLandingPage />} />
 

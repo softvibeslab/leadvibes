@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pipeline de Leads | Rovi CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px 0 rgba(0, 104, 123, 0.05);
+        }
+        .glass-card {
+            backdrop-filter: blur(12px) saturate(160%);
+            background: rgba(255, 255, 255, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.8);
+            border-left: 1px solid rgba(255, 255, 255, 0.8);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 217, 255, 0.15);
+            background: rgba(255, 255, 255, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 104, 123, 0.1);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 104, 123, 0.2);
+        }
+        .mesh-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-color: #faf8ff;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(190, 100%, 90%, 1) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 95%, 1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(190, 100%, 92%, 1) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(260, 100%, 96%, 1) 0px, transparent 50%);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#00687b",
+                        "on-tertiary-fixed": "#271900",
+                        "outline": "#6c797e",
+                        "primary-fixed-dim": "#00d9ff",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "surface-container": "#eaedff",
+                        "inverse-on-surface": "#eef0ff",
+                        "surface-container-high": "#e2e7ff",
+                        "secondary-container": "#8455ef",
+                        "on-tertiary-fixed-variant": "#5e4100",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "on-error-container": "#93000a",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#dae2fd",
+                        "background": "#faf8ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#005b6c",
+                        "on-background": "#131b2e",
+                        "primary-fixed": "#aeecff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#23005c",
+                        "inverse-surface": "#283044",
+                        "tertiary-fixed-dim": "#febb29",
+                        "on-surface": "#131b2e",
+                        "inverse-primary": "#00d9ff",
+                        "surface-container-low": "#f2f3ff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#7d5800",
+                        "on-tertiary-container": "#6e4d00",
+                        "tertiary-container": "#ffbb2a",
+                        "primary-container": "#00d9ff",
+                        "surface-bright": "#faf8ff",
+                        "primary": "#00687b",
+                        "surface": "#faf8ff",
+                        "surface-dim": "#d2d9f4",
+                        "on-surface-variant": "#3c494d",
+                        "secondary": "#6b38d4",
+                        "on-secondary-container": "#fffbff",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "outline-variant": "#bbc9ce",
+                        "surface-variant": "#dae2fd",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#ffdea9",
+                        "secondary-fixed": "#e9ddff",
+                        "on-primary-fixed": "#001f26"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "20px",
+                        "gutter": "24px",
+                        "container-max": "1280px",
+                        "unit": "8px",
+                        "margin-desktop": "64px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "label-md": ["JetBrains Mono"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "label-md": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-body-md text-on-surface bg-background min-h-screen flex overflow-hidden">
+<div class="mesh-gradient"></div>
+<!-- SideNavBar (Authority: JSON) -->
+<nav class="hidden md:flex flex-col h-full py-8 px-6 gap-8 bg-white/70 backdrop-blur-2xl border-r border-primary/10 shadow-[20px_0px_40px_hsla(217,89%,36%,0.03)] w-72 flex-shrink-0 z-50">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">Rovi CRM</h1>
+<p class="font-label-md text-label-md text-on-surface-variant">Luxury Real Estate</p>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="dashboard">dashboard</span>
+<span class="font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="domain">domain</span>
+<span class="font-label-md">Properties</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-primary font-bold border-r-4 border-secondary bg-primary/5 group active:translate-x-1" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="group">group</span>
+<span class="font-label-md">Leads</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="insights">insights</span>
+<span class="font-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-md">Calendar</span>
+</a>
+</div>
+<button class="mt-4 bg-primary text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-primary/30 hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+            New Listing
+        </button>
+<div class="mt-auto flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:rotate-12 transition-transform" data-icon="help">help</span>
+<span class="font-label-md">Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-on-surface-variant font-medium hover:bg-primary/5 group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="logout">logout</span>
+<span class="font-label-md">Sign Out</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-w-0 relative h-screen">
+<!-- TopAppBar (Authority: JSON) -->
+<header class="flex justify-between items-center px-gutter w-full h-20 sticky top-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-primary/10 shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)]">
+<div class="flex items-center gap-6 flex-1">
+<div class="relative w-full max-w-md group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors" data-icon="search">search</span>
+<input class="w-full bg-white/40 border-none rounded-full pl-12 pr-4 py-2.5 text-body-md focus:ring-2 focus:ring-primary/20 backdrop-blur-md transition-all" placeholder="Buscar leads o propiedades..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2.5 rounded-full hover:bg-primary/5 transition-colors relative group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full border-2 border-white"></span>
+</button>
+<button class="p-2.5 rounded-full hover:bg-primary/5 transition-colors group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant/30 mx-2"></div>
+<div class="flex items-center gap-3 pl-2">
+<div class="text-right hidden sm:block">
+<p class="font-bold text-on-surface text-label-md">Santiago Rossi</p>
+<p class="text-[10px] text-outline uppercase tracking-widest font-bold">Executive Agent</p>
+</div>
+<img alt="Santiago Rossi" class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover" data-alt="A professional headshot of a refined male executive in his 40s wearing a sharp charcoal suit and a light blue shirt. He has a warm, confident expression. The lighting is soft and studio-quality with a subtle bokeh background of a modern luxury office space in cool tones of blue and white." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhheSx8ML7bHLyYaOzm8Z6otQwCr_XOcLzQ8YwG_9Va-plSskvvsywEsDgIYix34dSAoQyRov7MuJqifOrFTtXympiAIOabjWf1JXpTe1oUS3Z6IvUwZJWUYFJnX7Vhm59hN59pjejJKlbdPR1xcfKbkMqSjRT1IPLsoV4n7-dvUdva9j127DWy5RIRHoSGyAMxQjarR-YilR5r7K73NhP8Xx4zO4gLpUOawUp_IsyclsoTQ5jCQWpSP40UGSofC1ezOXqUYkqSlLf"/>
+</div>
+</div>
+</header>
+<!-- Pipeline Board -->
+<section class="flex-1 overflow-x-auto overflow-y-hidden flex flex-col p-8 gap-6 custom-scrollbar">
+<!-- Dashboard Header -->
+<div class="flex justify-between items-end shrink-0">
+<div>
+<nav class="flex gap-2 mb-2">
+<span class="px-2 py-0.5 rounded bg-primary-container/10 text-primary-container font-label-sm uppercase tracking-tighter">CRM</span>
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm uppercase tracking-tighter">Pipeline</span>
+</nav>
+<h2 class="font-display-lg text-headline-lg text-on-background">Pipeline Comercial</h2>
+</div>
+<div class="flex gap-3">
+<div class="flex bg-white/40 p-1 rounded-xl backdrop-blur-md border border-white/60">
+<button class="px-4 py-2 rounded-lg bg-white shadow-sm text-primary font-bold text-label-md flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="view_kanban">view_kanban</span> Tablero
+                        </button>
+<button class="px-4 py-2 rounded-lg text-on-surface-variant font-medium text-label-md flex items-center gap-2 hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined" data-icon="list">list</span> Lista
+                        </button>
+</div>
+<button class="flex items-center gap-2 bg-white/40 px-4 py-2 rounded-xl border border-white/60 text-on-surface font-bold text-label-md hover:bg-white transition-colors">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span> Filtros
+                    </button>
+</div>
+</div>
+<!-- Kanban Board -->
+<div class="flex-1 flex gap-6 overflow-x-auto pb-4 custom-scrollbar items-start">
+<!-- Column: Nuevo -->
+<div class="min-w-[320px] w-80 h-full flex flex-col gap-4">
+<div class="flex items-center justify-between px-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary-fixed-dim shadow-[0_0_8px_rgba(0,217,255,0.8)]"></div>
+<h3 class="font-headline-md text-label-md text-on-background font-bold tracking-tight">NUEVO</h3>
+<span class="text-outline-variant font-label-sm ml-1">4</span>
+</div>
+<button class="p-1 rounded-full hover:bg-primary/5 transition-colors text-outline">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
+<!-- Card 1 -->
+<div class="glass-card p-4 rounded-2xl flex flex-col gap-3 group cursor-pointer">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-body-md font-bold text-on-background group-hover:text-primary transition-colors">Alejandro Moreno</h4>
+<p class="text-[11px] text-outline uppercase tracking-wider font-bold">24 Mayo, 2024</p>
+</div>
+<span class="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px] font-bold border border-primary/20">HOT</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="apartment">apartment</span>
+<span class="text-label-md font-medium">Penthouse Lomas</span>
+</div>
+<div class="flex justify-between items-center bg-white/30 p-2 rounded-lg border border-white/40">
+<span class="text-primary font-bold text-label-md">$12,450,000 MXN</span>
+<span class="text-[10px] font-bold text-outline uppercase">CDMX</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px] font-bold text-outline">
+<span>CALIFICACIÓN</span>
+<span class="text-primary">85%</span>
+</div>
+<div class="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim shadow-[0_0_10px_rgba(0,217,255,0.6)]" style="width: 85%"></div>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="glass-card p-4 rounded-2xl flex flex-col gap-3 group cursor-pointer opacity-80">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-body-md font-bold text-on-background group-hover:text-primary transition-colors">Valentina Ruiz</h4>
+<p class="text-[11px] text-outline uppercase tracking-wider font-bold">23 Mayo, 2024</p>
+</div>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="house">house</span>
+<span class="text-label-md font-medium">Residencial Bosque</span>
+</div>
+<div class="flex justify-between items-center bg-white/30 p-2 rounded-lg border border-white/40">
+<span class="text-primary font-bold text-label-md">$8,200,000 MXN</span>
+<span class="text-[10px] font-bold text-outline uppercase">Mérida</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px] font-bold text-outline">
+<span>CALIFICACIÓN</span>
+<span class="text-secondary">42%</span>
+</div>
+<div class="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 42%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Contactado -->
+<div class="min-w-[320px] w-80 h-full flex flex-col gap-4">
+<div class="flex items-center justify-between px-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(107,56,212,0.8)]"></div>
+<h3 class="font-headline-md text-label-md text-on-background font-bold tracking-tight">CONTACTADO</h3>
+<span class="text-outline-variant font-label-sm ml-1">2</span>
+</div>
+<button class="p-1 rounded-full hover:bg-primary/5 transition-colors text-outline">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
+<div class="glass-card p-4 rounded-2xl flex flex-col gap-3 group cursor-pointer">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-body-md font-bold text-on-background group-hover:text-primary transition-colors">Marco Polo Jr.</h4>
+<p class="text-[11px] text-outline uppercase tracking-wider font-bold">21 Mayo, 2024</p>
+</div>
+<div class="flex -space-x-2">
+<span class="w-6 h-6 rounded-full bg-green-500 border border-white flex items-center justify-center text-white text-[10px]"><span class="material-symbols-outlined text-[12px]" data-icon="call">call</span></span>
+</div>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="landscape">landscape</span>
+<span class="text-label-md font-medium">Terreno Cabo</span>
+</div>
+<div class="flex justify-between items-center bg-white/30 p-2 rounded-lg border border-white/40">
+<span class="text-primary font-bold text-label-md">$4,150,000 MXN</span>
+<span class="text-[10px] font-bold text-outline uppercase">Cabo</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px] font-bold text-outline">
+<span>CALIFICACIÓN</span>
+<span class="text-primary">92%</span>
+</div>
+<div class="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim" style="width: 92%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Calificación -->
+<div class="min-w-[320px] w-80 h-full flex flex-col gap-4">
+<div class="flex items-center justify-between px-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<h3 class="font-headline-md text-label-md text-on-background font-bold tracking-tight">CALIFICACIÓN</h3>
+<span class="text-outline-variant font-label-sm ml-1">1</span>
+</div>
+<button class="p-1 rounded-full hover:bg-primary/5 transition-colors text-outline">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
+<div class="glass-card p-4 rounded-2xl border-l-4 border-l-tertiary flex flex-col gap-3 group cursor-pointer shadow-lg">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-body-md font-bold text-on-background group-hover:text-primary transition-colors">Elena Fitzgerald</h4>
+<p class="text-[11px] text-outline uppercase tracking-wider font-bold">19 Mayo, 2024</p>
+</div>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="apartment">apartment</span>
+<span class="text-label-md font-medium">Loft Condesa High-End</span>
+</div>
+<div class="flex justify-between items-center bg-white/30 p-2 rounded-lg border border-white/40">
+<span class="text-primary font-bold text-label-md">$6,800,000 MXN</span>
+<span class="text-[10px] font-bold text-outline uppercase">CDMX</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px] font-bold text-outline">
+<span>CALIFICACIÓN</span>
+<span class="text-primary">78%</span>
+</div>
+<div class="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim" style="width: 78%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Presentación -->
+<div class="min-w-[320px] w-80 h-full flex flex-col gap-4">
+<div class="flex items-center justify-between px-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary-container"></div>
+<h3 class="font-headline-md text-label-md text-on-background font-bold tracking-tight">PRESENTACIÓN</h3>
+<span class="text-outline-variant font-label-sm ml-1">3</span>
+</div>
+<button class="p-1 rounded-full hover:bg-primary/5 transition-colors text-outline">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
+<img alt="Luxury Property Preview" class="w-full h-32 object-cover rounded-2xl border border-white/60 shadow-md mb-2 opacity-90 grayscale-[30%] hover:grayscale-0 transition-all cursor-pointer" data-alt="A high-end architectural rendering of a luxury modern beachfront villa at sunset. Large glass walls reveal a warm interior with designer furniture. The outdoor area features a minimalist infinity pool that reflects the vibrant orange and purple sky. The overall mood is expensive, serene, and sophisticated, aligning with the Rovi CRM luxury tech aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6zl4_8G-LAOd6sKKz62MrIeSlLWrTJK8HwTY3qTm5A1zyYhUytURSoqT2z5N4cqDBP1CodL08fYkNiJH8blY9VCwEGJwcko1ZRqLBHUY1Qd6uJn5M3n_whhoAknEek6TJNFrbV94--VcUTYP4pC81lL6iNiokUMBjfmRQozAY_FU5pQU6LNltCBHthRQZQ8alKrjlaqV2bkpcRAz4phGF4TGm7ztKP8DtcHxGNr9o7qpx1jxwX5wrrEqoNFqaNjDr6-WQLJBwkBP1"/>
+<div class="glass-card p-4 rounded-2xl flex flex-col gap-3 group cursor-pointer">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-body-md font-bold text-on-background group-hover:text-primary transition-colors">Roberto Cavalli</h4>
+<p class="text-[11px] text-outline uppercase tracking-wider font-bold">15 Mayo, 2024</p>
+</div>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="real_estate_agent">real_estate_agent</span>
+<span class="text-label-md font-medium">Villa Paraíso</span>
+</div>
+<div class="flex justify-between items-center bg-white/30 p-2 rounded-lg border border-white/40">
+<span class="text-primary font-bold text-label-md">$28,000,000 MXN</span>
+<span class="text-[10px] font-bold text-outline uppercase">Cancún</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px] font-bold text-outline">
+<span>CALIFICACIÓN</span>
+<span class="text-primary">95%</span>
+</div>
+<div class="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim" style="width: 95%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Apartado -->
+<div class="min-w-[320px] w-80 h-full flex flex-col gap-4">
+<div class="flex items-center justify-between px-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(0,104,123,0.8)]"></div>
+<h3 class="font-headline-md text-label-md text-on-background font-bold tracking-tight">APARTADO</h3>
+<span class="text-outline-variant font-label-sm ml-1">1</span>
+</div>
+<button class="p-1 rounded-full hover:bg-primary/5 transition-colors text-outline">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
+<div class="glass-card p-4 rounded-2xl border-2 border-primary-fixed-dim flex flex-col gap-3 group cursor-pointer shadow-xl bg-white/60">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-body-md font-bold text-on-background group-hover:text-primary transition-colors">Sofia Vergara</h4>
+<p class="text-[11px] text-outline uppercase tracking-wider font-bold">10 Mayo, 2024</p>
+</div>
+<span class="bg-primary text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">RESERVADO</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="castle">castle</span>
+<span class="text-label-md font-medium">Mansión del Sol</span>
+</div>
+<div class="flex justify-between items-center bg-primary/5 p-2 rounded-lg border border-primary/20">
+<span class="text-primary font-bold text-label-md">$52,000,000 MXN</span>
+<span class="text-[10px] font-bold text-outline uppercase">Tulúm</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-[11px] font-bold text-outline">
+<span>CONTRATO FIRMADO</span>
+<span class="text-primary">100%</span>
+</div>
+<div class="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim" style="width: 100%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Venta -->
+<div class="min-w-[320px] w-80 h-full flex flex-col gap-4">
+<div class="flex items-center justify-between px-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+<h3 class="font-headline-md text-label-md text-on-background font-bold tracking-tight">VENTA</h3>
+<span class="text-outline-variant font-label-sm ml-1">12</span>
+</div>
+<button class="p-1 rounded-full hover:bg-primary/5 transition-colors text-outline">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
+<div class="glass-card p-4 rounded-2xl flex flex-col gap-3 group cursor-pointer opacity-70 hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-body-md font-bold text-on-background">David Beckham</h4>
+<p class="text-[11px] text-outline uppercase tracking-wider font-bold">05 Mayo, 2024</p>
+</div>
+<span class="material-symbols-outlined text-green-500" data-icon="verified">verified</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="domain">domain</span>
+<span class="text-label-md font-medium">Sky Tower Penthouse</span>
+</div>
+<div class="flex justify-between items-center bg-white/30 p-2 rounded-lg border border-white/40">
+<span class="text-primary font-bold text-label-md">$15,900,000 MXN</span>
+<span class="text-[10px] font-bold text-outline uppercase">CDMX</span>
+</div>
+<div class="flex items-center justify-between text-[11px] font-bold">
+<span class="text-outline">COMISIÓN PAGADA</span>
+<span class="text-green-500">$795,000 MXN</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Floating FAB - Authority: Shell Relevance -->
+<button class="fixed bottom-10 right-10 w-16 h-16 bg-primary text-white rounded-full shadow-2xl shadow-primary/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50 group">
+<span class="material-symbols-outlined text-[32px] group-hover:rotate-90 transition-transform" data-icon="add">add</span>
+<!-- Tooltip -->
+<span class="absolute right-20 bg-inverse-surface text-inverse-on-surface px-4 py-2 rounded-xl text-label-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl">Nuevo Lead</span>
+</button>
+</main>
+<script>
+        // Micro-interactions and layout handling
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mousedown', () => {
+                card.style.transform = 'scale(0.98) translateY(2px)';
+            });
+            card.addEventListener('mouseup', () => {
+                card.style.transform = 'scale(1) translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'scale(1) translateY(0)';
+            });
+        });
+
+        // Horizontal scroll with wheel for the pipeline board
+        const pipeline = document.querySelector('.overflow-x-auto');
+        if (pipeline) {
+            pipeline.addEventListener('wheel', (evt) => {
+                evt.preventDefault();
+                pipeline.scrollLeft += evt.deltaY;
+            });
+        }
+    </script>
+</body></html>

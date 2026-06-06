@@ -4174,6 +4174,55 @@ class TelegramMiniAppSessionRequest(BaseModel):
     start_param: Optional[str] = None
 
 
+class TelegramAgentProfileUpsertRequest(BaseModel):
+    role_scope: str = "broker"
+    name: str = ""
+    description: str = ""
+    system_prompt: str = ""
+    bot_username: str = ""
+    telegram_bot_token: str = ""
+    is_active: bool = True
+
+
+class TelegramAgentLinkCodeRequest(BaseModel):
+    ttl_minutes: int = 30
+
+
+class TelegramAgentSetWebhookRequest(BaseModel):
+    public_base_url: str = ""
+
+
+class TelegramAgentTestMessageRequest(BaseModel):
+    chat_id: str = ""
+    message: str = "Prueba de conexión desde ROVI. Tu agente Telegram está listo."
+
+
+TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES = {"broker", "agency_admin"}
+
+DEFAULT_TELEGRAM_AGENT_PROFILES = {
+    "broker": {
+        "name": "Agente Broker ROVI",
+        "description": "Asistente operativo para brokers individuales: leads, propiedades, tareas, agenda, scripts y chat con base de datos.",
+        "system_prompt": (
+            "Eres el agente Telegram del rol broker en ROVI CRM. Ayuda al broker a priorizar leads, "
+            "consultar propiedades, revisar tareas, calendario, automatizaciones, analíticas, scripts y Chat BD. "
+            "Responde en español mexicano, con acciones concretas y enfoque comercial inmobiliario."
+        ),
+        "bot_username": os.environ.get("ROVI_BROKER_TELEGRAM_BOT_USERNAME", ""),
+    },
+    "agency_admin": {
+        "name": "Agente Inmobiliaria ROVI",
+        "description": "Asistente para agencias/inmobiliarias: equipo de brokers, importador, propiedades, tareas, automatizaciones y gamificación.",
+        "system_prompt": (
+            "Eres el agente Telegram del rol inmobiliaria/admin de agencia en ROVI CRM. Ayuda a dirigir el pipeline, "
+            "coordinar brokers, revisar propiedades, tareas, calendario, automatizaciones, scripts, analíticas, Chat BD "
+            "y gamificación. Responde en español mexicano, con visión gerencial y siguientes pasos claros."
+        ),
+        "bot_username": os.environ.get("ROVI_AGENCY_TELEGRAM_BOT_USERNAME", ""),
+    },
+}
+
+
 def normalize_link_code(value: str | None) -> str:
     if not value:
         return ""
@@ -4190,6 +4239,117 @@ def build_device_link_public(link: dict) -> dict:
     if result.get("user_email"):
         result["user_email_masked"] = mask_email(result.get("user_email"))
     return result
+
+
+def normalize_telegram_bot_username(value: str | None) -> str:
+    username = (value or "").strip()
+    if username.startswith("@"):
+        username = username[1:]
+    return username
+
+
+def resolve_telegram_agent_role_scope(current_user: dict) -> str:
+    account_type = current_user.get("account_type") or "individual"
+    if account_type == "agency":
+        return "agency_admin"
+    return "broker"
+
+
+def mask_bot_token(token: str | None) -> str:
+    token = token or ""
+    if not token:
+        return ""
+    if len(token) <= 8:
+        return "••••"
+    return f"••••{token[-6:]}"
+
+
+def build_agent_telegram_link(profile: dict, code: str) -> str:
+    username = normalize_telegram_bot_username(profile.get("bot_username"))
+    if not username:
+        username = (
+            os.environ.get("ROVI_TELEGRAM_BOT_USERNAME")
+            or os.environ.get("HERMES_TELEGRAM_BOT_USERNAME")
+            or os.environ.get("TELEGRAM_BOT_USERNAME")
+            or "RoviHermesBot"
+        )
+    return f"https://t.me/{username}?start=rovi_{code}"
+
+
+async def send_telegram_message_with_token(token: str | None, chat_id: str | None, text: str) -> dict:
+    if not token or not chat_id:
+        return {"sent": False, "reason": "missing_token_or_chat_id"}
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=12) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": chat_id, "text": text[:3900]},
+            )
+        if response.status_code >= 400:
+            return {"sent": False, "status_code": response.status_code, "body": response.text[:300]}
+        return {"sent": True, "status_code": response.status_code}
+    except Exception as exc:
+        return {"sent": False, "reason": str(exc)}
+
+
+async def public_telegram_agent_profile(profile: dict) -> dict:
+    public = serialize_doc(profile) or {}
+    token = public.pop("telegram_bot_token", "")
+    public["has_bot_token"] = bool(token)
+    public["telegram_bot_token_masked"] = mask_bot_token(token)
+    public["active_links_count"] = await db.telegram_agent_links.count_documents({
+        "profile_id": profile["id"],
+        "status": "active",
+    })
+    public["pending_links_count"] = await db.telegram_agent_links.count_documents({
+        "profile_id": profile["id"],
+        "status": "pending",
+    })
+    return public
+
+
+async def ensure_default_telegram_agent_profile(current_user: dict) -> dict:
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id") or await get_or_create_tenant(current_user["user_id"])
+    role_scope = resolve_telegram_agent_role_scope(current_user)
+    existing = await db.telegram_agent_profiles.find_one(
+        {"tenant_id": tenant_id, "role_scope": role_scope},
+        {"_id": 0},
+    )
+    if existing:
+        return existing
+    defaults = DEFAULT_TELEGRAM_AGENT_PROFILES[role_scope]
+    now = datetime.now(timezone.utc).isoformat()
+    profile = {
+        "id": f"telegram-agent-profile-{uuid.uuid4()}",
+        "tenant_id": tenant_id,
+        "role_scope": role_scope,
+        "name": defaults["name"],
+        "description": defaults["description"],
+        "system_prompt": defaults["system_prompt"],
+        "bot_username": normalize_telegram_bot_username(defaults.get("bot_username")),
+        "telegram_bot_token": "",
+        "telegram_webhook_secret": uuid.uuid4().hex,
+        "is_active": True,
+        "created_by": current_user["user_id"],
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.telegram_agent_profiles.insert_one(profile)
+    return profile
+
+
+async def get_owned_telegram_agent_profile(profile_id: str, current_user: dict) -> dict:
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    role_scope = resolve_telegram_agent_role_scope(current_user)
+    profile = await db.telegram_agent_profiles.find_one(
+        {"id": profile_id, "tenant_id": tenant_id, "role_scope": role_scope},
+        {"_id": 0},
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Perfil de agente Telegram no encontrado")
+    return profile
 
 
 async def require_hermes_webhook_secret(request: Request) -> None:
@@ -4601,6 +4761,294 @@ async def create_telegram_miniapp_session(payload: TelegramMiniAppSessionRequest
         "available_workspaces": workspaces,
         "device_link": build_device_link_public(active_link),
     }
+
+
+@api_router.get("/telegram-agents/profiles", response_model=dict)
+async def list_telegram_agent_profiles(current_user: dict = Depends(get_current_user)):
+    profile = await ensure_default_telegram_agent_profile(current_user)
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    role_scope = resolve_telegram_agent_role_scope(current_user)
+    profiles = await db.telegram_agent_profiles.find(
+        {"tenant_id": tenant_id, "role_scope": role_scope},
+        {"_id": 0},
+    ).sort("created_at", 1).to_list(20)
+    if not profiles:
+        profiles = [profile]
+    return {"profiles": [await public_telegram_agent_profile(item) for item in profiles]}
+
+
+@api_router.post("/telegram-agents/profiles", response_model=dict)
+async def create_telegram_agent_profile(
+    payload: TelegramAgentProfileUpsertRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    allowed_role_scope = resolve_telegram_agent_role_scope(current_user)
+    if payload.role_scope != allowed_role_scope or payload.role_scope not in TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES:
+        raise HTTPException(status_code=403, detail="No puedes crear perfiles para este rol desde tu cuenta")
+    now = datetime.now(timezone.utc).isoformat()
+    defaults = DEFAULT_TELEGRAM_AGENT_PROFILES[payload.role_scope]
+    profile = {
+        "id": f"telegram-agent-profile-{uuid.uuid4()}",
+        "tenant_id": tenant_id,
+        "role_scope": payload.role_scope,
+        "name": payload.name.strip() or defaults["name"],
+        "description": payload.description.strip() or defaults["description"],
+        "system_prompt": payload.system_prompt.strip() or defaults["system_prompt"],
+        "bot_username": normalize_telegram_bot_username(payload.bot_username),
+        "telegram_bot_token": payload.telegram_bot_token.strip(),
+        "telegram_webhook_secret": uuid.uuid4().hex,
+        "is_active": payload.is_active,
+        "created_by": current_user["user_id"],
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.telegram_agent_profiles.insert_one(profile)
+    return {"profile": await public_telegram_agent_profile(profile)}
+
+
+@api_router.put("/telegram-agents/profiles/{profile_id}", response_model=dict)
+async def update_telegram_agent_profile(
+    profile_id: str,
+    payload: TelegramAgentProfileUpsertRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    profile = await get_owned_telegram_agent_profile(profile_id, current_user)
+    defaults = DEFAULT_TELEGRAM_AGENT_PROFILES.get(profile["role_scope"], {})
+    update_payload = {
+        "name": payload.name.strip() or profile.get("name") or defaults.get("name", "Agente ROVI"),
+        "description": payload.description.strip() or profile.get("description", ""),
+        "system_prompt": payload.system_prompt.strip() or profile.get("system_prompt") or defaults.get("system_prompt", ""),
+        "bot_username": normalize_telegram_bot_username(payload.bot_username),
+        "is_active": payload.is_active,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    token = payload.telegram_bot_token.strip()
+    if token and "•" not in token:
+        update_payload["telegram_bot_token"] = token
+    await db.telegram_agent_profiles.update_one({"id": profile_id}, {"$set": update_payload})
+    updated = await db.telegram_agent_profiles.find_one({"id": profile_id}, {"_id": 0})
+    return {"profile": await public_telegram_agent_profile(updated)}
+
+
+@api_router.post("/telegram-agents/profiles/{profile_id}/link-code", response_model=dict)
+async def create_telegram_agent_link_code(
+    profile_id: str,
+    payload: TelegramAgentLinkCodeRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    profile = await get_owned_telegram_agent_profile(profile_id, current_user)
+    now = datetime.now(timezone.utc)
+    ttl_minutes = min(max(payload.ttl_minutes or 30, 1), 240)
+    code = uuid.uuid4().hex[:10].upper()
+    link_doc = {
+        "id": f"telegram-agent-link-{uuid.uuid4()}",
+        "profile_id": profile["id"],
+        "tenant_id": profile["tenant_id"],
+        "role_scope": profile["role_scope"],
+        "user_id": current_user["user_id"],
+        "code": code,
+        "status": "pending",
+        "telegram_deep_link": build_agent_telegram_link(profile, code),
+        "qr_url": build_qr_url(build_agent_telegram_link(profile, code)),
+        "expires_at": (now + timedelta(minutes=ttl_minutes)).isoformat(),
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
+    await db.telegram_agent_links.insert_one(link_doc)
+    return serialize_doc(link_doc)
+
+
+@api_router.post("/telegram-agents/profiles/{profile_id}/set-webhook", response_model=dict)
+async def set_telegram_agent_webhook(
+    profile_id: str,
+    payload: TelegramAgentSetWebhookRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    profile = await get_owned_telegram_agent_profile(profile_id, current_user)
+    token = profile.get("telegram_bot_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Primero configura el token del bot de Telegram")
+
+    base_url = (
+        payload.public_base_url.strip()
+        or os.environ.get("ROVI_PUBLIC_API_BASE_URL", "")
+        or os.environ.get("PUBLIC_API_BASE_URL", "")
+    ).rstrip("/")
+    if not base_url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Telegram requiere una URL publica HTTPS para el webhook")
+    api_base = base_url if base_url.endswith("/api") else f"{base_url}/api"
+    webhook_url = f"{api_base}/telegram/webhook/{profile['id']}/{profile['telegram_webhook_secret']}"
+
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{token}/setWebhook",
+                json={"url": webhook_url, "drop_pending_updates": False},
+            )
+        telegram_result = response.json()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"No pude configurar el webhook en Telegram: {exc}") from exc
+
+    if not telegram_result.get("ok"):
+        raise HTTPException(status_code=400, detail=telegram_result.get("description") or "Telegram rechazo el webhook")
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.telegram_agent_profiles.update_one(
+        {"id": profile_id},
+        {"$set": {"telegram_webhook_url": webhook_url, "webhook_configured_at": now, "updated_at": now}},
+    )
+    return {"message": "Webhook configurado", "webhook_url": webhook_url, "telegram": telegram_result}
+
+
+@api_router.post("/telegram-agents/profiles/{profile_id}/test-message", response_model=dict)
+async def send_telegram_agent_test_message(
+    profile_id: str,
+    payload: TelegramAgentTestMessageRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    profile = await get_owned_telegram_agent_profile(profile_id, current_user)
+    chat_id = payload.chat_id.strip()
+    if not chat_id:
+        active_link = await db.telegram_agent_links.find_one(
+            {"profile_id": profile_id, "user_id": current_user["user_id"], "status": "active"},
+            {"_id": 0},
+            sort=[("activated_at", -1)],
+        )
+        chat_id = str((active_link or {}).get("telegram", {}).get("chat_id") or "")
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="No hay chat vinculado. Genera un link y abre el bot primero.")
+    result = await send_telegram_message_with_token(profile.get("telegram_bot_token"), chat_id, payload.message)
+    if not result.get("sent"):
+        raise HTTPException(status_code=400, detail=f"No pude enviar el mensaje de prueba: {result}")
+    return {"message": "Mensaje enviado", "delivery": result}
+
+
+@api_router.post("/telegram/webhook/{profile_id}/{secret}", response_model=dict)
+async def telegram_agent_webhook(profile_id: str, secret: str, request: Request):
+    profile = await db.telegram_agent_profiles.find_one(
+        {"id": profile_id, "telegram_webhook_secret": secret, "is_active": True},
+        {"_id": 0},
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Agente Telegram no encontrado")
+
+    update = await request.json()
+    message = update.get("message") or update.get("edited_message") or {}
+    chat = message.get("chat") or {}
+    telegram_user = message.get("from") or {}
+    text = (message.get("text") or "").strip()
+    chat_id = str(chat.get("id") or "")
+    if not chat_id or not text:
+        return {"ok": True, "ignored": True}
+
+    now = datetime.now(timezone.utc).isoformat()
+    if text.startswith("/start"):
+        parts = text.split(maxsplit=1)
+        code = normalize_link_code(parts[1] if len(parts) > 1 else "")
+        link = await db.telegram_agent_links.find_one(
+            {"profile_id": profile_id, "code": code, "status": "pending"},
+            {"_id": 0},
+        )
+        if not link:
+            delivery = await send_telegram_message_with_token(
+                profile.get("telegram_bot_token"),
+                chat_id,
+                "No encontré un vínculo pendiente para este código. Genera uno nuevo desde ROVI.",
+            )
+            return {"ok": True, "status": "link_not_found", "delivery": delivery}
+        if parse_iso_datetime(link.get("expires_at")) and parse_iso_datetime(link.get("expires_at")) < datetime.now(timezone.utc):
+            await db.telegram_agent_links.update_one({"id": link["id"]}, {"$set": {"status": "expired", "updated_at": now}})
+            delivery = await send_telegram_message_with_token(
+                profile.get("telegram_bot_token"),
+                chat_id,
+                "Este vínculo expiró. Genera uno nuevo desde ROVI.",
+            )
+            return {"ok": True, "status": "expired", "delivery": delivery}
+
+        telegram_payload = {
+            "chat_id": chat_id,
+            "user_id": str(telegram_user.get("id") or ""),
+            "username": telegram_user.get("username"),
+            "first_name": telegram_user.get("first_name"),
+            "last_name": telegram_user.get("last_name"),
+            "linked_at": now,
+        }
+        await db.telegram_agent_links.update_one(
+            {"id": link["id"]},
+            {"$set": {"status": "active", "telegram": telegram_payload, "activated_at": now, "updated_at": now}},
+        )
+        delivery = await send_telegram_message_with_token(
+            profile.get("telegram_bot_token"),
+            chat_id,
+            f"{profile.get('name', 'Agente ROVI')} vinculado correctamente. Ya puedes escribirme para consultar ROVI.",
+        )
+        return {"ok": True, "status": "active", "delivery": delivery}
+
+    link = await db.telegram_agent_links.find_one(
+        {"profile_id": profile_id, "telegram.chat_id": chat_id, "status": "active"},
+        {"_id": 0},
+        sort=[("activated_at", -1)],
+    )
+    if not link:
+        delivery = await send_telegram_message_with_token(
+            profile.get("telegram_bot_token"),
+            chat_id,
+            "Este chat todavía no está vinculado a ROVI. Genera un link desde Configuración > Agentes Telegram.",
+        )
+        return {"ok": True, "status": "link_required", "delivery": delivery}
+
+    user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("is_active", True):
+        delivery = await send_telegram_message_with_token(
+            profile.get("telegram_bot_token"),
+            chat_id,
+            "La cuenta ROVI vinculada no está activa.",
+        )
+        return {"ok": True, "status": "inactive_user", "delivery": delivery}
+
+    runtime_user = {
+        "user_id": user["id"],
+        "tenant_id": link["tenant_id"],
+        "active_tenant_id": link["tenant_id"],
+        "role": user.get("role", "broker"),
+        "active_role": "admin" if link["role_scope"] == "agency_admin" else "broker",
+        "account_type": user.get("account_type", "individual"),
+        "email": user.get("email"),
+        "name": user.get("name"),
+    }
+    agent_message = (
+        f"Perfil Telegram activo: {profile.get('name')}\n"
+        f"Instrucciones del perfil: {profile.get('system_prompt')}\n\n"
+        f"Mensaje del usuario en Telegram: {text}"
+    )
+    result = await run_agent_turn(
+        db,
+        AgentRunRequest(message=agent_message, include_context=True, role_scope=link["role_scope"]),
+        runtime_user,
+        source="telegram",
+        forced_role_scope=link["role_scope"],
+    )
+    response_text = result.get("response") or result.get("content") or "Listo."
+    delivery = await send_telegram_message_with_token(profile.get("telegram_bot_token"), chat_id, response_text)
+    await db.telegram_agent_messages.insert_one({
+        "id": f"telegram-agent-message-{uuid.uuid4()}",
+        "profile_id": profile_id,
+        "link_id": link["id"],
+        "tenant_id": link["tenant_id"],
+        "user_id": link["user_id"],
+        "role_scope": link["role_scope"],
+        "chat_id": chat_id,
+        "telegram_user_id": str(telegram_user.get("id") or ""),
+        "message": text,
+        "response": response_text,
+        "delivery": delivery,
+        "agent_run_id": result.get("run_id"),
+        "created_at": now,
+    })
+    return {"ok": True, "status": "responded", "delivery": delivery}
 
 
 # ==================== COPIM MODULE ROUTES ====================
@@ -7140,7 +7588,9 @@ async def get_goals(current_user: dict = Depends(get_current_user)):
             "leads_contactados": 50,
             "tasa_conversion": 10,
             "apartados_mes": 10,
-            "periodo": "mensual"
+            "periodo": "mensual",
+            "utilidades_actuales_mensuales": 0,
+            "utilidades_meta_mensuales": 0
         }
     return serialize_doc(goal)
 
@@ -7347,6 +7797,282 @@ async def emit_import_realtime_events(
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     """Get dashboard statistics"""
     return await build_dashboard_stats_for_user(current_user)
+
+
+@api_router.get("/dashboard/agency-executive", response_model=dict)
+async def get_agency_executive_dashboard(current_user: dict = Depends(get_current_user)):
+    """Executive conversion, team, ROI and timeline dashboard for agency workspaces."""
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id") or await get_or_create_tenant(current_user["user_id"])
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    final_statuses = ["presentacion", "apartado", "venta"]
+    qualified_statuses = ["calificacion", "presentacion", "apartado", "venta"]
+
+    leads = await db.leads.find({"tenant_id": tenant_id}, {"_id": 0}).to_list(5000)
+    products = await db.products.find({"tenant_id": tenant_id, "is_active": True}, {"_id": 0}).to_list(1000)
+    brokers = await db.users.find(
+        {"tenant_id": tenant_id, "role": {"$in": ["broker", "manager"]}, "is_active": True},
+        {"_id": 0, "password_hash": 0},
+    ).to_list(200)
+
+    total_leads = len(leads)
+    qualified_leads = sum(1 for lead in leads if lead.get("status") in qualified_statuses)
+    opportunities = sum(1 for lead in leads if lead.get("status") in final_statuses)
+    closed_sales = [lead for lead in leads if lead.get("status") == "venta"]
+    expected_revenue = sum(float(lead.get("budget_mxn") or 0) for lead in leads if lead.get("status") in ["presentacion", "apartado"])
+    closed_revenue = sum(float(lead.get("budget_mxn") or 0) for lead in closed_sales)
+    conversion_rate = round((len(closed_sales) / total_leads * 100), 1) if total_leads else 0
+
+    velocity_days = []
+    for lead in closed_sales:
+        created_at = parse_iso_datetime(lead.get("created_at")) if isinstance(lead.get("created_at"), str) else lead.get("created_at")
+        updated_at = parse_iso_datetime(lead.get("updated_at")) if isinstance(lead.get("updated_at"), str) else lead.get("updated_at")
+        if created_at and updated_at:
+            velocity_days.append(max((updated_at - created_at).days, 0))
+    sales_velocity_days = round(sum(velocity_days) / len(velocity_days), 1) if velocity_days else 0
+
+    broker_ids = [broker["id"] for broker in brokers]
+    points_pipeline = [
+        {"$match": {"tenant_id": tenant_id, "broker_id": {"$in": broker_ids}}},
+        {"$group": {"_id": "$broker_id", "points": {"$sum": "$points"}}},
+    ]
+    points_rows = await db.point_ledger.aggregate(points_pipeline).to_list(None)
+    points_by_broker = {row["_id"]: row.get("points", 0) for row in points_rows}
+
+    team_performance = []
+    for broker in brokers:
+        broker_leads = [lead for lead in leads if lead.get("assigned_broker_id") == broker["id"]]
+        broker_sales = sum(1 for lead in broker_leads if lead.get("status") == "venta")
+        broker_apartados = sum(1 for lead in broker_leads if lead.get("status") == "apartado")
+        team_performance.append({
+            "broker_id": broker["id"],
+            "broker_name": broker.get("name", "Broker"),
+            "avatar_url": broker.get("avatar_url"),
+            "leads_assigned": len(broker_leads),
+            "conversion_rate": round((broker_sales / len(broker_leads) * 100), 1) if broker_leads else 0,
+            "ventas": broker_sales,
+            "apartados": broker_apartados,
+            "points": points_by_broker.get(broker["id"], 0),
+        })
+    team_performance.sort(key=lambda item: (item["points"], item["ventas"], item["apartados"]), reverse=True)
+
+    metric_start = month_start
+    marketing_rows = await db.campaign_metrics.find(
+        {"tenant_id": tenant_id, "date": {"$gte": metric_start, "$lte": now}},
+        {"_id": 0},
+    ).to_list(1000)
+    source_rollup: dict[str, dict] = {}
+    for metric in marketing_rows:
+        source = metric.get("source") or "Sin fuente"
+        source_rollup.setdefault(source, {"source": source, "spend": 0.0, "leads": 0, "conversions": 0, "revenue": 0.0})
+        source_rollup[source]["spend"] += float(metric.get("spend") or 0)
+        source_rollup[source]["leads"] += int(metric.get("leads") or 0)
+        source_rollup[source]["conversions"] += int(metric.get("conversions") or 0)
+
+    for lead in leads:
+        source = lead.get("source") or "Sin fuente"
+        source_rollup.setdefault(source, {"source": source, "spend": 0.0, "leads": 0, "conversions": 0, "revenue": 0.0})
+        if not marketing_rows:
+            source_rollup[source]["leads"] += 1
+        if lead.get("status") == "venta":
+            source_rollup[source]["conversions"] += 1
+            source_rollup[source]["revenue"] += float(lead.get("budget_mxn") or 0)
+
+    marketing_roi = []
+    for item in source_rollup.values():
+        leads_count = item["leads"]
+        conversions = item["conversions"]
+        spend = item["spend"]
+        revenue = item["revenue"]
+        marketing_roi.append({
+            **item,
+            "cpl": round(spend / leads_count, 2) if leads_count else 0,
+            "cpa": round(spend / conversions, 2) if conversions else 0,
+            "roi": round(((revenue - spend) / spend * 100), 1) if spend else 0,
+        })
+    marketing_roi.sort(key=lambda item: (item["roi"], item["conversions"], item["leads"]), reverse=True)
+
+    product_interest: dict[str, dict] = {}
+    product_by_id = {product["id"]: product for product in products}
+    for lead in leads:
+        interested_ids = lead.get("interested_product_ids") or []
+        if interested_ids:
+            for product_id in interested_ids:
+                product = product_by_id.get(product_id, {})
+                label = product.get("title") or lead.get("property_interest") or product_id
+                key = product_id
+                product_interest.setdefault(key, {
+                    "product_id": product_id,
+                    "title": label,
+                    "quoted_leads": 0,
+                    "ventas": 0,
+                    "estimated_revenue": 0.0,
+                    "commission_percentage": float(product.get("commission_percentage") or 0),
+                })
+                product_interest[key]["quoted_leads"] += 1
+                if lead.get("status") == "venta":
+                    product_interest[key]["ventas"] += 1
+                    product_interest[key]["estimated_revenue"] += float(product.get("price_mxn") or lead.get("budget_mxn") or 0)
+        elif lead.get("property_interest"):
+            key = lead.get("property_interest")
+            product_interest.setdefault(key, {
+                "product_id": None,
+                "title": key,
+                "quoted_leads": 0,
+                "ventas": 0,
+                "estimated_revenue": 0.0,
+                "commission_percentage": 0,
+            })
+            product_interest[key]["quoted_leads"] += 1
+            if lead.get("status") == "venta":
+                product_interest[key]["ventas"] += 1
+                product_interest[key]["estimated_revenue"] += float(lead.get("budget_mxn") or 0)
+    top_properties = sorted(product_interest.values(), key=lambda item: (item["quoted_leads"], item["ventas"]), reverse=True)[:8]
+
+    timeline: dict[str, dict] = {}
+    for lead in leads:
+        created_at = parse_iso_datetime(lead.get("created_at")) if isinstance(lead.get("created_at"), str) else lead.get("created_at")
+        if not created_at:
+            continue
+        week = created_at.strftime("%Y-%U")
+        timeline.setdefault(week, {"period": week, "leads": 0, "qualified": 0, "opportunities": 0, "ventas": 0})
+        timeline[week]["leads"] += 1
+        if lead.get("status") in qualified_statuses:
+            timeline[week]["qualified"] += 1
+        if lead.get("status") in final_statuses:
+            timeline[week]["opportunities"] += 1
+        if lead.get("status") == "venta":
+            timeline[week]["ventas"] += 1
+
+    return {
+        "overview": {
+            "total_prospects": total_leads,
+            "qualified_leads": qualified_leads,
+            "opportunities": opportunities,
+            "expected_revenue": round(expected_revenue, 2),
+            "closed_revenue": round(closed_revenue, 2),
+            "conversion_rate": conversion_rate,
+            "sales_velocity_days": sales_velocity_days,
+        },
+        "team_performance": team_performance[:20],
+        "marketing_roi": marketing_roi[:10],
+        "top_properties": top_properties,
+        "timeline": [timeline[key] for key in sorted(timeline.keys())][-12:],
+    }
+
+
+@api_router.get("/dashboard/broker-performance-overview", response_model=dict)
+async def get_broker_performance_overview(current_user: dict = Depends(get_current_user)):
+    """Broker-focused performance, goals, activity and pipeline overview."""
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id") or await get_or_create_tenant(current_user["user_id"])
+    user_id = current_user["user_id"]
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start_iso = month_start.isoformat()
+    contacted_statuses = ["contactado", "calificacion", "presentacion", "apartado", "venta", "perdido"]
+
+    lead_filter = {
+        "tenant_id": tenant_id,
+        "$or": [
+            {"assigned_broker_id": user_id},
+            {"created_by": user_id},
+            {"assigned_broker_id": {"$in": [None, ""]}},
+        ],
+    }
+    leads = await db.leads.find(lead_filter, {"_id": 0}).to_list(5000)
+    product_ids = sorted({
+        product_id
+        for lead in leads
+        for product_id in (lead.get("interested_product_ids") or [])
+        if product_id
+    })
+    products = await db.products.find(
+        {"tenant_id": tenant_id, "id": {"$in": product_ids}},
+        {"_id": 0},
+    ).to_list(1000) if product_ids else []
+    product_by_id = {product["id"]: product for product in products}
+
+    total_assigned = len(leads)
+    contacted = sum(1 for lead in leads if lead.get("status") in contacted_statuses or lead.get("last_contact"))
+    sales = [lead for lead in leads if lead.get("status") == "venta"]
+    monthly_sales = [
+        lead for lead in sales
+        if (parse_iso_datetime(lead.get("updated_at")) if isinstance(lead.get("updated_at"), str) else lead.get("updated_at") or now) >= month_start
+    ]
+    total_revenue = sum(float(lead.get("budget_mxn") or 0) for lead in monthly_sales)
+    conversion_rate = round((len(sales) / total_assigned * 100), 1) if total_assigned else 0
+
+    estimated_commission = 0.0
+    for lead in monthly_sales:
+        lead_budget = float(lead.get("budget_mxn") or 0)
+        commission_rate = 0.0
+        interested_ids = lead.get("interested_product_ids") or []
+        for product_id in interested_ids:
+            commission_rate = max(commission_rate, float(product_by_id.get(product_id, {}).get("commission_percentage") or 0))
+        estimated_commission += lead_budget * (commission_rate / 100)
+
+    funnel_order = ["nuevo", "contactado", "calificacion", "presentacion", "apartado", "venta"]
+    funnel = {status: sum(1 for lead in leads if lead.get("status") == status) for status in funnel_order}
+    points_result = await db.point_ledger.aggregate([
+        {"$match": {"tenant_id": tenant_id, "broker_id": user_id}},
+        {"$group": {"_id": None, "points": {"$sum": "$points"}}},
+    ]).to_list(1)
+    total_points = points_result[0]["points"] if points_result else 0
+
+    recent_activities = await db.activities.find(
+        {
+            "tenant_id": tenant_id,
+            "$or": [{"broker_id": user_id}, {"created_by": user_id}],
+        },
+        {"_id": 0},
+    ).sort("created_at", -1).limit(8).to_list(8)
+    lead_ids = [activity.get("lead_id") for activity in recent_activities if activity.get("lead_id")]
+    lead_map = {}
+    if lead_ids:
+        activity_leads = await db.leads.find(
+            {"tenant_id": tenant_id, "id": {"$in": lead_ids}},
+            {"_id": 0, "id": 1, "name": 1, "intent_score": 1, "priority": 1, "status": 1},
+        ).to_list(None)
+        lead_map = {lead["id"]: lead for lead in activity_leads}
+
+    feed = []
+    for activity in recent_activities:
+        lead = lead_map.get(activity.get("lead_id"), {})
+        intent_score = int(lead.get("intent_score") or 0)
+        feed.append({
+            "id": activity.get("id"),
+            "activity_type": activity.get("activity_type"),
+            "description": activity.get("outcome") or activity.get("description") or "Actividad registrada",
+            "lead_name": lead.get("name") or "Lead",
+            "lead_status": lead.get("status"),
+            "intent_level": "Alta" if intent_score >= 70 else "Media" if intent_score >= 40 else "Baja",
+            "intent_score": intent_score,
+            "points_earned": activity.get("points_earned", 0),
+            "created_at": activity.get("created_at"),
+        })
+
+    goal = await db.goals.find_one({"user_id": user_id}, {"_id": 0}) or {}
+    return {
+        "performance": {
+            "conversion_rate": conversion_rate,
+            "total_assigned_leads": total_assigned,
+            "contacted_leads": contacted,
+            "total_revenue": round(total_revenue, 2),
+            "estimated_commission": round(estimated_commission, 2),
+            "monthly_sales": len(monthly_sales),
+            "total_points": total_points,
+            "sales_goal": goal.get("ventas_mes", 5),
+            "revenue_goal": goal.get("ingresos_objetivo", 0),
+        },
+        "pipeline": funnel,
+        "activity_feed": feed,
+        "clickable_details": {
+            "points": "/dashboard/kpi-detail/puntos",
+            "apartados": "/dashboard/kpi-detail/apartados",
+            "ventas": "/dashboard/kpi-detail/ventas",
+        },
+    }
+
 
 @api_router.get("/dashboard/kpi-detail/{kpi_type}")
 async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current_user)):
@@ -9043,6 +9769,53 @@ async def validate_custom_field_uniqueness(tenant_id: str, entity_type: str, key
     if existing:
         raise HTTPException(status_code=400, detail="Ya existe un campo personalizado con esa llave")
 
+
+async def resolve_product_tenant_id(current_user: dict) -> str:
+    return (
+        current_user.get("active_tenant_id")
+        or current_user.get("tenant_id")
+        or await get_or_create_tenant(current_user["user_id"])
+    )
+
+
+async def resolve_product_responsible_broker(
+    tenant_id: str,
+    current_user: dict,
+    responsible_broker_id: Optional[str],
+) -> dict:
+    if not responsible_broker_id:
+        return {
+            "responsible_broker_id": None,
+            "responsible_broker_name": None,
+            "responsible_broker_email": None,
+        }
+
+    broker = await db.users.find_one({"id": responsible_broker_id, "is_active": True}, {"_id": 0, "password_hash": 0})
+    if not broker:
+        raise HTTPException(status_code=400, detail="Responsable no encontrado o inactivo")
+
+    membership = await db.tenant_memberships.find_one(
+        {
+            "tenant_id": tenant_id,
+            "user_id": responsible_broker_id,
+            "status": "active",
+        },
+        {"_id": 0},
+    )
+    is_owner_in_workspace = broker.get("tenant_id") == tenant_id
+    if not membership and not is_owner_in_workspace:
+        raise HTTPException(status_code=400, detail="El responsable debe pertenecer al workspace activo")
+
+    current_role = current_user.get("active_role") or current_user.get("role", "broker")
+    if (current_user.get("account_type") == "individual" or current_role == "broker") and responsible_broker_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Un broker solo puede asignarse propiedades a sí mismo")
+
+    return {
+        "responsible_broker_id": broker["id"],
+        "responsible_broker_name": broker.get("name") or broker.get("email"),
+        "responsible_broker_email": broker.get("email"),
+    }
+
 @api_router.get("/products")
 async def get_products(
     is_active: Optional[bool] = None,
@@ -9056,7 +9829,7 @@ async def get_products(
     current_user: dict = Depends(get_current_user)
 ):
     """Obtiene todos los productos/servicios del tenant"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     query = build_product_query(
         tenant_id=tenant_id,
         is_active=is_active,
@@ -9079,13 +9852,19 @@ async def create_product(
     current_user: dict = Depends(get_current_user)
 ):
     """Crea un nuevo producto/servicio"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     product_id = str(uuid.uuid4())
+    responsible_payload = await resolve_product_responsible_broker(
+        tenant_id,
+        current_user,
+        product_data.responsible_broker_id,
+    )
     product_doc = {
         "id": product_id,
         "tenant_id": tenant_id,
         "created_by": current_user["user_id"],
         **product_data.model_dump(),
+        **responsible_payload,
         "images": normalize_product_images(product_data.images),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
@@ -9101,7 +9880,7 @@ async def get_product(
     current_user: dict = Depends(get_current_user)
 ):
     """Obtiene un producto por ID"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     product = await db.products.find_one({
         "id": product_id,
         "tenant_id": tenant_id
@@ -9156,7 +9935,7 @@ async def get_lead_product_interests_for_product(
     current_user: dict = Depends(get_current_user)
 ):
     """Obtiene leads vinculados a un producto/servicio"""
-    product_tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product_tenant_id = await resolve_product_tenant_id(current_user)
     product = await db.products.find_one({"id": product_id, "tenant_id": product_tenant_id}, {"_id": 0, "id": 1})
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
@@ -9190,7 +9969,7 @@ async def create_lead_product_interest(
 ):
     """Crea o actualiza un vínculo entre lead y producto"""
     lead_tenant_id = current_user["tenant_id"]
-    product_tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product_tenant_id = await resolve_product_tenant_id(current_user)
 
     lead = await db.leads.find_one({"id": interest_data.lead_id, "tenant_id": lead_tenant_id}, {"_id": 0})
     if not lead:
@@ -9311,8 +10090,14 @@ async def update_product(
     current_user: dict = Depends(get_current_user)
 ):
     """Actualiza un producto/servicio"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+    if "responsible_broker_id" in update_data.model_fields_set:
+        update_dict.update(await resolve_product_responsible_broker(
+            tenant_id,
+            current_user,
+            update_data.responsible_broker_id,
+        ))
     if "images" in update_dict:
         update_dict["images"] = normalize_product_images(update_dict["images"])
     update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -9334,7 +10119,7 @@ async def delete_product(
     current_user: dict = Depends(get_current_user)
 ):
     """Elimina un producto/servicio"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     result = await db.products.delete_one({
         "id": product_id,
         "tenant_id": tenant_id
@@ -12674,9 +13459,10 @@ PRODUCT_IMPORT_FIELDS = {
     "sku": {"label": "SKU", "required": True, "type": "string"},
     "title": {"label": "Título", "required": True, "type": "string"},
     "description": {"label": "Descripción", "required": False, "type": "text"},
-    "product_type": {"label": "Tipo de Producto", "required": True, "type": "select", "options": ["real_estate", "software", "digital", "service"]},
+    "product_type": {"label": "Tipo de Propiedad", "required": True, "type": "select", "options": ["real_estate", "software", "digital", "service"]},
     "niche": {"label": "Nicho", "required": False, "type": "string"},
     "price_mxn": {"label": "Precio (MXN)", "required": False, "type": "number"},
+    "commission_percentage": {"label": "Comisión agente (%)", "required": False, "type": "number"},
     "image_urls": {"label": "Image URLs", "required": False, "type": "list"},
     "aliases": {"label": "Alias", "required": False, "type": "list"},
     "keywords": {"label": "Keywords", "required": False, "type": "list"},
@@ -12687,8 +13473,8 @@ PRODUCT_IMPORT_FIELDS = {
 COMBINED_LEAD_FIELDS = {
     **LEAD_FIELDS,
     "raw_interest_text": {"label": "Interés Texto", "required": False, "type": "string"},
-    "product_sku": {"label": "Producto SKU", "required": False, "type": "string"},
-    "product_title": {"label": "Producto Título", "required": False, "type": "string"},
+    "product_sku": {"label": "Propiedad SKU", "required": False, "type": "string"},
+    "product_title": {"label": "Propiedad Título", "required": False, "type": "string"},
 }
 
 LEAD_FIELD_ALIASES = {
@@ -12713,6 +13499,7 @@ PRODUCT_FIELD_ALIASES = {
     "product_type": ["tipoproducto", "tipo producto", "tipo", "product type"],
     "niche": ["nicho", "segmento", "category"],
     "price_mxn": ["preciomxn", "precio", "price", "monto", "costo"],
+    "commission_percentage": ["comision", "comisión", "commission", "commission percentage", "porcentaje comision", "porcentaje comisión", "% comision", "% comisión"],
     "image_urls": ["imageurls", "image urls", "imagenes", "imágenes", "imagenes urls", "image urls |"],
     "aliases": ["alias", "aliases", "sinonimos", "sinónimos"],
     "keywords": ["keywords", "palabras clave", "tags"],
@@ -12867,12 +13654,12 @@ def parse_combined_workbook(content: bytes) -> Dict[str, Any]:
     workbook = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     sheet_lookup = {normalize_header_name(name): sheet for name, sheet in ((sheet.title, sheet) for sheet in workbook.worksheets)}
 
-    products_sheet = sheet_lookup.get("productos") or sheet_lookup.get("products")
+    products_sheet = sheet_lookup.get("propiedades") or sheet_lookup.get("properties") or sheet_lookup.get("productos") or sheet_lookup.get("products")
     leads_sheet = sheet_lookup.get("leads") or sheet_lookup.get("prospectos")
 
     if not products_sheet or not leads_sheet:
         workbook.close()
-        raise HTTPException(status_code=400, detail="El archivo combinado debe incluir hojas llamadas Productos y Leads")
+        raise HTTPException(status_code=400, detail="El archivo combinado debe incluir hojas llamadas Propiedades y Leads")
 
     def extract_rows(sheet):
         headers: List[str] = []
@@ -13077,7 +13864,7 @@ def link_product_for_lead(lead_data: Dict[str, Any], product_index: Dict[str, Di
         return product_index["alias"][interest_text], "interest_alias", None
 
     if sku_ref or title_ref or interest_text:
-        return None, "unmatched", "No se encontró un producto relacionado automáticamente"
+        return None, "unmatched", "No se encontró una propiedad relacionada automáticamente"
 
     return None, None, None
 
@@ -13221,7 +14008,7 @@ async def upload_product_import_file(
     current_user: dict = Depends(get_current_user)
 ):
     """Upload product import file and return headers for mapping"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     filename = file.filename.lower()
 
     if not (filename.endswith(".csv") or filename.endswith(".xlsx") or filename.endswith(".xls")):
@@ -13272,7 +14059,7 @@ async def upload_combined_import_file(
     current_user: dict = Depends(get_current_user)
 ):
     """Upload combined workbook and extract Leads + Products sheets"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     filename = file.filename.lower()
 
     if not (filename.endswith(".xlsx") or filename.endswith(".xls")):
@@ -13581,9 +14368,12 @@ async def preview_product_import(
     current_user: dict = Depends(get_current_user)
 ):
     """Preview product import with mapping"""
+    tenant_id = await resolve_product_tenant_id(current_user)
     job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
     if not job:
         raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    if job.get("tenant_id") != tenant_id:
+        raise HTTPException(status_code=403, detail="El job de importación no pertenece al workspace activo")
 
     import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
     if not import_data:
@@ -13593,12 +14383,12 @@ async def preview_product_import(
     mapping = {m.source_column: m.target_field for m in request.mapping}
     product_fields_config = {
         **PRODUCT_IMPORT_FIELDS,
-        **(await get_custom_field_import_config(job["tenant_id"], "products")),
+        **(await get_custom_field_import_config(tenant_id, "products")),
     }
     preview_rows = []
     errors = []
 
-    existing_products = await db.products.find({"tenant_id": job["tenant_id"]}, {"_id": 0, "sku": 1, "title": 1}).to_list(None)
+    existing_products = await db.products.find({"tenant_id": tenant_id}, {"_id": 0, "sku": 1, "title": 1}).to_list(None)
     existing_skus = {str(p.get("sku", "")).strip().lower() for p in existing_products if p.get("sku")}
     existing_titles = {str(p.get("title", "")).strip().lower() for p in existing_products if p.get("title")}
 
@@ -13609,7 +14399,7 @@ async def preview_product_import(
 
         duplicate = bool((sku_value and sku_value in existing_skus) or (not sku_value and title_value and title_value in existing_titles))
         if duplicate:
-            row_errors.append("Ya existe un producto con el mismo SKU o título")
+            row_errors.append("Ya existe una propiedad con el mismo SKU o título")
 
         preview_rows.append({
             "row_number": i + 1,
@@ -13624,7 +14414,7 @@ async def preview_product_import(
     duplicate_values = [
         row["data"].get("sku") or row["data"].get("title")
         for row in preview_rows
-        if any("Ya existe un producto" in err for err in row["errors"])
+        if any("Ya existe una propiedad" in err for err in row["errors"])
     ]
 
     return {
@@ -13644,10 +14434,12 @@ async def execute_product_import(
     current_user: dict = Depends(get_current_user)
 ):
     """Execute product import"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    tenant_id = await resolve_product_tenant_id(current_user)
     job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
     if not job:
         raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    if job.get("tenant_id") != tenant_id:
+        raise HTTPException(status_code=403, detail="El job de importación no pertenece al workspace activo")
 
     import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
     if not import_data:
@@ -13699,6 +14491,7 @@ async def execute_product_import(
             product_type=transformed.get("product_type") or "service",
             niche=str(transformed.get("niche", "") or "").strip(),
             price_mxn=transformed.get("price_mxn") or 0.0,
+            commission_percentage=transformed.get("commission_percentage") or 0.0,
             features=[],
             images=build_media_assets_from_urls(
                 transformed.get("image_urls") or [],
@@ -13752,7 +14545,7 @@ async def execute_product_import(
         "error_count": len(errors_list),
         "errors_list": errors_list[:10],
         "error_details": errors_list[:10],
-        "message": f"Importación de productos completada: {imported} importados, {skipped} omitidos, {len(errors_list)} errores",
+        "message": f"Importación de propiedades completada: {imported} importadas, {skipped} omitidas, {len(errors_list)} errores",
     }
     await emit_import_realtime_events(current_user, request.job_id, result, metrics_on_import=False)
     return result
@@ -13764,9 +14557,12 @@ async def preview_combined_import(
     current_user: dict = Depends(get_current_user)
 ):
     """Preview combined Leads + Products import"""
+    product_tenant_id = await resolve_product_tenant_id(current_user)
     job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
     if not job:
         raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    if job.get("tenant_id") != product_tenant_id:
+        raise HTTPException(status_code=403, detail="El job de importación no pertenece al workspace activo")
 
     import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
     if not import_data:
@@ -13778,11 +14574,11 @@ async def preview_combined_import(
     lead_rows = import_data.get("leads_rows", [])
     product_fields_config = {
         **PRODUCT_IMPORT_FIELDS,
-        **(await get_custom_field_import_config(job["tenant_id"], "products")),
+        **(await get_custom_field_import_config(product_tenant_id, "products")),
     }
     lead_fields_config = {
         **COMBINED_LEAD_FIELDS,
-        **(await get_custom_field_import_config(job["tenant_id"], "leads")),
+        **(await get_custom_field_import_config(product_tenant_id, "leads")),
     }
 
     product_preview_rows = []
@@ -13791,8 +14587,8 @@ async def preview_combined_import(
     seen_preview_skus = set()
     seen_preview_titles = set()
 
-    existing_products = await db.products.find({"tenant_id": job["tenant_id"]}, {"_id": 0}).to_list(None)
-    existing_index = await build_product_match_index(job["tenant_id"])
+    existing_products = await db.products.find({"tenant_id": product_tenant_id}, {"_id": 0}).to_list(None)
+    existing_index = await build_product_match_index(product_tenant_id)
 
     for i, row in enumerate(product_rows[:10]):
         transformed, row_errors = transform_row(row, product_mapping, product_fields_config)
@@ -13828,7 +14624,7 @@ async def preview_combined_import(
             if title_value:
                 seen_preview_titles.add(title_value)
 
-    product_index = await build_product_match_index(job["tenant_id"], future_products)
+    product_index = await build_product_match_index(product_tenant_id, future_products)
     lead_preview_rows = []
     lead_errors = []
     link_matches = 0
@@ -13887,11 +14683,13 @@ async def execute_combined_import(
     current_user: dict = Depends(get_current_user)
 ):
     """Execute combined Leads + Products import"""
-    product_tenant_id = await get_or_create_tenant(current_user["user_id"])
+    product_tenant_id = await resolve_product_tenant_id(current_user)
     lead_tenant_id = current_user["tenant_id"]
     job = await db.import_jobs.find_one({"id": request.job_id, "user_id": current_user["user_id"]}, {"_id": 0})
     if not job:
         raise HTTPException(status_code=404, detail="Job de importación no encontrado")
+    if job.get("tenant_id") != product_tenant_id:
+        raise HTTPException(status_code=403, detail="El job de importación no pertenece al workspace activo")
 
     import_data = await db.import_data.find_one({"job_id": request.job_id}, {"_id": 0})
     if not import_data:
@@ -13954,6 +14752,7 @@ async def execute_combined_import(
             product_type=transformed.get("product_type") or "service",
             niche=str(transformed.get("niche", "") or "").strip(),
             price_mxn=transformed.get("price_mxn") or 0.0,
+            commission_percentage=transformed.get("commission_percentage") or 0.0,
             features=[],
             images=build_media_assets_from_urls(
                 transformed.get("image_urls") or [],
@@ -14101,7 +14900,7 @@ async def execute_combined_import(
         "links_created": links_created,
         "link_warnings": warnings_count,
         "errors": errors_list,
-        "message": f"Importación combinada completada: {product_imported} productos, {lead_imported} leads, {links_created} vinculaciones",
+        "message": f"Importación combinada completada: {product_imported} propiedades, {lead_imported} leads, {links_created} vinculaciones",
     }
     await emit_import_realtime_events(
         current_user,
@@ -14482,14 +15281,11 @@ async def seed_automation_templates(current_user: dict = Depends(get_current_use
     """Seed predefined automation workflow templates"""
     tenant_id = await get_or_create_tenant(current_user["user_id"])
 
-    # Check if templates already exist
-    existing = await db.automation_workflows.count_documents({
-        "tenant_id": tenant_id,
-        "is_template": True
-    })
-
-    if existing > 0:
-        return {"message": f"Ya existen {existing} plantillas", "created": 0}
+    existing_templates = await db.automation_workflows.find(
+        {"tenant_id": tenant_id, "is_template": True},
+        {"_id": 0, "name": 1}
+    ).to_list(None)
+    existing_template_names = {template.get("name") for template in existing_templates}
 
     templates = [
         {
@@ -14597,16 +15393,107 @@ async def seed_automation_templates(current_user: dict = Depends(get_current_use
             "created_by": current_user["user_id"],
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Speed to Lead - Alta Conversión",
+            "description": "Flujo agresivo para contactar al lead en los primeros 10 minutos con webhook, WhatsApp, llamada Vapi y email de respaldo.",
+            "category": "lead_generation",
+            "n8n_workflow_id": "speed-to-lead-high-conversion-template",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "target_window_minutes", "type": "number", "label": "Ventana objetivo de contacto (min)", "default": 10},
+                    {"name": "webhook_step", "type": "textarea", "label": "Minuto 0 - Webhook y análisis IA", "default": "Entrada del lead -> Inyección al CRM -> Análisis del perfil del lead vía IA para categorizar sector, intención o tamaño si el formulario lo pide."},
+                    {"name": "whatsapp_delay_minutes", "type": "number", "label": "Minuto WhatsApp de impacto", "default": 1},
+                    {"name": "whatsapp_copy", "type": "textarea", "label": "Copy WhatsApp con botones", "default": "Hola [Nombre], vi que solicitaste acceso a la demo. ¿Prefieres que te agende una sesión de 10 min por aquí o prefieres una llamada rápida ahora? Botones: [Agendar por Chat] / [Llamada Ahora]."},
+                    {"name": "vapi_delay_minutes", "type": "number", "label": "Minuto llamada Vapi condicional", "default": 3},
+                    {"name": "vapi_condition", "type": "textarea", "label": "Condición para disparar Vapi", "default": "Si el usuario da clic en [Llamada Ahora] o no responde al WhatsApp en 3 minutos, disparar llamada saliente con Vapi."},
+                    {"name": "vapi_prompt", "type": "textarea", "label": "Prompt base Vapi", "default": "Hola [Nombre], soy el asistente de IA de [Empresa], vi tu clic en WhatsApp y soy más rápido que mis compañeros humanos. Tengo tu acceso listo, ¿te queda mejor revisar los detalles mañana en la mañana o en la tarde?"},
+                    {"name": "email_delay_minutes", "type": "number", "label": "Minuto email de respaldo", "default": 10},
+                    {"name": "email_subject", "type": "text", "label": "Asunto email", "default": "Te busqué por tu acceso"},
+                    {"name": "email_copy", "type": "textarea", "label": "Copy email texto plano", "default": "Te acabo de buscar por cel y WhatsApp para tu acceso. Te dejo mi agenda abierta aquí por si prefieres elegir tú la hora: [Link]."}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Flujo Consultivo - Calificación IA",
+            "description": "Flujo consultivo para B2B high-ticket: enriquece el lead, califica con IA por WhatsApp, llama con Vapi solo si hay fit y manda caso de éxito por sector.",
+            "category": "sales",
+            "n8n_workflow_id": "consultative-ai-qualification-template",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "qualification_goal", "type": "textarea", "label": "Objetivo del flujo", "default": "No agendar a cualquiera. Usar IA como filtro estricto para cuidar el tiempo del equipo comercial."},
+                    {"name": "enrichment_step", "type": "textarea", "label": "Minuto 0 - Webhook y enriquecimiento", "default": "El lead se registra. Un nodo de IA busca el dominio de la empresa del lead, si lo dejó, para calificar tamaño, sector y facturación estimada antes de iniciar contacto."},
+                    {"name": "whatsapp_delay_minutes", "type": "number", "label": "Minuto WhatsApp conversacional", "default": 2},
+                    {"name": "first_qualification_question", "type": "textarea", "label": "Primera pregunta WhatsApp", "default": "Hola [Nombre], para enviarte la propuesta exacta, ¿me podrías contar brevemente en qué sector opera tu negocio actualmente?"},
+                    {"name": "second_qualification_question", "type": "textarea", "label": "Segunda pregunta IA", "default": "Gracias. Para validar si tiene sentido una sesión, ¿cuál es el principal problema que quieres resolver y qué presupuesto mensual aproximado tienes considerado?"},
+                    {"name": "minimum_answers_required", "type": "number", "label": "Respuestas mínimas antes de liberar agenda", "default": 2},
+                    {"name": "vapi_delay_minutes", "type": "number", "label": "Minuto llamada Vapi conserje", "default": 15},
+                    {"name": "vapi_condition", "type": "textarea", "label": "Condición para llamada Vapi", "default": "Solo llamar si el lead calificó positivo en WhatsApp pero no terminó de agendar en Calendly."},
+                    {"name": "vapi_prompt", "type": "textarea", "label": "Prompt base Vapi", "default": "Hola [Nombre], estaba viendo tus respuestas en WhatsApp con nuestra IA y el Director me pidió que te separara un espacio prioritario con él. ¿Te queda bien que agendemos de una vez para este jueves?"},
+                    {"name": "email_delay_minutes", "type": "number", "label": "Minuto email caso de éxito", "default": 30},
+                    {"name": "email_copy", "type": "textarea", "label": "Email con caso de éxito customizado", "default": "Enviar un caso de estudio automatizado basado en el sector mencionado por el cliente en WhatsApp, con CTA a agenda prioritaria."}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "name": "Flujo Infiltrado - Modo Sigilo",
+            "description": "Flujo con simulación humana para audiencias premium o escépticas: delay deliberado, WhatsApp natural, Vapi ultra natural y email sin branding.",
+            "category": "lead_generation",
+            "n8n_workflow_id": "stealth-human-simulation-template",
+            "is_active": False,
+            "is_template": True,
+            "config_schema": {
+                "variables": [
+                    {"name": "initial_delay_min_minutes", "type": "number", "label": "Delay humano mínimo (min)", "default": 4},
+                    {"name": "initial_delay_max_minutes", "type": "number", "label": "Delay humano máximo (min)", "default": 7},
+                    {"name": "typing_seconds", "type": "number", "label": "Simulación escribiendo (seg)", "default": 4},
+                    {"name": "whatsapp_delay_minutes", "type": "number", "label": "Minuto WhatsApp sigilo", "default": 5},
+                    {"name": "whatsapp_copy", "type": "textarea", "label": "Copy WhatsApp manual", "default": "Hola [Nombre] buenas tardes. Disculpa la demora, vi que nos dejaste tus datos en el anuncio de Google. Sigo en la oficina, ¿estás disponible para que te marque en un par de minutos o andas ocupado?"},
+                    {"name": "vapi_delay_minutes", "type": "number", "label": "Minuto llamada Vapi natural", "default": 12},
+                    {"name": "vapi_condition", "type": "textarea", "label": "Condición de llamada", "default": "Llamar si el lead responde que sí, o si no responde después de 10 minutos."},
+                    {"name": "vapi_prompt", "type": "textarea", "label": "Prompt Vapi ultra natural", "default": "Usar muletillas humanas, pausas para respirar y tono casual. Ejemplo: Hola... ¿[Nombre]? Qué tal, hablo de rápido porque vi tu mensaje... mira, te cuento..."},
+                    {"name": "email_delay_minutes", "type": "number", "label": "Minuto email personal", "default": 20},
+                    {"name": "email_subject", "type": "text", "label": "Asunto email", "default": "pregunta rápida sobre tu registro"},
+                    {"name": "email_copy", "type": "textarea", "label": "Copy email sin branding", "default": "Oye, te escribí por WhatsApp hace un momento. Avísame si prefieres que coordinemos por este medio o si te viene mejor una llamada breve. Saludos."}
+                ]
+            },
+            "config_values": {},
+            "created_by": current_user["user_id"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
     ]
 
-    for template in templates:
-        await db.automation_workflows.insert_one(template)
+    templates_to_insert = [
+        template for template in templates
+        if template["name"] not in existing_template_names
+    ]
+
+    if templates_to_insert:
+        await db.automation_workflows.insert_many(templates_to_insert)
 
     return {
         "message": "Plantillas de automatización creadas",
-        "created": len(templates),
-        "templates": [{"id": t["id"], "name": t["name"], "category": t["category"]} for t in templates]
+        "created": len(templates_to_insert),
+        "templates": [{"id": t["id"], "name": t["name"], "category": t["category"]} for t in templates_to_insert]
     }
 
 

@@ -1,0 +1,633 @@
+<!DOCTYPE html><html class="dark" lang="es"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Rovi CRM | Dashboard Luxury</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    body {
+      background-color: #0b1326;
+      background-image: 
+        radial-gradient(circle at 0% 0%, rgba(0, 217, 255, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 100% 100%, rgba(179, 197, 255, 0.03) 0%, transparent 50%);
+      color: #dae2fd;
+      overflow-x: hidden;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    .glass-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(0, 217, 255, 0.3);
+      box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
+    }
+    .neon-border-cyan {
+      border: 1px solid rgba(0, 217, 255, 0.4);
+      box-shadow: 0 0 10px rgba(0, 217, 255, 0.2);
+    }
+    .velocity-gradient {
+      background: linear-gradient(135deg, #00d9ff 0%, #0266ff 100%);
+    }
+    .neural-border {
+      position: relative;
+    }
+    .neural-border::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      padding: 1px;
+      border-radius: inherit;
+      background: linear-gradient(to right, #00d9ff, #ddb7ff);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0.3;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "error": "#ffb4ab",
+            "on-surface": "#dae2fd",
+            "on-secondary": "#002b75",
+            "secondary-fixed-dim": "#b3c5ff",
+            "secondary": "#b3c5ff",
+            "on-background": "#dae2fd",
+            "inverse-surface": "#dae2fd",
+            "on-primary-container": "#005b6c",
+            "on-error": "#690005",
+            "on-primary": "#003641",
+            "tertiary-fixed-dim": "#ddb7ff",
+            "on-tertiary-fixed": "#2c0051",
+            "on-error-container": "#ffdad6",
+            "surface-container-highest": "#2d3449",
+            "surface": "#0b1326",
+            "on-secondary-fixed-variant": "#003fa4",
+            "error-container": "#93000a",
+            "surface-dim": "#0b1326",
+            "background": "#0b1326",
+            "inverse-primary": "#00687b",
+            "on-tertiary-container": "#7716c5",
+            "on-primary-fixed-variant": "#004e5d",
+            "on-primary-fixed": "#001f26",
+            "surface-bright": "#31394d",
+            "on-surface-variant": "#bbc9ce",
+            "tertiary": "#f0dbff",
+            "secondary-fixed": "#dae1ff",
+            "surface-container-lowest": "#060e20",
+            "primary": "#afecff",
+            "surface-tint": "#00d9ff",
+            "surface-container-low": "#131b2e",
+            "primary-fixed": "#aeecff",
+            "primary-container": "#00d9ff",
+            "inverse-on-surface": "#283044",
+            "on-tertiary": "#490080",
+            "on-secondary-fixed": "#001849",
+            "on-tertiary-fixed-variant": "#6900b3",
+            "tertiary-container": "#ddb8ff",
+            "tertiary-fixed": "#f0dbff",
+            "secondary-container": "#0266ff",
+            "surface-variant": "#2d3449",
+            "on-secondary-container": "#f9f7ff",
+            "outline": "#859398",
+            "primary-fixed-dim": "#00d9ff",
+            "outline-variant": "#3c494d",
+            "surface-container": "#171f33",
+            "surface-container-high": "#222a3d"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "3xl": "1.5rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "sm": "12px",
+            "xl": "80px",
+            "base": "8px",
+            "lg": "48px",
+            "margin-desktop": "48px",
+            "xs": "4px",
+            "md": "24px",
+            "margin-mobile": "16px",
+            "gutter": "24px"
+          },
+          "fontFamily": {
+            "display-lg": ["Outfit"],
+            "headline-lg": ["Outfit"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"],
+            "label-md": ["Plus Jakarta Sans"],
+            "headline-md": ["Outfit"],
+            "caption": ["Plus Jakarta Sans"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+      .glass-card {
+        position: relative;
+      }
+      .glass-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(400px circle at var(--mouse-x) var(--mouse-y), rgba(0, 217, 255, 0.05), transparent 40%);
+        border-radius: inherit;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+      }
+      .glass-card:hover::before {
+        opacity: 1;
+      }
+    </style><style>
+      .glass-card {
+        position: relative;
+      }
+      .glass-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(400px circle at var(--mouse-x) var(--mouse-y), rgba(0, 217, 255, 0.05), transparent 40%);
+        border-radius: inherit;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+      }
+      .glass-card:hover::before {
+        opacity: 1;
+      }
+    </style><style>
+      .glass-card {
+        position: relative;
+      }
+      .glass-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(400px circle at var(--mouse-x) var(--mouse-y), rgba(0, 217, 255, 0.05), transparent 40%);
+        border-radius: inherit;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+      }
+      .glass-card:hover::before {
+        opacity: 1;
+      }
+    </style></head>
+<body class="font-body-md text-on-surface antialiased">
+<!-- Side Navigation Shell -->
+<aside class="fixed left-0 top-0 h-screen overflow-y-auto flex flex-col bg-surface-container-low dark:bg-surface-container-lowest backdrop-blur-2xl docked left-0 h-full w-64 border-r border-white/10 shadow-xl z-50">
+<div class="px-6 py-8">
+<div class="flex items-center gap-3 mb-10">
+<div class="w-10 h-10 velocity-gradient rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-on-primary" style="font-variation-settings: 'FILL' 1;">fluid_med</span>
+</div>
+<div>
+<h1 class="font-display-lg text-headline-md font-bold text-on-surface leading-tight">Rovi</h1>
+<p class="text-xs uppercase tracking-widest text-primary font-bold">Broker</p>
+</div>
+</div>
+<nav class="space-y-1">
+<!-- Active Tab -->
+<a class="bg-secondary-container text-on-secondary-container rounded-lg mx-2 my-1 shadow-[0_0_15px_rgba(0,217,255,0.3)] transition-all duration-300 flex items-center gap-3 px-4 py-3 scale-[1.02]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-body-md text-body-md font-medium">Dashboard</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-3 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-body-md text-body-md font-medium">Pipeline</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-3 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">upload_file</span>
+<span class="font-body-md text-body-md font-medium">Importador</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-3 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="font-body-md text-body-md font-medium">Encuentra Leads</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-3 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-body-md text-body-md font-medium">Productos</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-3 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-md text-body-md font-medium">Analiticas</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-3 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">bolt</span>
+<span class="font-body-md text-body-md font-medium">Automatizaciones</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-6 border-t border-white/5">
+<div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 mb-4">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-primary/30">
+<img alt="Broker Avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a luxury real estate broker with a confident smile, set against a blurred high-end penthouse background with warm sunset lighting. The image has a clean, high-contrast look that fits a premium CRM interface, with subtle cool-toned color grading." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCG3qHZTfJ-aBK6YpBUc-MRC9VDsxODvRpwnZq1zM3AuRXywzpj1NdSfxAYbYfoylOD-0nqKFTUgOpkn2c6yXQ4DbB-EeGMFNTBYsY9w_Bj6upbBRLRMQ9B4aNvtR6eESYOanpcMGUJnNOjJ41bnDg7rCok9XxdFr14lILxj9VuH5dNetArX85nVV4vvtnH7ROHly_-As8qOpCHOegtbPai-645MXyvawygfZirboAxrGOmriGx6_eIQarAAsNl9954jSsjjZGACyPN">
+</div>
+<div>
+<p class="font-label-md text-on-surface truncate">Preview Broker</p>
+<p class="text-[10px] text-primary uppercase font-bold">Pro Account</p>
+</div>
+</div>
+<div class="flex justify-between items-center px-2">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">dark_mode</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors">logout</button>
+</div>
+</div>
+</aside>
+<!-- Top Bar Shell -->
+<header class="fixed top-0 right-0 h-20 bg-transparent flex justify-between items-center px-lg py-sm w-full max-w-[calc(100%-256px)] ml-64 z-40">
+<div class="flex-1 max-w-md">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-md" placeholder="Buscar propiedades o contactos..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<button class="px-6 py-2 rounded-full border border-white/10 text-on-surface-variant font-label-md hover:bg-white/5 transition-all backdrop-blur-md flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">calendar_month</span>
+          Ultimos 30 dias
+        </button>
+<button class="px-6 py-2 rounded-full velocity-gradient text-on-primary font-label-md shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+          Exportar Reporte
+        </button>
+</div>
+<div class="flex items-center gap-3 border-l border-white/10 pl-6">
+<button class="relative material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors">
+          notifications
+          <span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full border-2 border-background"></span>
+</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors">help_outline</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 px-lg pb-lg">
+<!-- Hero Header -->
+<section class="mb-lg">
+<h2 class="font-display-lg text-display-lg text-on-surface mb-2">Dashboard</h2>
+<p class="text-on-surface-variant font-body-md">Resumen de rendimiento estratégico • <span class="text-primary font-medium">Riviera Maya Region</span></p>
+</section>
+<!-- Summary Cards (Bento Grid Style) -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-lg">
+<!-- Puntos del Mes -->
+<div class="glass-card rounded-3xl p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 velocity-gradient opacity-10 rounded-bl-full -mr-8 -mt-8 blur-2xl"></div>
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+</div>
+<span class="text-xs font-bold text-primary px-3 py-1 bg-primary/10 rounded-full border border-primary/20">Meta: 350</span>
+</div>
+<h3 class="text-on-surface-variant font-label-md mb-1 uppercase tracking-wider">Puntos del Mes</h3>
+<div class="flex items-baseline gap-2 mb-4">
+<span class="font-display-lg text-display-lg text-on-surface">142</span>
+<span class="text-on-surface-variant font-body-md">/ 350 pts</span>
+</div>
+<div class="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/10">
+<div class="velocity-gradient h-full w-[40.5%] rounded-full shadow-[0_0_10px_rgba(0,217,255,0.5)]"></div>
+</div>
+<p class="text-xs text-on-surface-variant mt-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-primary text-xs">trending_up</span>
+          40.5% completado
+        </p>
+</div>
+<!-- Apartados -->
+<div class="glass-card rounded-3xl p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-tertiary/10 rounded-bl-full -mr-8 -mt-8 blur-2xl"></div>
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-tertiary/10 rounded-2xl flex items-center justify-center text-tertiary border border-tertiary/20">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bookmark</span>
+</div>
+<span class="text-xs font-bold text-tertiary px-3 py-1 bg-tertiary/10 rounded-full border border-tertiary/20">Meta: 10</span>
+</div>
+<h3 class="text-on-surface-variant font-label-md mb-1 uppercase tracking-wider">Apartados</h3>
+<div class="flex items-baseline gap-2 mb-4">
+<span class="font-display-lg text-display-lg text-on-surface">6</span>
+<span class="text-on-surface-variant font-body-md">unidades</span>
+</div>
+<div class="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/10">
+<div class="bg-tertiary-container h-full w-[60%] rounded-full shadow-[0_0_10px_rgba(221,183,255,0.4)]"></div>
+</div>
+<p class="text-xs text-on-surface-variant mt-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-xs">auto_graph</span>
+          60% del objetivo mensual
+        </p>
+</div>
+<!-- Ventas Cerradas -->
+<div class="glass-card rounded-3xl p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary-container/10 rounded-bl-full -mr-8 -mt-8 blur-2xl"></div>
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-secondary-container/10 rounded-2xl flex items-center justify-center text-secondary-fixed border border-secondary/20">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shopping_cart</span>
+</div>
+<span class="text-xs font-bold text-secondary-fixed px-3 py-1 bg-secondary-container/20 rounded-full border border-secondary/20">Meta: $2.4M</span>
+</div>
+<h3 class="text-on-surface-variant font-label-md mb-1 uppercase tracking-wider">Ventas Cerradas</h3>
+<div class="flex items-baseline gap-2 mb-4">
+<span class="font-display-lg text-display-lg text-on-surface">3</span>
+<span class="text-on-surface-variant font-body-md">/ 5 cierres</span>
+</div>
+<div class="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/10">
+<div class="bg-secondary-container h-full w-[60%] rounded-full shadow-[0_0_10px_rgba(2,102,255,0.5)]"></div>
+</div>
+<p class="text-xs text-on-surface-variant mt-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-secondary-fixed text-xs">task_alt</span>
+          Crecimiento del 12% vs mes anterior
+        </p>
+</div>
+</section>
+<!-- Mid Section: Charts & Pipelines -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter mb-lg">
+<!-- Analytics Zone -->
+<div class="lg:col-span-8 glass-card rounded-3xl p-8 neural-border">
+<div class="flex justify-between items-center mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">insights</span>
+<h3 class="font-headline-md text-on-surface">Analytics Avanzado</h3>
+</div>
+<div class="flex gap-2">
+<button class="text-xs px-4 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-primary/50 transition-all">Ingresos</button>
+<button class="text-xs px-4 py-1.5 rounded-full bg-primary/20 border border-primary/30 text-primary">Leads</button>
+</div>
+</div>
+<!-- Placeholder for Velocity Gradient Chart -->
+<div class="h-64 flex items-end gap-4 px-4 relative overflow-hidden group">
+<!-- Subtle Grid lines -->
+<div class="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
+<div class="border-t border-white/50 w-full"></div>
+<div class="border-t border-white/50 w-full"></div>
+<div class="border-t border-white/50 w-full"></div>
+<div class="border-t border-white/50 w-full"></div>
+</div>
+<!-- Bar 1 -->
+<div class="flex-1 flex flex-col items-center gap-2 group/bar">
+<div class="w-full bg-white/5 rounded-t-xl relative transition-all duration-500 group-hover/bar:bg-primary/20" style="height: 40%;">
+<div class="absolute bottom-0 left-0 w-full h-[60%] velocity-gradient opacity-30 blur-sm"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">Ene</span>
+</div>
+<!-- Bar 2 -->
+<div class="flex-1 flex flex-col items-center gap-2 group/bar">
+<div class="w-full bg-white/5 rounded-t-xl relative transition-all duration-500 group-hover/bar:bg-primary/20" style="height: 55%;">
+<div class="absolute bottom-0 left-0 w-full h-[70%] velocity-gradient opacity-40 blur-sm"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">Feb</span>
+</div>
+<!-- Bar 3 -->
+<div class="flex-1 flex flex-col items-center gap-2 group/bar">
+<div class="w-full bg-white/5 rounded-t-xl relative transition-all duration-500 group-hover/bar:bg-primary/20" style="height: 85%;">
+<div class="absolute bottom-0 left-0 w-full h-[80%] velocity-gradient opacity-60 blur-sm"></div>
+<div class="absolute top-[-40px] left-1/2 -translate-x-1/2 bg-surface px-2 py-1 rounded border border-primary/30 text-xs text-primary scale-0 group-hover/bar:scale-100 transition-transform">124 Leads</div>
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">Mar</span>
+</div>
+<!-- Bar 4 -->
+<div class="flex-1 flex flex-col items-center gap-2 group/bar">
+<div class="w-full bg-white/5 rounded-t-xl relative transition-all duration-500 group-hover/bar:bg-primary/20" style="height: 65%;">
+<div class="absolute bottom-0 left-0 w-full h-[75%] velocity-gradient opacity-50 blur-sm"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">Abr</span>
+</div>
+<!-- Bar 5 -->
+<div class="flex-1 flex flex-col items-center gap-2 group/bar">
+<div class="w-full bg-white/5 rounded-t-xl relative transition-all duration-500 group-hover/bar:bg-primary/20" style="height: 95%;">
+<div class="absolute bottom-0 left-0 w-full h-[90%] velocity-gradient shadow-[0_-10px_20px_rgba(0,217,255,0.3)]"></div>
+</div>
+<span class="text-[10px] text-primary uppercase font-bold">May</span>
+</div>
+<!-- Bar 6 (Current) -->
+<div class="flex-1 flex flex-col items-center gap-2 group/bar">
+<div class="w-full bg-primary/10 border-2 border-dashed border-primary/30 rounded-t-xl relative" style="height: 45%;">
+</div>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">Jun</span>
+</div>
+</div>
+</div>
+<!-- Leads Source Distribution -->
+<div class="lg:col-span-4 glass-card rounded-3xl p-8 flex flex-col">
+<h3 class="font-headline-md text-on-surface mb-8">Fuentes de Leads</h3>
+<div class="space-y-6 flex-1">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+<img alt="FB" class="w-5 h-5 opacity-50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaeW6KmIoeNONpPMGX11kZ72UZdqilM7EkgLyVx0WYKwapZoVzA-fSY984F3gOWTEyK_odxKSqh53tc9joRo8XZ81ckGulTiZQtiYDRcyWKdeDM3OX7YWszeC7gUPlDTC7CZehLUdNYrXVSkBH4BrJ6B3pbAGVF-sLa-1KauaOL_k1GsoI3QivkVJxGUrflRqzwS42Q2jolHml5s1CxhWvXQI3lsMW0t9_-iUCCeVlRipfhRX0hg-n96VW3zCKOFHe8hsW3rS7vH_F">
+</div>
+<div class="flex-1">
+<div class="flex justify-between text-xs mb-1">
+<span class="text-on-surface">Facebook Ads</span>
+<span class="text-primary font-bold">45%</span>
+</div>
+<div class="w-full h-1 bg-white/5 rounded-full">
+<div class="h-full bg-primary rounded-full w-[45%]"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+<img alt="IG" class="w-5 h-5 opacity-50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0rEw8pze44Yb2tzAc-QYfpGBgtg_djTZpp_u-laPnwVG0rBFrIBfoe5-Ki_DTaeK5e2BGYqhIb_bZh4IocbN6JPRNif-oPZLy2QJQSuF46snddXA-4gY3VvJfAAJS2Ur03Rokche4jbCW3ISrEwzU-3kRiU-Knbniq2XkLFqw0XAHoGHJ8QlouIwss1r62OyOd_KAfnKXasL_-_l09vnRjsfgBWpejNJ-vrPCOqxJ10b-Pa7Rp8ImbIWgcgdra_xGqnLtEpLGiKu6">
+</div>
+<div class="flex-1">
+<div class="flex justify-between text-xs mb-1">
+<span class="text-on-surface">Instagram</span>
+<span class="text-tertiary font-bold">30%</span>
+</div>
+<div class="w-full h-1 bg-white/5 rounded-full">
+<div class="h-full bg-tertiary rounded-full w-[30%]"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-lg text-on-surface-variant">language</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between text-xs mb-1">
+<span class="text-on-surface">Directo Web</span>
+<span class="text-secondary font-bold">25%</span>
+</div>
+<div class="w-full h-1 bg-white/5 rounded-full">
+<div class="h-full bg-secondary-container rounded-full w-[25%]"></div>
+</div>
+</div>
+</div>
+</div>
+<button class="mt-8 w-full py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all font-label-md">Ver todos los canales</button>
+</div>
+</div>
+<!-- Bottom Section: Pipeline & Activity -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Conversion Pipeline -->
+<div class="lg:col-span-7 glass-card rounded-3xl p-8">
+<div class="flex justify-between items-center mb-10">
+<h3 class="font-headline-md text-on-surface">Pipeline de Conversión</h3>
+<div class="px-4 py-1.5 rounded-full bg-primary-container/10 border border-primary/30">
+<span class="text-primary font-bold text-xs uppercase tracking-tighter">0.8% Conversión Global</span>
+</div>
+</div>
+<div class="space-y-4">
+<!-- Pipeline Step -->
+<div class="group cursor-pointer">
+<div class="flex justify-between items-center mb-2 px-2">
+<span class="font-label-md text-on-surface">Nuevos Leads</span>
+<span class="text-on-surface-variant text-xs">245 prospectos</span>
+</div>
+<div class="w-full h-12 glass-card rounded-2xl relative overflow-hidden border border-white/5 group-hover:border-primary/30 transition-all flex items-center px-6">
+<div class="absolute inset-0 velocity-gradient opacity-10 w-full"></div>
+<div class="absolute top-0 left-0 bottom-0 velocity-gradient w-full origin-left opacity-20"></div>
+<div class="relative flex justify-between w-full items-center">
+<span class="text-xs font-bold text-primary">Capture</span>
+<span class="material-symbols-outlined text-primary text-lg">arrow_forward</span>
+</div>
+</div>
+</div>
+<!-- Pipeline Step -->
+<div class="group cursor-pointer">
+<div class="flex justify-between items-center mb-2 px-2">
+<span class="font-label-md text-on-surface">Contactados</span>
+<span class="text-on-surface-variant text-xs">112 prospectos</span>
+</div>
+<div class="w-full h-12 glass-card rounded-2xl relative overflow-hidden border border-white/5 group-hover:border-primary/30 transition-all flex items-center px-6">
+<div class="absolute top-0 left-0 bottom-0 velocity-gradient w-[45%] origin-left opacity-30 shadow-[0_0_15px_rgba(0,217,255,0.2)]"></div>
+<div class="relative flex justify-between w-full items-center">
+<span class="text-xs font-bold text-on-surface">Cualificación</span>
+<span class="text-xs font-bold text-primary">45% ratio</span>
+</div>
+</div>
+</div>
+<!-- Pipeline Step -->
+<div class="group cursor-pointer">
+<div class="flex justify-between items-center mb-2 px-2">
+<span class="font-label-md text-on-surface">Presentación</span>
+<span class="text-on-surface-variant text-xs">28 prospectos</span>
+</div>
+<div class="w-full h-12 glass-card rounded-2xl relative overflow-hidden border border-white/5 group-hover:border-primary/30 transition-all flex items-center px-6">
+<div class="absolute top-0 left-0 bottom-0 velocity-gradient w-[11%] origin-left opacity-40"></div>
+<div class="relative flex justify-between w-full items-center">
+<span class="text-xs font-bold text-on-surface">Demo Real</span>
+<span class="text-xs font-bold text-primary">11% ratio</span>
+</div>
+</div>
+</div>
+<!-- Pipeline Step -->
+<div class="group cursor-pointer">
+<div class="flex justify-between items-center mb-2 px-2">
+<span class="font-label-md text-on-surface">Cierre</span>
+<span class="text-on-surface-variant text-xs">6 cierres</span>
+</div>
+<div class="w-full h-12 glass-card rounded-2xl relative overflow-hidden border border-white/5 group-hover:border-primary/30 transition-all flex items-center px-6">
+<div class="absolute top-0 left-0 bottom-0 velocity-gradient w-[2%] origin-left opacity-60"></div>
+<div class="relative flex justify-between w-full items-center">
+<span class="text-xs font-bold text-on-surface">Firma</span>
+<span class="text-xs font-bold text-primary">2% ratio</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activity -->
+<div class="lg:col-span-5 glass-card rounded-3xl p-8 overflow-hidden">
+<h3 class="font-headline-md text-on-surface mb-8">Actividad Reciente</h3>
+<div class="space-y-6 relative">
+<!-- Connection Line -->
+<div class="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-primary/50 to-transparent"></div>
+<div class="relative flex gap-4">
+<div class="w-10 h-10 rounded-full bg-surface border border-primary/30 flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-primary text-lg">add_task</span>
+</div>
+<div class="flex-1 pb-4 border-b border-white/5">
+<div class="flex justify-between items-start mb-1">
+<h4 class="font-label-md text-on-surface">Nuevo Lead Asignado</h4>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">hace 12m</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">Juan Pérez ha sido asignado a <span class="text-primary">"The Reef Estates"</span> vía Facebook Ads.</p>
+</div>
+</div>
+<div class="relative flex gap-4">
+<div class="w-10 h-10 rounded-full bg-surface border border-tertiary/30 flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-tertiary text-lg">call</span>
+</div>
+<div class="flex-1 pb-4 border-b border-white/5">
+<div class="flex justify-between items-start mb-1">
+<h4 class="font-label-md text-on-surface">Llamada Finalizada</h4>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">hace 1h</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">Seguimiento completado con <span class="text-tertiary">Elena R.</span> - Interesada en Studio 402.</p>
+</div>
+</div>
+<div class="relative flex gap-4">
+<div class="w-10 h-10 rounded-full bg-surface border border-secondary/30 flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-secondary-fixed text-lg">assignment_turned_in</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<h4 class="font-label-md text-on-surface">Apartado Confirmado</h4>
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">ayer</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">Depósito recibido para la unidad <span class="text-secondary-fixed">Penthouse 12-A</span> en Tulum Lush.</p>
+</div>
+</div>
+<button class="w-full mt-4 text-xs font-bold text-primary uppercase tracking-widest hover:tracking-widest hover:text-white transition-all flex items-center justify-center gap-2">
+            Ver todo el historial <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Contextual FAB -->
+<button class="fixed bottom-10 right-10 w-16 h-16 rounded-full velocity-gradient text-on-primary shadow-[0_10px_30px_rgba(0,217,255,0.4)] flex items-center justify-center group hover:scale-110 transition-all z-50">
+<span class="material-symbols-outlined text-3xl group-hover:rotate-90 transition-transform">add</span>
+</button>
+<script>
+    // Micro-interaction for hover effects on glass cards
+    document.querySelectorAll('.glass-card').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+      });
+    });
+
+    // Add subtle glow follow effect in JS
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .glass-card {
+        position: relative;
+      }
+      .glass-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(400px circle at var(--mouse-x) var(--mouse-y), rgba(0, 217, 255, 0.05), transparent 40%);
+        border-radius: inherit;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+      }
+      .glass-card:hover::before {
+        opacity: 1;
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body></html>

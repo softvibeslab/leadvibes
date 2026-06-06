@@ -1,0 +1,70 @@
+{
+  "design_system": "Rovi CRM - Glassmorphism Optimized",
+  "theme": "Dark Luxury",
+  "palette": {
+    "background": {
+      "main": "#0B1120",
+      "overlay": "radial-gradient(circle at 50% 0%, rgba(29, 78, 216, 0.15) 0%, transparent 70%)"
+    },
+    "surface": {
+      "glass": "rgba(255, 255, 255, 0.05)",
+      "border": "rgba(255, 255, 255, 0.1)",
+      "blur": "3xl (backdrop-filter: blur(64px))"
+    },
+    "brand": {
+      "primary": {
+        "hex": "#1D4ED8",
+        "name": "Primary Blue",
+        "glow": "rgba(29, 78, 216, 0.2)"
+      },
+      "secondary": {
+        "hex": "#8B5CF6",
+        "name": "Secondary Purple"
+      },
+      "accent": {
+        "hex": "#00D9FF",
+        "name": "Vibrant Cyan",
+        "usage": "Neon accents, active states"
+      }
+    },
+    "status": {
+      "success": {
+        "hex": "#10B981",
+        "glow": "rgba(16, 185, 129, 0.4)"
+      },
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    },
+    "typography": {
+      "on_surface": {
+        "high_emphasis": "#F9FAFB",
+        "medium_emphasis": "#9CA3AF",
+        "low_emphasis": "#6B7280"
+      }
+    }
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Outfit",
+      "weights": ["Bold"],
+      "tracking": "-0.02em"
+    },
+    "body": {
+      "font_family": "Plus Jakarta Sans",
+      "line_height": 1.6
+    },
+    "mono": {
+      "font_family": "Source Code Pro"
+    }
+  },
+  "effects": {
+    "shadows": {
+      "premium_glow": "0 0 20px rgba(0, 217, 255, 0.1)",
+      "active_glow": "0 0 40px rgba(0, 217, 255, 0.2)"
+    },
+    "border_radius": {
+      "card": "16px",
+      "button": "9999px"
+    }
+  }
+}

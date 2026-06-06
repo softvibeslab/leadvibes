@@ -16,6 +16,7 @@ export const OnboardingPage = () => {
   const navigate = useNavigate();
   const { api, updateUser, user, setAppMode } = useAuth();
   const isCopim = user?.account_type === 'copim';
+  const isSalesOnboarding = ['individual', 'agency'].includes(user?.account_type);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [goals, setGoals] = useState({
@@ -24,7 +25,9 @@ export const OnboardingPage = () => {
     leads_contactados: 50,
     tasa_conversion: 10,
     apartados_mes: 10,
-    periodo: 'mensual'
+    periodo: 'mensual',
+    utilidades_actuales_mensuales: 0,
+    utilidades_meta_mensuales: 0
   });
   const [aiProfile, setAiProfile] = useState({
     experience: '',
@@ -42,7 +45,7 @@ export const OnboardingPage = () => {
     success_metric: 'renovacion y activacion institucional'
   });
 
-  const totalSteps = isCopim ? 3 : 4;
+  const totalSteps = isCopim ? 3 : isSalesOnboarding ? 1 : 4;
   const progress = (step / totalSteps) * 100;
 
   const handleNext = () => {
@@ -65,6 +68,17 @@ export const OnboardingPage = () => {
           context: 'copim_institucional',
           metadata: institutionalProfile
         });
+      } else if (isSalesOnboarding) {
+        const salesGoals = {
+          ...goals,
+          periodo: 'mensual',
+          ingresos_objetivo: Number(goals.utilidades_meta_mensuales) || 0,
+          utilidades_actuales_mensuales: Number(goals.utilidades_actuales_mensuales) || 0,
+          utilidades_meta_mensuales: Number(goals.utilidades_meta_mensuales) || 0
+        };
+
+        await api.post('/goals', salesGoals);
+        await api.post('/seed');
       } else {
         // Save goals
         await api.post('/goals', goals);
@@ -113,6 +127,8 @@ export const OnboardingPage = () => {
           <p className="text-muted-foreground">
             {isCopim
               ? 'Configuremos tu workspace institucional para operar COPIM dentro de ROVI.'
+              : isSalesOnboarding
+                ? 'Define tu punto de partida y tu meta mensual.'
               : 'Configuremos tus metas para maximizar tu éxito'}
           </p>
         </div>
@@ -185,7 +201,59 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 1 && !isCopim && (
+          {step === 1 && isSalesOnboarding && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Utilidades mensuales</CardTitle>
+                    <CardDescription>Cuéntanos tu utilidad actual y la meta que quieres alcanzar</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Define tus utilidades mensuales actualmente.</Label>
+                  <Input
+                    type="number"
+                    value={goals.utilidades_actuales_mensuales}
+                    onChange={(e) => setGoals({
+                      ...goals,
+                      utilidades_actuales_mensuales: parseFloat(e.target.value) || 0
+                    })}
+                    min={0}
+                    step={5000}
+                    inputMode="decimal"
+                    placeholder="Ej. 80000"
+                    data-testid="goal-utilidades-actuales"
+                  />
+                  <p className="text-xs text-muted-foreground">Monto mensual aproximado en MXN.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Define las utilidades metas mensuales</Label>
+                  <Input
+                    type="number"
+                    value={goals.utilidades_meta_mensuales}
+                    onChange={(e) => setGoals({
+                      ...goals,
+                      utilidades_meta_mensuales: parseFloat(e.target.value) || 0
+                    })}
+                    min={0}
+                    step={5000}
+                    inputMode="decimal"
+                    placeholder="Ej. 150000"
+                    data-testid="goal-utilidades-meta"
+                  />
+                  <p className="text-xs text-muted-foreground">La meta de utilidad mensual que quieres lograr.</p>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {step === 1 && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -294,7 +362,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 2 && !isCopim && (
+          {step === 2 && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -385,7 +453,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 3 && !isCopim && (
+          {step === 3 && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -442,7 +510,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 4 && !isCopim && (
+          {step === 4 && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">

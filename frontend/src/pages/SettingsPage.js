@@ -6,11 +6,12 @@ import {
   Settings, User, Target, Moon, Sun, Save, Loader2, 
   Phone, MessageSquare, CheckCircle, XCircle, Eye, EyeOff,
   TestTube, Zap, Mail, Calendar, ExternalLink, Unlink,
-  Smartphone, QrCode, Copy, RefreshCw
+  Smartphone, QrCode, Copy, RefreshCw, Bot, Send
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Separator } from '../components/ui/separator';
@@ -67,6 +68,13 @@ export const SettingsPage = () => {
   const [creatingQr, setCreatingQr] = useState(false);
   const [qrSession, setQrSession] = useState(null);
   const [deviceProfileName, setDeviceProfileName] = useState('');
+  const [telegramProfiles, setTelegramProfiles] = useState([]);
+  const [telegramAgentsLoading, setTelegramAgentsLoading] = useState(false);
+  const [savingTelegramProfile, setSavingTelegramProfile] = useState(null);
+  const [linkingTelegramProfile, setLinkingTelegramProfile] = useState(null);
+  const [settingTelegramWebhook, setSettingTelegramWebhook] = useState(null);
+  const [testingTelegramProfile, setTestingTelegramProfile] = useState(null);
+  const [telegramLinkResults, setTelegramLinkResults] = useState({});
   
   const [goals, setGoals] = useState({
     ventas_mes: 5,
@@ -102,8 +110,9 @@ export const SettingsPage = () => {
     loadGoals();
     loadIntegrations();
     loadDeviceLinks();
+    loadTelegramAgentProfiles();
     const requestedTab = searchParams.get('tab');
-    if (['integrations', 'devices'].includes(requestedTab)) {
+    if (['integrations', 'devices', 'telegram-agents'].includes(requestedTab)) {
       setActiveTab(requestedTab);
     }
     
@@ -148,6 +157,18 @@ export const SettingsPage = () => {
       console.error('Error loading device links:', error);
     } finally {
       setDevicesLoading(false);
+    }
+  };
+
+  const loadTelegramAgentProfiles = async () => {
+    setTelegramAgentsLoading(true);
+    try {
+      const res = await api.get('/telegram-agents/profiles');
+      setTelegramProfiles(res.data.profiles || []);
+    } catch (error) {
+      console.error('Error loading Telegram agent profiles:', error);
+    } finally {
+      setTelegramAgentsLoading(false);
     }
   };
 
@@ -296,6 +317,86 @@ export const SettingsPage = () => {
     }
   };
 
+  const updateTelegramProfile = (profileId, patch) => {
+    setTelegramProfiles((current) => current.map((profile) => (
+      profile.id === profileId ? { ...profile, ...patch } : profile
+    )));
+  };
+
+  const saveTelegramProfile = async (profile) => {
+    setSavingTelegramProfile(profile.id);
+    try {
+      const res = await api.put(`/telegram-agents/profiles/${profile.id}`, {
+        role_scope: profile.role_scope,
+        name: profile.name,
+        description: profile.description,
+        system_prompt: profile.system_prompt,
+        bot_username: profile.bot_username,
+        telegram_bot_token: profile.telegram_bot_token_input || '',
+        is_active: profile.is_active,
+      });
+      setTelegramProfiles((current) => current.map((item) => (
+        item.id === profile.id ? res.data.profile : item
+      )));
+      toast.success('Agente Telegram guardado');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No pude guardar el agente Telegram');
+    } finally {
+      setSavingTelegramProfile(null);
+    }
+  };
+
+  const createTelegramAgentLink = async (profile) => {
+    setLinkingTelegramProfile(profile.id);
+    try {
+      const res = await api.post(`/telegram-agents/profiles/${profile.id}/link-code`, { ttl_minutes: 30 });
+      setTelegramLinkResults((current) => ({ ...current, [profile.id]: res.data }));
+      toast.success('Link de Telegram generado');
+      loadTelegramAgentProfiles();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No pude generar el link');
+    } finally {
+      setLinkingTelegramProfile(null);
+    }
+  };
+
+  const setTelegramWebhook = async (profile) => {
+    const defaultBaseUrl = window.location.origin.startsWith('http://localhost')
+      ? 'https://dev.rovicrm.com'
+      : window.location.origin;
+    const publicBaseUrl = window.prompt('URL pública HTTPS del entorno para Telegram', defaultBaseUrl);
+    if (!publicBaseUrl) return;
+    setSettingTelegramWebhook(profile.id);
+    try {
+      const res = await api.post(`/telegram-agents/profiles/${profile.id}/set-webhook`, {
+        public_base_url: publicBaseUrl,
+      });
+      toast.success('Webhook de Telegram configurado');
+      updateTelegramProfile(profile.id, { telegram_webhook_url: res.data.webhook_url });
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No pude configurar el webhook');
+    } finally {
+      setSettingTelegramWebhook(null);
+    }
+  };
+
+  const testTelegramAgent = async (profile) => {
+    const chatId = window.prompt('Chat ID de Telegram opcional. Déjalo vacío para usar el último vínculo activo.', '');
+    if (chatId === null) return;
+    setTestingTelegramProfile(profile.id);
+    try {
+      await api.post(`/telegram-agents/profiles/${profile.id}/test-message`, {
+        chat_id: chatId,
+        message: `Prueba desde ROVI: ${profile.name} está conectado.`,
+      });
+      toast.success('Mensaje de prueba enviado');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No pude enviar el mensaje de prueba');
+    } finally {
+      setTestingTelegramProfile(null);
+    }
+  };
+
   const copyToClipboard = async (value, message = 'Copiado') => {
     try {
       await navigator.clipboard?.writeText(value);
@@ -325,7 +426,7 @@ export const SettingsPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
           <TabsTrigger value="general" className="gap-2">
             <Settings className="w-4 h-4" />
             <span className="hidden sm:inline">General</span>
@@ -333,6 +434,10 @@ export const SettingsPage = () => {
           <TabsTrigger value="devices" className="gap-2">
             <Smartphone className="w-4 h-4" />
             <span className="hidden sm:inline">Dispositivos</span>
+          </TabsTrigger>
+          <TabsTrigger value="telegram-agents" className="gap-2">
+            <Bot className="w-4 h-4" />
+            <span className="hidden sm:inline">Agentes Telegram</span>
           </TabsTrigger>
           <TabsTrigger value="integrations" className="gap-2">
             <Zap className="w-4 h-4" />
@@ -632,6 +737,177 @@ export const SettingsPage = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Telegram Agents */}
+        <TabsContent value="telegram-agents" className="space-y-4 sm:space-y-6">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Agentes por rol en Telegram</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Configura un bot y un perfil de comportamiento separado para broker o inmobiliaria según tu workspace activo.
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button variant="outline" onClick={loadTelegramAgentProfiles} disabled={telegramAgentsLoading} className="rounded-full">
+                  {telegramAgentsLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Actualizar
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {telegramProfiles.length === 0 && !telegramAgentsLoading ? (
+            <Card>
+              <CardContent className="p-6 text-center text-sm text-muted-foreground">
+                No hay perfiles Telegram para este rol.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {telegramProfiles.map((profile) => {
+                const linkResult = telegramLinkResults[profile.id];
+                const roleLabel = profile.role_scope === 'agency_admin' ? 'Inmobiliaria' : 'Broker';
+                return (
+                  <Card key={profile.id}>
+                    <CardHeader className="p-4 sm:p-6">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CardTitle className="text-base sm:text-lg">{profile.name}</CardTitle>
+                            <Badge variant="secondary">{roleLabel}</Badge>
+                            <Badge variant={profile.is_active ? 'default' : 'secondary'}>
+                              {profile.is_active ? 'Activo' : 'Pausado'}
+                            </Badge>
+                          </div>
+                          <CardDescription className="text-xs sm:text-sm mt-1">
+                            {profile.description || 'Perfil operativo conectado a Telegram.'}
+                          </CardDescription>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" onClick={() => createTelegramAgentLink(profile)} disabled={linkingTelegramProfile === profile.id}>
+                            {linkingTelegramProfile === profile.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
+                            Link
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setTelegramWebhook(profile)} disabled={settingTelegramWebhook === profile.id || !profile.has_bot_token}>
+                            {settingTelegramWebhook === profile.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
+                            Webhook
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => testTelegramAgent(profile)} disabled={testingTelegramProfile === profile.id || !profile.has_bot_token}>
+                            {testingTelegramProfile === profile.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                            Probar
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Nombre del perfil</Label>
+                          <Input
+                            value={profile.name || ''}
+                            onChange={(e) => updateTelegramProfile(profile.id, { name: e.target.value })}
+                            placeholder="Agente Broker ROVI"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">Usuario del bot</Label>
+                          <Input
+                            value={profile.bot_username || ''}
+                            onChange={(e) => updateTelegramProfile(profile.id, { bot_username: e.target.value })}
+                            placeholder="@RoviBrokerBot"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label className="text-sm">Descripción interna</Label>
+                          <Input
+                            value={profile.description || ''}
+                            onChange={(e) => updateTelegramProfile(profile.id, { description: e.target.value })}
+                            placeholder="Qué hace este agente y para quién responde"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label className="text-sm">Token del bot</Label>
+                          <Input
+                            type="password"
+                            value={profile.telegram_bot_token_input || ''}
+                            onChange={(e) => updateTelegramProfile(profile.id, { telegram_bot_token_input: e.target.value })}
+                            placeholder={profile.has_bot_token ? `Guardado ${profile.telegram_bot_token_masked}` : 'Pega aquí el token de BotFather'}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {profile.has_bot_token ? 'El token ya está guardado. Escribe uno nuevo solo si quieres reemplazarlo.' : 'Crea un bot en BotFather y pega el token para activar webhook y mensajes.'}
+                          </p>
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label className="text-sm">Profile prompt</Label>
+                          <Textarea
+                            rows={6}
+                            value={profile.system_prompt || ''}
+                            onChange={(e) => updateTelegramProfile(profile.id, { system_prompt: e.target.value })}
+                            placeholder="Define personalidad, permisos y enfoque del agente"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <span>{profile.active_links_count || 0} chats activos</span>
+                          <span>{profile.pending_links_count || 0} links pendientes</span>
+                          {profile.telegram_webhook_url && <span>Webhook configurado</span>}
+                        </div>
+                        <Button onClick={() => saveTelegramProfile(profile)} disabled={savingTelegramProfile === profile.id} className="rounded-full w-full sm:w-auto">
+                          {savingTelegramProfile === profile.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                          Guardar agente
+                        </Button>
+                      </div>
+
+                      {profile.telegram_webhook_url && (
+                        <code className="block rounded-lg bg-muted p-2 text-xs break-all">{profile.telegram_webhook_url}</code>
+                      )}
+
+                      {linkResult && (
+                        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="font-medium text-sm">Link de vinculación listo</p>
+                              <p className="text-xs text-muted-foreground">
+                                Expira: {linkResult.expires_at ? new Date(linkResult.expires_at).toLocaleString('es-MX') : '30 minutos'}
+                              </p>
+                            </div>
+                            <Badge variant="secondary">{linkResult.status}</Badge>
+                          </div>
+                          <div className="grid gap-4 sm:grid-cols-[150px,1fr] sm:items-center">
+                            <div className="rounded-xl bg-white p-3">
+                              <img src={linkResult.qr_url} alt="QR para agente Telegram" className="w-full h-auto" />
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap gap-2">
+                                <Button variant="outline" size="sm" onClick={() => copyToClipboard(linkResult.telegram_deep_link, 'Link del agente copiado')}>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Copiar link
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => copyToClipboard(linkResult.code, 'Código del agente copiado')}>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Copiar código
+                                </Button>
+                              </div>
+                              <code className="block rounded-lg bg-muted p-2 text-xs break-all">{linkResult.telegram_deep_link}</code>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* Integrations */}

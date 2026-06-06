@@ -1,0 +1,396 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>RIVIERA CRM - Luxury Real Estate Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hard-shadow-primary {
+            box-shadow: 4px 4px 0px 0px #0001bb;
+        }
+        .hard-shadow-black {
+            box-shadow: 4px 4px 0px 0px #1a1c1c;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f9f9f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #757589;
+            border-radius: 0px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#343dff",
+                        "surface-variant": "#e2e2e2",
+                        "on-surface-variant": "#454558",
+                        "on-tertiary-fixed": "#1b1b1b",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#002022",
+                        "primary-container": "#0000ff",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#7df4ff",
+                        "secondary": "#006970",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "tertiary": "#353535",
+                        "on-secondary-fixed-variant": "#004f54",
+                        "inverse-surface": "#2f3131",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#00686f",
+                        "tertiary-fixed": "#e2e2e2",
+                        "inverse-on-surface": "#f0f1f1",
+                        "surface-container-low": "#f3f3f4",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#00eefc",
+                        "primary-fixed": "#e0e0ff",
+                        "tertiary-container": "#4c4c4c",
+                        "tertiary-fixed-dim": "#c6c6c6",
+                        "primary": "#0001bb",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-dim": "#dadada",
+                        "on-primary-container": "#b3b7ff",
+                        "secondary-fixed-dim": "#00dbe9",
+                        "on-primary-fixed": "#00006e",
+                        "outline-variant": "#c5c4db",
+                        "outline": "#757589",
+                        "on-surface": "#1a1c1c",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "on-error": "#ffffff",
+                        "surface-container": "#eeeeee",
+                        "surface-bright": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "primary-fixed-dim": "#bec2ff",
+                        "background": "#f9f9f9",
+                        "on-background": "#1a1c1c",
+                        "on-tertiary-container": "#bdbdbd",
+                        "inverse-primary": "#bec2ff",
+                        "on-primary-fixed-variant": "#0000ef"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "gutter": "24px",
+                        "unit-1": "8px",
+                        "margin-mobile": "16px",
+                        "unit-2": "16px",
+                        "unit-4": "32px",
+                        "margin-desktop": "40px",
+                        "unit-12": "96px",
+                        "base": "4px",
+                        "unit-8": "64px",
+                        "unit-3": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Outfit"],
+                        "headline-lg-mobile": ["Outfit"],
+                        "headline-md": ["Outfit"],
+                        "headline-lg": ["Outfit"],
+                        "body-lg": ["Outfit"],
+                        "label-mono-sm": ["JetBrains Mono"],
+                        "display": ["Outfit"],
+                        "label-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["32px", {"lineHeight": "1.1", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "headline-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-mono-sm": ["12px", {"lineHeight": "1.0", "fontWeight": "500"}],
+                        "display": ["80px", {"lineHeight": "1.0", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                        "label-mono": ["14px", {"lineHeight": "1.0", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background font-body-md text-on-background selection:bg-secondary-container selection:text-on-secondary-container">
+<div class="flex min-h-screen">
+<!-- SIDE NAV BAR -->
+<aside class="h-screen w-80 border-r border-on-surface flex flex-col py-unit-4 overflow-y-auto sticky top-0 bg-surface">
+<div class="px-unit-4 mb-unit-8">
+<h1 class="font-headline-md text-headline-md font-extrabold text-on-surface">RIVIERA MAYA</h1>
+<p class="font-label-mono text-label-mono text-on-surface-variant mt-1">Luxury Real Estate CRM</p>
+</div>
+<nav class="flex-grow space-y-1 px-2">
+<a class="flex items-center gap-unit-2 bg-primary text-on-primary font-bold px-unit-3 py-unit-2 border border-on-surface hard-shadow-black transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-body-md">Pipeline</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="location_city">location_city</span>
+<span class="font-body-md">Listings</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-body-md">Contacts</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="font-body-md">Appointments</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="request_quote">request_quote</span>
+<span class="font-body-md">Offers</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-body-md">Contracts</span>
+</a>
+<div class="pt-unit-4 pb-unit-2 px-unit-3">
+<span class="font-label-mono text-label-mono text-outline uppercase tracking-widest">Growth</span>
+</div>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="campaign">campaign</span>
+<span class="font-body-md">Marketing</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="bar_chart">bar_chart</span>
+<span class="font-body-md">Analytics</span>
+</a>
+<div class="pt-unit-4 pb-unit-2 px-unit-3">
+<span class="font-label-mono text-label-mono text-outline uppercase tracking-widest">Management</span>
+</div>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="badge">badge</span>
+<span class="font-body-md">Team</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-unit-2 text-on-surface-variant px-unit-3 py-unit-2 hover:bg-surface-container-high hover:translate-x-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-body-md">Help</span>
+</a>
+</nav>
+<div class="px-unit-4 mt-unit-4">
+<button class="w-full bg-secondary-container text-on-secondary-container font-bold py-unit-2 border border-on-surface hard-shadow-black active:translate-y-0.5 active:translate-x-0.5 transition-all">
+                    ADD NEW LISTING
+                </button>
+</div>
+<div class="mt-auto px-unit-4 pt-unit-4 border-t border-outline-variant flex items-center gap-unit-2">
+<div class="w-10 h-10 border border-on-surface bg-surface-container-high overflow-hidden">
+<img alt="Agency Principal Profile" class="w-full h-full object-cover" data-alt="A professional headshot of a luxury real estate agency principal, captured in high-contrast black and white photography. The subject wears a sharp tailored suit against a clean, minimalist architectural background. The lighting is dramatic and precise, highlighting the structural lines of the composition. The overall aesthetic is one of absolute authority and high-end professional elegance." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaNaHpz_J8WHmcXTSaKFgdKUHntXQL7FQvgwnY7aV-SP6Yj0uD9KDvi-WGepa73_gsdklVn6BizikczaVSIuuck5M1JwZ1upIpA-wl3pelNaalIo88i1rMjW4-dr970x3CqHEbgiEo2gd8OPJL80hjl6PZmlHONn31vfsGx2NUfEBnR59qfqX4ATY266Uu1Tu2rLB_jIT3QYCs6boYkQQw2X0HSkNwD7wxBIAz3nTRqFjNIXdKnfi9ZvXzAgeFU8h-nrkXSbUFAafX">
+</div>
+<div>
+<p class="font-bold text-sm">Alejandro V.</p>
+<p class="font-label-mono text-[10px] text-outline">PRINCIPAL PARTNER</p>
+</div>
+<span class="material-symbols-outlined ml-auto text-outline" data-icon="logout">logout</span>
+</div>
+</aside>
+<!-- MAIN CONTENT CANVAS -->
+<main class="flex-grow flex flex-col">
+<!-- TOP NAV BAR -->
+<header class="flex justify-between items-center w-full px-margin-desktop h-20 sticky top-0 z-40 bg-white border-b border-on-surface">
+<div class="flex items-center gap-unit-4 w-1/2">
+<span class="font-headline-md text-headline-md font-black tracking-tighter text-on-surface">RIVIERA CRM</span>
+<div class="relative flex-grow max-w-md">
+<span class="material-symbols-outlined absolute left-unit-2 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="w-full pl-10 pr-unit-2 py-2 bg-surface-container-low border border-on-surface rounded-none focus:ring-1 focus:ring-primary font-label-mono text-sm placeholder:text-outline-variant" placeholder="SEARCH ASSETS OR CONTACTS..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-unit-3">
+<button class="font-label-mono text-label-mono px-unit-2 py-1 border border-on-surface hover:bg-surface-container transition-colors">FILTER</button>
+<button class="font-label-mono text-label-mono px-unit-3 py-1 bg-primary text-on-primary border border-on-surface hover:translate-y-[-2px] transition-all">EXPORT DATA</button>
+<div class="flex items-center gap-unit-2 border-l border-outline-variant pl-unit-3">
+<span class="material-symbols-outlined text-on-surface hover:text-primary cursor-pointer" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-on-surface hover:text-primary cursor-pointer" data-icon="account_circle">account_circle</span>
+</div>
+</div>
+</header>
+<!-- DASHBOARD GRID -->
+<section class="p-margin-desktop space-y-gutter overflow-y-auto">
+<!-- HERO METRICS -->
+<div class="grid grid-cols-12 gap-gutter">
+<div class="col-span-8 p-unit-4 border border-on-surface bg-white relative overflow-hidden group">
+<div class="relative z-10">
+<span class="font-label-mono text-label-mono text-primary uppercase tracking-widest">Performance Matrix</span>
+<h2 class="font-display text-display leading-tight mt-unit-1">$24.8M</h2>
+<p class="font-headline-md text-headline-md font-bold text-on-surface-variant">TOTAL PIPELINE VALUE</p>
+<div class="mt-unit-4 flex gap-unit-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-secondary" data-icon="trending_up">trending_up</span>
+<span class="font-label-mono text-secondary">+14.2% VS LAST MONTH</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-outline" data-icon="visibility">visibility</span>
+<span class="font-label-mono text-outline">1.2K TOTAL VIEWS</span>
+</div>
+</div>
+</div>
+<!-- Abstract Background Decoration -->
+<div class="absolute right-0 bottom-0 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-[200px]" data-icon="architecture" style="font-variation-settings: 'wght' 100;">architecture</span>
+</div>
+</div>
+<div class="col-span-4 grid grid-rows-2 gap-gutter">
+<div class="p-unit-3 border border-on-surface bg-secondary-container flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<span class="font-label-mono text-on-secondary-container uppercase">Active Listings</span>
+<span class="material-symbols-outlined text-on-secondary-container" data-icon="home_work">home_work</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-on-secondary-container">142</div>
+</div>
+<div class="p-unit-3 border border-on-surface bg-white flex flex-col justify-between hard-shadow-primary">
+<div class="flex justify-between items-start">
+<span class="font-label-mono text-on-surface-variant uppercase">New Leads</span>
+<span class="material-symbols-outlined text-primary" data-icon="bolt">bolt</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-on-surface">24</div>
+</div>
+</div>
+</div>
+<!-- BENTO SECTION: PIPELINE & LISTINGS -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- PIPELINE VISUALIZATION -->
+<div class="col-span-7 border border-on-surface bg-white">
+<div class="p-unit-2 border-b border-on-surface flex justify-between items-center px-unit-3">
+<span class="font-label-mono text-label-mono font-bold uppercase">Deal Pipeline Status</span>
+<span class="material-symbols-outlined text-sm" data-icon="more_horiz">more_horiz</span>
+</div>
+<div class="p-unit-4 space-y-unit-3">
+<div class="space-y-unit-1">
+<div class="flex justify-between font-label-mono text-xs text-outline uppercase">
+<span>Negotiation</span>
+<span>70%</span>
+</div>
+<div class="h-8 w-full border border-on-surface bg-surface-container p-[1px]">
+<div class="h-full bg-primary" style="width: 70%"></div>
+</div>
+</div>
+<div class="space-y-unit-1">
+<div class="flex justify-between font-label-mono text-xs text-outline uppercase">
+<span>Under Contract</span>
+<span>45%</span>
+</div>
+<div class="h-8 w-full border border-on-surface bg-surface-container p-[1px]">
+<div class="h-full bg-secondary-fixed-dim" style="width: 45%"></div>
+</div>
+</div>
+<div class="space-y-unit-1">
+<div class="flex justify-between font-label-mono text-xs text-outline uppercase">
+<span>Due Diligence</span>
+<span>90%</span>
+</div>
+<div class="h-8 w-full border border-on-surface bg-surface-container p-[1px]">
+<div class="h-full bg-on-surface" style="width: 90%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- FEATURED LISTING PREVIEW -->
+<div class="col-span-5 border border-on-surface bg-white group cursor-pointer relative overflow-hidden">
+<div class="absolute top-unit-2 right-unit-2 z-10">
+<span class="bg-primary text-on-primary font-label-mono text-[10px] px-2 py-1">FEATURED</span>
+</div>
+<img alt="Luxury Villa Riviera Maya" class="w-full h-48 object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="A breathtaking ultra-modern luxury villa in the Riviera Maya, featuring sharp geometric concrete architecture and expansive floor-to-ceiling glass walls. The scene is captured at dusk with sophisticated interior lighting reflecting off a pristine infinity pool. The color palette is composed of cool greys, deep primary blues from the water, and crisp white architectural highlights. The atmosphere is clinical, expensive, and avant-garde." src="https://lh3.googleusercontent.com/aida-public/AB6AXuASQ4JRskjVnW-7qQ6NrSidVN2HX-kz18e15PG32N5UAk_z68cNFTru3NwlJ1Buix6IgiKozOZbjXlp5-RPznXoKbAToxyuj9mNQEisAYnrmF5yBivcvcTvuTc8sRo2G0On5j8ail2T-ljSYKftHh9ljnIOfW_VUWyhmMAN67QnDHuwZLErGhgM3_ZrpuaMem1YvzKYfxZeVZVrs1yV7zF-wKb1GLn66AumPiShtLTMJxkanFEOn2aTI1DaqpRjFod7c6jYEuTUYDcW">
+<div class="p-unit-3">
+<h3 class="font-headline-md text-headline-md mb-1">VILLA CELESTIAL</h3>
+<p class="font-label-mono text-sm text-outline mb-unit-2">Tulum, MX • $4,200,000</p>
+<div class="flex gap-unit-2">
+<span class="border border-on-surface px-2 py-1 font-label-mono text-[10px]">5 BEDS</span>
+<span class="border border-on-surface px-2 py-1 font-label-mono text-[10px]">6.5 BATHS</span>
+<span class="border border-on-surface px-2 py-1 font-label-mono text-[10px]">7,200 SQFT</span>
+</div>
+</div>
+</div>
+</div>
+<!-- TABLE SECTION: RECENT ACTIVITY -->
+<div class="border border-on-surface bg-white">
+<div class="p-unit-3 border-b border-on-surface flex justify-between items-center bg-surface-container-low">
+<h3 class="font-headline-md text-headline-md uppercase tracking-tight">Recent Activity Stream</h3>
+<button class="font-label-mono text-xs border border-on-surface px-unit-2 py-1 hover:bg-on-surface hover:text-white transition-all">VIEW ALL LOGS</button>
+</div>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-on-surface font-label-mono text-xs text-outline uppercase bg-surface-container-lowest">
+<th class="p-unit-3 font-bold">Timestamp</th>
+<th class="p-unit-3 font-bold">Action</th>
+<th class="p-unit-3 font-bold">Subject</th>
+<th class="p-unit-3 font-bold">Entity</th>
+<th class="p-unit-3 font-bold">Status</th>
+</tr>
+</thead>
+<tbody class="font-body-md">
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
+<td class="p-unit-3 font-label-mono text-xs">14:22:05</td>
+<td class="p-unit-3 flex items-center gap-2">
+<div class="w-2 h-2 bg-primary"></div> Lead Generated
+                                </td>
+<td class="p-unit-3">Sofia Laurent</td>
+<td class="p-unit-3 underline decoration-primary">Casa del Sol</td>
+<td class="p-unit-3">
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 text-[10px] font-bold border border-on-surface uppercase">Active</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
+<td class="p-unit-3 font-label-mono text-xs">11:05:42</td>
+<td class="p-unit-3 flex items-center gap-2">
+<div class="w-2 h-2 bg-on-surface"></div> Contract Signed
+                                </td>
+<td class="p-unit-3">Marcus Thorne</td>
+<td class="p-unit-3 underline decoration-primary">Penthouse 09</td>
+<td class="p-unit-3">
+<span class="bg-surface-container-highest text-on-surface-variant px-2 py-0.5 text-[10px] font-bold border border-on-surface uppercase">Pending</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors">
+<td class="p-unit-3 font-label-mono text-xs">09:12:15</td>
+<td class="p-unit-3 flex items-center gap-2">
+<div class="w-2 h-2 bg-secondary-fixed-dim"></div> Offer Received
+                                </td>
+<td class="p-unit-3">Elena Gilbert</td>
+<td class="p-unit-3 underline decoration-primary">Marina Bay Estate</td>
+<td class="p-unit-3">
+<span class="bg-primary-container text-on-primary-container px-2 py-0.5 text-[10px] font-bold border border-on-surface uppercase">Review</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+</div>
+<!-- FLOATING ACTION BUTTON (DASHBOARD ONLY) -->
+<button class="fixed bottom-unit-4 right-unit-4 w-16 h-16 bg-primary text-on-primary border-2 border-on-surface hard-shadow-black flex items-center justify-center group hover:translate-y-[-4px] active:translate-y-0.5 transition-all z-50">
+<span class="material-symbols-outlined text-3xl transition-transform group-hover:rotate-90" data-icon="add">add</span>
+</button>
+<script>
+        // Simple micro-interactions for the dashboard
+        document.querySelectorAll('.group').forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                // Add any JS based hover effects if needed
+            });
+        });
+
+        // Initialize any specific UI states
+        console.log("Riviera CRM Dashboard Initialized - Neo-Brutalist Premium Edition");
+    </script>
+</body></html>

@@ -1,0 +1,562 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&amp;family=Inter:wght@400;500&amp;family=JetBrains+Mono:wght@500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#dae2fd",
+                        "secondary-fixed": "#e9ddff",
+                        "on-primary-container": "#005b6c",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#131b2e",
+                        "surface-container-highest": "#dae2fd",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "primary-container": "#00d9ff",
+                        "tertiary-container": "#ffbb2a",
+                        "on-secondary-container": "#fffbff",
+                        "on-primary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#00687b",
+                        "inverse-primary": "#00d9ff",
+                        "on-surface": "#131b2e",
+                        "tertiary": "#7d5800",
+                        "on-tertiary-fixed": "#271900",
+                        "error": "#ba1a1a",
+                        "outline-variant": "#bbc9ce",
+                        "inverse-on-surface": "#eef0ff",
+                        "secondary": "#6b38d4",
+                        "on-error": "#ffffff",
+                        "background": "#faf8ff",
+                        "tertiary-fixed": "#ffdea9",
+                        "on-tertiary-fixed-variant": "#5e4100",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#8455ef",
+                        "primary": "#00687b",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#d2d9f4",
+                        "primary-fixed": "#aeecff",
+                        "on-primary-fixed": "#001f26",
+                        "surface-container": "#eaedff",
+                        "on-surface-variant": "#3c494d",
+                        "on-secondary-fixed": "#23005c",
+                        "inverse-surface": "#283044",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "surface-container-high": "#e2e7ff",
+                        "surface-bright": "#faf8ff",
+                        "surface": "#faf8ff",
+                        "surface-container-low": "#f2f3ff",
+                        "primary-fixed-dim": "#00d9ff",
+                        "on-tertiary-container": "#6e4d00",
+                        "tertiary-fixed-dim": "#febb29",
+                        "outline": "#6c797e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "unit": "8px",
+                        "margin-mobile": "20px",
+                        "gutter": "24px",
+                        "margin-desktop": "64px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "label-md": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-md": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "headline-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px rgba(0, 217, 255, 0.05);
+            transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.4s ease, opacity 0.6s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                120deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            transition: 0.6s;
+            pointer-events: none;
+        }
+
+        .glass-card:hover::before {
+            left: 100%;
+        }
+
+        .glass-card:hover {
+            box-shadow: 0 20px 40px rgba(0, 217, 255, 0.15);
+            transform: translateY(-4px) scale(1.01);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .mesh-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(at 0% 0%, #faf8ff 0%, transparent 50%),
+                        radial-gradient(at 100% 0%, #aeecff 0%, transparent 50%),
+                        radial-gradient(at 100% 100%, #e9ddff 0%, transparent 50%),
+                        radial-gradient(at 0% 100%, #f2f3ff 0%, transparent 50%);
+            filter: blur(100px);
+        }
+
+        .magnetic-button {
+            transition: transform 0.2s cubic-bezier(0.33, 1, 0.68, 1);
+        }
+
+        .magnetic-button:active {
+            transform: scale(0.95);
+        }
+
+        /* Improved Contrast for AA Compliance */
+        .text-on-surface-variant {
+            color: #3c494d !important; /* Slightly darker for better visibility */
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 104, 123, 0.1);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md overflow-x-hidden">
+<div class="mesh-gradient"></div>
+<!-- SideNavBar -->
+<aside class="h-screen w-72 fixed left-0 top-0 bg-surface/40 backdrop-blur-[40px] border-r border-white/20 shadow-[20px_0_40px_rgba(0,217,255,0.05)] flex flex-col py-8 px-6 gap-2 z-50">
+<div class="mb-12">
+<h1 class="font-display-lg text-headline-md tracking-tighter text-primary">Riviera Maya CRM</h1>
+<p class="font-body-md text-on-surface-variant font-medium text-sm">Luxury Real Estate</p>
+</div>
+<nav class="flex-1 flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar">
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/20 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/20 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-md">Pipeline</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-container/30 text-on-primary-container border-l-4 border-primary font-bold shadow-sm" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/20 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">location_city</span>
+<span class="font-label-md">Properties</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/20 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="font-label-md">Leads</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/20 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">campaign</span>
+<span class="font-label-md">Marketing</span>
+</a>
+</div>
+</nav>
+<div class="mt-auto border-t border-white/20 pt-6 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/20 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md">Help</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-white/20 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md">Settings</span>
+</a>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-margin-desktop py-4 h-20 ml-72 max-w-[calc(100%-288px)] bg-surface/30 backdrop-blur-[40px] border-b border-white/20 sticky top-0 z-40">
+<div class="flex items-center gap-6 flex-1">
+<div class="relative w-96 group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-white/40 border border-white/20 rounded-xl py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/30 focus:bg-white transition-all outline-none text-sm" placeholder="Search analytics or properties..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="magnetic-button flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white/30 border border-white/40 hover:bg-white/50 transition-all font-label-md text-on-surface">
+<span class="material-symbols-outlined text-sm">file_download</span>
+                Export Report
+            </button>
+<button class="magnetic-button flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all font-label-md shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-sm">add</span>
+                Quick Add
+            </button>
+<div class="w-[1px] h-8 bg-white/20 mx-2"></div>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/30 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<img alt="Profile" class="w-10 h-10 rounded-full border-2 border-white shadow-sm ml-2 cursor-pointer hover:scale-110 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCE0KErOtPpwApnLMgUDKvUmE3VHOI1E7BvaufDrk5fjIAypWxXMVo99WUUW2V0M7ZxEtF_TuW3SZ8e0BXivjWLD8ec5HNa79ShaXU-MxH2k4okLvr2B1OhcySqBaKln8HUUvsrr_-v4t7IrK8laJfGgiGe8fuB67oc4wF4nxKvDMxU8Bt-RdGwgkoHE4kWnkZAKHG6GGQHpvbkcGVrVVyUcQEr-7V2VUmJlrBR4_pkeqdgf6PNRWfaO2JcLrV-XEYKZTAA55GBXeEx">
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-72 p-16 max-w-[1680px]">
+<div class="mb-14">
+<h2 class="font-headline-lg text-headline-lg text-on-background mb-3 tracking-tight">Análisis de Campaña</h2>
+<p class="text-on-surface-variant font-body-md max-w-2xl">Monitoreo de rendimiento en tiempo real para propiedades de lujo en la Riviera Maya. Visualice tendencias y optimice sus inversiones.</p>
+</div>
+<!-- KPI Grid - Spatial Optimization with 32px padding & 24px gaps -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-14" style="transition: 0.8s cubic-bezier(0.2, 0, 0.2, 1); opacity: 1; transform: translateY(0px);">
+<div class="glass-card p-8 rounded-[32px] floating" style="animation-delay: 0s;">
+<div class="flex justify-between items-start mb-6">
+<p class="font-label-md text-on-surface-variant font-semibold">Inversión Total</p>
+<div class="p-2.5 rounded-xl bg-primary-container/30 text-primary">
+<span class="material-symbols-outlined">payments</span>
+</div>
+</div>
+<h3 class="font-headline-md text-3xl text-on-surface mb-3 tracking-tight">$84,200 MXN</h3>
+<div class="flex items-center gap-1 text-primary text-sm font-bold">
+<span class="material-symbols-outlined text-xs">trending_up</span>
+                    5.2% vs mes anterior
+                </div>
+</div>
+<div class="glass-card p-8 rounded-[32px] floating" style="animation-delay: 0.2s;">
+<div class="flex justify-between items-start mb-6">
+<p class="font-label-md text-on-surface-variant font-semibold">Impresiones</p>
+<div class="p-2.5 rounded-xl bg-secondary-container/30 text-secondary">
+<span class="material-symbols-outlined">visibility</span>
+</div>
+</div>
+<h3 class="font-headline-md text-3xl text-on-surface mb-3 tracking-tight">124.5k</h3>
+<div class="flex items-center gap-1 text-primary text-sm font-bold">
+<span class="material-symbols-outlined text-xs">trending_up</span>
+                    12.5% vs mes anterior
+                </div>
+</div>
+<div class="glass-card p-8 rounded-[32px] floating" style="animation-delay: 0.4s;">
+<div class="flex justify-between items-start mb-6">
+<p class="font-label-md text-on-surface-variant font-semibold">Clics</p>
+<div class="p-2.5 rounded-xl bg-tertiary-container/30 text-tertiary">
+<span class="material-symbols-outlined">ads_click</span>
+</div>
+</div>
+<h3 class="font-headline-md text-3xl text-on-surface mb-3 tracking-tight">8,245</h3>
+<div class="flex items-center gap-1 text-primary text-sm font-bold">
+<span class="material-symbols-outlined text-xs">trending_up</span>
+                    8.3% vs mes anterior
+                </div>
+</div>
+<div class="glass-card p-8 rounded-[32px] floating" style="animation-delay: 0.6s;">
+<div class="flex justify-between items-start mb-6">
+<p class="font-label-md text-on-surface-variant font-semibold">Leads Generados</p>
+<div class="p-2.5 rounded-xl bg-green-100/50 text-green-700">
+<span class="material-symbols-outlined">person_add</span>
+</div>
+</div>
+<h3 class="font-headline-md text-3xl text-on-surface mb-3 tracking-tight">312</h3>
+<div class="flex items-center gap-1 text-primary text-sm font-bold">
+<span class="material-symbols-outlined text-xs">trending_up</span>
+                    15.7% vs mes anterior
+                </div>
+</div>
+</div>
+<!-- Conversion Funnel Section -->
+<section class="glass-card p-10 rounded-[32px] mb-14">
+<div class="flex justify-between items-center mb-10">
+<div>
+<h4 class="font-headline-md text-xl mb-1">Embudo de Conversión Real Estate</h4>
+<p class="text-sm text-on-surface-variant">Ciclo de vida del prospecto desde contacto hasta cierre</p>
+</div>
+<div class="flex gap-2">
+<span class="px-4 py-2 rounded-full bg-white/50 text-xs font-label-md border border-white/20">Últimos 30 días</span>
+</div>
+</div>
+<div class="relative py-8 px-4">
+<div class="flex flex-col gap-6">
+<!-- Funnel Step 1 -->
+<div class="relative w-full h-16 bg-primary/10 border border-primary/20 rounded-2xl overflow-hidden group/step transition-all hover:scale-[1.01]">
+<div class="absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-primary-container w-[100%] opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-between px-8 z-10 text-on-surface">
+<div class="flex items-center gap-4">
+<span class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center font-bold">1</span>
+<span class="font-label-md tracking-wider">Total Leads</span>
+</div>
+<span class="font-headline-md">100% (312)</span>
+</div>
+</div>
+<!-- Funnel Step 2 -->
+<div class="relative w-[92%] mx-auto h-16 bg-secondary/10 border border-secondary/20 rounded-2xl overflow-hidden group/step transition-all hover:scale-[1.01]">
+<div class="absolute left-0 top-0 h-full bg-gradient-to-r from-secondary to-secondary-container w-[75%] opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-between px-8 z-10 text-on-surface">
+<div class="flex items-center gap-4">
+<span class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center font-bold">2</span>
+<span class="font-label-md tracking-wider">Vistas de Propiedad</span>
+</div>
+<span class="font-headline-md">75% (234)</span>
+</div>
+</div>
+<!-- Funnel Step 3 -->
+<div class="relative w-[84%] mx-auto h-16 bg-tertiary/10 border border-tertiary/20 rounded-2xl overflow-hidden group/step transition-all hover:scale-[1.01]">
+<div class="absolute left-0 top-0 h-full bg-gradient-to-r from-tertiary to-tertiary-container w-[40%] opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-between px-8 z-10 text-on-surface">
+<div class="flex items-center gap-4">
+<span class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center font-bold">3</span>
+<span class="font-label-md tracking-wider">Solicitudes de Visita</span>
+</div>
+<span class="font-headline-md">40% (125)</span>
+</div>
+</div>
+<!-- Funnel Step 4 -->
+<div class="relative w-[76%] mx-auto h-16 bg-green-500/10 border border-green-500/20 rounded-2xl overflow-hidden group/step transition-all hover:scale-[1.01]">
+<div class="absolute left-0 top-0 h-full bg-gradient-to-r from-green-500 to-green-300 w-[12%] opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-between px-8 z-10 text-on-surface">
+<div class="flex items-center gap-4">
+<span class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center font-bold">4</span>
+<span class="font-label-md tracking-wider">Contratos Firmados</span>
+</div>
+<span class="font-headline-md">12% (38)</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Charts Bento Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-14">
+<!-- Leads por Día -->
+<div class="glass-card p-10 rounded-[32px] min-h-[480px] flex flex-col">
+<div class="flex justify-between items-center mb-10">
+<h4 class="font-headline-md text-xl">Leads por Día</h4>
+<div class="flex gap-6">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-primary"></div>
+<span class="text-xs font-label-md text-on-surface-variant font-semibold">Organic</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-secondary"></div>
+<span class="text-xs font-label-md text-on-surface-variant font-semibold">Paid</span>
+</div>
+</div>
+</div>
+<div class="flex-1 w-full relative group/chart">
+<div class="absolute inset-0 flex items-end justify-between px-4 pb-8">
+<div class="w-8 bg-gradient-to-t from-primary to-primary-container rounded-t-xl h-[40%] transition-all duration-500 hover:h-[45%]"></div>
+<div class="w-8 bg-gradient-to-t from-secondary to-secondary-container rounded-t-xl h-[65%] transition-all duration-500 hover:h-[70%]"></div>
+<div class="w-8 bg-gradient-to-t from-primary to-primary-container rounded-t-xl h-[45%] transition-all duration-500 hover:h-[50%]"></div>
+<div class="w-8 bg-gradient-to-t from-secondary to-secondary-container rounded-t-xl h-[80%] transition-all duration-500 hover:h-[85%]"></div>
+<div class="w-8 bg-gradient-to-t from-primary to-primary-container rounded-t-xl h-[35%] transition-all duration-500 hover:h-[40%]"></div>
+<div class="w-8 bg-gradient-to-t from-secondary to-secondary-container rounded-t-xl h-[55%] transition-all duration-500 hover:h-[60%]"></div>
+<div class="w-8 bg-gradient-to-t from-primary to-primary-container rounded-t-xl h-[90%] transition-all duration-500 hover:h-[95%]"></div>
+<div class="w-8 bg-gradient-to-t from-secondary to-secondary-container rounded-t-xl h-[70%] transition-all duration-500 hover:h-[75%]"></div>
+</div>
+<div class="absolute bottom-0 w-full h-[2px] bg-white/30"></div>
+</div>
+</div>
+<!-- Leads por Fuente -->
+<div class="glass-card p-10 rounded-[32px] min-h-[480px] flex flex-col" style="transition: 0.8s cubic-bezier(0.2, 0, 0.2, 1); opacity: 1; transform: translateY(0px);">
+<h4 class="font-headline-md text-xl mb-10">Distribución de Canales</h4>
+<div class="flex-1 flex items-center justify-center gap-16">
+<div class="relative w-56 h-56 rounded-full border-[20px] border-white/30 flex items-center justify-center group/donut">
+<div class="absolute inset-0 rounded-full border-[20px] border-primary border-t-transparent border-r-transparent -rotate-45 transition-transform duration-700 group-hover/donut:rotate-0"></div>
+<div class="text-center">
+<span class="block font-headline-md text-4xl tracking-tighter">45%</span>
+<span class="text-xs font-label-md text-on-surface-variant font-bold">Direct Traffic</span>
+</div>
+</div>
+<div class="space-y-6 flex-1 max-w-[240px]">
+<div class="space-y-2">
+<div class="flex justify-between text-sm">
+<span class="font-label-md font-semibold">Social Media</span>
+<span class="font-bold">30%</span>
+</div>
+<div class="w-full h-2 bg-white/30 rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[30%] transition-all duration-1000"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm">
+<span class="font-label-md font-semibold">Referral</span>
+<span class="font-bold">20%</span>
+</div>
+<div class="w-full h-2 bg-white/30 rounded-full overflow-hidden">
+<div class="h-full bg-tertiary w-[20%] transition-all duration-1000"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm">
+<span class="font-label-md font-semibold">Email</span>
+<span class="font-bold">5%</span>
+</div>
+<div class="w-full h-2 bg-white/30 rounded-full overflow-hidden">
+<div class="h-full bg-on-surface-variant w-[5%] transition-all duration-1000"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Table Section -->
+<section class="glass-card rounded-[32px] overflow-hidden" style="transition: 0.8s cubic-bezier(0.2, 0, 0.2, 1); opacity: 1; transform: translateY(0px);">
+<div class="p-10 border-b border-white/20 flex justify-between items-center bg-white/20">
+<div>
+<h4 class="font-headline-md text-xl mb-1">Desglose por Fuente</h4>
+<p class="text-sm text-on-surface-variant">Rendimiento granular de cada plataforma publicitaria</p>
+</div>
+<div class="flex gap-3">
+<button class="magnetic-button px-6 py-2.5 rounded-xl bg-white/40 border border-white/20 hover:bg-white/60 transition-all font-label-md text-xs font-bold">Filtrar</button>
+<button class="magnetic-button px-6 py-2.5 rounded-xl bg-white/40 border border-white/20 hover:bg-white/60 transition-all font-label-md text-xs font-bold">Ordenar</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-white/10">
+<th class="px-10 py-5 font-label-md text-xs text-on-surface-variant uppercase tracking-widest font-bold">Fuente</th>
+<th class="px-10 py-5 font-label-md text-xs text-on-surface-variant uppercase tracking-widest font-bold">Impresiones</th>
+<th class="px-10 py-5 font-label-md text-xs text-on-surface-variant uppercase tracking-widest font-bold">Clics</th>
+<th class="px-10 py-5 font-label-md text-xs text-on-surface-variant uppercase tracking-widest font-bold">CTR</th>
+<th class="px-10 py-5 font-label-md text-xs text-on-surface-variant uppercase tracking-widest font-bold">Leads</th>
+<th class="px-10 py-5 font-label-md text-xs text-on-surface-variant uppercase tracking-widest font-bold">CPL</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/10">
+<tr class="hover:bg-white/20 transition-colors group/row cursor-pointer">
+<td class="px-10 py-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover/row:scale-110 transition-transform">
+<span class="material-symbols-outlined text-blue-600 text-lg">face_nod</span>
+</div>
+<span class="font-body-md font-bold">Facebook Ads</span>
+</div>
+</td>
+<td class="px-10 py-6 font-label-md">45,201</td>
+<td class="px-10 py-6 font-label-md">2,104</td>
+<td class="px-10 py-6 font-label-md font-bold text-primary">4.65%</td>
+<td class="px-10 py-6 font-label-md">84</td>
+<td class="px-10 py-6 font-label-md">$142.50</td>
+</tr>
+<tr class="hover:bg-white/20 transition-colors group/row cursor-pointer">
+<td class="px-10 py-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center group-hover/row:scale-110 transition-transform">
+<span class="material-symbols-outlined text-red-600 text-lg">google</span>
+</div>
+<span class="font-body-md font-bold">Google Search</span>
+</div>
+</td>
+<td class="px-10 py-6 font-label-md">32,840</td>
+<td class="px-10 py-6 font-label-md">1,845</td>
+<td class="px-10 py-6 font-label-md font-bold text-primary">5.61%</td>
+<td class="px-10 py-6 font-label-md font-bold">112</td>
+<td class="px-10 py-6 font-label-md">$98.20</td>
+</tr>
+<tr class="hover:bg-white/20 transition-colors group/row cursor-pointer">
+<td class="px-10 py-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center group-hover/row:scale-110 transition-transform">
+<span class="material-symbols-outlined text-purple-600 text-lg">photo_camera</span>
+</div>
+<span class="font-body-md font-bold">Instagram</span>
+</div>
+</td>
+<td class="px-10 py-6 font-label-md">28,150</td>
+<td class="px-10 py-6 font-label-md">1,120</td>
+<td class="px-10 py-6 font-label-md font-bold text-primary">3.97%</td>
+<td class="px-10 py-6 font-label-md">54</td>
+<td class="px-10 py-6 font-label-md">$165.80</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+<!-- Contextual FAB -->
+<button class="fixed bottom-10 right-10 w-16 h-16 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white shadow-2xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95 group z-50">
+<span class="material-symbols-outlined text-3xl">chat</span>
+<span class="absolute right-full mr-4 px-4 py-2 rounded-xl bg-inverse-surface text-inverse-on-surface text-sm font-label-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Chat with Support</span>
+</button>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Smooth Entry Animations
+            const elements = document.querySelectorAll('.glass-card, main > div, header');
+            elements.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                setTimeout(() => {
+                    el.style.transition = 'all 0.8s cubic-bezier(0.2, 0, 0.2, 1)';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, 100 * index);
+            });
+
+            // Magnetic Hover Effect for Buttons
+            const magneticButtons = document.querySelectorAll('.magnetic-button');
+            magneticButtons.forEach(btn => {
+                btn.addEventListener('mousemove', (e) => {
+                    const rect = btn.getBoundingClientRect();
+                    const x = e.clientX - rect.left - rect.width / 2;
+                    const y = e.clientY - rect.top - rect.height / 2;
+                    btn.style.transform = `translate(${x * 0.2}px, ${y * 0.2}px) scale(1.02)`;
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.transform = '';
+                });
+            });
+        });
+    </script>
+</body></html>

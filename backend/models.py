@@ -272,6 +272,8 @@ class GoalCreate(BaseModel):
     tasa_conversion: float = 10.0
     apartados_mes: int = 10
     periodo: str = "mensual"
+    utilidades_actuales_mensuales: float = 0.0
+    utilidades_meta_mensuales: float = 0.0
 
 class Goal(GoalCreate):
     model_config = ConfigDict(extra="ignore")
@@ -1826,6 +1828,10 @@ class ProductServiceCreate(BaseModel):
     operation_type: OperationType = OperationType.SALE
     niche: str  # "Residencial", "Comercial", "VIP", etc.
     price_mxn: float = 0.0
+    commission_percentage: float = 0.0
+    responsible_broker_id: Optional[str] = None
+    responsible_broker_name: Optional[str] = None
+    responsible_broker_email: Optional[str] = None
     monthly_rent_mxn: Optional[float] = None
     nightly_rent_mxn: Optional[float] = None
     rental_type: Optional[str] = None
@@ -1849,6 +1855,10 @@ class ProductServiceUpdate(BaseModel):
     operation_type: Optional[OperationType] = None
     niche: Optional[str] = None
     price_mxn: Optional[float] = None
+    commission_percentage: Optional[float] = None
+    responsible_broker_id: Optional[str] = None
+    responsible_broker_name: Optional[str] = None
+    responsible_broker_email: Optional[str] = None
     monthly_rent_mxn: Optional[float] = None
     nightly_rent_mxn: Optional[float] = None
     rental_type: Optional[str] = None

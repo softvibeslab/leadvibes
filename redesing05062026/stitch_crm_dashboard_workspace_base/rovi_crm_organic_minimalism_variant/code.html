@@ -1,0 +1,425 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Riviera Maya Luxe | CRM Dashboard</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet">
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-container": "#ffca98",
+                    "primary-fixed": "#d6e7d9",
+                    "tertiary-fixed-dim": "#c5c9a7",
+                    "tertiary-container": "#959979",
+                    "surface-container-high": "#e8e8e8",
+                    "primary": "#536257",
+                    "tertiary": "#5c6145",
+                    "inverse-surface": "#2f3131",
+                    "on-secondary-fixed-variant": "#623f18",
+                    "error-container": "#ffdad6",
+                    "on-secondary-container": "#7a532a",
+                    "tertiary-fixed": "#e1e6c2",
+                    "inverse-on-surface": "#f0f1f1",
+                    "surface-container-low": "#f3f3f3",
+                    "secondary-fixed": "#ffdcbd",
+                    "on-error-container": "#93000a",
+                    "primary-container": "#8a9a8e",
+                    "secondary": "#7d562d",
+                    "error": "#ba1a1a",
+                    "on-primary": "#ffffff",
+                    "surface-variant": "#e2e2e2",
+                    "on-surface-variant": "#434844",
+                    "surface-tint": "#536257",
+                    "on-tertiary-fixed": "#1a1d07",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#2c1600",
+                    "on-secondary": "#ffffff",
+                    "surface": "#f9f9f9",
+                    "primary-fixed-dim": "#bacbbe",
+                    "background": "#f9f9f9",
+                    "on-background": "#1a1c1c",
+                    "on-tertiary-container": "#2d3119",
+                    "inverse-primary": "#bacbbe",
+                    "on-primary-fixed-variant": "#3b4a40",
+                    "on-tertiary-fixed-variant": "#45492f",
+                    "on-error": "#ffffff",
+                    "surface-container": "#eeeeee",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-container": "#243229",
+                    "secondary-fixed-dim": "#f0bd8b",
+                    "on-primary-fixed": "#111e16",
+                    "outline-variant": "#c3c8c2",
+                    "outline": "#737873",
+                    "on-surface": "#1a1c1c",
+                    "surface-dim": "#dadada"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "section-gap": "128px",
+                    "container-padding": "64px",
+                    "element-gap": "24px",
+                    "gutter": "32px",
+                    "unit": "8px"
+            },
+            "fontFamily": {
+                    "title-md": ["Outfit"],
+                    "headline-lg": ["Outfit"],
+                    "label-sm": ["Outfit"],
+                    "body-lg": ["Outfit"],
+                    "body-md": ["Outfit"],
+                    "display-lg": ["Outfit"]
+            },
+            "fontSize": {
+                    "title-md": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                    "label-sm": ["13px", {"lineHeight": "18px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "30px", "fontWeight": "300"}],
+                    "body-md": ["16px", {"lineHeight": "26px", "fontWeight": "300"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "300"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background: radial-gradient(circle at 0% 0%, #f9f9f9 0%, #f3f3f3 100%);
+            -webkit-font-smoothing: antialiased;
+        }
+        .organic-blur {
+            backdrop-filter: blur(24px);
+            background: rgba(255, 255, 255, 0.6);
+        }
+        .ambient-shadow {
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04);
+        }
+        .transition-organic {
+            transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- Sidebar Navigation Shell -->
+<aside class="fixed left-0 top-0 h-screen flex flex-col p-6 gap-unit w-72 bg-surface-container-low dark:bg-surface-container-lowest z-40 hidden md:flex">
+<div class="flex items-center gap-3 mb-8 px-4">
+<div class="w-10 h-10 bg-primary-container rounded-xl flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined">apartment</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md font-bold text-primary">Riviera Maya</h2>
+<p class="text-xs text-on-surface-variant/70 uppercase tracking-widest">Elite Properties</p>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<!-- Dashboard Active -->
+<a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-xl font-medium transition-organic" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-organic" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Pipeline</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-organic" href="#">
+<span class="material-symbols-outlined">apartment</span>
+<span>Listings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-organic" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span>Clients</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-organic" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+<span>Market Trends</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-organic" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Transactions</span>
+</a>
+</nav>
+<div class="pt-6 border-t border-outline-variant/30 space-y-2">
+<button class="w-full flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-organic">
+<span class="material-symbols-outlined">help_outline</span>
+<span>Support</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-organic">
+<span class="material-symbols-outlined">logout</span>
+<span>Sign Out</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-72 min-h-screen relative">
+<!-- Header -->
+<header class="sticky top-0 z-30 flex justify-between items-center px-container-padding py-6 w-full bg-surface/80 backdrop-blur-xl">
+<div class="flex flex-col">
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Ethereal Portfolio</h1>
+<p class="text-body-md text-on-surface-variant">Welcome back, Director. Here is your agency overview.</p>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="pl-12 pr-6 py-3 bg-surface-container-low border-none rounded-full w-64 focus:ring-1 focus:ring-primary-container text-body-md transition-organic" placeholder="Search insights..." type="text">
+</div>
+<div class="flex items-center gap-2">
+<button class="p-3 text-on-surface-variant hover:text-primary transition-organic">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-3 text-on-surface-variant hover:text-primary transition-organic">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-outline-variant/30">
+<div class="text-right">
+<p class="font-bold text-sm">Elena Voss</p>
+<p class="text-xs text-on-surface-variant">Senior Partner</p>
+</div>
+<img alt="User profile" class="w-10 h-10 rounded-full object-cover grayscale-[0.3] border-2 border-primary-container/20" data-alt="A professional portrait of a confident female real estate executive with a calm and sophisticated expression. She has warm features and is wearing a minimalist sage green blazer. The background is a soft-focus architectural interior with bright, warm lighting and organic textures." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFKf_MLb3lnl9Vppuzvk61waeeZSS0BiT7CBQBXJkGLTTsCxTdBjUCVMw7A9WZ-SvyQ41mUSopMw9ibERs9p_vRJwbFYJs46aim2CSxb0R41RGk019vVjpNL8ZDyO5gICIXL4lRceTb7F4jM5yi9xosSrmR3IMqU1OD_GQ-TpZTVo2o-aafekPRTCGpsC_qo-6qk_ZxlLcZH_fnuWafOm2hSKRkalglB6ocH_i6J8Z1e7yH5OiEKOpX1V9D-JcvbHbhJ0K5ijlPsqg">
+</div>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="px-container-padding py-8 space-y-12 max-w-[1440px] mx-auto">
+<!-- Bento Stats Grid -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<!-- Large Revenue Card -->
+<div class="col-span-1 md:col-span-2 bg-surface-container-lowest rounded-xl p-8 ambient-shadow relative overflow-hidden group">
+<div class="relative z-10">
+<span class="text-label-sm uppercase tracking-widest text-on-surface-variant/60 font-medium">Projected Revenue</span>
+<h3 class="text-display-lg font-display-lg text-primary mt-2">$24.8M</h3>
+<div class="flex items-center gap-2 mt-4 text-emerald-600">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span class="text-body-md font-medium">+12.4% from last quarter</span>
+</div>
+</div>
+<div class="absolute -right-8 -bottom-8 w-48 h-48 bg-primary-container/5 rounded-full blur-3xl group-hover:bg-primary-container/10 transition-organic"></div>
+</div>
+<!-- Active Listings -->
+<div class="bg-surface-container-lowest rounded-xl p-8 ambient-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-sm uppercase tracking-widest text-on-surface-variant/60 font-medium">Active Listings</span>
+<h3 class="text-headline-lg font-headline-lg text-secondary mt-2">142</h3>
+</div>
+<div class="w-full bg-surface-variant/30 h-1.5 rounded-full mt-6">
+<div class="bg-secondary-container h-full rounded-full w-3/4"></div>
+</div>
+</div>
+<!-- Pipeline Clients -->
+<div class="bg-surface-container-lowest rounded-xl p-8 ambient-shadow flex flex-col justify-between">
+<div>
+<span class="text-label-sm uppercase tracking-widest text-on-surface-variant/60 font-medium">In Pipeline</span>
+<h3 class="text-headline-lg font-headline-lg text-primary mt-2">89</h3>
+</div>
+<div class="flex -space-x-3 mt-4">
+<img class="w-8 h-8 rounded-full border-2 border-white object-cover" data-alt="Close up portrait of a smiling male professional with a neutral background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5roCkbP7_ip3GnOKo794QTRI7KC8VlYTQ8cJlrpx6KkDxwUKBlT-ALHwlWeRTYJI2CybK5WBDnl0oRjmrqQkKGXN7kOCvyR1gdm7k6flJrdkPYuXWqcKz72AMWO_kDfPLSrDJfL0izRJACS3BWpKtlbVlvKbcFxUG7lrgGRrI1LhWV_DRNdVRhIRtdJLq30QGyz__r4gnS_0-c6KGfyopIfNP5d7S5g6IR6HFmJo3CvrmyG1IHYWkCwfXRDmLtUzYkVXVMWf9FBDW">
+<img class="w-8 h-8 rounded-full border-2 border-white object-cover" data-alt="Close up portrait of a focused man in a creative environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBi1nT8X1Kc2lJBdKQfY0jL-DOoH7--xy3StUZBF8s2BEVt0xLM31h0jOF2srD69cyC0F-mI2ToFlc3OEIgmC3r8TxuG7AZjN_UCWbyk83kRgZdKIwHP2bZ1qgJQzD-zEl6o_eqoXOnE24OVvieNst2kqv3ubkMWHjrTYPWfoupxsArb0bGw41YC23rvcq9G9XSTOKM56qaSt1lnZRBPsY9PvtwWR9NLzX8F8Cwq1A9IzrrfD63El-LNKKz73Dm_QaDRbwIviG-VaT">
+<img class="w-8 h-8 rounded-full border-2 border-white object-cover" data-alt="Portrait of a female client looking happy and relaxed." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBq2t8DAUqjA7_TRwonNv_q-YGMMN3sXTIcH_mU-jll-j32X5wJPOQYeeq6PY7gTtcM4K2OKDL0vL41mhGZwE_8W3N3zaKY6gMUdMa_P5Ky_6CHMCsyOp8T1GsoySDFBU9h-EL2bME3S4JRse6XWKV2LgxxfWIPwy9_6xZyQwbeMMT_QADvaYLrDr0BG28MCeBNUqETWfB14cT8n0PuLsb0gRFFN_GVHc9m9rOLA-njN7DogzC1pPSgD1hhL7P8sFfe_CQI4pYj_XOK">
+<div class="w-8 h-8 rounded-full border-2 border-white bg-primary-container/20 flex items-center justify-center text-[10px] text-primary font-bold">+86</div>
+</div>
+</div>
+</section>
+<!-- Featured Properties & Activity -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-section-gap/2">
+<!-- Main Portfolio Focus -->
+<div class="lg:col-span-2 space-y-8">
+<div class="flex items-center justify-between">
+<h2 class="font-title-md text-title-md text-primary">Priority Listings</h2>
+<button class="text-primary font-medium hover:underline transition-organic">View Portfolio</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- Property Card 1 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" data-alt="A luxurious modern villa in Riviera Maya with organic curves, limestone walls, and a large infinity pool reflecting a soft pink sunset. The surrounding jungle is lush and green, creating a serene and private atmosphere. High-end architectural photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiuvpBx3bIroaBhDNcbsJGYqO-l6u4CVmW6xatdPR6rPxMabB15rPtZpBL2LEmCG9Y_c21JHMgu9w8rohtheKr-1L5dfcrcgnWodCMXKWaxFl4VDEb4q5WcjvRNludu0eB7EKOT2TTpLWxW5LbC33CkKnNQe4akQitwpZasG0aeC4Y48OLCup3vhzXbRQf90QfL5depn6fKGCeTciY9JVU1EKOhupbM92u6_EKAp7lEj0iYCOdyBMAdAjYxg5qxk4AP5w3bT8UHP-A">
+<div class="absolute top-4 right-4 px-3 py-1 bg-white/80 backdrop-blur rounded-full text-xs font-bold text-primary">Featured</div>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface">Casa del Sol Radiant</h4>
+<p class="text-on-surface-variant/70 text-sm">Tulum, Quintana Roo • $4,250,000</p>
+</div>
+<!-- Property Card 2 -->
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" data-alt="A minimalist beachfront property with tall glass walls, warm wood accents, and a wide terrace. The lighting is bright and airy morning light, catching the soft turquoise colors of the Caribbean ocean in the background. The aesthetic is clean, calm, and ultra-luxurious." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgkiQHDJdxiq5Emaxl9VXY_62H4TjK5QSD0uJmtfbxeVATgUK3w62MpdJ8vlP1-2dY9UYWP_J0zRhoOPE5_q8L4QvC106Mi1pXjtKlZZsZBly6qpo-f27dVmnK8PS1qTNfEPtcYuu5GhoicPtMl1gKBnjfIptoGc9A2DmD89SLGQ2hkcIHvM26KVpj1mrKK1AenesG_DZrhe5KefR4zoQjm8gMha7vUe5a4GN04ZPKy1qLgYuyBF0zFNoWLSND1zTB-MDCARGMC64B">
+<div class="absolute top-4 right-4 px-3 py-1 bg-white/80 backdrop-blur rounded-full text-xs font-bold text-secondary">New Listing</div>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface">Azure Horizon Estate</h4>
+<p class="text-on-surface-variant/70 text-sm">Playa del Carmen • $6,100,000</p>
+</div>
+</div>
+</div>
+<!-- Insights & Tasks Side Panel -->
+<div class="space-y-8">
+<h2 class="font-title-md text-title-md text-primary">Agency Insights</h2>
+<div class="bg-surface-container rounded-xl p-8 space-y-6 ambient-shadow">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<div>
+<p class="text-body-md font-medium text-on-surface">Market Heatmap</p>
+<p class="text-sm text-on-surface-variant/80">Search volume for 'Tulum Estates' rose by 18% this week.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">schedule</span>
+</div>
+<div>
+<p class="text-body-md font-medium text-on-surface">Portfolio Review</p>
+<p class="text-sm text-on-surface-variant/80">3 listings are reaching their 60-day threshold soon.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">auto_graph</span>
+</div>
+<div>
+<p class="text-body-md font-medium text-on-surface">Yield Prediction</p>
+<p class="text-sm text-on-surface-variant/80">Rentals in Akumal are trending towards 12% ROI.</p>
+</div>
+</div>
+<button class="w-full py-4 bg-primary text-white rounded-xl font-medium mt-4 hover:shadow-lg transition-organic">
+                            Download Q3 Report
+                        </button>
+</div>
+<!-- Small Calendar View/Next Task -->
+<div class="p-6 border border-outline-variant/30 rounded-xl bg-white/30 backdrop-blur">
+<p class="text-label-sm uppercase tracking-widest text-on-surface-variant/60 mb-4">Upcoming Viewing</p>
+<div class="flex items-center gap-4">
+<div class="text-center bg-primary/5 px-3 py-2 rounded-lg border border-primary/10">
+<span class="block text-xl font-bold text-primary">24</span>
+<span class="block text-[10px] uppercase text-primary/60">Oct</span>
+</div>
+<div>
+<p class="font-medium">The Gilded Atoll • 11:00 AM</p>
+<p class="text-xs text-on-surface-variant">VIP Client: Marcus Thorne</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Data Table / CRM Feed -->
+<section class="bg-surface-container-lowest rounded-xl p-8 ambient-shadow overflow-hidden">
+<div class="flex items-center justify-between mb-8">
+<h2 class="font-title-md text-title-md text-primary">Recent Activity Pipeline</h2>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-surface rounded-lg text-sm font-medium border border-outline-variant/30 hover:bg-surface-variant transition-organic">Filter</button>
+<button class="px-4 py-2 bg-surface rounded-lg text-sm font-medium border border-outline-variant/30 hover:bg-surface-variant transition-organic">Export CSV</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="text-label-sm uppercase tracking-widest text-on-surface-variant/60 border-b border-outline-variant/20">
+<th class="pb-4 font-medium">Lead Name</th>
+<th class="pb-4 font-medium">Interest Level</th>
+<th class="pb-4 font-medium">Status</th>
+<th class="pb-4 font-medium">Assigned Agent</th>
+<th class="pb-4 font-medium">Last Contact</th>
+<th class="pb-4"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<tr class="group hover:bg-surface-container/30 transition-organic">
+<td class="py-5 font-medium">Julianna S. Aris</td>
+<td class="py-5">
+<div class="flex gap-1">
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary/20 rounded-full"></div>
+</div>
+</td>
+<td class="py-5">
+<span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">Active Negotiation</span>
+</td>
+<td class="py-5 text-on-surface-variant text-sm">Elena Voss</td>
+<td class="py-5 text-on-surface-variant text-sm">2 hours ago</td>
+<td class="py-5 text-right">
+<button class="material-symbols-outlined text-on-surface-variant/40 group-hover:text-primary transition-organic">more_horiz</button>
+</td>
+</tr>
+<tr class="group hover:bg-surface-container/30 transition-organic">
+<td class="py-5 font-medium">Thorne Family Trust</td>
+<td class="py-5">
+<div class="flex gap-1">
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+</div>
+</td>
+<td class="py-5">
+<span class="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium">Inquiry Pending</span>
+</td>
+<td class="py-5 text-on-surface-variant text-sm">Mateo Ruiz</td>
+<td class="py-5 text-on-surface-variant text-sm">Yesterday</td>
+<td class="py-5 text-right">
+<button class="material-symbols-outlined text-on-surface-variant/40 group-hover:text-primary transition-organic">more_horiz</button>
+</td>
+</tr>
+<tr class="group hover:bg-surface-container/30 transition-organic">
+<td class="py-5 font-medium">Soren Nielsen</td>
+<td class="py-5">
+<div class="flex gap-1">
+<div class="w-1.5 h-4 bg-primary rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary/20 rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary/20 rounded-full"></div>
+<div class="w-1.5 h-4 bg-primary/20 rounded-full"></div>
+</div>
+</td>
+<td class="py-5">
+<span class="px-3 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-medium">Initial Contact</span>
+</td>
+<td class="py-5 text-on-surface-variant text-sm">Elena Voss</td>
+<td class="py-5 text-on-surface-variant text-sm">Oct 12, 2023</td>
+<td class="py-5 text-right">
+<button class="material-symbols-outlined text-on-surface-variant/40 group-hover:text-primary transition-organic">more_horiz</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</main>
+<!-- Floating Action Button - Only on relevant screens -->
+<button class="fixed bottom-10 right-10 w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-organic z-50">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+<script>
+        // Subtle micro-interactions
+        document.querySelectorAll('.group').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                // Future expansion for smooth SVG or Canvas animations
+            });
+        });
+
+        // Ambient brightness shift based on mouse position (very subtle)
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth) * 100;
+            const y = (e.clientY / window.innerHeight) * 100;
+            document.body.style.background = `radial-gradient(circle at ${x}% ${y}%, #f9f9f9 0%, #f3f3f3 100%)`;
+        });
+    </script>
+</body></html>

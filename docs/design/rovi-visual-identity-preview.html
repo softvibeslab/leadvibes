@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rovi Visual Identity Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: #0b1326;
+      --background-deep: #060e20;
+      --surface: rgba(255, 255, 255, 0.055);
+      --surface-strong: rgba(255, 255, 255, 0.085);
+      --surface-muted: rgba(19, 27, 46, 0.72);
+      --border: rgba(255, 255, 255, 0.12);
+      --border-strong: rgba(0, 217, 255, 0.34);
+      --text: #dae2fd;
+      --text-strong: #f9fbff;
+      --text-muted: #94a3b8;
+      --cyan: #00d9ff;
+      --blue: #0266ff;
+      --violet: #8b5cf6;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+      font-size: 14px;
+      background:
+        radial-gradient(circle at 15% 8%, rgba(0, 217, 255, 0.18), transparent 34%),
+        radial-gradient(circle at 80% 0%, rgba(139, 92, 246, 0.18), transparent 30%),
+        radial-gradient(circle at 65% 78%, rgba(2, 102, 255, 0.16), transparent 32%),
+        linear-gradient(145deg, var(--background-deep), var(--background));
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.32;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, black, transparent 78%);
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      color: var(--text-strong);
+      font-family: "Outfit", system-ui, sans-serif;
+      letter-spacing: -0.03em;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .app {
+      display: grid;
+      min-height: 100vh;
+      grid-template-columns: 276px 1fr;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px;
+      border-right: 1px solid var(--border);
+      background: rgba(6, 14, 32, 0.68);
+      backdrop-filter: blur(28px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid rgba(0, 217, 255, 0.38);
+      border-radius: 14px;
+      color: white;
+      font-family: "Outfit", sans-serif;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      box-shadow: 0 0 28px rgba(0, 217, 255, 0.22);
+    }
+
+    .brand small,
+    .eyebrow,
+    .metric-label,
+    .nav-section {
+      color: var(--text-muted);
+      font-family: "Source Code Pro", monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nav-section {
+      margin: 28px 0 10px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding: 11px 12px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .nav-item.active {
+      color: var(--text-strong);
+      border-color: rgba(0, 217, 255, 0.24);
+      background: rgba(0, 217, 255, 0.08);
+      box-shadow: inset 3px 0 0 var(--cyan);
+    }
+
+    .main {
+      padding: 32px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .title-block h1 {
+      font-size: clamp(26px, 3.2vw, 40px);
+      line-height: 1.02;
+    }
+
+    .title-block p {
+      max-width: 720px;
+      margin-top: 10px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .button {
+      display: inline-flex;
+      min-height: 38px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0 18px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(18px);
+    }
+
+    .button.primary {
+      border: none;
+      color: white;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      box-shadow: 0 16px 40px rgba(0, 217, 255, 0.22);
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .metrics {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .workspace {
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, var(--surface), rgba(255,255,255,0.025));
+      box-shadow: 0 0 26px rgba(0, 217, 255, 0.08);
+      backdrop-filter: blur(34px) saturate(150%);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .card-header h2 {
+      font-size: 20px;
+    }
+
+    .metric {
+      min-height: 126px;
+      padding: 20px;
+    }
+
+    .metric-value {
+      margin-top: 18px;
+      color: var(--text-strong);
+      font-family: "Outfit", sans-serif;
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .metric-trend {
+      margin-top: 10px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(170px, 1fr));
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .stage {
+      min-height: 330px;
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 14px;
+      background: rgba(6, 14, 32, 0.44);
+      padding: 12px;
+    }
+
+    .stage h3 {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+    }
+
+    .lead-card {
+      margin-bottom: 10px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.055);
+    }
+
+    .lead-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text-strong);
+      font-size: 13px;
+    }
+
+    .lead-card span {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      border: 1px solid rgba(0, 217, 255, 0.22);
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(0, 217, 255, 0.08);
+    }
+
+    .property {
+      display: grid;
+      grid-template-columns: 84px 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .property-image {
+      min-height: 84px;
+      border-radius: 12px;
+      background:
+        linear-gradient(135deg, rgba(0, 217, 255, 0.2), rgba(139, 92, 246, 0.28)),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cpath d='M22 132 88 44l66 88H22Z' fill='%23ffffff' opacity='.16'/%3E%3Cpath d='M66 132V89h48v43' fill='%23000' opacity='.18'/%3E%3C/svg%3E");
+      background-size: cover;
+    }
+
+    .property h3 {
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .price {
+      color: var(--cyan);
+      font-family: "Outfit", sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .table th,
+    .table td {
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      text-align: left;
+    }
+
+    .table th {
+      color: var(--text-muted);
+      font-family: "Source Code Pro", monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .status {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .status.hot {
+      color: #ffdd8a;
+      background: rgba(245, 158, 11, 0.16);
+    }
+
+    .status.ai {
+      color: #d8c4ff;
+      background: rgba(139, 92, 246, 0.18);
+    }
+
+    @media (max-width: 1100px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .metrics,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">R</div>
+        <div>
+          <h2>Rovi CRM</h2>
+          <small>Luxury workspace</small>
+        </div>
+      </div>
+
+      <div class="nav-section">Operación</div>
+      <div class="nav-item active"><span>Dashboard</span><span>01</span></div>
+      <div class="nav-item"><span>Leads</span><span>248</span></div>
+      <div class="nav-item"><span>Propiedades</span><span>42</span></div>
+      <div class="nav-item"><span>Calendario</span><span>18</span></div>
+
+      <div class="nav-section">Inteligencia</div>
+      <div class="nav-item"><span>Analytics</span><span>AI</span></div>
+      <div class="nav-item"><span>Automatizaciones</span><span>12</span></div>
+      <div class="nav-item"><span>Chat BD</span><span>ON</span></div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar">
+        <div class="title-block">
+          <div class="eyebrow">Visual Identity Preview</div>
+          <h1>Broker workspace<br>dark luxury</h1>
+          <p>Preview sin impacto en producción: tokens, colores, tipografías, glass surfaces, estados y densidad operativa para Rovi.</p>
+        </div>
+        <div class="actions">
+          <div class="button">Ver tokens</div>
+          <div class="button primary">Nueva propiedad</div>
+        </div>
+      </section>
+
+      <section class="grid metrics">
+        <article class="card metric">
+          <div class="metric-label">Pipeline value</div>
+          <div class="metric-value">$38.4M</div>
+          <div class="metric-trend">+12.8% este mes</div>
+        </article>
+        <article class="card metric">
+          <div class="metric-label">Leads activos</div>
+          <div class="metric-value">248</div>
+          <div class="metric-trend">37 alta intención</div>
+        </article>
+        <article class="card metric">
+          <div class="metric-label">Propiedades</div>
+          <div class="metric-value">42</div>
+          <div class="metric-trend">8 nuevas preventas</div>
+        </article>
+        <article class="card metric">
+          <div class="metric-label">Cierre estimado</div>
+          <div class="metric-value">21%</div>
+          <div class="metric-trend">+4.2 pts vs abril</div>
+        </article>
+      </section>
+
+      <section class="grid workspace">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="eyebrow">Pipeline</div>
+              <h2>Leads de alta intención</h2>
+            </div>
+            <div class="chip">AI Suggestions</div>
+          </div>
+          <div class="card-body">
+            <div class="pipeline">
+              <div class="stage">
+                <h3><span>Nuevo</span><span>18</span></h3>
+                <div class="lead-card">
+                  <strong>Mariana Cruz</strong>
+                  <span>Busca villa en Tulum, presupuesto $9M</span>
+                  <div class="chip-row"><span class="chip">VIP</span><span class="chip">WhatsApp</span></div>
+                </div>
+                <div class="lead-card">
+                  <strong>Diego Rivera</strong>
+                  <span>Inversionista, interés en preventa</span>
+                </div>
+              </div>
+              <div class="stage">
+                <h3><span>Calificación</span><span>12</span></h3>
+                <div class="lead-card">
+                  <strong>Sofía Torres</strong>
+                  <span>Necesita ROI y plan de renta vacacional</span>
+                  <div class="chip-row"><span class="chip">AI match</span></div>
+                </div>
+              </div>
+              <div class="stage">
+                <h3><span>Presentación</span><span>9</span></h3>
+                <div class="lead-card">
+                  <strong>Grupo Norte</strong>
+                  <span>Tour agendado para viernes</span>
+                </div>
+              </div>
+              <div class="stage">
+                <h3><span>Apartado</span><span>5</span></h3>
+                <div class="lead-card">
+                  <strong>Valeria Santos</strong>
+                  <span>Revisión legal y financiamiento</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="grid">
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <div class="eyebrow">Propiedades</div>
+                <h2>Inventario premium</h2>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="property">
+                <div class="property-image"></div>
+                <div>
+                  <h3>Villa Ikal, Tulum</h3>
+                  <p class="price">$12.8M MXN</p>
+                  <p style="color: var(--text-muted); font-size: 12px;">Responsable: Preview Broker</p>
+                </div>
+              </div>
+              <div class="property">
+                <div class="property-image"></div>
+                <div>
+                  <h3>Loft Aldea Zama</h3>
+                  <p class="price">$4.6M MXN</p>
+                  <p style="color: var(--text-muted); font-size: 12px;">Comisión: 3%</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <div class="eyebrow">Actividad</div>
+                <h2>Próximas acciones</h2>
+              </div>
+            </div>
+            <div class="card-body">
+              <table class="table">
+                <thead>
+                  <tr><th>Lead</th><th>Estado</th><th>Hora</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Mariana</td><td><span class="status hot">Hot</span></td><td>10:30</td></tr>
+                  <tr><td>Sofía</td><td><span class="status ai">AI next</span></td><td>12:00</td></tr>
+                  <tr><td>Grupo Norte</td><td><span class="status hot">Tour</span></td><td>16:45</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </aside>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

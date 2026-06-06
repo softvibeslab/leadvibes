@@ -1,0 +1,427 @@
+<!DOCTYPE html><html class="light" lang="es"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Historial de Evolución - Rovi CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        body {
+            background-color: #faf8ff;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(0, 217, 255, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(107, 56, 212, 0.05) 0px, transparent 50%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.02);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 217, 255, 0.15);
+            border-color: rgba(0, 217, 255, 0.3);
+        }
+        .timeline-line {
+            background: linear-gradient(180deg, #00d9ff 0%, #8455ef 100%);
+        }
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 104, 123, 0.1);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 104, 123, 0.3);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-high": "#e2e7ff",
+                        "on-tertiary-container": "#6e4d00",
+                        "on-surface": "#131b2e",
+                        "on-error": "#ffffff",
+                        "surface": "#faf8ff",
+                        "inverse-on-surface": "#eef0ff",
+                        "on-surface-variant": "#3c494d",
+                        "on-primary-fixed": "#001f26",
+                        "primary": "#00687b",
+                        "surface-dim": "#d2d9f4",
+                        "on-secondary-fixed": "#23005c",
+                        "surface-container-highest": "#dae2fd",
+                        "on-error-container": "#93000a",
+                        "on-background": "#131b2e",
+                        "outline-variant": "#bbc9ce",
+                        "secondary-fixed": "#e9ddff",
+                        "on-primary-container": "#005b6c",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "surface-variant": "#dae2fd",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "tertiary-container": "#ffbb2a",
+                        "on-tertiary-fixed-variant": "#5e4100",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#ffdea9",
+                        "secondary": "#6b38d4",
+                        "surface-tint": "#00687b",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "primary-fixed-dim": "#00d9ff",
+                        "outline": "#6c797e",
+                        "tertiary-fixed-dim": "#febb29",
+                        "surface-container": "#eaedff",
+                        "secondary-container": "#8455ef",
+                        "primary-fixed": "#aeecff",
+                        "primary-container": "#00d9ff",
+                        "inverse-primary": "#00d9ff",
+                        "surface-container-low": "#f2f3ff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#271900",
+                        "on-secondary-container": "#fffbff",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#faf8ff",
+                        "inverse-surface": "#283044",
+                        "error-container": "#ffdad6",
+                        "background": "#faf8ff",
+                        "on-primary": "#ffffff",
+                        "tertiary": "#7d5800"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "24px",
+                        "margin-desktop": "64px",
+                        "margin-mobile": "20px",
+                        "container-max": "1280px",
+                        "unit": "8px"
+                    },
+                    fontFamily: {
+                        "label-md": ["JetBrains Mono"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-lg": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"]
+                    },
+                    fontSize: {
+                        "label-md": ["14px", { "lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "display-lg": ["64px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "headline-lg": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["32px", { "lineHeight": "1.2", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-screen overflow-y-auto flex flex-col bg-surface-container-low dark:bg-surface-container-lowest backdrop-blur-2xl docked left-0 h-full w-64 border-r border-white/10 shadow-xl z-50">
+<div class="p-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center neon-glow">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+</div>
+<div>
+<h1 class="font-display-lg text-headline-md font-bold text-on-surface tracking-tight">Rovi</h1>
+<p class="text-[10px] font-label-md text-primary tracking-widest uppercase">Broker Edition</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-2 space-y-1">
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-2 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md font-medium">Dashboard</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-2 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-body-md font-medium">Pipeline</span>
+</a>
+<!-- Active State -->
+<a class="bg-secondary-container text-on-secondary-container rounded-lg mx-2 my-1 shadow-[0_0_15px_rgba(0,217,255,0.3)] transition-all duration-300 px-4 py-2 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history_edu</span>
+<span class="font-body-md font-medium">Historial</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-2 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-md font-medium">Analiticas</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface px-4 py-2 flex items-center gap-3 hover:bg-white/5 hover:backdrop-blur-md transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md font-medium">Configuracion</span>
+</a>
+</nav>
+<div class="mt-auto p-4 border-t border-white/10">
+<div class="flex items-center gap-3 px-2 py-2">
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a smiling business executive in a high-end, blurred modern office setting with cool blue and cyan accent lighting, reflecting a premium light luxury aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMsPIKfrXIcdTrjyoGVDGEOztrePESWBQDQ9NGf8AsvZg9nDT5I9O3ZUueeocStv3_mjLL6JIRdqLDxApTtGRo_VZ-_j1hmtTIgOejgk3GQo0Bk-QT1m41qcCpVZSuZu71pVoqI47Ys6lSMghc_fJDqotVL8Nu7tchs9JpDobvDVrTFu8OcKG7-eciaBWRjt5L5QtSxpbYCJL1_FmR2Jkc43GTRbbbFQ8khvzPu0cS2RZU822sBtGFp3aYBsaZ1DmIaBGWiyddL2q0">
+</div>
+<div class="overflow-hidden">
+<p class="text-label-sm font-bold truncate">Alex Broker</p>
+<p class="text-[10px] text-on-surface-variant">Admin Level</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 min-h-screen">
+<!-- Top Bar -->
+<header class="flex justify-between items-center px-8 py-6 w-full h-20 bg-transparent">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">Historial de Evolución - Rovi CRM</h2>
+<p class="text-on-surface-variant text-sm">Registro detallado de hitos y ciclos de diseño</p>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-4 py-2 glass-card rounded-xl text-primary font-medium text-sm hover:bg-white/80 transition-all border border-white/40">
+<span class="material-symbols-outlined text-sm">filter_alt</span>
+                    Filtrar por Módulo
+                </button>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+                    Exportar Log
+                </button>
+<div class="flex gap-2">
+<span class="material-symbols-outlined p-2 glass-card rounded-full cursor-pointer">notifications</span>
+<span class="material-symbols-outlined p-2 glass-card rounded-full cursor-pointer">help_outline</span>
+</div>
+</div>
+</header>
+<div class="p-8 max-w-container-max mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+<!-- Timeline Sidebar / Filters -->
+<div class="lg:col-span-1 space-y-6">
+<section class="glass-panel p-6 rounded-3xl">
+<h3 class="font-headline-md text-sm font-bold mb-4 uppercase tracking-widest text-primary">Módulos</h3>
+<div class="space-y-2">
+<label class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/40 cursor-pointer transition-colors">
+<input checked="" class="rounded text-primary focus:ring-primary-container border-outline-variant bg-transparent" type="checkbox">
+<span class="font-body-md text-sm font-medium">Dashboard</span>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/40 cursor-pointer transition-colors">
+<input checked="" class="rounded text-primary focus:ring-primary-container border-outline-variant bg-transparent" type="checkbox">
+<span class="font-body-md text-sm font-medium">Pipeline</span>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/40 cursor-pointer transition-colors">
+<input checked="" class="rounded text-primary focus:ring-primary-container border-outline-variant bg-transparent" type="checkbox">
+<span class="font-body-md text-sm font-medium">Analytics</span>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/40 cursor-pointer transition-colors">
+<input class="rounded text-primary focus:ring-primary-container border-outline-variant bg-transparent" type="checkbox">
+<span class="font-body-md text-sm font-medium">Calendario</span>
+</label>
+</div>
+</section>
+<section class="glass-panel p-6 rounded-3xl">
+<h3 class="font-headline-md text-sm font-bold mb-4 uppercase tracking-widest text-secondary">Estadísticas</h3>
+<div class="space-y-4">
+<div class="p-4 bg-white/40 rounded-2xl border border-white/60">
+<p class="text-xs text-on-surface-variant mb-1">Total de Versiones</p>
+<p class="text-2xl font-bold text-on-surface">128 <span class="text-xs font-normal text-primary">+12%</span></p>
+</div>
+<div class="p-4 bg-white/40 rounded-2xl border border-white/60">
+<p class="text-xs text-on-surface-variant mb-1">Último Hito</p>
+<p class="text-lg font-bold text-on-surface">Alta Densidad</p>
+<p class="text-xs text-on-surface-variant">Junio 24, 2026</p>
+</div>
+</div>
+</section>
+</div>
+<!-- Main Activity Feed -->
+<div class="lg:col-span-3">
+<div class="relative pl-12 space-y-12">
+<!-- Timeline Line -->
+<div class="absolute left-6 top-4 bottom-4 w-1 timeline-line opacity-20 rounded-full"></div>
+<!-- Milestone 6 -->
+<div class="relative group">
+<div class="absolute -left-[30px] top-0 w-4 h-4 rounded-full bg-primary ring-4 ring-primary-container/30 z-10 group-hover:scale-125 transition-transform"></div>
+<div class="glass-card p-8 rounded-[40px]">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="font-label-md text-xs text-primary bg-primary-container/20 px-3 py-1 rounded-full border border-primary-container/30 mb-2 inline-block">Milestone 6</span>
+<h4 class="font-headline-md text-xl font-bold text-on-surface">Alta Densidad &amp; Fusión Definitiva</h4>
+<p class="text-sm text-on-surface-variant mt-1">28 Junio, 2026 • Design by Lead Architect</p>
+</div>
+<span class="material-symbols-outlined text-primary-fixed-dim text-4xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+<div class="space-y-3">
+<p class="text-body-md text-on-surface leading-relaxed">
+                                        Consolidación final del ecosistema Rovi. Integración de visualizaciones de datos complejas manteniendo la fluidez visual y el rendimiento.
+                                    </p>
+<ul class="text-sm space-y-2 text-on-surface-variant">
+<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span> SCREEN_31: Implementación de Bento Grid dinámico.</li>
+<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span> SCREEN_45: Optimización de carga de gráficos pesados.</li>
+</ul>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="aspect-video rounded-2xl overflow-hidden glass-panel border-white/80 p-1">
+<img class="w-full h-full object-cover rounded-xl" data-alt="A highly detailed data visualization dashboard with glassmorphic cards and glowing line charts in neon cyan and purple, set against a pristine white background with soft mesh gradients, reflecting high-density luxury design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaT_pATGBEOe24CXyfiqr-aGwizGR88Dv9apHKBShFG47fSpwEgNSmoY2Xbg1gUVnq8UXnMJN4cIyo8XqKVua9OjLaHpQ-Dy-EmzRktAjG9RGqXsazjrfrwxxrsa5Zrfbe0HKR4rg_3NQrOAatGnGWsti97-bVYs5kFUdRvGUQfgUP56NkS8V4Myxpu3MuTkTVfoc6z7PJcb8bBUWCLiQ5TumR42HM2dcno4HBHNLF5lio7u6XUEPc3aB3oia0znVCqh3kdsNgziyL">
+</div>
+<div class="aspect-video rounded-2xl overflow-hidden glass-panel border-white/80 p-1">
+<img class="w-full h-full object-cover rounded-xl" data-alt="Close-up of a high-end UI interface showing intricate circular progress loaders and financial data tables with micro-interactions, styled in a luminous ether aesthetic with vibrant cyan accents and soft shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNNKOZbn7hS2DABQr81c2jNSs83SxcXCb296g_7YUy_FKixlxLlavObvFPNZpIduqwCdlmPJUVzvXLi7Ts0Pbk8rbsvvN84YStEU3q8Xk3gkUU3ovTp5nc4MT3YCpdmb-25-coc5xk2nvP_cd30jh1LbCDX1tUNzFwxBPW_5oHmaKVtfOT-Rh8Jl2XHwB0GCxxdu8KW6t3-laB45jTrDDtDl0J1z7q-aQvof9X3W4xOKs0mtjdn-I1s4Fk0S0rK499l1oPiKzYDzv0">
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 pt-4 border-t border-white/20">
+<span class="text-xs font-label-md text-primary">RATIONALE:</span>
+<p class="text-xs text-on-surface-variant italic font-medium">"Maximizar la información útil sin sacrificar la sensación de aire y lujo digital."</p>
+</div>
+</div>
+</div>
+<!-- Milestone 5 -->
+<div class="relative group">
+<div class="absolute -left-[30px] top-0 w-4 h-4 rounded-full bg-secondary-container ring-4 ring-secondary/10 z-10 group-hover:scale-125 transition-transform"></div>
+<div class="glass-card p-8 rounded-[40px]">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="font-label-md text-xs text-secondary bg-secondary-fixed/30 px-3 py-1 rounded-full border border-secondary-fixed/50 mb-2 inline-block">Milestone 5</span>
+<h4 class="font-headline-md text-xl font-bold text-on-surface">Refinamiento de Módulos (Analytics &amp; Calendar)</h4>
+<p class="text-sm text-on-surface-variant mt-1">20 Junio, 2026 • Feature Update</p>
+</div>
+<span class="material-symbols-outlined text-secondary text-4xl">calendar_month</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+<div class="space-y-3">
+<p class="text-body-md text-on-surface leading-relaxed">
+                                        Evolución funcional de los módulos más interactivos. Se introdujeron gradientes de profundidad y estados de enfoque más táctiles.
+                                    </p>
+<ul class="text-sm space-y-2 text-on-surface-variant">
+<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> SCREEN_28: Nuevo motor de renderizado para el calendario.</li>
+<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> SCREEN_36: Mejoras en el filtrado de analíticas.</li>
+</ul>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="aspect-video rounded-2xl overflow-hidden glass-panel border-white/80 p-1">
+<img class="w-full h-full object-cover rounded-xl" data-alt="A sophisticated digital calendar interface with translucent layers and glowing event markers, using a soft violet and blue color palette in a high-tech lifestyle setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCf-2641J2RxNrFMEXvXu7v2nUSGoU8lJWc7f1swsYm0xnXxnAlrVyqjdJNMYg1uA2XnKH67NVu2u75DoW_0KS8M-FFqObm8G_5H_abme_qBw7Jer7a5t81GSWUJa5fiZ3PMZKoXBH_RDQXvQy6olGvoBpSGjI3xKLjwZckr0yWa8Hf_ynbkCuvON49gfCEqaKx66gCM5d1DthpbHZbV74N9Y0Wkyp70hkZATXNZIV07LfhVeDi8Q_6yXqdpenkshBC1Ms2QB9ALbeo">
+</div>
+<div class="aspect-video rounded-2xl overflow-hidden glass-panel border-white/80 p-1 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+<img class="w-full h-full object-cover rounded-xl" data-alt="Abstract UI analytics wireframes with glowing connections and geometric patterns, conveying a sense of data flowing through a premium glass interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBka1qqeOP0QanxAuc_gmS3jmMFUx4-EpIwBbSKvzRiJneVfHmwknOelCVsLVlTv2UTqN9LVdiQTMYNzHfp_6g8xE3Gro-oex2vmmodOiU9RTXOKN2VaJ0-QfZY6r1jvGl9Kj0TKJcAxPxixrDyUBcFGf4ZOZ8x8z1Hr5diP1VCexoiNRy94y7v4Wljis1LfSP73LiIUJDpXVVr4Ydb5qt14p2WABWWg8pUYdD7_QAgll4QDGd0glOi5NbAdGsUyCZGYMFwqTPSmfIH">
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Milestone 4 -->
+<div class="relative group">
+<div class="absolute -left-[30px] top-0 w-4 h-4 rounded-full bg-outline-variant ring-4 ring-outline/10 z-10"></div>
+<div class="glass-card p-8 rounded-[40px] opacity-90 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="font-label-md text-xs text-on-surface-variant bg-surface-variant px-3 py-1 rounded-full border border-outline-variant/30 mb-2 inline-block">Milestone 4</span>
+<h4 class="font-headline-md text-xl font-bold text-on-surface">Optimización de Espacios &amp; Micro-interacciones</h4>
+<p class="text-sm text-on-surface-variant mt-1">15 Junio, 2026 • Polish Phase</p>
+</div>
+<span class="material-symbols-outlined text-outline text-4xl">touch_app</span>
+</div>
+<div class="space-y-3">
+<p class="text-body-md text-on-surface leading-relaxed max-w-2xl">
+                                    Fase dedicada a la ergonomía visual. Ajuste de márgenes "Airy" y aplicación de leyes de proximidad en el Pipeline (SCREEN_30, SCREEN_41).
+                                </p>
+</div>
+</div>
+</div>
+<!-- Milestone 3 -->
+<div class="relative group">
+<div class="absolute -left-[30px] top-0 w-4 h-4 rounded-full bg-primary-container z-10"></div>
+<div class="glass-card p-8 rounded-[40px] border-dashed">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="font-label-md text-xs text-primary bg-primary-container/40 px-3 py-1 rounded-full mb-2 inline-block">Milestone 3</span>
+<h4 class="font-headline-md text-xl font-bold text-on-surface">Transición a Light Luxury (Luminous Ether)</h4>
+<p class="text-sm text-on-surface-variant mt-1">10 Junio, 2026 • Pivot Creativo</p>
+</div>
+<span class="material-symbols-outlined text-primary-fixed-dim text-4xl" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+</div>
+<p class="text-body-md text-on-surface leading-relaxed mb-4">
+                                El momento definitivo del cambio de identidad. Abandono de sombras negras por refracción tonal y bordes luminosos. Referencia directa a SCREEN_42 y SCREEN_32.
+                            </p>
+<div class="flex gap-4">
+<div class="w-24 h-24 rounded-2xl bg-surface-container overflow-hidden border border-white">
+<img class="w-full h-full object-cover" data-alt="Abstract art of light reflecting through glass prisms, showing soft pastel gradients and sharp crystalline highlights, capturing the luminous ether design philosophy." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBo1UXKZC2pZhRKSbDH3DkQRKsG0ge621omcP4ZaDvj6SUUNeD0GOOp_Q-fy8DbFy_ZsBrh5b5EdKzschMDxLme7bGmAWCSaX-WBHmeVUnvb_sMgZfd5UFWUe2yd0L2MQCgKZqmzU2g-bPzyuRDpCQE-LYvXc972S4woGrTdHrRVmlMmTTRiOHCRZ9RjN4P6N_pjwq0b_TVbadxJo4LJEPqRicjeYz-iuv0VJGcL16GwmkJ4JNkINFMPKtmyQn7Kl1p1ssmixjgFLMB">
+</div>
+<div class="w-24 h-24 rounded-2xl bg-surface-container overflow-hidden border border-white">
+<img class="w-full h-full object-cover" data-alt="Minimalist design elements with frosted glass textures and vibrant blue glowing edges on a clean white background, illustrating a modern fintech interface aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBrtoz9usoMugU_LIYteAOfeXQ6ZA8mFZerNKvTUC_euqDEOXd3aV53Cgl0uA6lFc52IC3Yod4YXhGAnIqjGP6r7fsmUVaBPY6vBjqGn4LXwMdmTEAfaJPXEvKVn92dyb8b6yZegcvbg91AkF-s466zuYLCT8zUF15u1_eAb_WHj_546shL4Kmo_4oOMQrw3eJQr7AiKFDawDQ_u9qb3c1vZubnAaxn5W7tNL_qxacoo231x6HgVwmc9aYW6vglXHBVThkfW1Ki6p5">
+</div>
+</div>
+</div>
+</div>
+<!-- Milestone 2 & 1 (Condensed) -->
+<div class="flex flex-col gap-6">
+<div class="flex items-center gap-6 group">
+<div class="w-12 h-1 timeline-line opacity-20 rounded-full"></div>
+<div class="flex-1 glass-card p-4 rounded-2xl flex items-center justify-between">
+<span class="font-bold text-sm">Milestone 2: Evolución Luxury Tech (Dark Mode)</span>
+<span class="text-xs text-on-surface-variant">Junio 05, 2026</span>
+</div>
+</div>
+<div class="flex items-center gap-6 group">
+<div class="w-12 h-1 timeline-line opacity-20 rounded-full"></div>
+<div class="flex-1 glass-card p-4 rounded-2xl flex items-center justify-between">
+<span class="font-bold text-sm">Milestone 1: Conceptualización &amp; Dashboard Base</span>
+<span class="text-xs text-on-surface-variant">Junio 01, 2026</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button for Feedback -->
+<button class="fixed bottom-8 right-8 w-16 h-16 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform neon-glow group z-50">
+<span class="material-symbols-outlined text-3xl group-hover:rotate-12 transition-transform">add_comment</span>
+</button>
+<script>
+        // Micro-interactions and visual effects
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+                
+                // Add a dynamic light follow effect if desired via background-image gradient
+                // For simplicity, we stick to the existing CSS transitions
+            });
+        });
+
+        // Simple checkbox filter interaction simulation
+        const filters = document.querySelectorAll('input[type="checkbox"]');
+        filters.forEach(filter => {
+            filter.addEventListener('change', () => {
+                const checked = Array.from(filters).filter(f => f.checked).map(f => f.nextElementSibling.innerText);
+                console.log('Active filters:', checked);
+                // Here you would normally filter the timeline items
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Outfit:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-tint": "#00687b",
+                    "on-tertiary-fixed": "#271900",
+                    "outline": "#6c797e",
+                    "primary-fixed-dim": "#00d9ff",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed-variant": "#5516be",
+                    "surface-container": "#eaedff",
+                    "inverse-on-surface": "#eef0ff",
+                    "surface-container-high": "#e2e7ff",
+                    "secondary-container": "#8455ef",
+                    "on-tertiary-fixed-variant": "#5e4100",
+                    "on-primary-fixed-variant": "#004e5d",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#dae2fd",
+                    "background": "#faf8ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#005b6c",
+                    "on-background": "#131b2e",
+                    "primary-fixed": "#aeecff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#23005c",
+                    "inverse-surface": "#283044",
+                    "tertiary-fixed-dim": "#febb29",
+                    "on-surface": "#131b2e",
+                    "inverse-primary": "#00d9ff",
+                    "surface-container-low": "#f2f3ff",
+                    "error-container": "#ffdad6",
+                    "tertiary": "#7d5800",
+                    "on-tertiary-container": "#6e4d00",
+                    "tertiary-container": "#ffbb2a",
+                    "primary-container": "#00d9ff",
+                    "surface-bright": "#faf8ff",
+                    "primary": "#1D4ED8",
+                    "accent-cyan": "#00D9FF",
+                    "surface": "#faf8ff",
+                    "surface-dim": "#d2d9f4",
+                    "on-surface-variant": "#3c494d",
+                    "secondary": "#6b38d4",
+                    "on-secondary-container": "#fffbff",
+                    "secondary-fixed-dim": "#d0bcff",
+                    "outline-variant": "#bbc9ce",
+                    "surface-variant": "#dae2fd",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed": "#ffdea9",
+                    "secondary-fixed": "#e9ddff",
+                    "on-primary-fixed": "#001f26"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "20px",
+                    "gutter": "24px",
+                    "container-max": "1280px",
+                    "unit": "8px",
+                    "margin-desktop": "64px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Outfit", "sans-serif"],
+                    "body-md": ["Plus Jakarta Sans", "sans-serif"],
+                    "label-sm": ["JetBrains Mono", "monospace"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-sm": ["11px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                    "label-md": ["13px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px -5px rgba(0, 104, 123, 0.05);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.2s ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(0, 217, 255, 0.1);
+            border-color: rgba(0, 217, 255, 0.3);
+        }
+        .mesh-gradient {
+            background: 
+                radial-gradient(at 0% 0%, hsla(189, 100%, 90%, 0.4) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(260, 100%, 95%, 0.4) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(189, 100%, 95%, 0.4) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(220, 100%, 98%, 0.4) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        .kanban-column {
+            min-width: 260px;
+            max-width: 280px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 104, 123, 0.1);
+            border-radius: 10px;
+        }
+        .luminous-button {
+            background: linear-gradient(90deg, #00D9FF, #1D4ED8);
+            box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .luminous-button::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md mesh-gradient min-h-screen flex">
+<!-- SideNavBar (Authority: COMPONENTS_19) -->
+<aside class="hidden md:flex flex-col h-screen py-8 px-6 gap-8 bg-white/70 backdrop-blur-2xl border-r border-primary/10 shadow-[20px_0px_40px_hsla(217,89%,36%,0.03)] w-72 sticky top-0 z-50">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">Rovi CRM</h1>
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest">Luxury Real Estate</p>
+</div>
+</div>
+<nav class="flex flex-col gap-1 flex-1">
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">domain</span>
+<span class="font-label-md text-label-md">Properties</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-md text-label-md">Leads</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl bg-primary/5 text-primary font-bold border-r-4 border-secondary transition-transform translate-x-1" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-label-md text-label-md">Calendar</span>
+</a>
+</nav>
+<button class="luminous-button text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">add_circle</span>
+<span>New Listing</span>
+</button>
+<div class="mt-auto border-t border-primary/5 pt-6 flex flex-col gap-1">
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant hover:bg-primary/5 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant hover:bg-primary/5 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Sign Out</span>
+</a>
+</div>
+</aside>
+<main class="flex-1 flex flex-col min-w-0">
+<!-- TopNavBar (Authority: COMPONENTS_19) -->
+<header class="flex justify-between items-center px-gutter w-full h-20 sticky top-0 z-40 bg-white/70 backdrop-blur-2xl border-b border-primary/10 shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)]">
+<div class="flex items-center gap-6 flex-1">
+<div class="relative w-full max-w-md group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-white/40 border border-outline-variant/30 rounded-full py-2 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm" placeholder="Buscar tareas, clientes..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="h-8 w-[1px] bg-outline-variant/30 mx-2"></div>
+<div class="flex items-center gap-3 pl-2">
+<div class="text-right hidden sm:block">
+<p class="font-bold text-on-surface leading-none text-sm">Alex Sterling</p>
+<p class="text-[10px] text-on-surface-variant uppercase">Executive Agent</p>
+</div>
+<img alt="Executive User Profile" class="w-9 h-9 rounded-full border-2 border-white shadow-sm object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXKStskejc5xDS3Rc9oeQ0qeC_3RW6reEhRPfD9gmJd42Eg4wufBK04mLyuoUvZzHQ6fhhT66WVdc7jCb8dabycqFnSqGDru6yZCpfUJa8D5o-6Y6rWqYhu-wnF8grRfiCZkrxzOHVmpHef13Tf0KRDrHepI3GUert5uM_HWq9CI1fNIB7oaBZWqE-aaSWZWbqxVlCSpLpyyhHD53e3W7RLwFSyR4eEF_TfhDY20TkXhcOqnSUllxOcILILVNTybJO9rn_YEFmgTpU"/>
+</div>
+</div>
+</header>
+<div class="p-8 flex flex-col gap-6">
+<!-- Header & Stats Summary -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-background tracking-tight">Tareas</h2>
+<p class="text-sm text-on-surface-variant mt-1">Seguimientos, responsables y pendientes conectados al pipeline comercial.</p>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 glass-panel rounded-lg flex items-center gap-2 text-xs font-bold text-on-surface hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-sm">demo</span>
+<span>Demo</span>
+</button>
+<button class="px-5 py-2 luminous-button text-white rounded-lg flex items-center gap-2 text-xs font-bold active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Nueva tarea</span>
+</button>
+</div>
+</div>
+<!-- Summary Metrics (6 items for high density) -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+<div class="glass-panel p-4 rounded-xl flex flex-col justify-between border-primary/5">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">TOTAL</p>
+<div class="flex items-center justify-between mt-1">
+<p class="text-2xl font-bold text-on-surface">128</p>
+<span class="material-symbols-outlined text-primary/40">assignment</span>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">ABIERTAS</p>
+<div class="flex items-center justify-between mt-1">
+<p class="text-2xl font-bold text-on-surface">42</p>
+<span class="material-symbols-outlined text-accent-cyan/40">pending_actions</span>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">HOY</p>
+<div class="flex items-center justify-between mt-1">
+<p class="text-2xl font-bold text-on-surface">05</p>
+<span class="material-symbols-outlined text-blue-400/40">schedule</span>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">VENCIDAS</p>
+<div class="flex items-center justify-between mt-1">
+<p class="text-2xl font-bold text-on-surface">03</p>
+<span class="material-symbols-outlined text-error/40">error</span>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">URGENTES</p>
+<div class="flex items-center justify-between mt-1">
+<p class="text-2xl font-bold text-on-surface">08</p>
+<span class="material-symbols-outlined text-orange-400/40">priority_high</span>
+</div>
+</div>
+<div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">COMPLETADAS</p>
+<div class="flex items-center justify-between mt-1">
+<p class="text-2xl font-bold text-on-surface">76</p>
+<span class="material-symbols-outlined text-green-400/40">check_circle</span>
+</div>
+</div>
+</div>
+<!-- Filters -->
+<div class="flex flex-wrap gap-2 items-center text-xs">
+<div class="relative min-w-[200px]">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full bg-white/40 border border-outline-variant/30 rounded-lg py-1.5 pl-9 pr-3 outline-none focus:border-primary" placeholder="Buscar por título, descripción..." type="text"/>
+</div>
+<select class="bg-white/40 border border-outline-variant/30 rounded-lg py-1.5 px-3 outline-none text-on-surface-variant">
+<option>Todos los estados</option>
+</select>
+<select class="bg-white/40 border border-outline-variant/30 rounded-lg py-1.5 px-3 outline-none text-on-surface-variant">
+<option>Todas las prioridades</option>
+</select>
+<select class="bg-white/40 border border-outline-variant/30 rounded-lg py-1.5 px-3 outline-none text-on-surface-variant">
+<option>Todas las fechas</option>
+</select>
+<div class="ml-auto flex bg-surface-container-low rounded-lg p-1">
+<button class="px-3 py-1 bg-white shadow-sm rounded-md font-bold text-primary">Tablero</button>
+<button class="px-3 py-1 font-medium text-on-surface-variant">Lista</button>
+</div>
+</div>
+<!-- Kanban Board -->
+<div class="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+<!-- Pendiente -->
+<div class="kanban-column flex flex-col gap-3">
+<div class="flex items-center justify-between bg-white/80 border border-primary/10 px-3 py-2 rounded-lg backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="font-bold text-xs text-on-surface">Pendiente</span>
+<span class="text-[10px] font-bold bg-surface-container-highest px-2 py-0.5 rounded-full">3</span>
+</div>
+</div>
+<!-- Card 1 -->
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<span class="text-[9px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Penthouse Interest</span>
+<span class="material-symbols-outlined text-error text-xs" title="High Priority">stat_3</span>
+</div>
+<div>
+<h4 class="font-bold text-xs text-on-surface">Llamar al lead caliente</h4>
+<p class="text-[10px] text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">person</span>
+                            Ricardo Hernandez
+                        </p>
+</div>
+<p class="text-[10px] text-on-surface-variant/80 line-clamp-2">Confirmar presupuesto, zona y fecha de visita técnica.</p>
+<div class="flex flex-wrap gap-1 mt-1">
+<span class="bg-error/10 text-error text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">priority_high</span>Urgente
+                        </span>
+<span class="bg-surface-container-low text-on-surface-variant text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">calendar_month</span>04 jun 2026
+                        </span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<span class="text-[9px] font-bold uppercase text-secondary bg-secondary/10 px-1.5 py-0.5 rounded">New Lead</span>
+<span class="material-symbols-outlined text-on-tertiary-container text-xs" title="Medium Priority">stat_2</span>
+</div>
+<div>
+<h4 class="font-bold text-xs text-on-surface">Enviar propuesta comparativa</h4>
+<p class="text-[10px] text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">person</span>
+                            Jennifer Smith
+                        </p>
+</div>
+<div class="flex flex-wrap gap-1 mt-1">
+<span class="bg-accent-cyan/10 text-primary text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">description</span>Media
+                        </span>
+<span class="bg-surface-container-low text-on-surface-variant text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">calendar_month</span>05 jun 2026
+                        </span>
+</div>
+</div>
+</div>
+<!-- En progreso -->
+<div class="kanban-column flex flex-col gap-3">
+<div class="flex items-center justify-between bg-primary/5 border border-primary/20 px-3 py-2 rounded-lg backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="font-bold text-xs text-primary">En progreso</span>
+<span class="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">2</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 border-l-2 border-primary">
+<div class="flex justify-between items-start">
+<span class="text-[9px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">Legal Review</span>
+</div>
+<div>
+<h4 class="font-bold text-xs text-on-surface">Actualizar CRM</h4>
+<p class="text-[10px] text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">person</span>
+                            Laura Vega
+                        </p>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full w-[65%] rounded-full shadow-[0_0_8px_rgba(0,217,255,0.3)]"></div>
+</div>
+<div class="flex items-center justify-between text-[9px] text-on-surface-variant mt-1">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">schedule</span>07 jun 2026</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">chat_bubble</span>1/2</span>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 border-l-2 border-primary">
+<div class="flex justify-between items-start">
+<span class="text-[9px] font-bold uppercase text-accent-cyan bg-accent-cyan/10 px-1.5 py-0.5 rounded">Follow Up</span>
+</div>
+<div>
+<h4 class="font-bold text-xs text-on-surface">Seguimiento post-visita</h4>
+<p class="text-[10px] text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">person</span>
+                            Michael Brown
+                        </p>
+</div>
+<div class="flex items-center justify-between text-[9px] text-on-surface-variant mt-1">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">calendar_month</span>09 jun 2026</span>
+</div>
+</div>
+</div>
+<!-- En espera -->
+<div class="kanban-column flex flex-col gap-3">
+<div class="flex items-center justify-between bg-yellow-50/80 border border-yellow-200/50 px-3 py-2 rounded-lg backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="font-bold text-xs text-tertiary">En espera</span>
+<span class="text-[10px] font-bold bg-tertiary text-white px-2 py-0.5 rounded-full">0</span>
+</div>
+</div>
+<div class="h-32 border-2 border-dashed border-outline-variant/20 rounded-xl flex items-center justify-center">
+<p class="text-[10px] text-outline-variant font-medium">Soltar tarea aquí</p>
+</div>
+</div>
+<!-- Completada -->
+<div class="kanban-column flex flex-col gap-3">
+<div class="flex items-center justify-between bg-green-50/80 border border-green-200/50 px-3 py-2 rounded-lg backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="font-bold text-xs text-green-700">Completada</span>
+<span class="text-[10px] font-bold bg-green-600 text-white px-2 py-0.5 rounded-full">12</span>
+</div>
+</div>
+<!-- Card Completed -->
+<div class="glass-card p-3 rounded-xl flex flex-col gap-2 opacity-70 border-l-2 border-green-500">
+<div class="flex justify-between items-start">
+<span class="text-[9px] font-bold uppercase text-green-700 bg-green-100 px-1.5 py-0.5 rounded">Closing</span>
+<span class="material-symbols-outlined text-green-600 text-xs">check_circle</span>
+</div>
+<h4 class="font-bold text-xs text-on-surface line-through decoration-on-surface-variant/40">Keys Handover - Ocean View</h4>
+<p class="text-[9px] text-green-700 font-bold mt-1">COMISIÓN PAGADA</p>
+</div>
+</div>
+<!-- Cancelada -->
+<div class="kanban-column flex flex-col gap-3">
+<div class="flex items-center justify-between bg-red-50/80 border border-red-200/50 px-3 py-2 rounded-lg backdrop-blur-md">
+<div class="flex items-center gap-2">
+<span class="font-bold text-xs text-error">Cancelada</span>
+<span class="text-[10px] font-bold bg-error text-white px-2 py-0.5 rounded-full">3</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-8 right-8 w-14 h-14 rounded-full luminous-button text-white flex items-center justify-center shadow-2xl z-50 hover:scale-110 active:scale-90 transition-all duration-300">
+<span class="material-symbols-outlined text-2xl">add</span>
+</button>
+<script>
+    // Micro-interactions for glass cards
+    document.addEventListener('mousemove', (e) => {
+        const cards = document.querySelectorAll('.glass-card');
+        cards.forEach(card => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (x > 0 && x < rect.width && y > 0 && y < rect.height) {
+                card.style.background = `radial-gradient(circle at ${x}px ${y}px, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)`;
+            } else {
+                card.style.background = 'rgba(255, 255, 255, 0.6)';
+            }
+        });
+    });
+</script>
+</body></html>

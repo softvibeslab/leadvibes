@@ -1,0 +1,2281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0d9488">
+    <meta name="description" content="ROVI Flow - Agent Access Layer. Potencia tu negocio inmobiliario con IA multi-agente y CRM completo.">
+    <title>ROVI Flow - Agent Access Layer</title>
+
+    <!-- Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* ROVI Premium Dark Palette */
+            --bg-primary: #0a0f1a;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-card-hover: rgba(31, 41, 55, 0.8);
+
+            /* Accent Colors - Turquesa/Cyan */
+            --accent-primary: #0d9488;
+            --accent-secondary: #14b8a6;
+            --accent-tertiary: #5eead4;
+            --accent-glow: rgba(13, 148, 136, 0.4);
+
+            /* Text Colors */
+            --text-primary: #f6f3ef;
+            --text-secondary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+
+            /* Gradients */
+            --gradient-dark: linear-gradient(135deg, #0a0f1a 0%, #111827 50%, #0a0f1a 100%);
+            --gradient-accent: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+            --gradient-glow: linear-gradient(135deg, rgba(13, 148, 136, 0.3) 0%, rgba(20, 184, 166, 0.1) 100%);
+            --gradient-text: linear-gradient(135deg, #0d9488 0%, #5eead4 100%);
+            --gradient-hero: linear-gradient(135deg, #0a0f1a 0%, #0d9488 50%, #111827 100%);
+            --gradient-premium: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --gradient-studio: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+
+            /* Shadows */
+            --shadow-premium: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            --shadow-glow: 0 0 60px rgba(13, 148, 136, 0.3);
+            --shadow-glow-strong: 0 0 100px rgba(13, 148, 136, 0.5);
+
+            /* Borders */
+            --border-premium: 1px solid rgba(148, 163, 184, 0.1);
+            --border-accent: 1px solid rgba(20, 184, 166, 0.3);
+
+            /* Spacing */
+            --radius-sm: 0.5rem;
+            --radius-md: 0.75rem;
+            --radius-lg: 1rem;
+            --radius-xl: 1.25rem;
+            --radius-2xl: 1.5rem;
+            --radius-3xl: 2rem;
+            --radius-full: 9999px;
+
+            /* Fluid typography scale */
+            --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+            --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+            --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+            --text-lg: clamp(1.125rem, 1rem + 0.625vw, 1.25rem);
+            --text-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+            --text-2xl: clamp(1.5rem, 1.25rem + 1.25vw, 2rem);
+            --text-3xl: clamp(1.875rem, 1.5rem + 1.875vw, 2.5rem);
+            --text-4xl: clamp(2.25rem, 1.75rem + 2.5vw, 3rem);
+            --text-5xl: clamp(2.75rem, 2rem + 3.75vw, 4rem);
+        }
+
+        /* Reset & Base */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            font-size: var(--text-base);
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        button {
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 clamp(1rem, 3vw, 3rem);
+        }
+
+        /* Gradients */
+        .gradient-velocity {
+            background: linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #5eead4 100%);
+        }
+
+        .gradient-primary {
+            background: var(--gradient-accent);
+        }
+
+        .gradient-glow {
+            background: var(--gradient-glow);
+        }
+
+        /* Buttons - ROVI Premium Style */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(0.875rem, 1vw, 1rem) clamp(1.25rem, 2vw, 2rem);
+            border-radius: var(--radius-xl);
+            font-weight: 600;
+            font-size: var(--text-sm);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            gap: 0.5rem;
+            letter-spacing: 0.01em;
+            min-height: 3rem;
+        }
+
+        .btn-primary {
+            background: var(--gradient-accent);
+            color: var(--text-primary);
+            border: 1px solid rgba(20, 184, 166, 0.3);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: var(--shadow-glow-strong);
+            border-color: var(--accent-tertiary);
+        }
+
+        .btn-secondary {
+            background: rgba(13, 148, 136, 0.15);
+            color: var(--accent-secondary);
+            border: var(--border-accent);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(20, 184, 166, 0.25);
+            transform: translateY(-2px);
+            border-color: var(--accent-secondary);
+        }
+
+        .btn-outline {
+            border: var(--border-premium);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-outline:hover {
+            background: rgba(20, 184, 166, 0.1);
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        /* Section */
+        section {
+            padding: clamp(3rem, 8vw, 6rem) 0;
+            position: relative;
+        }
+
+        /* Cards - Glassmorphism */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: var(--radius-2xl);
+            padding: clamp(1.25rem, 3vw, 2.5rem);
+            border: var(--border-premium);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            border-color: rgba(20, 184, 166, 0.4);
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-premium), var(--shadow-glow);
+        }
+
+        /* Hero Section - Premium Dark */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            overflow: hidden;
+            background: var(--gradient-dark);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(ellipse at 20% 30%, rgba(13, 148, 136, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(20, 184, 166, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(94, 234, 212, 0.03) 0%, transparent 60%);
+            z-index: 0;
+            animation: gradientFloat 30s ease-in-out infinite;
+        }
+
+        /* Glow Orbs */
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.25;
+            animation: orbFloat 20s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .glow-orb-1 {
+            width: clamp(250px, 40vw, 500px);
+            height: clamp(250px, 40vw, 500px);
+            background: var(--accent-primary);
+            top: -150px;
+            right: -150px;
+        }
+
+        .glow-orb-2 {
+            width: clamp(200px, 35vw, 400px);
+            height: clamp(200px, 35vw, 400px);
+            background: var(--accent-secondary);
+            bottom: -100px;
+            left: -100px;
+            animation-delay: -10s;
+        }
+
+        .glow-orb-3 {
+            width: clamp(150px, 25vw, 300px);
+            height: clamp(150px, 25vw, 300px);
+            background: var(--accent-tertiary);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.15;
+        }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(5%, 5%) scale(1.05); }
+            50% { transform: translate(0, 10%) scale(1); }
+            75% { transform: translate(-5%, 5%) scale(1.05); }
+        }
+
+        @keyframes gradientFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(2%, 1%) rotate(0.5deg); }
+            50% { transform: translate(1%, 3%) rotate(1deg); }
+            75% { transform: translate(-1%, 2%) rotate(0.5deg); }
+        }
+
+        /* Animated Grid Background */
+        .grid-background {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(13, 148, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(13, 148, 136, 0.03) 1px, transparent 1px);
+            background-size: clamp(30px, 5vw, 60px) clamp(30px, 5vw, 60px);
+            animation: gridMove 20s linear infinite;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(60px, 60px); }
+        }
+
+        /* Particles */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--accent-tertiary);
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: particleFloat 20s infinite;
+        }
+
+        @keyframes particleFloat {
+            0%, 100% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10%, 90% {
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .mobile-menu-toggle span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: var(--text-primary);
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .mobile-menu-toggle.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .mobile-menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .mobile-menu-toggle.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+
+        /* Hero Nav */
+        .hero-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: clamp(2rem, 5vw, 4rem);
+            padding-top: clamp(1rem, 2vw, 2rem);
+        }
+
+        /* Logo - ROVI Style */
+        .hero-logo {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.5rem, 1vw, 0.75rem);
+        }
+
+        .hero-logo-icon {
+            width: clamp(2rem, 4vw, 2.75rem);
+            height: clamp(2rem, 4vw, 2.75rem);
+            background: var(--gradient-accent);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-weight: 800;
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            box-shadow: var(--shadow-glow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-logo-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: logoShine 3s infinite;
+        }
+
+        @keyframes logoShine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        .hero-logo-text {
+            color: var(--text-primary);
+            font-size: clamp(1rem, 2vw, 1.375rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-nav-links {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .hero-nav-links {
+                display: flex;
+                align-items: center;
+                gap: clamp(1.5rem, 3vw, 2.5rem);
+            }
+            .hero-nav-links a {
+                color: var(--text-muted);
+                font-size: var(--text-sm);
+                font-weight: 500;
+            }
+            .hero-nav-links a:hover {
+                color: var(--text-primary);
+            }
+        }
+
+        /* Mobile Navigation */
+        .mobile-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 15, 26, 0.98);
+            backdrop-filter: blur(20px);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-nav.active {
+            transform: translateX(0);
+        }
+
+        .mobile-nav a {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(2rem, 5vw, 3rem);
+            align-items: center;
+        }
+
+        @media (min-width: 1024px) {
+            .hero-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Hero Badge */
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(13, 148, 136, 0.15);
+            backdrop-filter: blur(10px);
+            border: var(--border-accent);
+            border-radius: var(--radius-full);
+            padding: clamp(0.5rem, 1vw, 0.625rem) clamp(1rem, 2vw, 1.25rem);
+            margin-bottom: clamp(1rem, 2vw, 1.5rem);
+        }
+
+        .hero-badge-new {
+            background: var(--gradient-accent);
+            color: var(--text-primary);
+            font-size: var(--text-xs);
+            font-weight: 700;
+            padding: 0.25rem 0.625rem;
+            border-radius: var(--radius-full);
+            margin-right: 0.625rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .hero-badge-text {
+            color: var(--accent-tertiary);
+            font-size: var(--text-sm);
+            font-weight: 500;
+        }
+
+        /* Hero Typography */
+        .hero h1 {
+            font-size: var(--text-5xl);
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: clamp(1rem, 2vw, 1.5rem);
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+        }
+
+        @media (max-width: 479px) {
+            .hero h1 {
+                font-size: 2rem;
+                line-height: 1.1;
+            }
+        }
+
+        .hero h1 .gradient-text {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-description {
+            font-size: var(--text-lg);
+            color: var(--text-muted);
+            margin-bottom: clamp(1.5rem, 3vw, 2rem);
+            line-height: 1.7;
+            max-width: 32rem;
+        }
+
+        .hero-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.75rem, 1.5vw, 1rem);
+            margin-bottom: clamp(2rem, 5vw, 3rem);
+        }
+
+        @media (min-width: 640px) {
+            .hero-buttons {
+                flex-direction: row;
+            }
+        }
+
+        /* Flow Credits Section */
+        .flow-credits {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            border-radius: var(--radius-2xl);
+            border: var(--border-accent);
+            margin-bottom: clamp(2rem, 4vw, 3rem);
+            backdrop-filter: blur(10px);
+        }
+
+        .flow-credits-icon {
+            width: 3rem;
+            height: 3rem;
+            background: var(--gradient-accent);
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .flow-credits-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .flow-credits-content h3 {
+            font-size: var(--text-lg);
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .flow-credits-content p {
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+        }
+
+        /* Modules Section */
+        .modules-section {
+            padding: clamp(4rem, 10vw, 6rem) 0;
+            background: var(--bg-secondary);
+            position: relative;
+        }
+
+        .modules-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(13, 148, 136, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(20, 184, 166, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: clamp(3rem, 8vw, 4rem);
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-badge {
+            display: inline-block;
+            background: rgba(13, 148, 136, 0.15);
+            color: var(--accent-secondary);
+            padding: 0.5rem 1.25rem;
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            border: var(--border-accent);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .section-title {
+            font-size: var(--text-4xl);
+            margin-bottom: 1rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        .section-title .highlight {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-description {
+            font-size: var(--text-base);
+            color: var(--text-muted);
+            max-width: 40rem;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        /* Module Cards */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(1.5rem, 3vw, 2rem);
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            .modules-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .modules-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .module-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(30px);
+            border-radius: var(--radius-3xl);
+            padding: clamp(1.5rem, 3vw, 2rem);
+            border: var(--border-premium);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-accent);
+            transform: scaleX(0);
+            transition: transform 0.5s ease;
+        }
+
+        .module-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .module-card:hover {
+            border-color: rgba(20, 184, 166, 0.4);
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-premium), var(--shadow-glow);
+        }
+
+        .module-card.featured {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(30, 41, 59, 0.8) 100%);
+            border-color: rgba(20, 184, 166, 0.3);
+        }
+
+        .module-icon {
+            width: clamp(3rem, 5vw, 3.5rem);
+            height: clamp(3rem, 5vw, 3.5rem);
+            background: var(--gradient-accent);
+            border-radius: var(--radius-2xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .module-icon svg {
+            width: clamp(1.25rem, 2vw, 1.75rem);
+            height: clamp(1.25rem, 2vw, 1.75rem);
+            color: var(--text-primary);
+        }
+
+        .module-title {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .module-description {
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+            line-height: 1.6;
+            font-size: var(--text-sm);
+        }
+
+        .module-features {
+            display: flex;
+            flex-direction: column;
+            gap: 0.625rem;
+        }
+
+        .module-feature {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .module-feature svg {
+            width: 1rem;
+            height: 1rem;
+            color: var(--accent-secondary);
+            flex-shrink: 0;
+        }
+
+        /* Rentals Detail Section */
+        .rentals-detail {
+            padding: clamp(4rem, 10vw, 6rem) 0;
+            background: var(--bg-primary);
+            position: relative;
+        }
+
+        .rentals-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(2rem, 5vw, 4rem);
+            align-items: center;
+        }
+
+        @media (min-width: 1024px) {
+            .rentals-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .rentals-content h2 {
+            font-size: var(--text-4xl);
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .rentals-content h2 .highlight {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .rentals-description {
+            font-size: var(--text-base);
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            line-height: 1.7;
+        }
+
+        .rentals-submodules {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .rentals-submodules {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .rentals-submodule {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            border: var(--border-premium);
+            transition: all 0.3s ease;
+        }
+
+        .rentals-submodule:hover {
+            border-color: var(--accent-primary);
+            background: var(--gradient-glow);
+        }
+
+        .rentals-submodule-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: var(--gradient-accent);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .rentals-submodule-icon svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .rentals-submodule-content h4 {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .rentals-submodule-content p {
+            font-size: var(--text-xs);
+            color: var(--text-dim);
+        }
+
+        /* Pricing Section */
+        .pricing-section {
+            padding: clamp(4rem, 10vw, 6rem) 0;
+            background: var(--bg-secondary);
+            position: relative;
+        }
+
+        .pricing-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(13, 148, 136, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(20, 184, 166, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(1.5rem, 3vw, 2rem);
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+            .pricing-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(30px);
+            border-radius: var(--radius-3xl);
+            padding: clamp(1.5rem, 3vw, 2.5rem);
+            border: var(--border-premium);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pricing-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: var(--radius-3xl) var(--radius-3xl) 0 0;
+        }
+
+        .pricing-card-starter::before {
+            background: linear-gradient(135deg, #64748b, #475569);
+        }
+
+        .pricing-card-pro::before {
+            background: var(--gradient-accent);
+        }
+
+        .pricing-card-studio::before {
+            background: var(--gradient-premium);
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-premium), var(--shadow-glow);
+        }
+
+        .pricing-card-pro {
+            border-color: rgba(20, 184, 166, 0.3);
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.1) 0%, rgba(30, 41, 59, 0.8) 100%);
+        }
+
+        .pricing-card-studio {
+            border-color: rgba(245, 158, 11, 0.3);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(30, 41, 59, 0.8) 100%);
+        }
+
+        .pricing-badge {
+            display: inline-block;
+            background: var(--gradient-accent);
+            color: var(--text-primary);
+            padding: 0.375rem 0.875rem;
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .pricing-badge-studio {
+            background: var(--gradient-premium);
+        }
+
+        .pricing-tier {
+            font-size: var(--text-2xl);
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .pricing-tier-pro {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .pricing-tier-studio {
+            background: var(--gradient-premium);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .pricing-price {
+            font-size: var(--text-3xl);
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+            color: var(--text-primary);
+        }
+
+        .pricing-price span {
+            font-size: var(--text-lg);
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .pricing-credits {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(13, 148, 136, 0.15);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-full);
+            font-size: var(--text-sm);
+            color: var(--accent-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .pricing-credits-studio {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .pricing-description {
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .pricing-features {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+            flex: 1;
+        }
+
+        .pricing-feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.625rem;
+            font-size: var(--text-sm);
+        }
+
+        .pricing-feature-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 0.125rem;
+        }
+
+        .pricing-feature-icon.check {
+            background: var(--gradient-accent);
+        }
+
+        .pricing-feature-icon.cross {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .pricing-feature-icon svg {
+            width: 0.75rem;
+            height: 0.75rem;
+        }
+
+        .pricing-feature-icon.check svg {
+            color: var(--text-primary);
+        }
+
+        .pricing-feature-icon.cross svg {
+            color: #EF4444;
+        }
+
+        .pricing-feature-text {
+            color: var(--text-secondary);
+        }
+
+        .pricing-feature-text.no {
+            color: var(--text-dim);
+            text-decoration: line-through;
+        }
+
+        .pricing-cta {
+            margin-top: auto;
+        }
+
+        .pricing-coming-soon {
+            text-align: center;
+            padding: 0.875rem;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: var(--radius-xl);
+            color: #f59e0b;
+            font-weight: 600;
+            font-size: var(--text-sm);
+        }
+
+        /* Use Case Section */
+        .use-case-section {
+            padding: clamp(4rem, 10vw, 6rem) 0;
+            background: var(--bg-primary);
+            position: relative;
+        }
+
+        .use-case-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(2rem, 5vw, 4rem);
+            margin-top: clamp(3rem, 8vw, 5rem);
+        }
+
+        @media (min-width: 1024px) {
+            .use-case-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .use-case-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(30px);
+            border-radius: var(--radius-3xl);
+            padding: clamp(1.5rem, 3vw, 2rem);
+            border: var(--border-premium);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .use-case-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-accent);
+            transform: scaleX(0);
+            transition: transform 0.5s ease;
+        }
+
+        .use-case-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .use-case-card:hover {
+            border-color: rgba(20, 184, 166, 0.4);
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-premium), var(--shadow-glow);
+        }
+
+        .use-case-icon {
+            width: 3rem;
+            height: 3rem;
+            background: var(--gradient-accent);
+            border-radius: var(--radius-2xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .use-case-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .use-case-title {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .use-case-for {
+            font-size: var(--text-sm);
+            color: var(--accent-secondary);
+            font-weight: 500;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .use-case-example {
+            background: rgba(13, 148, 136, 0.1);
+            border: var(--border-accent);
+            border-radius: var(--radius-xl);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .use-case-example-label {
+            font-size: var(--text-xs);
+            color: var(--accent-tertiary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .use-case-example-text {
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .use-case-features {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .use-case-feature {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .use-case-feature svg {
+            width: 1rem;
+            height: 1rem;
+            color: var(--accent-secondary);
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--bg-secondary);
+            padding: clamp(3rem, 8vw, 5rem) 0 0;
+            position: relative;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(2rem, 5vw, 3rem);
+            margin-bottom: clamp(2rem, 5vw, 3rem);
+        }
+
+        @media (min-width: 768px) {
+            .footer-grid {
+                grid-template-columns: 2fr 1fr 1fr;
+            }
+        }
+
+        .footer-brand {
+            max-width: 20rem;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .footer-logo-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: var(--gradient-accent);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.25rem;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .footer-logo-text {
+            font-size: var(--text-lg);
+            font-weight: 700;
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer-description {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            font-size: var(--text-sm);
+        }
+
+        .footer-column h4 {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .footer-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.625rem;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+            transition: all 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent-secondary);
+            transform: translateX(3px);
+        }
+
+        .footer-bottom {
+            border-top: var(--border-premium);
+            padding: clamp(1rem, 2vw, 1.5rem) 0;
+            background: rgba(10, 15, 26, 0.5);
+        }
+
+        .footer-bottom-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            text-align: center;
+        }
+
+        @media (min-width: 768px) {
+            .footer-bottom-content {
+                flex-direction: row;
+                justify-content: space-between;
+                text-align: left;
+            }
+        }
+
+        .footer-copyright {
+            color: var(--text-dim);
+            font-size: var(--text-sm);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fadeInUp {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-400 { animation-delay: 0.4s; }
+        .delay-500 { animation-delay: 0.5s; }
+
+        /* Scroll animations */
+        .scroll-animate {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease-out;
+        }
+
+        .scroll-animate.animated {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Responsive utilities */
+        .mobile-only {
+            display: block;
+        }
+
+        @media (min-width: 768px) {
+            .mobile-only { display: none; }
+        }
+
+        .desktop-only {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .desktop-only { display: block; }
+        }
+
+        /* Accessibility - Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Wave Divider */
+        .wave-divider {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 2;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <!-- Grid Background -->
+        <div class="grid-background"></div>
+
+        <!-- Particles -->
+        <div class="particles">
+            <div class="particle" style="left: 10%; animation-delay: 0s;"></div>
+            <div class="particle" style="left: 20%; animation-delay: 2s;"></div>
+            <div class="particle" style="left: 30%; animation-delay: 4s;"></div>
+            <div class="particle" style="left: 40%; animation-delay: 6s;"></div>
+            <div class="particle" style="left: 50%; animation-delay: 8s;"></div>
+            <div class="particle" style="left: 60%; animation-delay: 10s;"></div>
+            <div class="particle" style="left: 70%; animation-delay: 12s;"></div>
+            <div class="particle" style="left: 80%; animation-delay: 14s;"></div>
+            <div class="particle" style="left: 90%; animation-delay: 16s;"></div>
+        </div>
+
+        <!-- Glow Orbs -->
+        <div class="glow-orb glow-orb-1"></div>
+        <div class="glow-orb glow-orb-2"></div>
+        <div class="glow-orb glow-orb-3"></div>
+
+        <div class="container hero-content">
+            <nav class="hero-nav">
+                <div class="hero-logo">
+                    <div class="hero-logo-icon">R</div>
+                    <span class="hero-logo-text">ROVI Flow</span>
+                </div>
+
+                <div class="hero-nav-links desktop-only">
+                    <a href="#modules">Módulos</a>
+                    <a href="#rentals">Rentals</a>
+                    <a href="#pricing">Precios</a>
+                    <a href="#use-cases">Casos de Uso</a>
+                    <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20ROVI%20Flow" target="_blank">Contacto</a>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20ROVI%20Flow" target="_blank" class="btn btn-primary mobile-only">
+                        Comenzar
+                    </a>
+                    <button class="mobile-menu-toggle mobile-only" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </div>
+            </nav>
+
+            <div class="hero-grid">
+                <div>
+                    <div class="hero-badge animate-fadeInUp">
+                        <span class="hero-badge-new">Nuevo</span>
+                        <span class="hero-badge-text">Agent Access Layer con IA Multi-Agentes</span>
+                    </div>
+
+                    <h1 class="animate-fadeInUp delay-100">
+                        Potencia tu día a día con
+                        <span class="gradient-text">ROVI Flow</span>
+                    </h1>
+
+                    <p class="hero-description animate-fadeInUp delay-200">
+                        Una capa de acceso inteligente que controla quién puede usar el agente, qué puede hacer, qué skills tiene disponibles, cuánto puede consumir y cuándo debe pagar.
+                    </p>
+
+                    <div class="hero-buttons animate-fadeInUp delay-300">
+                        <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20ROVI%20Flow" target="_blank" class="btn btn-primary">
+                            Solicitar Acceso
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                        <a href="#pricing" class="btn btn-outline">
+                            Ver Planes
+                        </a>
+                    </div>
+
+                    <!-- Flow Credits Info -->
+                    <div class="flow-credits animate-fadeInUp delay-400">
+                        <div class="flow-credits-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <div class="flow-credits-content">
+                            <h3>Flow Credits</h3>
+                            <p>Sistema de créditos flexible. Solo paga por lo que usas.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hero Visual - Agent Ecosystem -->
+                <div class="card animate-fadeInUp delay-500">
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="width: 4rem; height: 4rem; background: var(--gradient-accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; box-shadow: var(--shadow-glow);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="2rem" height="2rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        </div>
+                        <h3 style="font-size: var(--text-xl); font-weight: 700; margin-bottom: 0.5rem; background: var(--gradient-text); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Multi-Agentes</h3>
+                        <p style="color: var(--text-muted); font-size: var(--text-sm);">Asistentes especializados para cada tarea</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(13, 148, 136, 0.1); border-radius: var(--radius-xl);">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">🔍</div>
+                            <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);">Investigador</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(13, 148, 136, 0.1); border-radius: var(--radius-xl);">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">✍️</div>
+                            <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);">Redactor</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(13, 148, 136, 0.1); border-radius: var(--radius-xl);">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">📊</div>
+                            <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);">Analista</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(13, 148, 136, 0.1); border-radius: var(--radius-xl);">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">🎨</div>
+                            <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);">Diseñador</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(13, 148, 136, 0.1); border-radius: var(--radius-xl);">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">📅</div>
+                            <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);">Agenda</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(13, 148, 136, 0.1); border-radius: var(--radius-xl);">
+                            <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">💼</div>
+                            <div style="font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);">CRM</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wave-divider">
+            <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="#111827"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Modules Section -->
+    <section id="modules" class="modules-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Ecosistema ROVI</span>
+                <h2 class="section-title">
+                    Módulos disponibles en
+                    <span class="highlight">ROVI Flow</span>
+                </h2>
+                <p class="section-description">
+                    Accede a diferentes módulos según tu plan. Cada uno diseñado para potenciar aspectos específicos de tu negocio.
+                </p>
+            </div>
+
+            <div class="modules-grid">
+                <!-- CRM Module -->
+                <div class="module-card featured">
+                    <div class="module-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <h3 class="module-title">ROVI CRM</h3>
+                    <p class="module-description">
+                        Gestión completa de leads, pipeline de ventas, campañas y automatizaciones. Incluido en planes Pro y Studio.
+                    </p>
+                    <div class="module-features">
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Pipeline Kanban
+                        </div>
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Campañas Email/SMS
+                        </div>
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Gamificación
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rentals Module -->
+                <div class="module-card featured">
+                    <div class="module-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </div>
+                    <h3 class="module-title">Rentals</h3>
+                    <p class="module-description">
+                        Gestión integral de propiedades en renta. Dashboard, reservas, calendario, tareas, finanzas e integraciones OTA.
+                    </p>
+                    <div class="module-features">
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            60+ endpoints API
+                        </div>
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Calendario operativo
+                        </div>
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Integraciones OTA demo
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Access Layer -->
+                <div class="module-card featured">
+                    <div class="module-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    </div>
+                    <h3 class="module-title">Agent Access Layer</h3>
+                    <p class="module-description">
+                        Control total sobre el uso de agentes: accesos, skills disponibles, consumo y pagos. Disponible en todos los planes.
+                    </p>
+                    <div class="module-features">
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Sistema de créditos
+                        </div>
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Multi-agentes
+                        </div>
+                        <div class="module-feature">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Acceso por Telegram
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rentals Detail Section -->
+    <section id="rentals" class="rentals-detail">
+        <div class="container">
+            <div class="rentals-grid">
+                <div class="rentals-content">
+                    <span style="display: inline-block; background: rgba(13, 148, 136, 0.15); color: var(--accent-secondary); padding: 0.5rem 1rem; border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 600; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.08em;">Módulo Premium</span>
+                    <h2>
+                        Gestiona tu negocio de
+                        <span class="highlight">rentas con Rentals</span>
+                    </h2>
+                    <p class="rentals-description">
+                        Un módulo completo para gestionar propiedades en renta corta, media y larga estancia. Todo lo que necesitas para operar eficientemente.
+                    </p>
+
+                    <div class="rentals-submodules">
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Dashboard HQ</h4>
+                                <p>Métricas, check-ins/out, tareas pendientes</p>
+                            </div>
+                        </div>
+
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Propiedades</h4>
+                                <p>CRUD completo, precios, amenities, imágenes</p>
+                            </div>
+                        </div>
+
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Reservas</h4>
+                                <p>Estados, huéspedes, pagos, check-in/out</p>
+                            </div>
+                        </div>
+
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Calendario</h4>
+                                <p>Vista mensual, eventos, bloqueos</p>
+                            </div>
+                        </div>
+
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Tareas</h4>
+                                <p>Limpieza, mantenimiento, recurrencia</p>
+                            </div>
+                        </div>
+
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Staff</h4>
+                                <p>Roles, especialidades, asignaciones</p>
+                            </div>
+                        </div>
+
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Finanzas</h4>
+                                <p>Ingresos, gastos, cierres de caja</p>
+                            </div>
+                        </div>
+
+                        <div class="rentals-submodule">
+                            <div class="rentals-submodule-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            </div>
+                            <div class="rentals-submodule-content">
+                                <h4>Integraciones</h4>
+                                <p>Airbnb, Booking, Vrbo, Google Calendar</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-size: var(--text-xl); font-weight: 700; margin-bottom: 1.5rem; text-align: center;">Flujo de Datos</h3>
+                    <div style="text-align: center; padding: 2rem 0;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                            <div style="background: var(--gradient-accent); padding: 0.75rem 1.5rem; border-radius: var(--radius-xl); font-weight: 600; font-size: var(--text-sm);">Import CSV/XLSX</div>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-secondary);"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                            <div style="background: var(--bg-card); padding: 0.75rem 1.5rem; border-radius: var(--radius-xl); border: var(--border-accent); font-weight: 600; font-size: var(--text-sm);">Propiedades</div>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-secondary);"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%;">
+                                <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-lg); border: var(--border-premium); font-size: var(--text-xs); text-align: center;">Reservas</div>
+                                <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-lg); border: var(--border-premium); font-size: var(--text-xs); text-align: center;">Calendario</div>
+                                <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-lg); border: var(--border-premium); font-size: var(--text-xs); text-align: center;">Tareas</div>
+                                <div style="background: var(--bg-card); padding: 0.5rem; border-radius: var(--radius-lg); border: var(--border-premium); font-size: var(--text-xs); text-align: center;">Finanzas</div>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-secondary);"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                            <div style="background: var(--gradient-accent); padding: 0.75rem 1.5rem; border-radius: var(--radius-xl); font-weight: 600; font-size: var(--text-sm);">Rentabilidad</div>
+                        </div>
+                    </div>
+                    <p style="text-align: center; color: var(--text-muted); font-size: var(--text-sm); margin-top: 1rem;">
+                        Integración bidireccional con OTAs como Airbnb, Booking y Vrbo
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="pricing-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Planes y Precios</span>
+                <h2 class="section-title">
+                    Elige el plan perfecto para
+                    <span class="highlight">tu negocio</span>
+                </h2>
+                <p class="section-description">
+                    Desde prueba gratuita hasta equipos completos. Todos los planes incluyen acceso al Agent Access Layer.
+                </p>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- Starter Plan -->
+                <div class="pricing-card pricing-card-starter">
+                    <div class="pricing-tier">🌱 Starter</div>
+                    <div class="pricing-price">Free Trial <span>3 días</span></div>
+                    <div class="pricing-credits">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        75,000 credits
+                    </div>
+                    <p class="pricing-description">
+                        Para quienes quieren probar los agentes sin comprometerse.
+                    </p>
+
+                    <div class="pricing-features">
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Preguntas rápidas por Telegram</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Resúmenes de documentos</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Redacción simple</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon cross">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text no">CRM NO incluido</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon cross">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text no">Sin búsqueda en internet</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon cross">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text no">Sin subagentes especializados</span>
+                        </div>
+                    </div>
+
+                    <div class="pricing-cta">
+                        <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20el%20plan%20Starter%20de%20ROVI%20Flow" target="_blank" class="btn btn-outline" style="width: 100%; justify-content: center;">
+                            Iniciar Trial Gratis
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Pro Plan -->
+                <div class="pricing-card pricing-card-pro">
+                    <div class="pricing-badge">Más Popular</div>
+                    <div class="pricing-tier pricing-tier-pro">⚡ Pro</div>
+                    <div class="pricing-price">$2,900 <span>+ IVA/mes</span></div>
+                    <div class="pricing-credits">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        500,000 credits/mes
+                    </div>
+                    <p class="pricing-description">
+                        El broker independiente que quiere delegar tareas repetitivas y tener un CRM completo.
+                    </p>
+
+                    <div class="pricing-features">
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">CRM ROVI completo incluido</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Cruce de propiedades inteligente</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Presentaciones en PowerPoint</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">3 subagentes especializados</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Búsqueda en internet</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Integración con Google Calendar</span>
+                        </div>
+                    </div>
+
+                    <div class="pricing-cta">
+                        <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20el%20plan%20Pro%20de%20ROVI%20Flow" target="_blank" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                            Comenzar Pro
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Studio Plan -->
+                <div class="pricing-card pricing-card-studio">
+                    <div class="pricing-badge pricing-badge-studio">Premium</div>
+                    <div class="pricing-tier pricing-tier-studio">🎨 Studio</div>
+                    <div class="pricing-price">$4,900 <span>+ IVA/mes</span></div>
+                    <div class="pricing-credits pricing-credits-studio">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        1.5M credits/mes
+                    </div>
+                    <p class="pricing-description">
+                        Consultores, equipos pequeños y agencias que necesitan producir materiales profesionales regularmente.
+                    </p>
+
+                    <div class="pricing-features">
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Todo lo de Pro + más volumen</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">5 subagentes especializados</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Decks completos de ventas</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Materiales para redes sociales</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">Análisis profundo de mercado</span>
+                        </div>
+                        <div class="pricing-feature">
+                            <div class="pricing-feature-icon check">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="pricing-feature-text">3 automatizaciones recurrentes</span>
+                        </div>
+                    </div>
+
+                    <div class="pricing-cta">
+                        <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20el%20plan%20Studio%20de%20ROVI%20Flow" target="_blank" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                            Comenzar Studio
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Use Cases Section -->
+    <section id="use-cases" class="use-case-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Casos de Uso</span>
+                <h2 class="section-title">
+                    ¿Qué puedes hacer en tu
+                    <span class="highlight">día a día?</span>
+                </h2>
+                <p class="section-description">
+                    Una visión práctica y comercial de lo que cada tier te permite accomplacer como broker o profesional.
+                </p>
+            </div>
+
+            <div class="use-case-grid">
+                <!-- Starter Use Case -->
+                <div class="use-case-card">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </div>
+                    <h3 class="use-case-title">🌱 Starter</h3>
+                    <p class="use-case-for">FREE TRIAL 3 DÍAS • 75,000 CREDITS</p>
+
+                    <div class="use-case-example">
+                        <div class="use-case-example-label">📅 Tu día a día durante el trial</div>
+                        <ul style="list-style: none; padding: 0; margin: 0.75rem 0 0 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Preguntas rápidas al agente por Telegram</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Resúmenes cortos de textos o documentos</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Redacción simple de correos y mensajes</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Respuestas básicas a preguntas frecuentes</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-xl); padding: 0.875rem; margin-bottom: 1rem;">
+                        <div style="font-size: var(--text-xs); color: #EF4444; font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.08em;">🚫 Lo que NO puedes hacer</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.375rem;">
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">❌ No puedes acceder al CRM de ROVI</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">❌ No puedes buscar en internet</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">❌ No puedes generar presentaciones</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">❌ No puedes usar subagentes especializados</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: rgba(13, 148, 136, 0.1); border: var(--border-accent); border-radius: var(--radius-xl); padding: 0.875rem;">
+                        <div style="font-size: var(--text-xs); color: var(--accent-tertiary); font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.08em;">⏰ Después de 72 horas</div>
+                        <p style="font-size: var(--text-sm); color: var(--text-muted); margin: 0;">Si quieres acceder al CRM, haz upgrade a Pro. El trial expira automáticamente a las 72 hrs.</p>
+                    </div>
+                </div>
+
+                <!-- Pro Use Case -->
+                <div class="use-case-card" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(30, 41, 59, 0.8) 100%); border-color: rgba(20, 184, 166, 0.3);">
+                    <div class="use-case-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
+                    <h3 class="use-case-title">⚡ Pro</h3>
+                    <p class="use-case-for">$2,900 + IVA/mes • 500,000 CREDITS</p>
+
+                    <div class="use-case-example">
+                        <div class="use-case-example-label">📅 Tu día a día como Broker</div>
+                        <ul style="list-style: none; padding: 0; margin: 0.75rem 0 0 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Gestionar tus leads en el CRM de ROVI</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Cruce de propiedades con un solo comando al agente</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>El agente sube directamente el cruce a tu CRM</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Crear presentaciones de propiedades en PowerPoint</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Resumir videos de YouTube de mercado inmobiliario</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Investigar propiedades y precios en internet</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Analizar documentos PDF de contratos</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Redactar propuestas y correos personalizados</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: var(--accent-secondary);">✓</span>
+                                <span>Organizar tu agenda en Google Calendar</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div style="background: rgba(13, 148, 136, 0.15); border: var(--border-accent); border-radius: var(--radius-xl); padding: 0.875rem;">
+                        <div style="font-size: var(--text-xs); color: var(--accent-tertiary); font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.08em;">🤖 Con tus 3 subagentes puedes...</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.375rem;">
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Uno para investigación de mercado</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Uno para redacción de contenido</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Uno para análisis de documentos</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Studio Use Case -->
+                <div class="use-case-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(30, 41, 59, 0.8) 100%); border-color: rgba(245, 158, 11, 0.3);">
+                    <div class="use-case-icon" style="background: var(--gradient-premium); box-shadow: 0 0 40px rgba(245, 158, 11, 0.3);">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    </div>
+                    <h3 class="use-case-title" style="background: var(--gradient-premium); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">🎨 Studio</h3>
+                    <p class="use-case-for">$4,900 + IVA/mes • 1.5M CREDITS</p>
+
+                    <div class="use-case-example" style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3);">
+                        <div style="color: #f59e0b;">Ejemplo Real</div>
+                        <p class="use-case-example-text">"Toma la grabación de mi llamada con el desarrollador, extrae los puntos clave, crea un deck de inversión para mis inversores y redacta los correos de seguimiento para cada uno"</p>
+                    </div>
+
+                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--radius-xl); padding: 0.875rem; margin-bottom: 1rem;">
+                        <div style="font-size: var(--text-xs); color: #f59e0b; font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.08em;">📅 Tu día a día como Creador/Consultor</div>
+                        <ul style="list-style: none; padding: 0; margin: 0.75rem 0 0 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: #f59e0b;">✓</span>
+                                <span><strong>Todo lo de Pro + más volumen</strong></span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: #f59e0b;">✓</span>
+                                <span>Crear decks completos de ventas</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: #f59e0b;">✓</span>
+                                <span>Generar materiales para redes sociales</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: #f59e0b;">✓</span>
+                                <span>Análisis profundo de mercado</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: #f59e0b;">✓</span>
+                                <span>Resumir llamadas y reuniones largas</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: #f59e0b;">✓</span>
+                                <span>Crear campañas de email marketing</span>
+                            </li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted); display: flex; align-items: flex-start; gap: 0.5rem;">
+                                <span style="color: #f59e0b;">✓</span>
+                                <span>Automatizar 3 procesos recurrentes</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-xl); padding: 0.875rem;">
+                        <div style="font-size: var(--text-xs); color: #f59e0b; font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.08em;">🤖 Con tus 5 subagentes puedes...</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.375rem;">
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Investigador de mercado especializado</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Redactor de contenido para redes</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Analista de documentos legales</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Diseñador de presentaciones</li>
+                            <li style="font-size: var(--text-sm); color: var(--text-muted);">• Asistente de seguimiento a leads</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="pricing-section" style="padding-bottom: 0;">
+        <div class="container">
+            <div style="background: var(--gradient-accent); border-radius: var(--radius-3xl); padding: clamp(2rem, 5vw, 3rem) clamp(1.5rem, 3vw, 2rem); text-align: center; border: 1px solid rgba(20, 184, 166, 0.3); box-shadow: var(--shadow-glow-strong); position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(94, 234, 212, 0.2) 0%, transparent 70%); animation: highlightPulse 4s ease-in-out infinite;"></div>
+                <div style="position: relative; z-index: 1;">
+                    <h3 style="font-size: var(--text-3xl); color: var(--text-primary); margin-bottom: 1rem; font-weight: 700;">¿Listo para transformar tu productividad?</h3>
+                    <p style="font-size: var(--text-base); color: rgba(246, 243, 239, 0.9); margin-bottom: 2rem; max-width: 40rem; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                        Únete a los brokers y agencias que ya están usando ROVI Flow para potenciar su negocio inmobiliario.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: clamp(0.75rem, 1.5vw, 1rem); justify-content: center; flex-wrap: wrap;">
+                        <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20ROVI%20Flow" target="_blank" class="btn" style="background: var(--bg-primary); color: var(--text-primary); border: 1px solid rgba(255, 255, 255, 0.2);">
+                            Solicitar Demo Gratis
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <div class="footer-logo-icon">R</div>
+                        <span class="footer-logo-text">ROVI Flow</span>
+                    </div>
+                    <p class="footer-description">
+                        Agent Access Layer con IA multi-agentes para potenciar tu negocio inmobiliario. Gestión de leads, CRM y módulos especializados.
+                    </p>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Producto</h4>
+                    <div class="footer-links">
+                        <a href="#modules">Módulos</a>
+                        <a href="#rentals">Rentals</a>
+                        <a href="#pricing">Precios</a>
+                        <a href="#use-cases">Casos de Uso</a>
+                    </div>
+                </div>
+
+                <div class="footer-column">
+                    <h4>Contacto</h4>
+                    <div class="footer-links">
+                        <a href="https://wa.me/525580483839">WhatsApp</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <div class="container footer-bottom-content">
+                <p class="footer-copyright">
+                    © 2026 ROVI Flow. Todos los derechos reservados.
+                </p>
+                <p class="footer-made-in">
+                    Hecho con ❤️ en México
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Mobile Navigation -->
+    <div class="mobile-nav" id="mobileNav">
+        <a href="#modules" onclick="toggleMobileMenu()">Módulos</a>
+        <a href="#rentals" onclick="toggleMobileMenu()">Rentals</a>
+        <a href="#pricing" onclick="toggleMobileMenu()">Precios</a>
+        <a href="#use-cases" onclick="toggleMobileMenu()">Casos de Uso</a>
+        <a href="https://wa.me/525580483839?text=Hola,%20me%20interesa%20ROVI%20Flow" onclick="toggleMobileMenu()">Contacto</a>
+    </div>
+
+    <script>
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const mobileNav = document.getElementById('mobileNav');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            mobileNav.classList.toggle('active');
+            toggle.classList.toggle('active');
+        }
+
+        // Scroll Animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animated');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.scroll-animate').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                if (href !== '#') {
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                }
+            });
+        });
+
+        // Animation for highlight pulse
+        @keyframes highlightPulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+    </script>
+</body>
+</html>

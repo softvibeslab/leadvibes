@@ -1,0 +1,396 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@300;400;500&amp;family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #faf8ff;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 217, 255, 0.15);
+            border-color: rgba(0, 217, 255, 0.4);
+        }
+        .luminous-glow {
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+        }
+        .mesh-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(0, 217, 255, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(132, 85, 239, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(250, 248, 255, 1) 0%, rgba(234, 237, 255, 0.5) 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-indicator {
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#00687b",
+                        "primary-container": "#00d9ff",
+                        "on-primary-container": "#005b6c",
+                        "surface": "#faf8ff",
+                        "on-surface": "#131b2e",
+                        "on-surface-variant": "#3c494d",
+                        "outline": "#6c797e",
+                        "surface-container": "#eaedff",
+                        "secondary": "#6b38d4",
+                        "secondary-container": "#8455ef"
+                    },
+                    "fontFamily": {
+                        "label-md": ["JetBrains Mono"],
+                        "headline-md": ["Outfit"],
+                        "display-lg": ["Outfit"],
+                        "body-md": ["Inter"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-on-surface">
+<div class="mesh-gradient"></div>
+<!-- SideNavBar Shell -->
+<aside class="h-screen w-72 fixed left-0 top-0 bg-surface/40 backdrop-blur-[20px] border-r border-white/20 shadow-[20px_0_40px_rgba(0,217,255,0.05)] flex flex-col py-8 px-6 gap-2 z-50">
+<div class="mb-8 px-2">
+<h1 class="font-display-lg text-headline-md tracking-tighter text-primary">Riviera Maya CRM</h1>
+<p class="text-label-sm uppercase tracking-widest text-on-surface-variant/60 font-label-md">Luxury Real Estate</p>
+</div>
+<nav class="flex-1 space-y-1 overflow-y-auto no-scrollbar">
+<!-- Navigation Items Mapping -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant/80 hover:text-on-surface hover:bg-white/10 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+<span class="font-label-md text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-container/20 text-on-primary-container border-r-4 border-primary font-bold active-nav-indicator" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">location_city</span>
+<span class="font-label-md text-sm">Properties</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant/80 hover:text-on-surface hover:bg-white/10 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">account_tree</span>
+<span class="font-label-md text-sm">Pipeline</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant/80 hover:text-on-surface hover:bg-white/10 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">person_search</span>
+<span class="font-label-md text-sm">Leads</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant/80 hover:text-on-surface hover:bg-white/10 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">group</span>
+<span class="font-label-md text-sm">Contacts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant/80 hover:text-on-surface hover:bg-white/10 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">explore</span>
+<span class="font-label-md text-sm">Map View</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant/80 hover:text-on-surface hover:bg-white/10 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">calendar_today</span>
+<span class="font-label-md text-sm">Calendar</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant/80 hover:text-on-surface hover:bg-white/10 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">leaderboard</span>
+<span class="font-label-md text-sm">Analytics</span>
+</a>
+<div class="pt-4 mt-4 border-t border-white/10">
+<button class="w-full py-4 bg-primary text-white rounded-2xl font-headline-md text-sm tracking-wide shadow-lg luminous-glow hover:brightness-110 transition-all active:scale-95">
+                    New Listing
+                </button>
+</div>
+</nav>
+<div class="mt-auto pt-6 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 rounded-xl text-on-surface-variant/60 hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-sm">Help</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 rounded-xl text-on-surface-variant/60 hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-sm">Settings</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-72 min-h-screen">
+<!-- TopNavBar Shell -->
+<header class="sticky top-0 z-40 bg-surface/30 backdrop-blur-[40px] border-b border-white/20 px-16 py-4 h-24 flex justify-between items-center">
+<div class="flex items-center gap-8 flex-1">
+<div class="relative w-full max-w-xl">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-white/40 border-white/20 rounded-2xl pl-12 pr-4 py-3 focus:ring-2 focus:ring-primary/50 focus:border-primary border transition-all font-body-md placeholder:text-on-surface-variant/40" placeholder="Search by property name, location or owner..." type="text">
+</div>
+<div class="flex items-center gap-2">
+<button class="px-6 py-2.5 bg-white/10 border border-white/20 rounded-xl font-label-md text-sm hover:bg-white/20 transition-all">Quick Add</button>
+<button class="px-6 py-2.5 bg-primary text-white rounded-xl font-label-md text-sm shadow-md hover:brightness-110 transition-all">Export Report</button>
+</div>
+</div>
+<div class="flex items-center gap-6 ml-8">
+<div class="flex gap-3">
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-all">
+<span class="material-symbols-outlined">apps</span>
+</button>
+</div>
+<div class="flex items-center gap-3 pl-6 border-l border-white/20">
+<div class="text-right">
+<p class="font-headline-md text-sm leading-tight">Julianna Reed</p>
+<p class="font-label-sm text-[10px] text-on-surface-variant/60">Senior Consultant</p>
+</div>
+<img alt="User Profile" class="w-12 h-12 rounded-full border-2 border-primary-container object-cover" data-alt="A professional headshot of a luxury real estate consultant in her 30s with a warm, confident expression. She has styled hair and wears a sophisticated navy blazer. The background is a soft-focus architectural interior with high-key lighting and a palette of clean whites and subtle cyan highlights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPj21M3W3XgsCJf2DCoJuyfs0CeNyht8ouZ8hKBun0YMwVII4UccStUOnt-uEy-sbXxuYmXAA2-H1T57ieYhUOBxCYtQPG6QjjcyCZw57_7_n0V7As1wMmylpf8RtaN04r6wltXxT_i6s_jEuKbASRyZSdgJLWPDgR85c49wdsVSrOmvlJIp75hVpwmWlhZWm93pUgN-YNPMzUd4CWNuYFoShN5C_X1KPfs73yBD53u9KCSCUFW9w4HxmZpqCUCGCxgTQg9jBxfcFp">
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<section class="p-16">
+<div class="flex justify-between items-end mb-12">
+<div>
+<span class="text-primary font-label-md text-sm uppercase tracking-widest mb-2 block">Premium Portfolio</span>
+<h2 class="font-display-lg text-headline-lg text-on-surface">Property Gallery</h2>
+</div>
+<div class="flex gap-4">
+<div class="flex bg-white/20 p-1 rounded-2xl border border-white/20">
+<button class="px-4 py-2 rounded-xl bg-white shadow-sm text-primary flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'opsz' 20;">grid_view</span>
+<span class="font-label-md text-sm">Grid</span>
+</button>
+<button class="px-4 py-2 rounded-xl text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'opsz' 20;">format_list_bulleted</span>
+<span class="font-label-md text-sm">List</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Bento-style High-Density Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+<!-- Property Card 1 -->
+<div class="glass-card rounded-[32px] overflow-hidden flex flex-col group relative">
+<div class="relative h-64 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="An ultra-luxury modern villa named Casa del Sol featuring white minimalist architecture and glass walls. It is situated on a cliff overlooking a sparkling turquoise ocean during a golden hour sunset. The lighting is warm and ethereal, highlighting the architectural clean lines and lush tropical landscaping." src="https://lh3.googleusercontent.com/aida-public/AB6AXuALR_2lgNM59IsoES-P3nzd9K_kO9v1uInNeHVHul8Sl_Ly9j7Ls76OoiKouBYzhXRu_kAAZ29C7KeN9DZVH8pmg_NCy28cHcqUQdolufpAFDry50JMKPjjimOpBpU6_xvJmsEj4vFADbIvWhfQlisQfzPcBERJGPEX2mRGiONqdDUCVM8gbV-IBzBcweZYobodD-HL97dFBwTpgP871uCasQkDdj-ptCTERwkA65BBQW6clJSmGmqtn_Ib75gJbAmksZcVV76RPM6A">
+<div class="absolute top-4 right-4 bg-white/20 backdrop-blur-md border border-white/40 px-3 py-1 rounded-full text-white font-label-md text-xs">
+                            Active
+                        </div>
+<div class="absolute bottom-4 left-4">
+<span class="bg-primary/80 backdrop-blur-lg text-white font-display-lg text-lg px-4 py-1.5 rounded-xl">$4,250,000</span>
+</div>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<h3 class="font-display-lg text-xl mb-1 text-on-surface">Casa del Sol</h3>
+<p class="text-on-surface-variant/60 flex items-center gap-1 font-body-md text-sm mb-4">
+<span class="material-symbols-outlined text-sm">location_on</span> Tulum, Quintana Roo
+                        </p>
+<div class="grid grid-cols-3 gap-2 mb-6">
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Beds</p>
+<p class="font-headline-md text-sm">05</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Baths</p>
+<p class="font-headline-md text-sm">06</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Sqft</p>
+<p class="font-headline-md text-sm">5,400</p>
+</div>
+</div>
+<div class="mt-auto flex gap-3">
+<button class="flex-1 py-3 bg-white/40 border border-white/60 rounded-xl font-label-md text-xs uppercase tracking-wider hover:bg-white/60 transition-all">Explore Layout</button>
+<button class="px-4 py-3 bg-primary text-white rounded-xl hover:shadow-lg transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Property Card 2 -->
+<div class="glass-card rounded-[32px] overflow-hidden flex flex-col group relative">
+<div class="relative h-64 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A sleek futuristic penthouse called Sky Ocean featuring floor-to-ceiling windows that offer a panoramic view of a modern city skyline meeting the coast. The interior is decorated with contemporary luxury furniture in a palette of cool grays, vibrant cyans, and deep violets. Soft architectural lighting creates a serene digital atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5tg63fhHXln_g0nsjD6htjI84eixcr_KfZY6wgaHUOmPzRMFDyOO7hXnssMb7UUrspH6rJag24vFvfC34yXL6J5iC1Fr5ZAcmr_ROjLM6ndadoXGPirNTzkKR1bR24h8DMjvgIogGBInxOYheJCLGDOjTOae3w6uBBZGeZhDnS1Lc0-bXqtomgh_QXqZ2eSHi_MvkX13olromNVdx9skfb1Gflcspv5sSok4xguuYyhFM2h7hOIoASj2YzfEGGhUEWuobYfWeS84L">
+<div class="absolute top-4 right-4 bg-on-tertiary-container/30 backdrop-blur-md border border-white/40 px-3 py-1 rounded-full text-white font-label-md text-xs">
+                            Pending
+                        </div>
+<div class="absolute bottom-4 left-4">
+<span class="bg-primary/80 backdrop-blur-lg text-white font-display-lg text-lg px-4 py-1.5 rounded-xl">$8,900,000</span>
+</div>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<h3 class="font-display-lg text-xl mb-1 text-on-surface">Sky Ocean Penthouse</h3>
+<p class="text-on-surface-variant/60 flex items-center gap-1 font-body-md text-sm mb-4">
+<span class="material-symbols-outlined text-sm">location_on</span> Cancun Zona Hotelera
+                        </p>
+<div class="grid grid-cols-3 gap-2 mb-6">
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Beds</p>
+<p class="font-headline-md text-sm">04</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Baths</p>
+<p class="font-headline-md text-sm">05</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Sqft</p>
+<p class="font-headline-md text-sm">7,200</p>
+</div>
+</div>
+<div class="mt-auto flex gap-3">
+<button class="flex-1 py-3 bg-white/40 border border-white/60 rounded-xl font-label-md text-xs uppercase tracking-wider hover:bg-white/60 transition-all">Explore Layout</button>
+<button class="px-4 py-3 bg-primary text-white rounded-xl hover:shadow-lg transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Property Card 3 -->
+<div class="glass-card rounded-[32px] overflow-hidden flex flex-col group relative">
+<div class="relative h-64 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="An expansive tropical estate called The Palms featuring a central infinity pool surrounded by high-end outdoor lounging areas. The architecture blends traditional wood accents with ultra-modern white stone surfaces. The scene is illuminated by the soft morning light, creating a fresh and vibrant vacation-inspired luxury aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBs4hU1IuaX-FkuR4aWVqOGroxKQmYS81zfIjavUFyH8yXQggyRsKwrYUl6LjjrVqYkDfuBLYSaFW15HTSdpoT7CQRje70dMbsvR2cplRoXjknZE2Ckb76DgyAVBGSohMufA4GFHiieNInlDqUFNyRhz7W6dQXXYkzw_u5RimnLaFujdeJbtP4jZXWlfxYlvAkuH-hv4mdoiB5Rw7EUGdO7YIVj88_K-W0ZvlaetDrV0eaxSWLaNsL2j8nND3JdGQfQF-0384Jg9Xz9">
+<div class="absolute top-4 right-4 bg-white/20 backdrop-blur-md border border-white/40 px-3 py-1 rounded-full text-white font-label-md text-xs">
+                            Active
+                        </div>
+<div class="absolute bottom-4 left-4">
+<span class="bg-primary/80 backdrop-blur-lg text-white font-display-lg text-lg px-4 py-1.5 rounded-xl">$2,150,000</span>
+</div>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<h3 class="font-display-lg text-xl mb-1 text-on-surface">The Palms Estate</h3>
+<p class="text-on-surface-variant/60 flex items-center gap-1 font-body-md text-sm mb-4">
+<span class="material-symbols-outlined text-sm">location_on</span> Playa del Carmen
+                        </p>
+<div class="grid grid-cols-3 gap-2 mb-6">
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Beds</p>
+<p class="font-headline-md text-sm">06</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Baths</p>
+<p class="font-headline-md text-sm">07</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Acres</p>
+<p class="font-headline-md text-sm">1.2</p>
+</div>
+</div>
+<div class="mt-auto flex gap-3">
+<button class="flex-1 py-3 bg-white/40 border border-white/60 rounded-xl font-label-md text-xs uppercase tracking-wider hover:bg-white/60 transition-all">Explore Layout</button>
+<button class="px-4 py-3 bg-primary text-white rounded-xl hover:shadow-lg transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Property Card 4 -->
+<div class="glass-card rounded-[32px] overflow-hidden flex flex-col group relative">
+<div class="relative h-64 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A minimalist architectural masterpiece called Zen Refuge featuring dark slate walls and floor-to-ceiling glass nested in a lush forest clearing. The design emphasizes natural textures like wood and stone contrasted with high-tech lighting strips. The evening atmosphere is cozy and exclusive, with a moody palette of deep charcoal and glowing cyan accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBk0NwOsUneVYYCXnbXTw93j4-6Slb1-__1lEl8SShsKMu3Mm9zg6zQVlMLU0G_zWd5UB68WVpYFOyO0fiKswqjzvx0fFAByL1s3p16SQocqnFEE39wxd3Dgia35ulO9hhof94CCj1Gai6-TA18vkLn46m8s_nk-HJrcl92D4LI1rLRRxG5SQZT1loP79cF1VTGBslj6Z3sxc1bZTSjH_EGd0WLzRTF7dDi7nGYTXZrMEvL0YNawbhk-fbzE7aFTgJm2xEv91kChZmz">
+<div class="absolute top-4 right-4 bg-white/20 backdrop-blur-md border border-white/40 px-3 py-1 rounded-full text-white font-label-md text-xs">
+                            Active
+                        </div>
+<div class="absolute bottom-4 left-4">
+<span class="bg-primary/80 backdrop-blur-lg text-white font-display-lg text-lg px-4 py-1.5 rounded-xl">$1,850,000</span>
+</div>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<h3 class="font-display-lg text-xl mb-1 text-on-surface">Zen Refuge</h3>
+<p class="text-on-surface-variant/60 flex items-center gap-1 font-body-md text-sm mb-4">
+<span class="material-symbols-outlined text-sm">location_on</span> Puerto Morelos
+                        </p>
+<div class="grid grid-cols-3 gap-2 mb-6">
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Beds</p>
+<p class="font-headline-md text-sm">03</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Baths</p>
+<p class="font-headline-md text-sm">03</p>
+</div>
+<div class="bg-white/20 rounded-xl p-2 text-center">
+<p class="text-[10px] font-label-sm text-on-surface-variant uppercase">Sqft</p>
+<p class="font-headline-md text-sm">3,800</p>
+</div>
+</div>
+<div class="mt-auto flex gap-3">
+<button class="flex-1 py-3 bg-white/40 border border-white/60 rounded-xl font-label-md text-xs uppercase tracking-wider hover:bg-white/60 transition-all">Explore Layout</button>
+<button class="px-4 py-3 bg-primary text-white rounded-xl hover:shadow-lg transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Add New Property Placeholder -->
+<div class="glass-card rounded-[32px] border-dashed border-2 border-primary/30 flex flex-col items-center justify-center p-12 group cursor-pointer hover:bg-primary/5 transition-all">
+<div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary transition-all">
+<span class="material-symbols-outlined text-4xl text-primary group-hover:text-white">add_circle</span>
+</div>
+<h3 class="font-display-lg text-xl text-primary mb-2">New Property</h3>
+<p class="text-on-surface-variant/60 text-center font-body-md text-sm">Expand your luxury portfolio with a new premium listing.</p>
+</div>
+</div>
+</section>
+</main>
+<script>
+        // Micro-interactions for glass effects
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+                
+                // Subtile tilt effect
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = (y - centerY) / 20;
+                const rotateY = (centerX - x) / 20;
+                card.style.transform = `perspective(1000px) translateY(-8px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'perspective(1000px) translateY(0) rotateX(0) rotateY(0)';
+            });
+        });
+
+        // Search bar focus effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('luminous-glow');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('luminous-glow');
+        });
+    </script>
+</body></html>

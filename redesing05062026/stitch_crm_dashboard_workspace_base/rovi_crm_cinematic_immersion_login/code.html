@@ -1,0 +1,304 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>ROVI - Cinematic Immersion</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@700;800&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#dae2fd",
+                    "surface-bright": "#faf8ff",
+                    "primary-container": "#00d9ff",
+                    "on-tertiary-container": "#6e4d00",
+                    "surface-dim": "#d2d9f4",
+                    "on-background": "#131b2e",
+                    "on-tertiary-fixed-variant": "#5e4100",
+                    "tertiary-container": "#ffbb2a",
+                    "surface-container-low": "#f2f3ff",
+                    "surface-container-highest": "#dae2fd",
+                    "secondary-fixed-dim": "#d0bcff",
+                    "inverse-on-surface": "#eef0ff",
+                    "on-tertiary": "#ffffff",
+                    "inverse-surface": "#283044",
+                    "surface-tint": "#00687b",
+                    "outline": "#6c797e",
+                    "on-primary-container": "#005b6c",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed": "#e9ddff",
+                    "tertiary": "#7d5800",
+                    "on-secondary-container": "#fffbff",
+                    "secondary-container": "#8455ef",
+                    "primary": "#00687b",
+                    "outline-variant": "#bbc9ce",
+                    "secondary": "#6b38d4",
+                    "on-error-container": "#93000a",
+                    "primary-fixed": "#aeecff",
+                    "on-secondary-fixed": "#23005c",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#ffdea9",
+                    "surface-container": "#eaedff",
+                    "on-secondary-fixed-variant": "#5516be",
+                    "background": "#faf8ff",
+                    "error": "#ba1a1a",
+                    "surface-container-high": "#e2e7ff",
+                    "surface": "#faf8ff",
+                    "on-tertiary-fixed": "#271900",
+                    "error-container": "#ffdad6",
+                    "on-surface-variant": "#3c494d",
+                    "on-secondary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed-dim": "#febb29",
+                    "primary-fixed-dim": "#00d9ff",
+                    "on-surface": "#131b2e",
+                    "inverse-primary": "#00d9ff",
+                    "on-primary-fixed-variant": "#004e5d",
+                    "on-primary-fixed": "#001f26"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1280px",
+                    "gutter": "24px",
+                    "margin-desktop": "64px",
+                    "unit": "8px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "headline-lg-mobile": ["Plus Jakarta Sans"],
+                    "label-sm": ["JetBrains Mono"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["JetBrains Mono"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "body-md": ["Inter"],
+                    "outfit": ["Outfit", "sans-serif"]
+            },
+            "fontSize": {
+                    "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                    "headline-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #00d9ff;
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.25);
+            outline: none;
+        }
+
+        .neon-button {
+            background: linear-gradient(90deg, #00d9ff, #6b38d4);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .neon-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 217, 255, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .neon-button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+
+        .neon-button:hover::after {
+            left: 100%;
+        }
+
+        .mesh-gradient-bg {
+            background-color: #131b2e;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(190,100%,30%,0.15) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(260,100%,30%,0.15) 0, transparent 50%),
+                radial-gradient(at 50% 100%, hsla(190,100%,40%,0.1) 0, transparent 50%);
+        }
+
+        .background-image-container {
+            background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCZ7V4r3MTCqNk_dFhyiVD1LAUBMjJfMWiu6b3uHN-paXfKkEbizZOdGls7OEXuLbhuFCATDnGQ60J4iYnwz_ZMcZW94a1LbPGYM3VCKBdV83f9uT9cY8AlpGy7yBaKTA1OTLL6aLm6hDAo8eEgc6Ni5-u0OaqI_958sigt_H3CGf6sw1aKzfbvRJwjBMI9FzVPVo2xWKiEM-vgAFRYasOt583eFyvqp_Lm_E7cpBFLSs45f1fI7kS0HIpn25Gfmd3ZXxDl5MU6_HBB');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .animated-logo {
+            letter-spacing: 0.4em;
+            text-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-background overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Cinematic Background Shell -->
+<div class="fixed inset-0 z-0 background-image-container">
+<!-- Overlay for contrast -->
+<div class="absolute inset-0 bg-black/30 backdrop-blur-[2px]"></div>
+</div>
+<!-- Top Navigation Bar (Shared Component Style) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-desktop py-6 backdrop-blur-md bg-black/5">
+<div class="font-outfit text-headline-md tracking-widest text-white uppercase">
+            ROVI
+        </div>
+<div class="flex items-center gap-6">
+<button class="material-symbols-outlined text-white/80 hover:text-primary-container transition-colors duration-300">help</button>
+<button class="material-symbols-outlined text-white/80 hover:text-primary-container transition-colors duration-300">language</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="relative z-10 min-h-screen w-full flex items-center justify-center p-gutter">
+<!-- Center Floating Login Card -->
+<div class="glass-card w-full max-w-md p-10 rounded-[2rem] flex flex-col gap-8 opacity-0 translate-y-8 animate-[fade-up_0.8s_ease-out_forwards]">
+<!-- Branding Header -->
+<div class="text-center space-y-2">
+<h1 class="font-outfit text-white text-display-lg uppercase animated-logo mb-2">ROVI</h1>
+<p class="font-headline-md text-white/60 tracking-tight">Luxury Ecosystem Entry</p>
+</div>
+<!-- Login Form -->
+<form class="flex flex-col gap-6" onsubmit="event.preventDefault();">
+<div class="space-y-4">
+<!-- Email Input -->
+<div class="group">
+<label class="font-label-md text-white/50 ml-2 mb-2 block uppercase tracking-wider">Identity</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-primary-container transition-colors">person</span>
+<input class="glass-input w-full pl-12 pr-6 py-4 rounded-2xl text-white font-headline-md placeholder:text-white/20" placeholder="Email or Username" type="email">
+</div>
+</div>
+<!-- Password Input -->
+<div class="group">
+<div class="flex justify-between items-center ml-2 mb-2">
+<label class="font-label-md text-white/50 uppercase tracking-wider">Access Key</label>
+<a class="font-label-sm text-primary-container hover:underline opacity-80" href="#">Recovery</a>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-primary-container transition-colors">lock</span>
+<input class="glass-input w-full pl-12 pr-6 py-4 rounded-2xl text-white font-headline-md placeholder:text-white/20" placeholder="••••••••" type="password">
+</div>
+</div>
+</div>
+<!-- Remember Me & MFA -->
+<div class="flex items-center justify-between px-2">
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="w-5 h-5 rounded-md border border-white/20 flex items-center justify-center group-hover:border-primary-container transition-all">
+<input class="hidden peer" type="checkbox">
+<span class="material-symbols-outlined text-[16px] text-primary-container scale-0 peer-checked:scale-100 transition-transform">check</span>
+</div>
+<span class="font-label-md text-white/60">Persistent Session</span>
+</label>
+</div>
+<!-- Primary CTA -->
+<button class="neon-button w-full py-5 rounded-2xl font-outfit text-white text-headline-md uppercase tracking-widest shadow-lg" type="submit">
+                    Authenticate
+                </button>
+</form>
+<!-- Footer Links -->
+<div class="flex flex-col items-center gap-4 border-t border-white/10 pt-8">
+<p class="font-body-md text-white/40">New to the ecosystem?</p>
+<button class="font-label-md text-white hover:text-primary-container border border-white/20 hover:border-primary-container px-8 py-2 rounded-full transition-all duration-300">
+                    Request Invitations
+                </button>
+</div>
+</div>
+</main>
+<!-- Page Decoration Elements -->
+<div class="fixed bottom-12 left-12 z-20 hidden md:block">
+<div class="flex items-center gap-4">
+<div class="w-12 h-[1px] bg-white/30"></div>
+<p class="font-label-sm text-white/40 tracking-[0.3em] uppercase">Private Residence CRM 2.0</p>
+</div>
+</div>
+<!-- Right Side Decorative Coordinates -->
+<div class="fixed bottom-12 right-12 z-20 hidden md:flex flex-col items-end gap-1">
+<p class="font-label-sm text-primary-container tracking-widest">ENCRYPTED CONNECTION</p>
+<p class="font-label-sm text-white/30 tracking-tighter">NODE: SYDNEY_U7</p>
+</div>
+<!-- Shared Footer (Minimal Version for Login) -->
+<footer class="absolute bottom-0 w-full flex justify-between px-margin-desktop py-8 z-10">
+<div class="font-label-sm text-white/30 uppercase">
+            © 2024 ROVI CRM. ALL RIGHTS RESERVED.
+        </div>
+<div class="flex gap-8">
+<a class="font-label-sm text-white/30 hover:text-white transition-colors" href="#">Privacy Policy</a>
+<a class="font-label-sm text-white/30 hover:text-white transition-colors" href="#">Terms of Service</a>
+</div>
+</footer>
+<style>
+        @keyframes fade-up {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+<script>
+        // Simple micro-interaction for input movement
+        document.querySelectorAll('.glass-input').forEach(input => {
+            input.addEventListener('focus', () => {
+                input.closest('.group').querySelector('.material-symbols-outlined').style.transform = 'translateY(-50%) scale(1.1)';
+            });
+            input.addEventListener('blur', () => {
+                input.closest('.group').querySelector('.material-symbols-outlined').style.transform = 'translateY(-50%) scale(1)';
+            });
+        });
+
+        // Background parallax effect
+        document.addEventListener('mousemove', (e) => {
+            const amount = 20;
+            const x = (e.clientX / window.innerWidth - 0.5) * amount;
+            const y = (e.clientY / window.innerHeight - 0.5) * amount;
+            document.querySelector('.background-image-container').style.transform = `scale(1.05) translate(${x}px, ${y}px)`;
+        });
+    </script>
+</body></html>

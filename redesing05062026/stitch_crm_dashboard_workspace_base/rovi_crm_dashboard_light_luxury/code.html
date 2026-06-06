@@ -1,0 +1,620 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Rovi CRM | Luxury Dashboard</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#005227",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#e8eeff",
+                    "on-primary-fixed": "#001a41",
+                    "inverse-on-surface": "#ecf0ff",
+                    "surface-tint": "#255cb2",
+                    "secondary-container": "#00d9ff",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-container": "#005b6c",
+                    "surface-variant": "#dbe2f7",
+                    "surface-container-high": "#e0e8fd",
+                    "on-surface": "#141c2b",
+                    "tertiary-fixed": "#83fba5",
+                    "on-secondary-fixed": "#001f26",
+                    "outline": "#737783",
+                    "primary": "#003779",
+                    "on-surface-variant": "#424752",
+                    "surface-dim": "#d2daef",
+                    "secondary-fixed-dim": "#00d9ff",
+                    "tertiary-container": "#005d2d",
+                    "surface-bright": "#f9f9ff",
+                    "tertiary-fixed-dim": "#66dd8b",
+                    "outline-variant": "#c3c6d4",
+                    "on-primary-container": "#a6c2ff",
+                    "primary-fixed-dim": "#adc6ff",
+                    "inverse-primary": "#adc6ff",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#00431f",
+                    "inverse-surface": "#283040",
+                    "background": "#f9f9ff",
+                    "primary-container": "#0a4da2",
+                    "error-container": "#ffdad6",
+                    "surface-container-highest": "#dbe2f7",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#62da87",
+                    "on-error": "#ffffff",
+                    "on-tertiary-fixed": "#00210c",
+                    "surface-container-low": "#f1f3ff",
+                    "error": "#ba1a1a",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed-variant": "#004493",
+                    "secondary-fixed": "#aeecff",
+                    "primary-fixed": "#d8e2ff",
+                    "on-background": "#141c2b",
+                    "secondary": "#00687b",
+                    "on-secondary-fixed-variant": "#004e5d",
+                    "surface": "#f9f9ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "32px",
+                    "base": "8px",
+                    "margin-desktop": "64px",
+                    "section-padding": "120px",
+                    "margin-mobile": "20px",
+                    "container-max": "1440px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Outfit"],
+                    "display-lg": ["Outfit"],
+                    "label-md": ["Plus Jakarta Sans"],
+                    "headline-md": ["Outfit"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "label-sm": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Outfit"],
+                    "body-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.03em", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "30px", "letterSpacing": "0", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "26px", "letterSpacing": "0", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9ff;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(217, 89%, 36%, 0.03) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(188, 100%, 50%, 0.03) 0px, transparent 50%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(0, 55, 121, 0.1);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-border {
+            border-right: 4px solid #00d9ff;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface"><svg class="inline-defs-container" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></svg>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Rovi CRM | Luxury Dashboard</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#005227",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#e8eeff",
+                    "on-primary-fixed": "#001a41",
+                    "inverse-on-surface": "#ecf0ff",
+                    "surface-tint": "#255cb2",
+                    "secondary-container": "#00d9ff",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-container": "#005b6c",
+                    "surface-variant": "#dbe2f7",
+                    "surface-container-high": "#e0e8fd",
+                    "on-surface": "#141c2b",
+                    "tertiary-fixed": "#83fba5",
+                    "on-secondary-fixed": "#001f26",
+                    "outline": "#737783",
+                    "primary": "#003779",
+                    "on-surface-variant": "#424752",
+                    "surface-dim": "#d2daef",
+                    "secondary-fixed-dim": "#00d9ff",
+                    "tertiary-container": "#005d2d",
+                    "surface-bright": "#f9f9ff",
+                    "tertiary-fixed-dim": "#66dd8b",
+                    "outline-variant": "#c3c6d4",
+                    "on-primary-container": "#a6c2ff",
+                    "primary-fixed-dim": "#adc6ff",
+                    "inverse-primary": "#adc6ff",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#00431f",
+                    "inverse-surface": "#283040",
+                    "background": "#f9f9ff",
+                    "primary-container": "#0a4da2",
+                    "error-container": "#ffdad6",
+                    "surface-container-highest": "#dbe2f7",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#62da87",
+                    "on-error": "#ffffff",
+                    "on-tertiary-fixed": "#00210c",
+                    "surface-container-low": "#f1f3ff",
+                    "error": "#ba1a1a",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed-variant": "#004493",
+                    "secondary-fixed": "#aeecff",
+                    "primary-fixed": "#d8e2ff",
+                    "on-background": "#141c2b",
+                    "secondary": "#00687b",
+                    "on-secondary-fixed-variant": "#004e5d",
+                    "surface": "#f9f9ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "32px",
+                    "base": "8px",
+                    "margin-desktop": "64px",
+                    "section-padding": "120px",
+                    "margin-mobile": "20px",
+                    "container-max": "1440px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Outfit"],
+                    "display-lg": ["Outfit"],
+                    "label-md": ["Plus Jakarta Sans"],
+                    "headline-md": ["Outfit"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "label-sm": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Outfit"],
+                    "body-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.03em", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "30px", "letterSpacing": "0", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "26px", "letterSpacing": "0", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9ff;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(217, 89%, 36%, 0.03) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(188, 100%, 50%, 0.03) 0px, transparent 50%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(0, 55, 121, 0.1);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-border {
+            border-right: 4px solid #00d9ff;
+        }
+    </style>
+
+
+<!-- Sidebar Layout Container -->
+<div class="flex min-h-screen">
+<!-- SideNavBar Predicted Component -->
+<aside class="hidden md:flex flex-col h-screen fixed left-0 w-72 bg-white/70 dark:bg-surface-container/70 backdrop-blur-2xl py-8 px-6 gap-8 border-r border-primary/10 shadow-[20px_0px_40px_hsla(217,89%,36%,0.03)] z-50">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-white">domain</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">Rovi CRM</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Luxury Real Estate</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2 flex-grow">
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg bg-primary/5 text-primary font-bold border-r-4 border-secondary transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">domain</span>
+<span class="font-label-md text-label-md">Properties</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-md text-label-md">Leads</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-label-md text-label-md">Calendar</span>
+</a>
+</nav>
+<button class="bg-primary text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-primary/20 transition-all active:scale-95 uppercase tracking-widest text-xs">
+                New Listing
+            </button>
+<div class="flex flex-col gap-2 border-t border-primary/10 pt-6">
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant font-medium hover:bg-primary/5 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-2 text-on-surface-variant font-medium hover:bg-primary/5 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-grow md:ml-72 pb-20">
+<!-- TopNavBar Predicted Component -->
+<header class="flex justify-between items-center px-gutter w-full h-20 sticky top-0 z-40 bg-white/70 backdrop-blur-2xl border-b border-primary/10 shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)]">
+<div class="flex items-center gap-8 w-1/2">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
+<input class="w-full bg-surface-container/50 border-none rounded-full py-2.5 pl-12 pr-4 focus:ring-2 focus:ring-secondary/30 font-body-md transition-all" placeholder="Search leads, properties, agents..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-primary/5 rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-primary/5 rounded-full transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-primary/10">
+<div class="text-right hidden sm:block">
+<p class="font-label-md text-label-md text-primary">Julian Alexander</p>
+<p class="font-label-sm text-xs text-on-surface-variant">Senior Executive</p>
+</div>
+<img alt="Executive User Profile" class="w-10 h-10 rounded-full object-cover ring-2 ring-secondary/20" data-alt="A professional headshot of a senior real estate executive with a confident expression, wearing a tailored charcoal suit and a crisp white shirt. The background is a blurred high-end office environment with soft morning light streaming through large windows, creating a bright and airy atmosphere that complements the luxury brand aesthetic. The lighting is flattering and high-key, emphasizing a clean and corporate look." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCU_jWLZZUXVUXhbPhuPRneveM4pjqoy-LKHwEkv0lM6IQ8VjaTWJai054stR0KvSlUkFlF2cDoxS4cdC46YcTNZ6l1DijmA2_Phx3ofA6Vhk4gaUrqTC_V1KlQREjUAaIaxVDs-TxrgtqVJwYg5szELpJFplzDc61JNn0mapUMw1DC-HUsk-WjFMtrAkkqIR0Z820ph7NaGaKkeg2addttNMULUY_rRXjKRP-3bdhnNsuc0dxs1OD2nASK291_l2GKWNSKieKA2fRY">
+</div>
+</div>
+</header>
+<div class="p-gutter max-w-container-max mx-auto space-y-gutter">
+<!-- Hero Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Puntos del Mes -->
+<div class="glass-card p-8 rounded-[2rem] shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)] flex flex-col justify-between">
+<div class="flex justify-between items-start mb-6">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Puntos del Mes</p>
+<h3 class="font-headline-lg text-headline-lg text-primary mt-1">142 <span class="text-on-surface-variant font-normal text-headline-md">/ 350 pts</span></h3>
+</div>
+<div class="bg-secondary/10 p-3 rounded-2xl text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">stars</span>
+</div>
+</div>
+<div class="space-y-3">
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[40.5%] rounded-full shadow-[0_0_15px_rgba(0,217,255,0.4)]"></div>
+</div>
+<p class="font-label-sm text-xs text-on-surface-variant">41% of monthly target achieved</p>
+</div>
+</div>
+<!-- Apartados -->
+<div class="glass-card p-8 rounded-[2rem] shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)] flex flex-col justify-between border-t-4 border-t-secondary/40">
+<div class="flex justify-between items-start mb-6">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Apartados</p>
+<h3 class="font-headline-lg text-headline-lg text-primary mt-1">6 <span class="text-on-surface-variant font-normal text-headline-md">Units</span></h3>
+</div>
+<div class="bg-primary/10 p-3 rounded-2xl text-primary">
+<span class="material-symbols-outlined">bookmark_added</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="flex items-center text-on-tertiary-container bg-tertiary-fixed/20 px-2 py-1 rounded-full text-xs font-bold">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 12%
+                            </span>
+<p class="font-label-sm text-xs text-on-surface-variant">vs. previous month</p>
+</div>
+</div>
+<!-- Ventas Cerradas -->
+<div class="glass-card p-8 rounded-[2rem] shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)] flex flex-col justify-between">
+<div class="flex justify-between items-start mb-6">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Ventas Cerradas</p>
+<h3 class="font-headline-lg text-headline-lg text-primary mt-1">3 <span class="text-on-surface-variant font-normal text-headline-md">/ 5 Goals</span></h3>
+</div>
+<div class="bg-tertiary-fixed/30 p-3 rounded-2xl text-tertiary">
+<span class="material-symbols-outlined">payments</span>
+</div>
+</div>
+<div class="grid grid-cols-5 gap-2">
+<div class="h-1.5 bg-primary rounded-full"></div>
+<div class="h-1.5 bg-primary rounded-full"></div>
+<div class="h-1.5 bg-primary rounded-full"></div>
+<div class="h-1.5 bg-surface-container rounded-full"></div>
+<div class="h-1.5 bg-surface-container rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Main Analytics Section & Lead Sources -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Analytics Avanzado -->
+<div class="lg:col-span-2 glass-card p-8 rounded-[2rem] shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)]">
+<div class="flex justify-between items-center mb-8">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary">Analytics Avanzado</h2>
+<p class="font-body-md text-on-surface-variant">Revenue vs. Leads acquisition (Weekly)</p>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 rounded-full bg-surface-container text-on-surface-variant text-xs font-bold hover:bg-surface-container-high transition-colors">Daily</button>
+<button class="px-4 py-2 rounded-full bg-primary text-white text-xs font-bold shadow-md shadow-primary/20 transition-all">Weekly</button>
+<button class="px-4 py-2 rounded-full bg-surface-container text-on-surface-variant text-xs font-bold hover:bg-surface-container-high transition-colors">Monthly</button>
+</div>
+</div>
+<!-- Custom Chart Simulation (Simple SVG for performance) -->
+<div class="relative h-64 w-full mt-4">
+<svg class="w-full h-full" viewBox="0 0 800 240">
+<defs>
+<linearGradient id="gradientPrimary" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#003779" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#003779" stop-opacity="0"></stop>
+</linearGradient>
+<linearGradient id="gradientSecondary" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#00d9ff" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#00d9ff" stop-opacity="0"></stop>
+</linearGradient>
+</defs>
+<!-- Grid Lines -->
+<line stroke="#e0e8fd" stroke-width="1" x1="0" x2="800" y1="240" y2="240"></line>
+<line stroke="#f1f3ff" stroke-width="1" x1="0" x2="800" y1="180" y2="180"></line>
+<line stroke="#f1f3ff" stroke-width="1" x1="0" x2="800" y1="120" y2="120"></line>
+<line stroke="#f1f3ff" stroke-width="1" x1="0" x2="800" y1="60" y2="60"></line>
+<!-- Area/Line 1 (Revenue) -->
+<path d="M0,200 Q150,180 300,100 T600,40 T800,80 L800,240 L0,240 Z" fill="url(#gradientPrimary)"></path>
+<path d="M0,200 Q150,180 300,100 T600,40 T800,80" fill="none" stroke="#003779" stroke-linecap="round" stroke-width="3"></path>
+<!-- Area/Line 2 (Leads) -->
+<path d="M0,220 Q100,210 200,180 T400,150 T600,120 T800,100 L800,240 L0,240 Z" fill="url(#gradientSecondary)"></path>
+<path d="M0,220 Q100,210 200,180 T400,150 T600,120 T800,100" fill="none" stroke="#00d9ff" stroke-dasharray="8 4" stroke-linecap="round" stroke-width="3"></path>
+<!-- Highlights -->
+<circle cx="600" cy="40" fill="#ffffff" r="6" stroke="#003779" stroke-width="3"></circle>
+</svg>
+</div>
+<div class="flex justify-between items-center pt-6 mt-4 border-t border-primary/10">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Gross Revenue</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-secondary border-2 border-white shadow-sm"></span>
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Leads Acquisition</span>
+</div>
+</div>
+<p class="font-label-sm text-xs text-on-surface-variant">Last updated: Just now</p>
+</div>
+</div>
+<!-- Lead Sources -->
+<div class="glass-card p-8 rounded-[2rem] shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)]">
+<h2 class="font-headline-md text-headline-md text-primary mb-6">Fuentes de Leads</h2>
+<div class="space-y-8">
+<div>
+<div class="flex justify-between mb-2">
+<span class="font-label-md text-label-md text-primary">Facebook Ads</span>
+<span class="font-label-md text-label-md text-primary">45%</span>
+</div>
+<div class="w-full h-3 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[45%] rounded-full"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between mb-2">
+<span class="font-label-md text-label-md text-primary">Instagram</span>
+<span class="font-label-md text-label-md text-primary">30%</span>
+</div>
+<div class="w-full h-3 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[30%] rounded-full"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between mb-2">
+<span class="font-label-md text-label-md text-primary">Directo Web</span>
+<span class="font-label-md text-label-md text-primary">25%</span>
+</div>
+<div class="w-full h-3 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-fixed-dim w-[25%] rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="mt-12 p-4 bg-primary/5 rounded-2xl flex items-center gap-4">
+<span class="material-symbols-outlined text-primary">campaign</span>
+<p class="text-xs text-on-surface-variant">Your social campaigns are performing 15% better than last month.</p>
+</div>
+</div>
+</div>
+<!-- Conversion Pipeline & Activity -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Conversion Pipeline -->
+<div class="lg:col-span-2 glass-card p-8 rounded-[2rem] shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)]">
+<div class="flex justify-between items-center mb-8">
+<h2 class="font-headline-md text-headline-md text-primary">Funnel de Conversión</h2>
+<span class="text-xs font-bold text-on-surface-variant uppercase bg-surface-container px-3 py-1 rounded-full">Real-time</span>
+</div>
+<div class="flex items-center justify-between relative py-6">
+<!-- Visual Pipeline Steps -->
+<div class="flex-1 text-center relative z-10">
+<div class="w-20 h-20 bg-primary-container text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary/20">
+<span class="font-headline-md">245</span>
+</div>
+<p class="font-label-md text-primary">Captura</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Total Leads</p>
+</div>
+<div class="flex-grow flex items-center justify-center -mx-4 z-0">
+<div class="h-px w-full bg-gradient-to-r from-primary/30 to-secondary/30 relative">
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="bg-white border border-primary/10 px-3 py-1 rounded-full text-[10px] font-bold text-primary shadow-sm">
+                                            45.7% Ratio
+                                        </div>
+</div>
+</div>
+</div>
+<div class="flex-1 text-center relative z-10">
+<div class="w-20 h-20 bg-secondary text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-secondary/20">
+<span class="font-headline-md">112</span>
+</div>
+<p class="font-label-md text-primary">Cualificación</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Qualified</p>
+</div>
+<div class="flex-grow flex items-center justify-center -mx-4 z-0">
+<div class="h-px w-full bg-gradient-to-r from-secondary/30 to-tertiary/30 relative">
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="bg-white border border-primary/10 px-3 py-1 rounded-full text-[10px] font-bold text-secondary shadow-sm">
+                                            18.2% Ratio
+                                        </div>
+</div>
+</div>
+</div>
+<div class="flex-1 text-center relative z-10">
+<div class="w-20 h-20 bg-tertiary text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-tertiary/20">
+<span class="font-headline-md">20</span>
+</div>
+<p class="font-label-md text-primary">Negociación</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Closing phase</p>
+</div>
+</div>
+</div>
+<!-- Recent Activity Timeline -->
+<div class="glass-card p-8 rounded-[2rem] shadow-[0px_20px_40px_hsla(217,89%,36%,0.05)]">
+<h2 class="font-headline-md text-headline-md text-primary mb-8">Actividad Reciente</h2>
+<div class="space-y-6 relative before:absolute before:left-[19px] before:top-2 before:bottom-0 before:w-px before:bg-primary/10">
+<div class="relative flex gap-4 items-start">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center z-10 border-4 border-white">
+<span class="material-symbols-outlined text-sm text-on-secondary-container">person_add</span>
+</div>
+<div class="flex-grow">
+<p class="font-label-md text-sm text-primary">New Lead: Sofia Mendez</p>
+<p class="text-xs text-on-surface-variant mt-0.5">High intent for 'Azure Villa'</p>
+<span class="text-[10px] font-bold text-outline-variant uppercase mt-1 block">2 mins ago</span>
+</div>
+</div>
+<div class="relative flex gap-4 items-start">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center z-10 border-4 border-white">
+<span class="material-symbols-outlined text-sm text-white">call</span>
+</div>
+<div class="flex-grow">
+<p class="font-label-md text-sm text-primary">Call Finished: Mark R.</p>
+<p class="text-xs text-on-surface-variant mt-0.5">Follow-up scheduled for Monday</p>
+<span class="text-[10px] font-bold text-outline-variant uppercase mt-1 block">45 mins ago</span>
+</div>
+</div>
+<div class="relative flex gap-4 items-start">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center z-10 border-4 border-white">
+<span class="material-symbols-outlined text-sm text-on-tertiary-fixed">event_available</span>
+</div>
+<div class="flex-grow">
+<p class="font-label-md text-sm text-primary">Reservation Confirmed</p>
+<p class="text-xs text-on-surface-variant mt-0.5">Penthouse 4B - Deposit received</p>
+<span class="text-[10px] font-bold text-outline-variant uppercase mt-1 block">3 hours ago</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-8 py-3 border border-primary/10 rounded-xl text-primary font-bold text-xs uppercase tracking-widest hover:bg-primary/5 transition-colors">
+                            View All History
+                        </button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Mobile Bottom Navigation (Strict Platform Rule) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-20 bg-white/90 backdrop-blur-2xl border-t border-primary/10 flex items-center justify-around px-4 z-50">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">dashboard</span>
+<span class="text-[10px] font-bold uppercase">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">domain</span>
+<span class="text-[10px] font-bold uppercase">Props</span>
+</a>
+<div class="relative -mt-10">
+<button class="w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-bold uppercase">Leads</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold uppercase">Profile</span>
+</a>
+</nav>
+<script>
+        // Simple micro-interactions for a more "Luxury Tech" feel
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px)';
+                card.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+                card.style.boxShadow = '0px 30px 60px hsla(217, 89%, 36%, 0.12)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0px)';
+                card.style.boxShadow = '0px 20px 40px hsla(217, 89%, 36%, 0.05)';
+            });
+        });
+    </script>
+</body></html>

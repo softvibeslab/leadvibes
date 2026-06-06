@@ -1,0 +1,300 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>ROVI - Cinematic Immersion</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@700;800&amp;display=swap" rel="stylesheet">
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#dae2fd",
+                    "surface-bright": "#faf8ff",
+                    "primary-container": "#00d9ff",
+                    "on-tertiary-container": "#6e4d00",
+                    "surface-dim": "#d2d9f4",
+                    "on-background": "#131b2e",
+                    "on-tertiary-fixed-variant": "#5e4100",
+                    "tertiary-container": "#ffbb2a",
+                    "surface-container-low": "#f2f3ff",
+                    "surface-container-highest": "#dae2fd",
+                    "secondary-fixed-dim": "#d0bcff",
+                    "inverse-on-surface": "#eef0ff",
+                    "on-tertiary": "#ffffff",
+                    "inverse-surface": "#283044",
+                    "surface-tint": "#00687b",
+                    "outline": "#6c797e",
+                    "on-primary-container": "#005b6c",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed": "#e9ddff",
+                    "tertiary": "#7d5800",
+                    "on-secondary-container": "#fffbff",
+                    "secondary-container": "#8455ef",
+                    "primary": "#00687b",
+                    "outline-variant": "#bbc9ce",
+                    "secondary": "#6b38d4",
+                    "on-error-container": "#93000a",
+                    "primary-fixed": "#aeecff",
+                    "on-secondary-fixed": "#23005c",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#ffdea9",
+                    "surface-container": "#eaedff",
+                    "on-secondary-fixed-variant": "#5516be",
+                    "background": "#faf8ff",
+                    "error": "#ba1a1a",
+                    "surface-container-high": "#e2e7ff",
+                    "surface": "#faf8ff",
+                    "on-tertiary-fixed": "#271900",
+                    "error-container": "#ffdad6",
+                    "on-surface-variant": "#3c494d",
+                    "on-secondary": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed-dim": "#febb29",
+                    "primary-fixed-dim": "#00d9ff",
+                    "on-surface": "#131b2e",
+                    "inverse-primary": "#00d9ff",
+                    "on-primary-fixed-variant": "#004e5d",
+                    "on-primary-fixed": "#001f26"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1280px",
+                    "gutter": "24px",
+                    "margin-desktop": "64px",
+                    "unit": "8px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "headline-lg-mobile": ["Plus Jakarta Sans"],
+                    "label-sm": ["JetBrains Mono"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["JetBrains Mono"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "body-md": ["Inter"],
+                    "outfit": ["Outfit", "sans-serif"]
+            },
+            "fontSize": {
+                    "display-lg": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                    "headline-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #00d9ff;
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.25);
+            outline: none;
+        }
+
+        .neon-button {
+            background: linear-gradient(135deg, #00d9ff, #6b38d4);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .neon-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 217, 255, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .background-image-container {
+            background-image: url('https://lh3.googleusercontent.com/aida/AP1WRLuJArad3cS7SzW6rUKrUsYZZA_eqfvcMEMennSNoAKPydPPzaRDtG-L6mR_P1hqivaCATg_jxBtGbxHecbmrY9ZEcUXvDu1pqmd09BjYrrveJuFDI5mSdXcQ40-wTjKmEnJhLbioz60vm8R7gwwAhOLcC1b43GaXkofPxhfV4VPi9Ci4vnO_sDYl0UHa0Rd225CeK9xRyIZv5X7ig1ccCQLx5YRGCkKSevsSlipW1dcTaljXZVbeYi1fR0i');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .glass-overlay-container {
+            background-image: url('https://lh3.googleusercontent.com/aida/AP1WRLupyoO7-EcwMuREbj2B2ux19wToWu0jqcJGchCCm_g2y48HCteZxdTCo1XRmeT1YCwPqP_eDdhe4DgIayxRhkR6UlmQWOsrh1UGlqczdN59jARz7svzcFxAaOhhUzcPAspgsais6BTJD2Vaq0DIme3dN653AqzqYS1MCnvAwRDaubCEx5scbrQMx760rmtYbN7PWeIQvT4fPfo6CNfu-_Pz0gxrzr-T8nYI6gfrBjCOEDtoi9ahKNzwV6U');
+            background-size: cover;
+            background-position: center;
+            mix-blend-mode: screen;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .animated-logo {
+            letter-spacing: 0.3em;
+            text-shadow: 0 0 30px rgba(0, 217, 255, 0.6);
+        }
+
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-up {
+            animation: fade-up 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-background overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Cinematic Background Layers -->
+<div class="fixed inset-0 z-0">
+<!-- Base Villa Photo -->
+<div class="absolute inset-0 background-image-container scale-105"></div>
+<!-- Subtle Glass Tech Overlay -->
+<div class="absolute inset-0 glass-overlay-container"></div>
+<!-- Vignette and Darkening for Contrast -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40 backdrop-blur-[1px]"></div>
+</div>
+<!-- Header -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-desktop py-8">
+<div class="font-outfit text-headline-md tracking-[0.4em] text-white uppercase font-bold">
+        ROVI
+    </div>
+<div class="flex items-center gap-8">
+<button class="material-symbols-outlined text-white/60 hover:text-white transition-colors">help</button>
+<button class="material-symbols-outlined text-white/60 hover:text-white transition-colors">language</button>
+</div>
+</header>
+<!-- Main Interaction Canvas -->
+<main class="relative z-10 min-h-screen w-full flex items-center justify-center p-gutter">
+<!-- Central Floating Glass Card -->
+<div class="glass-card w-full max-w-[480px] p-12 rounded-[2.5rem] flex flex-col gap-10 opacity-0 animate-fade-up backdrop-blur-3xl">
+<!-- Branding Header -->
+<div class="text-center space-y-3">
+<h1 class="font-outfit text-white text-[56px] leading-none uppercase animated-logo mb-1 font-extrabold">ROVI</h1>
+<p class="font-label-md text-primary-container uppercase tracking-[0.2em] opacity-80">Luxury Ecosystem Entry</p>
+</div>
+<!-- Login Form -->
+<form class="flex flex-col gap-8" onsubmit="event.preventDefault();">
+<div class="space-y-5">
+<!-- Identity Input -->
+<div class="group">
+<label class="font-label-sm text-white/40 ml-1 mb-2 block uppercase tracking-widest">Identity</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-primary-container transition-colors">fingerprint</span>
+<input class="glass-input w-full pl-14 pr-6 py-5 rounded-2xl text-white font-headline-md placeholder:text-white/10" placeholder="Biometric ID or Email" type="text">
+</div>
+</div>
+<!-- Access Key Input -->
+<div class="group">
+<div class="flex justify-between items-center ml-1 mb-2">
+<label class="font-label-sm text-white/40 uppercase tracking-widest">Access Key</label>
+<a class="font-label-sm text-primary-container hover:text-white transition-colors" href="#">Recovery</a>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-primary-container transition-colors">shield</span>
+<input class="glass-input w-full pl-14 pr-6 py-5 rounded-2xl text-white font-headline-md placeholder:text-white/10" placeholder="••••••••" type="password">
+</div>
+</div>
+</div>
+<!-- Interaction Row -->
+<div class="flex items-center justify-between px-1">
+<label class="flex items-center gap-3 cursor-pointer group">
+<div class="w-6 h-6 rounded-lg border border-white/20 flex items-center justify-center group-hover:border-primary-container transition-all">
+<input class="hidden peer" type="checkbox">
+<span class="material-symbols-outlined text-[18px] text-primary-container scale-0 peer-checked:scale-100 transition-transform">check</span>
+</div>
+<span class="font-label-md text-white/50 tracking-wide">Maintain Persistence</span>
+</label>
+</div>
+<!-- Primary CTA -->
+<button class="neon-button w-full py-6 rounded-2xl font-outfit text-white text-headline-md uppercase tracking-[0.3em] font-bold shadow-2xl" type="submit">
+                Authenticate
+            </button>
+</form>
+<!-- Footer Action -->
+<div class="flex flex-col items-center gap-5 border-t border-white/10 pt-10">
+<p class="font-body-md text-white/30 italic">New to the ROVI ecosystem?</p>
+<button class="font-label-md text-white/80 hover:text-primary-container border border-white/20 hover:border-primary-container px-10 py-3 rounded-full transition-all duration-500 backdrop-blur-md">
+                Request Invitation
+            </button>
+</div>
+</div>
+</main>
+<!-- Decoration Elements -->
+<div class="fixed bottom-12 left-12 z-20 hidden md:block">
+<div class="flex items-center gap-6">
+<div class="w-16 h-[1px] bg-white/20"></div>
+<p class="font-label-sm text-white/30 tracking-[0.5em] uppercase">Private Residence CRM 2.0</p>
+</div>
+</div>
+<div class="fixed bottom-12 right-12 z-20 hidden md:flex flex-col items-end gap-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+<p class="font-label-sm text-primary-container tracking-[0.2em] uppercase font-bold">Encrypted Connection</p>
+</div>
+<p class="font-label-sm text-white/20 tracking-tighter uppercase">Node: SYDNEY_U7</p>
+</div>
+<!-- Global Footer -->
+<footer class="fixed bottom-0 w-full flex justify-between px-margin-desktop py-8 z-10 border-t border-white/5 bg-black/5 backdrop-blur-sm">
+<div class="font-label-sm text-white/20 uppercase tracking-widest">
+        © 2024 ROVI LUXURY CRM. ALL RIGHTS RESERVED.
+    </div>
+<div class="flex gap-10">
+<a class="font-label-sm text-white/20 hover:text-white transition-colors uppercase tracking-widest" href="#">Privacy</a>
+<a class="font-label-sm text-white/20 hover:text-white transition-colors uppercase tracking-widest" href="#">Terms</a>
+</div>
+</footer>
+<script>
+    // Parallax effect on mouse movement
+    document.addEventListener('mousemove', (e) => {
+        const moveAmount = 15;
+        const x = (e.clientX / window.innerWidth - 0.5) * moveAmount;
+        const y = (e.clientY / window.innerHeight - 0.5) * moveAmount;
+        
+        document.querySelector('.background-image-container').style.transform = `scale(1.05) translate(${x}px, ${y}px)`;
+        document.querySelector('.glass-overlay-container').style.transform = `translate(${x * 1.5}px, ${y * 1.5}px)`;
+        
+        // Subtle card tilt
+        const card = document.querySelector('.glass-card');
+        const tiltX = (e.clientY / window.innerHeight - 0.5) * 5;
+        const tiltY = (e.clientX / window.innerWidth - 0.5) * -5;
+        card.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(0)`;
+    });
+
+    // Input focus animations
+    document.querySelectorAll('.glass-input').forEach(input => {
+        input.addEventListener('focus', () => {
+            input.closest('.group').querySelector('.material-symbols-outlined').style.color = '#00d9ff';
+        });
+        input.addEventListener('blur', () => {
+            input.closest('.group').querySelector('.material-symbols-outlined').style.color = '';
+        });
+    });
+</script>
+</body></html>
