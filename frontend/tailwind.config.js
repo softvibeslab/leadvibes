@@ -7,6 +7,11 @@ module.exports = {
   ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['var(--rovi-body-font)', 'system-ui', 'sans-serif'],
+  			display: ['var(--rovi-display-font)', 'system-ui', 'sans-serif'],
+  			mono: ['var(--rovi-mono-font)', 'monospace'],
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
@@ -52,6 +57,13 @@ module.exports = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
+  			},
+  			rovi: {
+  				cyan: 'var(--rovi-cyan)',
+  				blue: 'var(--rovi-blue)',
+  				violet: 'var(--rovi-violet)',
+  				navy: 'var(--rovi-bg)',
+  				surface: 'var(--rovi-surface)'
   			}
   		},
   		keyframes: {

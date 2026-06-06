@@ -30,7 +30,7 @@ export const Layout = () => {
   }, []);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-transparent">
       <RealtimeNotifications />
 
       {/* Mobile Sidebar Overlay */}
@@ -53,7 +53,7 @@ export const Layout = () => {
       {/* Main Content */}
       <main className="flex-1 overflow-auto flex flex-col min-w-0">
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-30 bg-card border-b border-border px-4 py-3 flex items-center gap-3">
+        <header className="rovi-glass sticky top-0 z-30 flex items-center gap-3 rounded-none border-x-0 border-t-0 px-4 py-3 lg:hidden">
           <Button
             variant="ghost"
             size="icon"
@@ -63,7 +63,7 @@ export const Layout = () => {
           >
             <Menu className="w-5 h-5" />
           </Button>
-          <span className="font-bold text-lg font-['Outfit'] truncate">Rovi</span>
+          <span className="font-display truncate text-lg font-bold">Rovi</span>
         </header>
         
         {/* Page Content */}

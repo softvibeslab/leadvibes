@@ -224,15 +224,15 @@ export const Sidebar = ({ onClose }) => {
   const activeRoleLabel = getRoleLabel(getEffectiveRole(user));
 
   return (
-    <div className="flex flex-col h-full w-64 bg-card border-r border-border">
+    <div className="rovi-glass flex flex-col h-full w-64 rounded-none border-y-0 border-l-0 border-r border-border/70">
       {/* Logo */}
       <div className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Leaf className="w-6 h-6 text-primary-foreground" />
+          <div className="rovi-gradient-primary flex h-10 w-10 items-center justify-center rounded-xl shadow-glow-primary">
+            <Leaf className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-lg font-['Outfit'] text-foreground">Rovi</h1>
+            <h1 className="font-display text-lg font-bold text-foreground">Rovi</h1>
             <p className="text-xs text-muted-foreground">
               {accountLabel}
             </p>
@@ -256,8 +256,8 @@ export const Sidebar = ({ onClose }) => {
 
       {hasCopimAccess && !isMemberPortal && (
         <div className="px-4 pt-4">
-        <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+        <div className="rovi-card rounded-2xl p-3">
+          <p className="rovi-label mb-2">
             Perfil Activo
           </p>
           <Select value={currentModeValue} onValueChange={handleAppModeChange}>
@@ -282,8 +282,8 @@ export const Sidebar = ({ onClose }) => {
 
       {isMemberPortal && (
         <div className="px-4 pt-4">
-          <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          <div className="rovi-card rounded-2xl p-3">
+            <p className="rovi-label mb-2">
               Portal Activo
             </p>
             <p className="text-sm font-medium text-foreground">Asociado COPIM</p>
@@ -305,8 +305,8 @@ export const Sidebar = ({ onClose }) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    ? 'border border-primary/30 bg-primary/10 text-foreground shadow-glow-primary'
+                    : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
                 }`
               }
               data-testid={`nav-${item.label.toLowerCase()}`}
@@ -321,8 +321,8 @@ export const Sidebar = ({ onClose }) => {
       {/* Footer */}
       <div className="p-4 border-t border-border">
         {workspaces.length > 1 && !isMemberPortal && (
-          <div className="mb-3 rounded-xl border border-border/70 bg-muted/30 p-3">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          <div className="rovi-card mb-3 rounded-xl p-3">
+            <p className="rovi-label mb-1">
               Workspace Activo
             </p>
             <Select
@@ -348,8 +348,8 @@ export const Sidebar = ({ onClose }) => {
         )}
 
         {/* User info */}
-        <div className="flex items-center gap-3 px-3 py-2 mb-3 rounded-xl bg-muted/50">
-          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+        <div className="rovi-card mb-3 flex items-center gap-3 rounded-xl px-3 py-2">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/15">
             <UserCircle className="w-5 h-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
