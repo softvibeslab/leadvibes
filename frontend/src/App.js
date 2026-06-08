@@ -16,6 +16,7 @@ import { CampaignsPage } from './pages/CampaignsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AutomationsPage } from './pages/AutomationsPage';
 import { WhatsAppOpenWAPage } from './pages/WhatsAppOpenWAPage';
+import { AIAgentsPage } from './pages/AIAgentsPage';
 import { TasksPage } from './pages/TasksPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
@@ -332,6 +333,14 @@ function AppRoutes() {
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/whatsapp" element={<WhatsAppOpenWAPage />} />
+        <Route
+          path="/ai-agents"
+          element={
+            <SalesCrmRoute>
+              <AIAgentsPage />
+            </SalesCrmRoute>
+          }
+        />
         <Route
           path="/tasks"
           element={
