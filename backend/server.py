@@ -4265,6 +4265,24 @@ def mask_bot_token(token: str | None) -> str:
     return f"••••{token[-6:]}"
 
 
+def get_rovi_telegram_bot_token() -> str:
+    return (
+        os.environ.get("ROVI_TELEGRAM_BOT_TOKEN")
+        or os.environ.get("HERMES_TELEGRAM_BOT_TOKEN")
+        or os.environ.get("TELEGRAM_BOT_TOKEN")
+        or ""
+    ).strip()
+
+
+def get_rovi_telegram_webhook_secret() -> str:
+    return (
+        os.environ.get("ROVI_TELEGRAM_WEBHOOK_SECRET")
+        or os.environ.get("ROVI_HERMES_WEBHOOK_SECRET")
+        or os.environ.get("HERMES_WEBHOOK_SECRET")
+        or ""
+    ).strip()
+
+
 def build_agent_telegram_link(profile: dict, code: str) -> str:
     username = normalize_telegram_bot_username(profile.get("bot_username"))
     if not username:
@@ -4277,16 +4295,24 @@ def build_agent_telegram_link(profile: dict, code: str) -> str:
     return f"https://t.me/{username}?start=rovi_{code}"
 
 
-async def send_telegram_message_with_token(token: str | None, chat_id: str | None, text: str) -> dict:
+async def send_telegram_message_with_token(
+    token: str | None,
+    chat_id: str | None,
+    text: str,
+    reply_markup: dict | None = None,
+) -> dict:
     if not token or not chat_id:
         return {"sent": False, "reason": "missing_token_or_chat_id"}
     try:
         import httpx
 
+        payload = {"chat_id": chat_id, "text": text[:3900]}
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
         async with httpx.AsyncClient(timeout=12) as client:
             response = await client.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat_id, "text": text[:3900]},
+                json=payload,
             )
         if response.status_code >= 400:
             return {"sent": False, "status_code": response.status_code, "body": response.text[:300]}
@@ -4463,6 +4489,251 @@ async def activate_hermes_device_link(link: dict, user: dict, active_workspace: 
     }
     await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
     return {**link, **update_payload}
+
+
+async def send_rovi_telegram_contact_request(chat_id: str, user: dict) -> dict:
+    return await send_telegram_message_with_token(
+        get_rovi_telegram_bot_token(),
+        chat_id,
+        (
+            "Ya encontré tu cuenta ROVI.\n\n"
+            f"Para proteger tu CRM, comparte el teléfono de Telegram y lo valido contra {mask_phone(user.get('phone'))}."
+        ),
+        reply_markup={
+            "keyboard": [[{"text": "Compartir mi teléfono", "request_contact": True}]],
+            "one_time_keyboard": True,
+            "resize_keyboard": True,
+        },
+    )
+
+
+async def handle_rovi_telegram_start(
+    *,
+    code: str,
+    chat_id: str,
+    telegram_user: dict,
+) -> dict:
+    link = await find_device_link_by_code_or_id(code)
+    if not link:
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "No encontré un vínculo ROVI para este código. Genera un QR nuevo desde Agentes IA.",
+        )
+        return {"ok": True, "status": "link_not_found", "delivery": delivery}
+    if link.get("status") == "revoked":
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Este vínculo fue revocado. Genera un QR nuevo desde ROVI.",
+        )
+        return {"ok": True, "status": "revoked", "delivery": delivery}
+    if device_link_is_expired(link):
+        now = datetime.now(timezone.utc).isoformat()
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired", "updated_at": now}})
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Este QR expiró. Genera uno nuevo desde Agentes IA en ROVI.",
+        )
+        return {"ok": True, "status": "expired", "delivery": delivery}
+
+    user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("is_active", True):
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "La cuenta ROVI vinculada no está activa.",
+        )
+        return {"ok": True, "status": "inactive_user", "delivery": delivery}
+
+    now = datetime.now(timezone.utc).isoformat()
+    telegram_payload = {
+        "user_id": str(telegram_user.get("id") or ""),
+        "username": telegram_user.get("username"),
+        "chat_id": chat_id,
+        "first_name": telegram_user.get("first_name"),
+        "last_name": telegram_user.get("last_name"),
+        "started_at": now,
+    }
+    update_payload = {
+        "telegram": telegram_payload,
+        "status": "awaiting_contact" if user.get("phone") else "scanned",
+        "updated_at": now,
+    }
+    await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+    updated_link = {**link, **update_payload}
+
+    if user.get("phone"):
+        delivery = await send_rovi_telegram_contact_request(chat_id, user)
+        return {"ok": True, "status": "awaiting_contact", "delivery": delivery}
+
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, updated_link.get("tenant_id") or resolve_auth_workspace_target(user))
+    activated = await activate_hermes_device_link(updated_link, user, active_workspace)
+    delivery = await send_telegram_message_with_token(
+        get_rovi_telegram_bot_token(),
+        chat_id,
+        "Tu cuenta ROVI quedó vinculada. Ya puedes escribirme para consultar y gestionar tu CRM.",
+        reply_markup={"remove_keyboard": True},
+    )
+    return {"ok": True, "status": "active", "link": build_device_link_public(activated), "delivery": delivery}
+
+
+async def handle_rovi_telegram_contact(*, contact: dict, chat_id: str, telegram_user: dict) -> dict:
+    telegram_user_id = str(telegram_user.get("id") or "")
+    link = await db.user_device_links.find_one(
+        {
+            "channel": "telegram",
+            "telegram.user_id": telegram_user_id,
+            "status": {"$in": ["awaiting_contact", "scanned", "pending"]},
+        },
+        {"_id": 0},
+        sort=[("updated_at", -1)],
+    )
+    if not link:
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "No encontré un vínculo pendiente. Genera un QR nuevo desde Agentes IA.",
+            reply_markup={"remove_keyboard": True},
+        )
+        return {"ok": True, "status": "link_not_found", "delivery": delivery}
+    if device_link_is_expired(link):
+        now = datetime.now(timezone.utc).isoformat()
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": {"status": "expired", "updated_at": now}})
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Este QR expiró. Genera uno nuevo desde ROVI.",
+            reply_markup={"remove_keyboard": True},
+        )
+        return {"ok": True, "status": "expired", "delivery": delivery}
+
+    user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("is_active", True):
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "La cuenta ROVI vinculada no está activa.",
+            reply_markup={"remove_keyboard": True},
+        )
+        return {"ok": True, "status": "inactive_user", "delivery": delivery}
+
+    telegram_phone = contact.get("phone_number") or ""
+    now = datetime.now(timezone.utc).isoformat()
+    telegram_payload = {
+        **(link.get("telegram") or {}),
+        "user_id": telegram_user_id,
+        "chat_id": chat_id,
+        "phone": telegram_phone,
+        "phone_normalized": normalize_phone_for_match(telegram_phone),
+        "contact_received_at": now,
+    }
+    if not phones_match(user.get("phone"), telegram_phone):
+        update_payload = {
+            "status": "phone_mismatch",
+            "telegram": telegram_payload,
+            "phone_match": False,
+            "updated_at": now,
+        }
+        await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            (
+                "El teléfono compartido no coincide con tu cuenta ROVI.\n\n"
+                f"ROVI esperaba: {mask_phone(user.get('phone'))}\n"
+                f"Recibí: {mask_phone(telegram_phone)}"
+            ),
+            reply_markup={"remove_keyboard": True},
+        )
+        return {"ok": True, "status": "phone_mismatch", "delivery": delivery}
+
+    await db.user_device_links.update_one(
+        {"id": link["id"]},
+        {"$set": {"telegram": telegram_payload, "phone_match": True, "updated_at": now}},
+    )
+    user = await ensure_workspace_infra_for_user(user)
+    workspaces = await get_user_workspaces(user)
+    active_workspace = select_active_workspace(workspaces, link.get("tenant_id") or resolve_auth_workspace_target(user))
+    activated = await activate_hermes_device_link({**link, "telegram": telegram_payload, "phone_match": True}, user, active_workspace)
+    delivery = await send_telegram_message_with_token(
+        get_rovi_telegram_bot_token(),
+        chat_id,
+        "Listo. Tu Telegram quedó vinculado a ROVI y Hermes ya tiene tu perfil activo.",
+        reply_markup={"remove_keyboard": True},
+    )
+    return {"ok": True, "status": "active", "link": build_device_link_public(activated), "delivery": delivery}
+
+
+async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegram_user: dict) -> dict:
+    link = await db.user_device_links.find_one(
+        {"channel": "telegram", "telegram.chat_id": chat_id, "status": "active"},
+        {"_id": 0, "hermes_profile_spec": 0},
+        sort=[("activated_at", -1)],
+    )
+    if not link:
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Este chat todavía no está vinculado a ROVI. Abre Agentes IA y escanea un QR nuevo.",
+        )
+        return {"ok": True, "status": "link_required", "delivery": delivery}
+
+    user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("is_active", True):
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "La cuenta ROVI vinculada no está activa.",
+        )
+        return {"ok": True, "status": "inactive_user", "delivery": delivery}
+
+    runtime_user = {
+        "user_id": user["id"],
+        "tenant_id": user.get("tenant_id"),
+        "active_tenant_id": link.get("tenant_id") or user.get("tenant_id"),
+        "active_membership_id": link.get("membership_id"),
+        "role": user.get("role", "broker"),
+        "active_role": link.get("role") or user.get("role", "broker"),
+        "account_type": user.get("account_type", "individual"),
+        "email": user.get("email"),
+        "name": user.get("name"),
+    }
+    role_scope = link.get("role_scope") or "broker"
+    agent_message = (
+        f"Canal: Telegram vinculado por QR en ROVI CRM\n"
+        f"Rol permitido: {role_scope}\n"
+        f"Usuario ROVI: {user.get('email')}\n\n"
+        f"Mensaje del usuario: {text}"
+    )
+    result = await run_agent_turn(
+        db,
+        AgentRunRequest(message=agent_message, include_context=True, role_scope=role_scope),
+        runtime_user,
+        source="telegram",
+        forced_role_scope=role_scope,
+    )
+    response_text = result.get("response") or result.get("content") or "Listo."
+    delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
+    await db.telegram_agent_messages.insert_one({
+        "id": f"telegram-agent-message-{uuid.uuid4()}",
+        "profile_id": link.get("hermes_profile_name") or "rovi-device-link",
+        "link_id": link["id"],
+        "tenant_id": link.get("tenant_id"),
+        "user_id": link["user_id"],
+        "role_scope": role_scope,
+        "chat_id": chat_id,
+        "telegram_user_id": str(telegram_user.get("id") or ""),
+        "message": text,
+        "response": response_text,
+        "delivery": delivery,
+        "agent_run_id": result.get("run_id"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True, "status": "responded", "delivery": delivery}
 
 
 @api_router.get("/device-links", response_model=dict)
@@ -4697,6 +4968,48 @@ async def hermes_telegram_contact(payload: HermesTelegramContactRequest, request
         "message": "Cuenta ROVI vinculada con Telegram y Hermes.",
         "link": build_device_link_public(activated),
     }
+
+
+@api_router.post("/telegram/rovi-agent/webhook/{secret}", response_model=dict)
+async def rovi_telegram_agent_webhook(secret: str, request: Request):
+    expected_secret = get_rovi_telegram_webhook_secret()
+    if not expected_secret:
+        raise HTTPException(status_code=503, detail="Falta configurar el secreto del webhook Telegram")
+    if not hmac.compare_digest(secret, expected_secret):
+        raise HTTPException(status_code=401, detail="Webhook Telegram no autorizado")
+    if not get_rovi_telegram_bot_token():
+        raise HTTPException(status_code=503, detail="Falta configurar el token de Telegram")
+
+    update = await request.json()
+    message = update.get("message") or update.get("edited_message") or {}
+    chat = message.get("chat") or {}
+    telegram_user = message.get("from") or {}
+    chat_id = str(chat.get("id") or "")
+    if not chat_id:
+        return {"ok": True, "ignored": True}
+
+    contact = message.get("contact")
+    if contact:
+        return await handle_rovi_telegram_contact(contact=contact, chat_id=chat_id, telegram_user=telegram_user)
+
+    text = (message.get("text") or "").strip()
+    if not text:
+        return {"ok": True, "ignored": True}
+
+    if text.startswith("/start"):
+        parts = text.split(maxsplit=1)
+        code = normalize_link_code(parts[1] if len(parts) > 1 else "")
+        return await handle_rovi_telegram_start(code=code, chat_id=chat_id, telegram_user=telegram_user)
+
+    if text.startswith("/"):
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Estoy conectado a ROVI. Escríbeme lo que necesitas consultar, crear o actualizar en tu CRM.",
+        )
+        return {"ok": True, "status": "command_ignored", "delivery": delivery}
+
+    return await handle_rovi_telegram_agent_message(text=text, chat_id=chat_id, telegram_user=telegram_user)
 
 
 @api_router.post("/telegram-miniapp/session", response_model=dict)

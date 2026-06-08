@@ -48,10 +48,25 @@ const statusConfig = {
     tone: 'border-sky-500/30 bg-sky-500/10 text-sky-700',
     icon: Smartphone,
   },
+  awaiting_contact: {
+    label: 'Esperando teléfono',
+    tone: 'border-sky-500/30 bg-sky-500/10 text-sky-700',
+    icon: Smartphone,
+  },
+  pending_email_confirmation: {
+    label: 'Confirmación pendiente',
+    tone: 'border-amber-500/30 bg-amber-500/10 text-amber-700',
+    icon: Clock3,
+  },
   contact_verified: {
     label: 'Contacto validado',
     tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
     icon: ShieldCheck,
+  },
+  phone_mismatch: {
+    label: 'Teléfono no coincide',
+    tone: 'border-destructive/30 bg-destructive/10 text-destructive',
+    icon: XCircle,
   },
   active: {
     label: 'Conectado',
@@ -130,6 +145,8 @@ const importExamples = [
   { entity: 'Propiedades', sample: 'Casa 3 recamaras, Aldea Zama, 220 m2, $9,500,000 MXN' },
 ];
 
+const pendingLinkStatuses = ['pending', 'scanned', 'awaiting_contact', 'contact_verified', 'pending_email_confirmation'];
+
 export const AIAgentsPage = () => {
   const { api, user } = useAuth();
   const [links, setLinks] = useState([]);
@@ -149,7 +166,7 @@ export const AIAgentsPage = () => {
 
   const latestLink = useMemo(() => {
     const active = links.find((link) => link.status === 'active');
-    return active || links.find((link) => ['pending', 'scanned', 'contact_verified'].includes(link.status)) || links[0] || null;
+    return active || links.find((link) => pendingLinkStatuses.includes(link.status)) || links[0] || null;
   }, [links]);
 
   const loadLinks = useCallback(async () => {
@@ -164,7 +181,7 @@ export const AIAgentsPage = () => {
   }, [loadLinks]);
 
   useEffect(() => {
-    const hasPendingLink = links.some((link) => ['pending', 'scanned', 'contact_verified'].includes(link.status));
+    const hasPendingLink = links.some((link) => pendingLinkStatuses.includes(link.status));
     if (!hasPendingLink) return undefined;
     const timer = window.setInterval(() => {
       void loadLinks().catch(() => {});
