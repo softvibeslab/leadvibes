@@ -650,7 +650,15 @@ def build_agent_messages(config: dict, user_message: str, db_context: dict, know
             knowledge_lines.append(f"[{idx}] {title}\n{chunk.get('content', '')[:1600]}")
         context_block += "\n\nBASE DE CONOCIMIENTO RELEVANTE:\n" + "\n\n".join(knowledge_lines)
 
-    system_prompt = f"""{config.get("system_prompt") or ROLE_PROMPTS["broker"]}
+    system_sections = [config.get("system_prompt") or ROLE_PROMPTS["broker"]]
+    if config.get("customer_prompt"):
+        system_sections.append(f"Contexto del usuario y permisos:\n{config.get('customer_prompt')}")
+    if config.get("tone_instructions"):
+        system_sections.append(f"Tono requerido:\n{config.get('tone_instructions')}")
+    if config.get("enabled_skills"):
+        system_sections.append("Skills activas:\n" + "\n".join(f"- {skill}" for skill in config.get("enabled_skills") or []))
+
+    system_prompt = f"""{chr(10).join(system_sections)}
 
 Reglas de seguridad:
 - Responde en espanol mexicano, claro y accionable.
@@ -883,6 +891,7 @@ async def run_agent_turn(
     *,
     forced_role_scope: Optional[str] = None,
     source: str = "runtime",
+    config_override: Optional[dict] = None,
 ) -> dict:
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="El mensaje es obligatorio.")
@@ -891,7 +900,8 @@ async def run_agent_turn(
     if role_scope not in ROLE_SCOPES:
         raise HTTPException(status_code=422, detail="Rol de agente invalido.")
 
-    config = apply_runtime_ai_overrides(await resolve_agent_config(db, role_scope))
+    base_config = config_override or await resolve_agent_config(db, role_scope)
+    config = apply_runtime_ai_overrides(base_config)
     tools = config.get("tools") or {}
     db_context = await build_database_context(db, current_user, role_scope, tools) if request.include_context else {}
     knowledge_chunks = (

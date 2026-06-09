@@ -5153,6 +5153,75 @@ def public_device_link_agent_profile(profile: dict) -> dict:
     }
 
 
+def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope: str) -> dict:
+    studio_tools = studio_tools or {}
+    return {
+        "list_leads": bool(studio_tools.get("leads", True)),
+        "lead_metrics": bool(studio_tools.get("leads", True)),
+        "marketplace_recommendations": True,
+        "copim_context": role_scope.startswith("copim"),
+        "rovi_internal_metrics": role_scope.startswith("rovi_"),
+        "vibe_lab_context": False,
+        "write_actions": bool(studio_tools.get("bulk_changes") or studio_tools.get("imports")),
+    }
+
+
+def build_agent_control_config_from_studio_profile(profile: dict, role_scope: str) -> dict:
+    skills = profile.get("enabled_skills") or []
+    tools = profile.get("tools") or {}
+    return {
+        "id": f"agent-studio-runtime-{profile.get('id')}",
+        "role_scope": role_scope,
+        "name": profile.get("name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker"),
+        "description": profile.get("description") or "",
+        "provider": profile.get("provider") or "rovi_crm",
+        "model": profile.get("model") or os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5"),
+        "base_url": os.environ.get("ROVI_AI_BASE_URL", ""),
+        "api_key_env": os.environ.get("ROVI_AI_KEY_ENV", "ROVI_AI_API_KEY"),
+        "temperature": profile.get("temperature", 0.25),
+        "max_output_tokens": 900,
+        "knowledge_enabled": True,
+        "system_prompt": profile.get("system_prompt") or "",
+        "customer_prompt": profile.get("customer_prompt") or "",
+        "tone_instructions": profile.get("tone_instructions") or "",
+        "enabled_skills": skills,
+        "tools": build_agent_control_tools_from_studio(tools, role_scope),
+        "studio_tools": tools,
+        "hermes_profile_name": profile.get("hermes_profile_name"),
+        "source": "agent_studio",
+    }
+
+
+async def resolve_telegram_agent_studio_profile(link: dict, role_scope: str) -> dict | None:
+    tenant_id = link.get("tenant_id")
+    if link.get("agent_studio_profile_id"):
+        profile = await db.agent_studio_profiles.find_one(
+            {"id": link.get("agent_studio_profile_id"), "tenant_id": tenant_id, "is_active": True},
+            {"_id": 0},
+        )
+        if profile:
+            return profile
+    profile = await db.agent_studio_profiles.find_one(
+        {"tenant_id": tenant_id, "role_scope": role_scope, "is_active": True},
+        {"_id": 0},
+    )
+    if profile:
+        return profile
+    user = await db.users.find_one({"id": link.get("user_id")}, {"_id": 0, "password_hash": 0})
+    if user:
+        active_workspace = {
+            "tenant_id": tenant_id,
+            "role": link.get("role") or user.get("role"),
+            "membership_id": link.get("membership_id"),
+            "tenant_type": "agency" if link.get("account_type") == "agency" else None,
+        }
+        profiles = await ensure_device_link_agent_studio_profiles(user, active_workspace)
+        for item in profiles:
+            if item.get("role_scope") == role_scope:
+                return item
+    return None
+
+
 def build_telegram_onboarding_message(link: dict, user: dict, active_workspace: dict | None) -> str:
     role_scope = link.get("role_scope") or default_device_link_role_scope(user, active_workspace)
     agent_name = link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
@@ -5630,12 +5699,32 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         "name": user.get("name"),
     }
     role_scope = link.get("role_scope") or "broker"
-    agent_name = link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
+    agent_profile = await resolve_telegram_agent_studio_profile(link, role_scope)
+    if agent_profile:
+        agent_config = build_agent_control_config_from_studio_profile(agent_profile, role_scope)
+        agent_name = agent_profile.get("name") or link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
+        if not link.get("agent_studio_profile_id") or link.get("agent_studio_profile_id") != agent_profile.get("id"):
+            await db.user_device_links.update_one(
+                {"id": link["id"]},
+                {"$set": {
+                    "agent_studio_profile_id": agent_profile.get("id"),
+                    "agent_studio_profile_name": agent_profile.get("name"),
+                    "agent_studio_hermes_profile_name": agent_profile.get("hermes_profile_name"),
+                    "agent_studio_enabled_skills": agent_profile.get("enabled_skills") or [],
+                    "agent_studio_tools": agent_profile.get("tools") or {},
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }},
+            )
+    else:
+        agent_config = None
+        agent_name = link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
     agent_message = (
         f"Canal: Telegram vinculado por QR en ROVI CRM\n"
         f"Agente seleccionado: {agent_name}\n"
-        f"Perfil Hermes: {link.get('hermes_profile_name') or ''}\n"
+        f"Perfil Hermes: {(agent_profile or {}).get('hermes_profile_name') or link.get('hermes_profile_name') or ''}\n"
         f"Rol permitido: {role_scope}\n"
+        f"Perfil Agent Studio: {(agent_profile or {}).get('id') or 'fallback_agent_config'}\n"
+        f"Skills activas: {', '.join((agent_profile or {}).get('enabled_skills') or link.get('agent_studio_enabled_skills') or []) or 'sin skills activas'}\n"
         f"Usuario ROVI: {user.get('email')}\n\n"
         f"Mensaje del usuario: {text}"
     )
@@ -5645,6 +5734,7 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         runtime_user,
         source="telegram",
         forced_role_scope=role_scope,
+        config_override=agent_config,
     )
     response_text = result.get("response") or result.get("content") or "Listo."
     delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
