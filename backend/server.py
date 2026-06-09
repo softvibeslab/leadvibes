@@ -4372,6 +4372,11 @@ class AgentStudioUserSettingsUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
 
 
+class AgentStudioTelegramE2ETestRequest(BaseModel):
+    user_id: Optional[str] = None
+    message: str = "Prueba E2E desde Agent Studio: confirma tu perfil, rol, tenant y tools activas."
+
+
 def require_agent_studio_admin(current_user: dict) -> dict:
     if (current_user.get("active_role") or current_user.get("role")) != AGENT_STUDIO_ADMIN_ROLE:
         raise HTTPException(status_code=403, detail="Agent Studio solo esta disponible para rol admin")
@@ -4956,6 +4961,83 @@ async def list_agent_studio_users(current_user: dict = Depends(get_current_user)
         })
     rows.sort(key=lambda item: ((item["user"].get("role") or ""), (item["user"].get("email") or "")))
     return {"users": rows, "total": len(rows)}
+
+
+@api_router.get("/agent-studio/action-audit", response_model=dict)
+async def list_agent_studio_action_audit(current_user: dict = Depends(get_current_user)):
+    current_user = require_agent_studio_admin(current_user)
+    tenant_id = current_user["tenant_id"]
+    logs = await db.agent_action_audit.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(100).to_list(100)
+    pending = await db.telegram_agent_pending_actions.find(
+        {"tenant_id": tenant_id, "status": {"$in": ["pending_confirmation", "executed", "cancelled"]}},
+        {"_id": 0, "payload": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
+    webhook_updates = await db.telegram_webhook_updates.find(
+        {"channel": "rovi-agent"},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return {
+        "logs": [serialize_doc(item) for item in logs],
+        "pending_actions": [serialize_doc(item) for item in pending],
+        "webhook_updates": [serialize_doc(item) for item in webhook_updates],
+    }
+
+
+@api_router.post("/agent-studio/telegram-e2e-test", response_model=dict)
+async def run_agent_studio_telegram_e2e_test(
+    payload: AgentStudioTelegramE2ETestRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+):
+    current_user = require_agent_studio_admin(current_user)
+    tenant_id = current_user["tenant_id"]
+    query = {"tenant_id": tenant_id, "channel": "telegram", "status": "active"}
+    if payload.user_id:
+        query["user_id"] = payload.user_id
+    link = await db.user_device_links.find_one(query, {"_id": 0}, sort=[("activated_at", -1)])
+    if not link:
+        raise HTTPException(status_code=404, detail="No encontre un usuario con Telegram activo para probar")
+    chat_id = str((link.get("telegram") or {}).get("chat_id") or "")
+    if not chat_id:
+        raise HTTPException(status_code=422, detail="El vinculo Telegram no tiene chat_id")
+    update_id = f"agent-studio-e2e-{uuid.uuid4()}"
+    now = datetime.now(timezone.utc).isoformat()
+    await db.telegram_webhook_updates.insert_one({
+        "id": update_id,
+        "channel": "rovi-agent",
+        "status": "queued",
+        "chat_id": chat_id,
+        "telegram_user_id": str((link.get("telegram") or {}).get("user_id") or ""),
+        "message_preview": payload.message[:280],
+        "source": "agent_studio_e2e_test",
+        "created_by": current_user["user_id"],
+        "created_at": now,
+        "updated_at": now,
+    })
+    background_tasks.add_task(
+        process_rovi_telegram_agent_message_background,
+        update_id=update_id,
+        text=payload.message,
+        chat_id=chat_id,
+        telegram_user={
+            "id": (link.get("telegram") or {}).get("user_id") or chat_id,
+            "username": (link.get("telegram") or {}).get("username"),
+            "first_name": (link.get("telegram") or {}).get("first_name"),
+            "last_name": (link.get("telegram") or {}).get("last_name"),
+        },
+    )
+    return {
+        "ok": True,
+        "status": "queued",
+        "update_id": update_id,
+        "link_id": link.get("id"),
+        "user_id": link.get("user_id"),
+        "role_scope": link.get("role_scope"),
+        "chat_id": chat_id,
+    }
 
 
 @api_router.put("/agent-studio/users/{user_id}/settings", response_model=dict)
@@ -5572,9 +5654,97 @@ def telegram_text_requests_task_creation(text: str) -> bool:
     return any(term in normalized for term in task_terms) and any(term in normalized for term in create_terms)
 
 
+def telegram_text_requests_lead_creation(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    return any(term in normalized for term in ("lead", "cliente", "prospecto")) and any(
+        term in normalized for term in ("crea", "crear", "agrega", "agregar", "registra", "registrar", "importa")
+    )
+
+
+def telegram_text_requests_event_creation(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    return any(term in normalized for term in ("evento", "reunion", "reunión", "cita", "visita", "llamada", "agenda", "agendar")) and any(
+        term in normalized for term in ("crea", "crear", "agrega", "agregar", "programa", "programar", "agenda", "agendar")
+    )
+
+
+def telegram_text_requests_property_creation(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    return any(term in normalized for term in ("propiedad", "inmueble", "lote", "departamento", "casa", "producto")) and any(
+        term in normalized for term in ("crea", "crear", "agrega", "agregar", "registra", "registrar", "importa")
+    )
+
+
+def telegram_text_requests_lead_update(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    return any(term in normalized for term in ("actualiza", "cambia", "mueve", "marca")) and any(
+        term in normalized for term in ("lead", "cliente", "prospecto")
+    )
+
+
 def telegram_text_mentions_broker_assignee(text: str) -> bool:
     normalized = normalize_action_command(text)
     return any(term in normalized for term in (" broker", " brokers", "asesor", "asesores", "agente"))
+
+
+def extract_phone_from_text(text: str) -> str | None:
+    digits = "".join(ch for ch in str(text or "") if ch.isdigit() or ch == "+")
+    digits_only = "".join(ch for ch in digits if ch.isdigit())
+    if len(digits_only) >= 8:
+        return digits
+    return None
+
+
+def extract_email_from_text(text: str) -> str | None:
+    import re
+    match = re.search(r"[\w.\-+]+@[\w.\-]+\.\w+", text or "")
+    return match.group(0).lower() if match else None
+
+
+def extract_title_after_terms(text: str, terms: tuple[str, ...], fallback: str) -> str:
+    clean = " ".join(str(text or "").strip().split())
+    lower = clean.lower()
+    for term in terms:
+        index = lower.find(term)
+        if index >= 0:
+            value = clean[index + len(term):].strip(" :,-")
+            if value:
+                return value[:90]
+    return fallback
+
+
+def infer_lead_status_from_text(text: str) -> str | None:
+    normalized = normalize_action_command(text)
+    for status_value in ("nuevo", "contactado", "calificacion", "presentacion", "apartado", "venta", "perdido"):
+        if status_value in normalized:
+            return status_value
+    if "vendido" in normalized or "cerrado" in normalized:
+        return "venta"
+    if "perdido" in normalized or "descartado" in normalized:
+        return "perdido"
+    return None
+
+
+def infer_priority_from_text(text: str) -> str:
+    normalized = normalize_action_command(text)
+    if "urgente" in normalized:
+        return "urgente"
+    if "alta" in normalized or "caliente" in normalized:
+        return "alta"
+    if "baja" in normalized or "frio" in normalized or "frío" in normalized:
+        return "baja"
+    return "media"
+
+
+def infer_event_type_from_text(text: str) -> str:
+    normalized = normalize_action_command(text)
+    if "visita" in normalized or "tour" in normalized or "recorrido" in normalized:
+        return "visita"
+    if "zoom" in normalized or "videollamada" in normalized:
+        return "zoom"
+    if "llamada" in normalized or "llamar" in normalized:
+        return "llamada"
+    return "seguimiento"
 
 
 async def find_recent_pending_telegram_action(link: dict, chat_id: str) -> dict | None:
@@ -5719,6 +5889,282 @@ async def build_pending_task_action(
     return pending_action
 
 
+async def build_pending_lead_action(
+    *,
+    text: str,
+    link: dict,
+    user: dict,
+    role_scope: str,
+    agent_name: str,
+) -> dict | None:
+    tenant_id = link.get("tenant_id") or user.get("tenant_id")
+    if not tenant_id:
+        return None
+    title = extract_title_after_terms(text, ("lead", "cliente", "prospecto"), "Lead desde Telegram")
+    phone = extract_phone_from_text(text)
+    email = extract_email_from_text(text)
+    missing = []
+    if not phone:
+        missing.append("phone")
+    lead = {
+        "name": title,
+        "email": email,
+        "phone": phone,
+        "status": "nuevo",
+        "priority": infer_priority_from_text(text),
+        "source": "telegram_agent",
+        "operation_type": "sale",
+        "pipeline_type": "sales",
+        "budget_mxn": 0.0,
+        "property_interest": None,
+        "notes": f"Solicitud desde Telegram: {text.strip()}\nAgente: {agent_name}",
+        "assigned_broker_id": user["id"] if role_scope == "broker" else None,
+        "tags": ["telegram", "agente-ia"],
+        "missing_fields": missing,
+    }
+    now = datetime.now(timezone.utc)
+    action = {
+        "id": f"telegram-agent-action-{uuid.uuid4()}",
+        "type": "create_lead",
+        "status": "pending_confirmation",
+        "tenant_id": tenant_id,
+        "user_id": user["id"],
+        "link_id": link["id"],
+        "chat_id": (link.get("telegram") or {}).get("chat_id"),
+        "role_scope": role_scope,
+        "agent_name": agent_name,
+        "requested_text": text,
+        "payload": {"lead": lead},
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=30),
+    }
+    await db.telegram_agent_pending_actions.insert_one(action)
+    return action
+
+
+async def build_pending_event_action(
+    *,
+    text: str,
+    link: dict,
+    user: dict,
+    role_scope: str,
+    agent_name: str,
+) -> dict | None:
+    tenant_id = link.get("tenant_id") or user.get("tenant_id")
+    if not tenant_id:
+        return None
+    lead = await find_first_visible_lead_for_action(tenant_id, text)
+    start_time = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+    title = extract_title_after_terms(text, ("evento", "reunion", "reunión", "cita", "visita", "llamada", "agenda"), "Seguimiento comercial")
+    event = {
+        "title": title,
+        "description": f"Solicitud desde Telegram: {text.strip()}\nAgente: {agent_name}",
+        "event_type": infer_event_type_from_text(text),
+        "start_time": start_time.isoformat(),
+        "end_time": (start_time + timedelta(minutes=45)).isoformat(),
+        "lead_id": lead.get("id") if lead else None,
+        "lead_name": lead.get("name") if lead else None,
+        "reminder_minutes": 30,
+        "color": None,
+        "missing_fields": ["fecha_hora_confirmada"],
+    }
+    now = datetime.now(timezone.utc)
+    action = {
+        "id": f"telegram-agent-action-{uuid.uuid4()}",
+        "type": "create_event",
+        "status": "pending_confirmation",
+        "tenant_id": tenant_id,
+        "user_id": user["id"],
+        "link_id": link["id"],
+        "chat_id": (link.get("telegram") or {}).get("chat_id"),
+        "role_scope": role_scope,
+        "agent_name": agent_name,
+        "requested_text": text,
+        "payload": {"event": event},
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=30),
+    }
+    await db.telegram_agent_pending_actions.insert_one(action)
+    return action
+
+
+async def build_pending_property_action(
+    *,
+    text: str,
+    link: dict,
+    user: dict,
+    role_scope: str,
+    agent_name: str,
+) -> dict | None:
+    tenant_id = link.get("tenant_id") or user.get("tenant_id")
+    if not tenant_id:
+        return None
+    title = extract_title_after_terms(text, ("propiedad", "inmueble", "lote", "departamento", "casa", "producto"), "Propiedad desde Telegram")
+    property_doc = {
+        "sku": f"TG-{uuid.uuid4().hex[:8].upper()}",
+        "title": title,
+        "description": f"Solicitud desde Telegram: {text.strip()}\nAgente: {agent_name}",
+        "product_type": "real_estate",
+        "operation_type": "sale",
+        "niche": "Residencial",
+        "price_mxn": 0.0,
+        "commission_percentage": 0.0,
+        "responsible_broker_id": user["id"] if role_scope == "broker" else None,
+        "features": [],
+        "aliases": [title],
+        "keywords": ["telegram", "agente-ia"],
+        "is_active": True,
+        "assigned_campaigns": [],
+        "assigned_brokers": [user["id"]] if role_scope == "broker" else [],
+        "images": [],
+        "custom_fields_data": {},
+        "missing_fields": ["precio", "zona", "amenidades", "media"],
+    }
+    now = datetime.now(timezone.utc)
+    action = {
+        "id": f"telegram-agent-action-{uuid.uuid4()}",
+        "type": "create_property",
+        "status": "pending_confirmation",
+        "tenant_id": tenant_id,
+        "user_id": user["id"],
+        "link_id": link["id"],
+        "chat_id": (link.get("telegram") or {}).get("chat_id"),
+        "role_scope": role_scope,
+        "agent_name": agent_name,
+        "requested_text": text,
+        "payload": {"property": property_doc},
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=30),
+    }
+    await db.telegram_agent_pending_actions.insert_one(action)
+    return action
+
+
+async def build_pending_lead_update_action(
+    *,
+    text: str,
+    link: dict,
+    user: dict,
+    role_scope: str,
+    agent_name: str,
+) -> dict | None:
+    tenant_id = link.get("tenant_id") or user.get("tenant_id")
+    lead = await find_first_visible_lead_for_action(tenant_id, text) if tenant_id else None
+    if not tenant_id or not lead:
+        return None
+    update_payload = {}
+    next_status = infer_lead_status_from_text(text)
+    if next_status:
+        update_payload["status"] = next_status
+    priority = infer_priority_from_text(text)
+    if priority != "media":
+        update_payload["priority"] = priority
+    if not update_payload:
+        return None
+    now = datetime.now(timezone.utc)
+    action = {
+        "id": f"telegram-agent-action-{uuid.uuid4()}",
+        "type": "update_lead",
+        "status": "pending_confirmation",
+        "tenant_id": tenant_id,
+        "user_id": user["id"],
+        "link_id": link["id"],
+        "chat_id": (link.get("telegram") or {}).get("chat_id"),
+        "role_scope": role_scope,
+        "agent_name": agent_name,
+        "requested_text": text,
+        "payload": {"lead_id": lead["id"], "lead_name": lead.get("name"), "update": update_payload},
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=30),
+    }
+    await db.telegram_agent_pending_actions.insert_one(action)
+    return action
+
+
+async def build_pending_telegram_action_from_text(
+    *,
+    text: str,
+    link: dict,
+    user: dict,
+    role_scope: str,
+    agent_name: str,
+) -> dict | None:
+    if telegram_text_requests_task_creation(text):
+        return await build_pending_task_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+    if telegram_text_requests_lead_creation(text):
+        return await build_pending_lead_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+    if telegram_text_requests_event_creation(text):
+        return await build_pending_event_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+    if telegram_text_requests_property_creation(text):
+        return await build_pending_property_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+    if telegram_text_requests_lead_update(text):
+        return await build_pending_lead_update_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+    return None
+
+
+def format_pending_telegram_action_preview(action: dict) -> str:
+    action_type = action.get("type")
+    if action_type == "create_tasks":
+        return format_pending_task_action_preview(action)
+    if action_type == "create_lead":
+        lead = (action.get("payload") or {}).get("lead") or {}
+        lines = [
+            "Puedo guardar este lead en ROVI, pero primero te muestro el preview:",
+            "",
+            f"Nombre: {lead.get('name')}",
+            f"Teléfono: {lead.get('phone') or 'pendiente'}",
+            f"Email: {lead.get('email') or 'pendiente'}",
+            f"Prioridad: {lead.get('priority')}",
+            f"Fuente: {lead.get('source')}",
+        ]
+        if lead.get("missing_fields"):
+            lines.append(f"Campos faltantes: {', '.join(lead.get('missing_fields'))}")
+        lines.extend(["", "¿Confirmas que lo guarde en ROVI?", "Responde `sí` para guardar o `no` para cancelar."])
+        return "\n".join(lines)
+    if action_type == "create_event":
+        event = (action.get("payload") or {}).get("event") or {}
+        lines = [
+            "Puedo guardar este evento en ROVI, pero primero te muestro el preview:",
+            "",
+            f"Título: {event.get('title')}",
+            f"Tipo: {event.get('event_type')}",
+            f"Inicio sugerido: {event.get('start_time')}",
+        ]
+        if event.get("lead_name"):
+            lines.append(f"Lead: {event.get('lead_name')}")
+        if event.get("missing_fields"):
+            lines.append(f"Por confirmar: {', '.join(event.get('missing_fields'))}")
+        lines.extend(["", "¿Confirmas que lo guarde en ROVI?", "Responde `sí` para guardar o `no` para cancelar."])
+        return "\n".join(lines)
+    if action_type == "create_property":
+        property_doc = (action.get("payload") or {}).get("property") or {}
+        lines = [
+            "Puedo guardar esta propiedad en ROVI, pero primero te muestro el preview:",
+            "",
+            f"Título: {property_doc.get('title')}",
+            f"SKU: {property_doc.get('sku')}",
+            f"Nicho: {property_doc.get('niche')}",
+            f"Precio: {property_doc.get('price_mxn') or 'pendiente'}",
+        ]
+        if property_doc.get("missing_fields"):
+            lines.append(f"Campos faltantes: {', '.join(property_doc.get('missing_fields'))}")
+        lines.extend(["", "¿Confirmas que lo guarde en ROVI?", "Responde `sí` para guardar o `no` para cancelar."])
+        return "\n".join(lines)
+    if action_type == "update_lead":
+        payload = action.get("payload") or {}
+        lines = [
+            "Puedo actualizar este lead en ROVI, pero primero te muestro el preview:",
+            "",
+            f"Lead: {payload.get('lead_name')}",
+            f"Cambios: {json.dumps(payload.get('update') or {}, ensure_ascii=False)}",
+            "",
+            "¿Confirmas que lo actualice en ROVI?",
+            "Responde `sí` para guardar o `no` para cancelar.",
+        ]
+        return "\n".join(lines)
+    return "Preparé un cambio para ROVI. ¿Confirmas que lo guarde?"
+
+
 def format_pending_task_action_preview(action: dict) -> str:
     tasks = (action.get("payload") or {}).get("tasks") or []
     lines = [
@@ -5743,44 +6189,162 @@ def format_pending_task_action_preview(action: dict) -> str:
 
 async def execute_pending_telegram_action(action: dict) -> dict:
     now = datetime.now(timezone.utc)
-    if action.get("type") != "create_tasks":
-        return {"executed": False, "message": "Este tipo de acción todavía no tiene ejecutor."}
+    action_type = action.get("type")
 
-    docs = []
-    for task in (action.get("payload") or {}).get("tasks") or []:
-        docs.append({
+    if action_type == "create_tasks":
+        docs = []
+        for task in (action.get("payload") or {}).get("tasks") or []:
+            docs.append({
+                "id": str(uuid.uuid4()),
+                "tenant_id": action["tenant_id"],
+                "created_by": action["user_id"],
+                "title": task.get("title") or "Seguimiento comercial",
+                "description": task.get("description") or "",
+                "status": task.get("status") or "pendiente",
+                "priority": task.get("priority") or "media",
+                "due_date": task.get("due_date"),
+                "assigned_to": task.get("assigned_to") or action["user_id"],
+                "lead_id": task.get("lead_id"),
+                "tags": task.get("tags") or ["telegram", "agente-ia"],
+                "checklist": [],
+                "comments": [],
+                "source": "telegram_agent",
+                "telegram_action_id": action["id"],
+                "deleted": False,
+                "created_at": now,
+                "updated_at": now,
+            })
+        if not docs:
+            return {"executed": False, "message": "No encontré tareas para crear."}
+        await db.tasks.insert_many(docs)
+        result = {"executed": True, "message": f"Listo. Guardé {len(docs)} tarea(s) en ROVI.", "record_ids": [doc["id"] for doc in docs], "records": docs, "task_ids": [doc["id"] for doc in docs], "tasks": docs}
+    elif action_type == "create_lead":
+        lead = dict(((action.get("payload") or {}).get("lead") or {}))
+        if not lead.get("phone"):
+            return {"executed": False, "message": "Falta teléfono para crear el lead. Mándame el teléfono y vuelvo a preparar el preview."}
+        lead_doc = {
             "id": str(uuid.uuid4()),
             "tenant_id": action["tenant_id"],
             "created_by": action["user_id"],
-            "title": task.get("title") or "Seguimiento comercial",
-            "description": task.get("description") or "",
-            "status": task.get("status") or "pendiente",
-            "priority": task.get("priority") or "media",
-            "due_date": task.get("due_date"),
-            "assigned_to": task.get("assigned_to") or action["user_id"],
-            "lead_id": task.get("lead_id"),
-            "tags": task.get("tags") or ["telegram", "agente-ia"],
-            "checklist": [],
-            "comments": [],
-            "source": "telegram_agent",
+            "name": lead.get("name") or "Lead desde Telegram",
+            "email": lead.get("email"),
+            "phone": lead.get("phone"),
+            "status": lead.get("status") or "nuevo",
+            "priority": lead.get("priority") or "media",
+            "source": lead.get("source") or "telegram_agent",
+            "operation_type": lead.get("operation_type") or "sale",
+            "pipeline_type": lead.get("pipeline_type") or "sales",
+            "budget_mxn": float(lead.get("budget_mxn") or 0),
+            "property_interest": lead.get("property_interest"),
+            "notes": lead.get("notes"),
+            "assigned_broker_id": lead.get("assigned_broker_id"),
+            "tags": lead.get("tags") or ["telegram", "agente-ia"],
+            "intent_score": 50,
             "telegram_action_id": action["id"],
-            "deleted": False,
-            "created_at": now,
-            "updated_at": now,
-        })
-    if not docs:
-        return {"executed": False, "message": "No encontré tareas para crear."}
-    await db.tasks.insert_many(docs)
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        }
+        await db.leads.insert_one(lead_doc)
+        result = {"executed": True, "message": "Listo. Guardé 1 lead en ROVI.", "record_ids": [lead_doc["id"]], "records": [lead_doc], "lead_ids": [lead_doc["id"]]}
+    elif action_type == "create_event":
+        event = dict(((action.get("payload") or {}).get("event") or {}))
+        event_doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": action["user_id"],
+            "tenant_id": action["tenant_id"],
+            "title": event.get("title") or "Seguimiento comercial",
+            "description": event.get("description"),
+            "event_type": event.get("event_type") or "seguimiento",
+            "start_time": event.get("start_time") or (now + timedelta(days=1)).isoformat(),
+            "end_time": event.get("end_time"),
+            "lead_id": event.get("lead_id"),
+            "reminder_minutes": int(event.get("reminder_minutes") or 30),
+            "color": event.get("color"),
+            "completed": False,
+            "google_event_id": None,
+            "synced_from_google": False,
+            "last_synced_at": None,
+            "telegram_action_id": action["id"],
+            "created_at": now.isoformat(),
+        }
+        await db.calendar_events.insert_one(event_doc)
+        result = {"executed": True, "message": "Listo. Guardé 1 evento en ROVI.", "record_ids": [event_doc["id"]], "records": [event_doc], "event_ids": [event_doc["id"]]}
+    elif action_type == "create_property":
+        property_doc = dict(((action.get("payload") or {}).get("property") or {}))
+        responsible_payload = await resolve_product_responsible_broker(
+            action["tenant_id"],
+            {
+                "user_id": action["user_id"],
+                "tenant_id": action["tenant_id"],
+                "active_role": action.get("role_scope") if action.get("role_scope") == "broker" else "admin",
+                "role": "broker" if action.get("role_scope") == "broker" else "admin",
+                "account_type": "individual" if action.get("role_scope") == "broker" else "agency",
+            },
+            property_doc.get("responsible_broker_id"),
+        )
+        doc = {
+            "id": str(uuid.uuid4()),
+            "tenant_id": action["tenant_id"],
+            "created_by": action["user_id"],
+            "sku": property_doc.get("sku") or f"TG-{uuid.uuid4().hex[:8].upper()}",
+            "title": property_doc.get("title") or "Propiedad desde Telegram",
+            "description": property_doc.get("description") or "",
+            "product_type": property_doc.get("product_type") or "real_estate",
+            "operation_type": property_doc.get("operation_type") or "sale",
+            "niche": property_doc.get("niche") or "Residencial",
+            "price_mxn": float(property_doc.get("price_mxn") or 0),
+            "commission_percentage": float(property_doc.get("commission_percentage") or 0),
+            **responsible_payload,
+            "features": property_doc.get("features") or [],
+            "aliases": property_doc.get("aliases") or [],
+            "keywords": property_doc.get("keywords") or ["telegram", "agente-ia"],
+            "is_active": True,
+            "assigned_campaigns": [],
+            "assigned_brokers": property_doc.get("assigned_brokers") or [],
+            "images": [],
+            "custom_fields_data": property_doc.get("custom_fields_data") or {},
+            "telegram_action_id": action["id"],
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        }
+        await db.products.insert_one(doc)
+        result = {"executed": True, "message": "Listo. Guardé 1 propiedad en ROVI.", "record_ids": [doc["id"]], "records": [doc], "property_ids": [doc["id"]]}
+    elif action_type == "update_lead":
+        payload = action.get("payload") or {}
+        update_payload = dict(payload.get("update") or {})
+        if not payload.get("lead_id") or not update_payload:
+            return {"executed": False, "message": "No encontré cambios válidos para actualizar el lead."}
+        update_payload["updated_at"] = now.isoformat()
+        update = await db.leads.update_one(
+            {"tenant_id": action["tenant_id"], "id": payload["lead_id"]},
+            {"$set": update_payload},
+        )
+        if update.matched_count == 0:
+            return {"executed": False, "message": "No encontré el lead para actualizar."}
+        result = {"executed": True, "message": "Listo. Actualicé el lead en ROVI.", "record_ids": [payload["lead_id"]], "records": [{"id": payload["lead_id"], **update_payload}], "lead_ids": [payload["lead_id"]]}
+    else:
+        return {"executed": False, "message": "Este tipo de acción todavía no tiene ejecutor."}
+
     await db.telegram_agent_pending_actions.update_one(
         {"id": action["id"]},
-        {"$set": {"status": "executed", "executed_at": now, "created_task_ids": [doc["id"] for doc in docs]}},
+        {"$set": {"status": "executed", "executed_at": now, "created_record_ids": result.get("record_ids") or []}},
     )
-    return {
-        "executed": True,
-        "message": f"Listo. Guardé {len(docs)} tarea(s) en ROVI.",
-        "task_ids": [doc["id"] for doc in docs],
-        "tasks": docs,
-    }
+    await db.agent_action_audit.insert_one({
+        "id": f"agent-action-audit-{uuid.uuid4()}",
+        "tenant_id": action.get("tenant_id"),
+        "user_id": action.get("user_id"),
+        "link_id": action.get("link_id"),
+        "chat_id": action.get("chat_id"),
+        "role_scope": action.get("role_scope"),
+        "action_id": action.get("id"),
+        "action_type": action_type,
+        "status": "executed",
+        "requested_text": action.get("requested_text"),
+        "payload": serialize_doc(action.get("payload") or {}),
+        "result": serialize_doc(result),
+        "created_at": now.isoformat(),
+    })
+    return result
 
 
 def build_telegram_onboarding_message(link: dict, user: dict, active_workspace: dict | None) -> str:
@@ -6309,10 +6873,25 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
     )
     pending_action = await find_recent_pending_telegram_action(link, chat_id)
     if pending_action and telegram_text_cancels_action(text):
+        cancelled_at = datetime.now(timezone.utc)
         await db.telegram_agent_pending_actions.update_one(
             {"id": pending_action["id"]},
-            {"$set": {"status": "cancelled", "cancelled_at": datetime.now(timezone.utc)}},
+            {"$set": {"status": "cancelled", "cancelled_at": cancelled_at}},
         )
+        await db.agent_action_audit.insert_one({
+            "id": f"agent-action-audit-{uuid.uuid4()}",
+            "tenant_id": pending_action.get("tenant_id"),
+            "user_id": pending_action.get("user_id"),
+            "link_id": pending_action.get("link_id"),
+            "chat_id": pending_action.get("chat_id"),
+            "role_scope": pending_action.get("role_scope"),
+            "action_id": pending_action.get("id"),
+            "action_type": pending_action.get("type"),
+            "status": "cancelled",
+            "requested_text": pending_action.get("requested_text"),
+            "payload": serialize_doc(pending_action.get("payload") or {}),
+            "created_at": cancelled_at.isoformat(),
+        })
         response_text = "Listo, cancelé el preview. No guardé cambios en ROVI."
         delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
         await db.telegram_agent_messages.insert_one({
@@ -6335,8 +6914,8 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         execution = await execute_pending_telegram_action(pending_action)
         if execution.get("executed"):
             created_lines = [
-                f"- {task.get('title')} → {task.get('assigned_to')}"
-                for task in execution.get("tasks", [])
+                f"- {record.get('title') or record.get('name') or record.get('id')} → {record.get('assigned_to') or record.get('status') or record.get('event_type') or 'guardado'}"
+                for record in execution.get("records", [])
             ]
             response_text = "\n".join([
                 execution["message"],
@@ -6363,8 +6942,8 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         return {"ok": True, "status": "action_executed", "delivery": delivery}
-    if tools_enabled.get("write_actions") and telegram_text_requests_task_creation(text):
-        action = await build_pending_task_action(
+    if tools_enabled.get("write_actions"):
+        action = await build_pending_telegram_action_from_text(
             text=text,
             link=link,
             user=user,
@@ -6372,7 +6951,7 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
             agent_name=agent_name,
         )
         if action:
-            response_text = format_pending_task_action_preview(action)
+            response_text = format_pending_telegram_action_preview(action)
             delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
             await db.telegram_agent_messages.insert_one({
                 "id": f"telegram-agent-message-{uuid.uuid4()}",

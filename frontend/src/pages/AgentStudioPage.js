@@ -69,6 +69,7 @@ export const AgentStudioPage = () => {
   const [toolCatalog, setToolCatalog] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [agentUsers, setAgentUsers] = useState([]);
+  const [actionAudit, setActionAudit] = useState({ logs: [], pending_actions: [], webhook_updates: [] });
   const [selectedId, setSelectedId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [form, setForm] = useState(defaultForm);
@@ -168,9 +169,10 @@ export const AgentStudioPage = () => {
   }, [filteredSkills]);
 
   const loadStudio = useCallback(async () => {
-    const [profilesResponse, usersResponse, auditResponse] = await Promise.all([
+    const [profilesResponse, usersResponse, actionAuditResponse, auditResponse] = await Promise.all([
       api.get('/agent-studio/profiles'),
       api.get('/agent-studio/users').catch(() => ({ data: { users: [] } })),
+      api.get('/agent-studio/action-audit').catch(() => ({ data: { logs: [], pending_actions: [], webhook_updates: [] } })),
       api.get('/agent-studio/audit').catch(() => ({ data: { logs: [] } })),
     ]);
     const nextProfiles = profilesResponse.data?.profiles || [];
@@ -179,6 +181,7 @@ export const AgentStudioPage = () => {
     setAgentUsers(nextUsers);
     setSkillCatalog(profilesResponse.data?.skill_catalog || []);
     setToolCatalog(profilesResponse.data?.tool_catalog || []);
+    setActionAudit(actionAuditResponse.data || { logs: [], pending_actions: [], webhook_updates: [] });
     setAuditLogs(auditResponse.data?.logs || []);
     setSelectedId((current) => current || nextProfiles[0]?.id || '');
     setSelectedUserId((current) => current || nextUsers[0]?.user?.id || '');
@@ -384,6 +387,23 @@ export const AgentStudioPage = () => {
     }
   };
 
+  const runTelegramE2ETest = async () => {
+    if (!selectedAgentUser) return;
+    setBusy('telegram-e2e');
+    try {
+      const response = await api.post('/agent-studio/telegram-e2e-test', {
+        user_id: selectedAgentUser.user.id,
+        message: 'Prueba E2E desde Agent Studio: confirma tu perfil, rol, tenant, tools activas y responde en una sola línea.',
+      });
+      toast.success(`Prueba Telegram en cola: ${response.data?.update_id || 'queued'}`);
+      await loadStudio();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'No pude ejecutar la prueba E2E de Telegram'));
+    } finally {
+      setBusy('');
+    }
+  };
+
   const status = syncConfig[selectedProfile?.sync_status] || syncConfig.pending;
 
   return (
@@ -488,11 +508,12 @@ export const AgentStudioPage = () => {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="prompts">
-                <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7">
+                <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
                   <TabsTrigger value="prompts">Prompts</TabsTrigger>
                   <TabsTrigger value="skills">Skills</TabsTrigger>
                   <TabsTrigger value="tools">Tools</TabsTrigger>
                   <TabsTrigger value="users">Usuarios</TabsTrigger>
+                  <TabsTrigger value="audit">Auditoría</TabsTrigger>
                   <TabsTrigger value="chat">Chat</TabsTrigger>
                   <TabsTrigger value="knowledge">Conocimiento</TabsTrigger>
                   <TabsTrigger value="sync">Sync</TabsTrigger>
@@ -804,10 +825,16 @@ export const AgentStudioPage = () => {
                         </div>
 
                         <div className="flex justify-end">
-                          <Button onClick={saveUserSettings} disabled={busy === 'user-settings'}>
-                            {busy === 'user-settings' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            Guardar usuario
-                          </Button>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button variant="outline" onClick={runTelegramE2ETest} disabled={busy === 'telegram-e2e' || !selectedAgentUser.is_linked}>
+                              {busy === 'telegram-e2e' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                              Probar Telegram E2E
+                            </Button>
+                            <Button onClick={saveUserSettings} disabled={busy === 'user-settings'}>
+                              {busy === 'user-settings' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                              Guardar usuario
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -817,6 +844,96 @@ export const AgentStudioPage = () => {
                         <p className="mt-1 text-xs text-muted-foreground">Cuando haya miembros activos apareceran aqui.</p>
                       </div>
                     )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="audit" className="mt-6 space-y-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-lg border p-4">
+                      <History className="mb-3 h-5 w-5 text-primary" />
+                      <p className="text-sm font-medium">Acciones ejecutadas</p>
+                      <p className="mt-1 text-2xl font-semibold">{actionAudit.logs?.length || 0}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <ShieldCheck className="mb-3 h-5 w-5 text-primary" />
+                      <p className="text-sm font-medium">Previews recientes</p>
+                      <p className="mt-1 text-2xl font-semibold">{actionAudit.pending_actions?.length || 0}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <MessageSquare className="mb-3 h-5 w-5 text-primary" />
+                      <p className="text-sm font-medium">Webhook updates</p>
+                      <p className="mt-1 text-2xl font-semibold">{actionAudit.webhook_updates?.length || 0}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border">
+                    <div className="flex items-center justify-between border-b p-4">
+                      <div>
+                        <p className="text-sm font-medium">Auditoría de acciones del agente</p>
+                        <p className="text-xs text-muted-foreground">Cambios confirmados o cancelados desde Telegram y Agent Studio.</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => void loadStudio()}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Actualizar
+                      </Button>
+                    </div>
+                    <div className="divide-y">
+                      {(actionAudit.logs || []).length === 0 ? (
+                        <div className="p-8 text-center">
+                          <History className="mx-auto mb-3 h-8 w-8 text-primary" />
+                          <p className="text-sm font-medium">Sin acciones auditadas todavía</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Cuando un usuario confirme un cambio por Telegram aparecerá aquí.</p>
+                        </div>
+                      ) : (
+                        (actionAudit.logs || []).map((log) => (
+                          <div key={log.id} className="grid gap-3 p-4 lg:grid-cols-[180px_1fr_220px]">
+                            <div>
+                              <Badge variant={log.status === 'executed' ? 'default' : 'outline'}>{log.status}</Badge>
+                              <p className="mt-2 text-xs text-muted-foreground">{new Date(log.created_at).toLocaleString('es-MX')}</p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{log.action_type}</p>
+                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{log.requested_text || 'Sin texto fuente'}</p>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              <p>Rol: {log.role_scope || 'n/a'}</p>
+                              <p>Registros: {(log.result?.record_ids || []).join(', ') || 'n/a'}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm font-medium">Previews pendientes/recientes</p>
+                      <div className="mt-3 space-y-2">
+                        {(actionAudit.pending_actions || []).slice(0, 8).map((item) => (
+                          <div key={item.id} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium">{item.type}</p>
+                              <Badge variant="outline">{item.status}</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{new Date(item.created_at).toLocaleString('es-MX')}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm font-medium">Webhook Telegram</p>
+                      <div className="mt-3 space-y-2">
+                        {(actionAudit.webhook_updates || []).slice(0, 8).map((item) => (
+                          <div key={item.id} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-medium">{item.message_preview || item.id}</p>
+                              <Badge variant={item.status === 'processed' ? 'default' : 'outline'}>{item.status}</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.created_at ? new Date(item.created_at).toLocaleString('es-MX') : 'sin fecha'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </TabsContent>
 
