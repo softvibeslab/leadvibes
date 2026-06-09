@@ -4680,7 +4680,7 @@ async def test_agent_studio_profile_chat(
     messages = build_agent_studio_chat_messages(profile, message, knowledge_chunks)
     config = {
         "provider": os.environ.get("ROVI_AI_PROVIDER") or profile.get("provider") or "chat.z",
-        "model": profile.get("model") or os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5"),
+        "model": os.environ.get("ROVI_AI_DEFAULT_MODEL") or profile.get("model") or "glm-5",
         "base_url": os.environ.get("ROVI_AI_BASE_URL", "https://api.z.ai/api/paas/v4"),
         "api_key_env": os.environ.get("ROVI_AI_KEY_ENV", "ROVI_AI_API_KEY"),
         "temperature": profile.get("temperature", 0.25),

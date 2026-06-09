@@ -35,9 +35,9 @@ services:
 
       # AI
       EMERGENT_LLM_KEY: ${EMERGENT_LLM_KEY}
-      ROVI_AI_PROVIDER: ${ROVI_AI_PROVIDER:-chat.z}
-      ROVI_AI_DEFAULT_MODEL: ${ROVI_AI_DEFAULT_MODEL:-glm-5}
-      ROVI_AI_BASE_URL: ${ROVI_AI_BASE_URL:-https://api.z.ai/api/paas/v4}
+      ROVI_AI_PROVIDER: ${ROVI_AI_PROVIDER:-ollama}
+      ROVI_AI_DEFAULT_MODEL: ${ROVI_AI_DEFAULT_MODEL:-llama3.2:3b}
+      ROVI_AI_BASE_URL: ${ROVI_AI_BASE_URL:-http://host.docker.internal:11434}
       ROVI_AI_KEY_ENV: ${ROVI_AI_KEY_ENV:-ROVI_AI_API_KEY}
       ROVI_AI_API_KEY: ${ROVI_AI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -68,6 +68,8 @@ services:
       - "8000:8000"
     expose:
       - "8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - mongodb
     networks:
