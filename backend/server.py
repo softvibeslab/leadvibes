@@ -4940,6 +4940,8 @@ async def list_agent_studio_audit(current_user: dict = Depends(get_current_user)
 class DeviceLinkQrSessionRequest(BaseModel):
     destination: str = ""
     hermes_profile_name: str = ""
+    role_scope: Optional[str] = None
+    agent_studio_profile_id: Optional[str] = None
     ttl_minutes: int = 10
 
 
@@ -5050,6 +5052,137 @@ def resolve_telegram_agent_role_scope(current_user: dict) -> str:
     if account_type == "agency":
         return "agency_admin"
     return "broker"
+
+
+def allowed_device_link_role_scopes(user: dict, active_workspace: dict | None) -> list[str]:
+    active_role = (active_workspace or {}).get("role") or user.get("role", "broker")
+    account_type = user.get("account_type") or "individual"
+    tenant_type = (active_workspace or {}).get("tenant_type")
+    if active_role == "broker":
+        return ["broker"]
+    if active_role in {"owner", "admin", "manager", "property_manager"} and tenant_type == "agency":
+        return ["agency_admin"]
+    if user.get("role") == "broker":
+        return ["broker"]
+    if account_type == "agency":
+        return ["agency_admin"]
+    return ["broker"]
+
+
+def default_device_link_role_scope(user: dict, active_workspace: dict | None) -> str:
+    allowed = allowed_device_link_role_scopes(user, active_workspace)
+    return allowed[0] if allowed else "broker"
+
+
+async def ensure_device_link_agent_studio_profiles(user: dict, active_workspace: dict | None) -> list[dict]:
+    tenant_id = (active_workspace or {}).get("tenant_id") or user.get("tenant_id")
+    if not tenant_id:
+        return []
+    now = datetime.now(timezone.utc).isoformat()
+    allowed_scopes = allowed_device_link_role_scopes(user, active_workspace)
+    for default in AGENT_STUDIO_DEFAULT_PROFILES:
+        if default["role_scope"] not in allowed_scopes:
+            continue
+        existing = await db.agent_studio_profiles.find_one(
+            {"tenant_id": tenant_id, "role_scope": default["role_scope"]},
+            {"_id": 0, "id": 1},
+        )
+        if existing:
+            continue
+        doc = {
+            "id": f"agent-studio-profile-{uuid.uuid4()}",
+            "tenant_id": tenant_id,
+            "version": 1,
+            "provider": "rovi_crm",
+            "model": os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5"),
+            "temperature": 0.25,
+            "is_active": True,
+            "sync_status": "pending",
+            "last_synced_at": None,
+            "created_by": user["id"],
+            "created_at": now,
+            "updated_by": user["id"],
+            "updated_at": now,
+            **default,
+        }
+        await db.agent_studio_profiles.insert_one(doc)
+    profiles = await db.agent_studio_profiles.find(
+        {"tenant_id": tenant_id, "role_scope": {"$in": allowed_scopes}, "is_active": True},
+        {"_id": 0},
+    ).sort("role_scope", 1).to_list(10)
+    return profiles
+
+
+async def resolve_device_link_agent_profile(
+    *,
+    user: dict,
+    active_workspace: dict | None,
+    requested_role_scope: str | None = None,
+    requested_profile_id: str | None = None,
+) -> dict:
+    profiles = await ensure_device_link_agent_studio_profiles(user, active_workspace)
+    allowed_scopes = allowed_device_link_role_scopes(user, active_workspace)
+    requested_scope = (requested_role_scope or "").strip()
+    if requested_profile_id:
+        for profile in profiles:
+            if profile.get("id") == requested_profile_id:
+                return profile
+        raise HTTPException(status_code=403, detail="Ese perfil no esta disponible para tu rol activo")
+    if requested_scope:
+        if requested_scope not in allowed_scopes:
+            raise HTTPException(status_code=403, detail="Ese agente no esta permitido para tu rol activo")
+        for profile in profiles:
+            if profile.get("role_scope") == requested_scope:
+                return profile
+    default_scope = default_device_link_role_scope(user, active_workspace)
+    for profile in profiles:
+        if profile.get("role_scope") == default_scope:
+            return profile
+    raise HTTPException(status_code=404, detail="No encontre un perfil de agente disponible para tu rol")
+
+
+def public_device_link_agent_profile(profile: dict) -> dict:
+    return {
+        "id": profile.get("id"),
+        "name": profile.get("name"),
+        "description": profile.get("description"),
+        "role_scope": profile.get("role_scope"),
+        "hermes_profile_name": profile.get("hermes_profile_name"),
+        "enabled_skills": profile.get("enabled_skills") or [],
+        "tools": profile.get("tools") or {},
+    }
+
+
+def build_telegram_onboarding_message(link: dict, user: dict, active_workspace: dict | None) -> str:
+    role_scope = link.get("role_scope") or default_device_link_role_scope(user, active_workspace)
+    agent_name = link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
+    workspace_name = (active_workspace or {}).get("name") or "tu workspace"
+    if role_scope == "agency_admin":
+        capabilities = [
+            "revisar leads, brokers, tareas, eventos y propiedades del tenant",
+            "preparar reuniones con contexto comercial",
+            "mapear informacion para importar leads o propiedades",
+            "proponer acciones con preview antes de guardar",
+        ]
+    else:
+        capabilities = [
+            "priorizar tus leads y seguimientos",
+            "crear previews de tareas y eventos",
+            "consultar propiedades disponibles o asignadas",
+            "convertir mensajes o notas en acciones comerciales",
+        ]
+    capability_text = "\n".join(f"- {item}" for item in capabilities)
+    return (
+        f"Listo, {user.get('name') or 'tu cuenta'} quedo vinculada a ROVI.\n\n"
+        f"Agente activo: {agent_name}\n"
+        f"Rol IA: {role_scope}\n"
+        f"Workspace: {workspace_name}\n\n"
+        "Puedo ayudarte con:\n"
+        f"{capability_text}\n\n"
+        "Por seguridad, solo usare informacion permitida por tu usuario, rol y tenant. "
+        "Para crear, actualizar o importar datos primero te mostrare un preview y pedire confirmacion.\n\n"
+        "Para empezar, escribeme algo como: \"prepara mis reuniones de hoy\" o \"crea una tarea para llamar a este lead\"."
+    )
 
 
 def mask_bot_token(token: str | None) -> str:
@@ -5268,11 +5401,7 @@ async def activate_hermes_device_link(link: dict, user: dict, active_workspace: 
     telegram = link.get("telegram") or {}
     confirmation = await send_telegram_confirmation(
         telegram.get("chat_id"),
-        (
-            "Tu cuenta ROVI fue vinculada correctamente.\n\n"
-            f"Rol activo: {profile_spec.get('role_scope')}.\n"
-            "Ya puedes usar tu agente conectado al CRM."
-        ),
+        build_telegram_onboarding_message(link, user, active_workspace),
     )
     update_payload = {
         "status": "active",
@@ -5287,13 +5416,14 @@ async def activate_hermes_device_link(link: dict, user: dict, active_workspace: 
     return {**link, **update_payload}
 
 
-async def send_rovi_telegram_contact_request(chat_id: str, user: dict) -> dict:
+async def send_rovi_telegram_contact_request(chat_id: str, user: dict, expected_phone: str | None = None) -> dict:
+    phone_to_validate = expected_phone or user.get("phone")
     return await send_telegram_message_with_token(
         get_rovi_telegram_bot_token(),
         chat_id,
         (
             "Ya encontré tu cuenta ROVI.\n\n"
-            f"Para proteger tu CRM, comparte el teléfono de Telegram y lo valido contra {mask_phone(user.get('phone'))}."
+            f"Para proteger tu CRM, comparte el teléfono de Telegram y lo valido contra {mask_phone(phone_to_validate)}."
         ),
         reply_markup={
             "keyboard": [[{"text": "Compartir mi teléfono", "request_contact": True}]],
@@ -5354,14 +5484,14 @@ async def handle_rovi_telegram_start(
     }
     update_payload = {
         "telegram": telegram_payload,
-        "status": "awaiting_contact" if user.get("phone") else "scanned",
+        "status": "awaiting_contact" if link.get("phone_match_required") or user.get("phone") else "scanned",
         "updated_at": now,
     }
     await db.user_device_links.update_one({"id": link["id"]}, {"$set": update_payload})
     updated_link = {**link, **update_payload}
 
-    if user.get("phone"):
-        delivery = await send_rovi_telegram_contact_request(chat_id, user)
+    if updated_link.get("phone_match_required") or user.get("phone"):
+        delivery = await send_rovi_telegram_contact_request(chat_id, user, updated_link.get("user_phone"))
         return {"ok": True, "status": "awaiting_contact", "delivery": delivery}
 
     user = await ensure_workspace_infra_for_user(user)
@@ -5371,7 +5501,7 @@ async def handle_rovi_telegram_start(
     delivery = await send_telegram_message_with_token(
         get_rovi_telegram_bot_token(),
         chat_id,
-        "Tu cuenta ROVI quedó vinculada. Ya puedes escribirme para consultar y gestionar tu CRM.",
+        "Ya quite el teclado de validacion. Escribeme tu primera solicitud para trabajar con ROVI.",
         reply_markup={"remove_keyboard": True},
     )
     return {"ok": True, "status": "active", "link": build_device_link_public(activated), "delivery": delivery}
@@ -5427,7 +5557,8 @@ async def handle_rovi_telegram_contact(*, contact: dict, chat_id: str, telegram_
         "phone_normalized": normalize_phone_for_match(telegram_phone),
         "contact_received_at": now,
     }
-    if not phones_match(user.get("phone"), telegram_phone):
+    expected_phone = link.get("user_phone") or user.get("phone")
+    if not phones_match(expected_phone, telegram_phone):
         update_payload = {
             "status": "phone_mismatch",
             "telegram": telegram_payload,
@@ -5440,7 +5571,7 @@ async def handle_rovi_telegram_contact(*, contact: dict, chat_id: str, telegram_
             chat_id,
             (
                 "El teléfono compartido no coincide con tu cuenta ROVI.\n\n"
-                f"ROVI esperaba: {mask_phone(user.get('phone'))}\n"
+                f"ROVI esperaba: {mask_phone(expected_phone)}\n"
                 f"Recibí: {mask_phone(telegram_phone)}"
             ),
             reply_markup={"remove_keyboard": True},
@@ -5458,7 +5589,7 @@ async def handle_rovi_telegram_contact(*, contact: dict, chat_id: str, telegram_
     delivery = await send_telegram_message_with_token(
         get_rovi_telegram_bot_token(),
         chat_id,
-        "Listo. Tu Telegram quedó vinculado a ROVI y Hermes ya tiene tu perfil activo.",
+        "Ya quite el teclado de validacion. Escribeme tu primera solicitud para trabajar con ROVI.",
         reply_markup={"remove_keyboard": True},
     )
     return {"ok": True, "status": "active", "link": build_device_link_public(activated), "delivery": delivery}
@@ -5499,8 +5630,11 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         "name": user.get("name"),
     }
     role_scope = link.get("role_scope") or "broker"
+    agent_name = link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
     agent_message = (
         f"Canal: Telegram vinculado por QR en ROVI CRM\n"
+        f"Agente seleccionado: {agent_name}\n"
+        f"Perfil Hermes: {link.get('hermes_profile_name') or ''}\n"
         f"Rol permitido: {role_scope}\n"
         f"Usuario ROVI: {user.get('email')}\n\n"
         f"Mensaje del usuario: {text}"
@@ -5534,11 +5668,19 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
 
 @api_router.get("/device-links", response_model=dict)
 async def list_device_links(current_user: dict = Depends(get_current_user)):
+    user, active_workspace, _ = await current_user_doc_and_workspace(current_user)
+    active_tenant_id = (active_workspace or {}).get("tenant_id") or current_user.get("active_tenant_id") or current_user["tenant_id"]
     links = await db.user_device_links.find(
-        {"user_id": current_user["user_id"], "tenant_id": current_user["tenant_id"], "status": {"$ne": "revoked"}},
+        {"user_id": current_user["user_id"], "tenant_id": active_tenant_id, "status": {"$ne": "revoked"}},
         {"_id": 0, "hermes_profile_spec": 0},
     ).sort("created_at", -1).limit(50).to_list(50)
-    return {"links": [build_device_link_public(link) for link in links]}
+    profiles = await ensure_device_link_agent_studio_profiles(user, active_workspace)
+    return {
+        "links": [build_device_link_public(link) for link in links],
+        "agent_profiles": [public_device_link_agent_profile(profile) for profile in profiles],
+        "allowed_role_scopes": allowed_device_link_role_scopes(user, active_workspace),
+        "default_role_scope": default_device_link_role_scope(user, active_workspace),
+    }
 
 
 @api_router.post("/device-links/telegram/qr-session", response_model=dict)
@@ -5547,11 +5689,28 @@ async def create_telegram_qr_session(
     current_user: dict = Depends(get_current_user),
 ):
     user, active_workspace, _ = await current_user_doc_and_workspace(current_user)
+    expected_phone = user.get("phone") or payload.destination
+    if not normalize_phone_for_match(expected_phone):
+        raise HTTPException(
+            status_code=422,
+            detail="Para vincular Telegram necesitas un telefono guardado en ROVI o capturarlo antes de generar el QR.",
+        )
     now = datetime.now(timezone.utc)
     ttl_minutes = min(max(payload.ttl_minutes or 10, 1), 60)
     code = uuid.uuid4().hex[:8].upper()
-    role_scope = resolve_role_scope_for_hermes(user, active_workspace)
-    profile_name = payload.hermes_profile_name.strip() if payload.hermes_profile_name.strip() else safe_profile_slug(user, role_scope)
+    agent_profile = await resolve_device_link_agent_profile(
+        user=user,
+        active_workspace=active_workspace,
+        requested_role_scope=payload.role_scope,
+        requested_profile_id=payload.agent_studio_profile_id,
+    )
+    role_scope = agent_profile.get("role_scope") or default_device_link_role_scope(user, active_workspace)
+    profile_name = (
+        payload.hermes_profile_name.strip()
+        if payload.hermes_profile_name.strip()
+        else agent_profile.get("hermes_profile_name")
+        or safe_profile_slug(user, role_scope)
+    )
     deep_link = build_telegram_deep_link(code)
     link_doc = {
         "id": f"device-link-{uuid.uuid4()}",
@@ -5560,19 +5719,24 @@ async def create_telegram_qr_session(
         "membership_id": active_workspace.get("membership_id") if active_workspace else None,
         "role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
         "role_scope": role_scope,
+        "agent_studio_profile_id": agent_profile.get("id"),
+        "agent_studio_profile_name": agent_profile.get("name"),
+        "agent_studio_hermes_profile_name": agent_profile.get("hermes_profile_name"),
+        "agent_studio_enabled_skills": agent_profile.get("enabled_skills") or [],
+        "agent_studio_tools": agent_profile.get("tools") or {},
         "account_type": user.get("account_type", "individual"),
         "user_email": user.get("email"),
-        "user_phone": user.get("phone"),
+        "user_phone": expected_phone,
         "code": code,
         "channel": "telegram",
-        "destination": payload.destination or user.get("phone") or user.get("email") or "",
+        "destination": expected_phone or user.get("email") or "",
         "link_method": "qr",
         "telegram_deep_link": deep_link,
         "qr_url": build_qr_url(deep_link),
         "status": "pending",
         "hermes_profile_name": profile_name,
-        "phone_required": bool(user.get("phone")),
-        "phone_match_required": bool(user.get("phone")),
+        "phone_required": True,
+        "phone_match_required": True,
         "expires_at": (now + timedelta(minutes=ttl_minutes)).isoformat(),
         "created_at": now.isoformat(),
         "updated_at": now.isoformat(),
@@ -5675,7 +5839,7 @@ async def hermes_telegram_start(payload: HermesTelegramStartRequest, request: Re
     now = datetime.now(timezone.utc).isoformat()
     email_code = uuid.uuid4().hex[:6].upper()
     update_payload = {
-        "status": "awaiting_contact" if user.get("phone") else "pending_email_confirmation",
+        "status": "awaiting_contact" if link.get("phone_match_required") or user.get("phone") else "pending_email_confirmation",
         "telegram": {
             "user_id": payload.telegram_user_id,
             "username": payload.telegram_username,
@@ -5691,11 +5855,11 @@ async def hermes_telegram_start(payload: HermesTelegramStartRequest, request: Re
     updated = {**link, **update_payload}
     response = {
         "status": updated["status"],
-        "request_contact": bool(user.get("phone")),
-        "requires_email_confirmation": not bool(user.get("phone")),
+        "request_contact": bool(link.get("phone_match_required") or user.get("phone")),
+        "requires_email_confirmation": not bool(link.get("phone_match_required") or user.get("phone")),
         "message": (
             "Comparte tu telefono desde Telegram para validar que coincide con ROVI."
-            if user.get("phone")
+            if link.get("phone_match_required") or user.get("phone")
             else "Tu cuenta ROVI no tiene telefono. Confirma con el codigo enviado/visible para activar."
         ),
         "link": build_device_link_public(updated),
@@ -5725,7 +5889,8 @@ async def hermes_telegram_contact(payload: HermesTelegramContactRequest, request
     if not user:
         raise HTTPException(status_code=404, detail="Usuario ROVI no encontrado")
 
-    phone_ok = phones_match(user.get("phone"), payload.telegram_phone)
+    expected_phone = link.get("user_phone") or user.get("phone")
+    phone_ok = phones_match(expected_phone, payload.telegram_phone)
     now = datetime.now(timezone.utc).isoformat()
     contact_payload = {
         **telegram,
@@ -5747,7 +5912,7 @@ async def hermes_telegram_contact(payload: HermesTelegramContactRequest, request
         return {
             "status": "phone_mismatch",
             "message": "El telefono compartido en Telegram no coincide con el telefono de ROVI.",
-            "expected_phone_masked": mask_phone(user.get("phone")),
+            "expected_phone_masked": mask_phone(expected_phone),
             "received_phone_masked": mask_phone(payload.telegram_phone),
             "link": build_device_link_public({**link, **update_payload}),
         }

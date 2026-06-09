@@ -27,6 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Separator } from '../components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Textarea } from '../components/ui/textarea';
 
@@ -150,9 +151,12 @@ const pendingLinkStatuses = ['pending', 'scanned', 'awaiting_contact', 'contact_
 export const AIAgentsPage = () => {
   const { api, user } = useAuth();
   const [links, setLinks] = useState([]);
+  const [agentProfiles, setAgentProfiles] = useState([]);
+  const [selectedAgentProfileId, setSelectedAgentProfileId] = useState('');
   const [activeTab, setActiveTab] = useState('connection');
   const [busy, setBusy] = useState('');
   const [profileName, setProfileName] = useState('');
+  const [linkPhone, setLinkPhone] = useState(user?.phone || '');
   const [importText, setImportText] = useState('');
   const [selectedEntity, setSelectedEntity] = useState('leads');
 
@@ -163,6 +167,10 @@ export const AIAgentsPage = () => {
     return activeWorkspace?.role === 'manager' ? 'manager' : 'broker';
   }, [activeWorkspace?.role, user?.account_type]);
   const role = roleCopy[roleScope] || roleCopy.broker;
+  const selectedAgentProfile = useMemo(
+    () => agentProfiles.find((profile) => profile.id === selectedAgentProfileId) || agentProfiles[0] || null,
+    [agentProfiles, selectedAgentProfileId]
+  );
 
   const latestLink = useMemo(() => {
     const active = links.find((link) => link.status === 'active');
@@ -172,6 +180,12 @@ export const AIAgentsPage = () => {
   const loadLinks = useCallback(async () => {
     const response = await api.get('/device-links');
     setLinks(response.data?.links || []);
+    const nextProfiles = response.data?.agent_profiles || [];
+    setAgentProfiles(nextProfiles);
+    setSelectedAgentProfileId((current) => {
+      if (current && nextProfiles.some((profile) => profile.id === current)) return current;
+      return nextProfiles[0]?.id || '';
+    });
   }, [api]);
 
   useEffect(() => {
@@ -179,6 +193,12 @@ export const AIAgentsPage = () => {
       toast.error(getErrorMessage(error, 'No se pudieron cargar las conexiones de agentes'));
     });
   }, [loadLinks]);
+
+  useEffect(() => {
+    if (user?.phone && !linkPhone) {
+      setLinkPhone(user.phone);
+    }
+  }, [linkPhone, user?.phone]);
 
   useEffect(() => {
     const hasPendingLink = links.some((link) => pendingLinkStatuses.includes(link.status));
@@ -193,7 +213,10 @@ export const AIAgentsPage = () => {
     setBusy('create-link');
     try {
       const response = await api.post('/device-links/telegram/qr-session', {
+        destination: linkPhone || undefined,
         hermes_profile_name: profileName || undefined,
+        agent_studio_profile_id: selectedAgentProfile?.id || undefined,
+        role_scope: selectedAgentProfile?.role_scope || roleScope,
         ttl_minutes: 10,
       });
       toast.success('QR generado para Telegram');
@@ -322,6 +345,9 @@ export const AIAgentsPage = () => {
                         <div className="rounded-lg border p-4">
                           <p className="text-xs font-medium uppercase text-muted-foreground">Expira</p>
                           <p className="mt-2 text-sm font-medium">{formatDateTime(latestLink?.expires_at)}</p>
+                          {latestLink?.user_phone_masked && (
+                            <p className="mt-1 text-xs text-muted-foreground">Valida: {latestLink.user_phone_masked}</p>
+                          )}
                         </div>
                       </div>
 
@@ -330,6 +356,37 @@ export const AIAgentsPage = () => {
                           <Link2 className="h-4 w-4 text-primary" />
                           <p className="font-medium">Perfil Hermes</p>
                         </div>
+                        <div className="mb-4">
+                          <Label>Agente a vincular</Label>
+                          <Select
+                            value={selectedAgentProfileId}
+                            onValueChange={setSelectedAgentProfileId}
+                            disabled={agentProfiles.length <= 1}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un agente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {agentProfiles.map((profile) => (
+                                <SelectItem key={profile.id} value={profile.id}>
+                                  {profile.name} · {profile.role_scope}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {selectedAgentProfile?.description || 'ROVI habilita el agente permitido por tu rol activo.'}
+                          </p>
+                          {selectedAgentProfile?.enabled_skills?.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {selectedAgentProfile.enabled_skills.slice(0, 6).map((skill) => (
+                                <Badge key={skill} variant="outline" className="text-[11px]">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                           <div>
                             <Label htmlFor="profile-name">Nombre de perfil</Label>
@@ -337,7 +394,7 @@ export const AIAgentsPage = () => {
                               id="profile-name"
                               value={profileName}
                               onChange={(event) => setProfileName(event.target.value)}
-                              placeholder={`${role.profile}-${user?.email?.split('@')[0] || 'usuario'}`}
+                              placeholder={`${selectedAgentProfile?.hermes_profile_name || role.profile}-${user?.email?.split('@')[0] || 'usuario'}`}
                             />
                           </div>
                           <div className="flex items-end">
@@ -346,9 +403,26 @@ export const AIAgentsPage = () => {
                             </Button>
                           </div>
                         </div>
+                        <div className="mt-3">
+                          <Label htmlFor="link-phone">Teléfono a validar</Label>
+                          <Input
+                            id="link-phone"
+                            value={linkPhone}
+                            onChange={(event) => setLinkPhone(event.target.value)}
+                            placeholder="+52 984 000 0000"
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Telegram pedirá compartir contacto y ROVI lo comparará contra este número.
+                          </p>
+                        </div>
                         {latestLink?.hermes_profile_name && (
                           <p className="mt-3 rounded-md bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
                             {latestLink.hermes_profile_name}
+                          </p>
+                        )}
+                        {latestLink?.agent_studio_profile_name && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Vinculado con {latestLink.agent_studio_profile_name} · {latestLink.role_scope}
                           </p>
                         )}
                       </div>
@@ -463,6 +537,11 @@ export const AIAgentsPage = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{link.hermes_profile_name || link.code}</p>
+                            {link.agent_studio_profile_name && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {link.agent_studio_profile_name} · {link.role_scope}
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">{formatDateTime(link.created_at)}</p>
                           </div>
                           <Badge className={config.tone}>
