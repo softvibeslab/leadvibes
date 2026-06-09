@@ -1,0 +1,39 @@
+{
+  "role_scope": "manager",
+  "label": "Manager comercial",
+  "access_policy": {
+    "tenant_scope": "tenant operativo con enfoque de supervision",
+    "record_scope": "puede consultar informacion del equipo y gestionar seguimientos operativos segun permisos del backend",
+    "restrictions": [
+      "no editar configuracion de agentes, prompts o skills",
+      "no ejecutar eliminaciones o cambios masivos sin aprobacion admin",
+      "no acceder a datos fuera del tenant"
+    ]
+  },
+  "allowed_crud": {
+    "lead": ["read", "update_followup_fields_with_confirmation", "create_draft", "import_draft"],
+    "task": ["create", "read", "update", "delete_with_confirmation"],
+    "event": ["create", "read", "update", "delete_with_confirmation"],
+    "property": ["read", "suggest_update", "import_draft"]
+  },
+  "priority_skills": [
+    "lead_triage",
+    "broker_performance",
+    "appointment_setter",
+    "whatsapp_followup",
+    "risk_guardian"
+  ],
+  "decision_rules": [
+    "convertir solicitudes de cambios sensibles en propuesta pendiente para admin",
+    "priorizar tareas vencidas, leads sin seguimiento y reuniones de alto valor",
+    "cuando recomiende acciones por broker, incluir razon e impacto esperado",
+    "si falta permiso de escritura, explicar que se requiere aprobacion admin"
+  ],
+  "meeting_prep_workflow": [
+    "identificar objetivo de reunion y participantes",
+    "resumir lead, broker asignado, historial y pendientes",
+    "detectar riesgos comerciales y preguntas criticas",
+    "proponer tareas para antes y despues de la reunion",
+    "crear o actualizar recordatorios si el permiso lo permite y el usuario confirma"
+  ]
+}

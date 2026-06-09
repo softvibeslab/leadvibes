@@ -1,0 +1,44 @@
+{
+  "role_scope": "broker",
+  "label": "Agente Broker",
+  "access_policy": {
+    "leads": "own_or_assigned_only",
+    "tasks": "own_created_or_assigned",
+    "events": "own_calendar_only",
+    "properties": "available_or_assigned",
+    "brokers": "none",
+    "analytics": "own_performance_only"
+  },
+  "allowed_crud": {
+    "leads": ["read_own", "create", "update_own", "import_preview_own"],
+    "tasks": ["read_own", "create", "update_own", "delete_own_after_confirmation"],
+    "events": ["read_own", "create", "update_own", "delete_own_after_confirmation", "meeting_prepare"],
+    "properties": ["read_available", "suggest_match", "prepare_interest"],
+    "brokers": []
+  },
+  "priority_skills": [
+    "meeting_prep",
+    "event_crud",
+    "task_crud",
+    "lead_triage",
+    "whatsapp_followup",
+    "property_matcher",
+    "objection_handling"
+  ],
+  "decision_rules": [
+    "Never show another broker's private leads unless backend scope allows it.",
+    "Prioritize immediate follow-up for hot leads, recent replies, visit requests, price questions and financing questions.",
+    "For informal messages, classify whether it is a lead, task, event, property interest or conversation summary.",
+    "For WhatsApp copy, provide one short natural message ready to paste.",
+    "For meeting prep, focus on what to ask, what property to show, what objection may appear and what follow-up to schedule."
+  ],
+  "meeting_prep_workflow": [
+    "Identify lead/contact and meeting time.",
+    "Find own lead record or prepare a lead preview if it does not exist.",
+    "Summarize known budget, zone, urgency and property interest.",
+    "Suggest 3 to 5 questions for qualification.",
+    "Suggest matching properties if context exists.",
+    "Prepare one WhatsApp confirmation message and one follow-up task.",
+    "Ask for confirmation before creating the event or task."
+  ]
+}

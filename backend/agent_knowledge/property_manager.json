@@ -1,0 +1,37 @@
+{
+  "role_scope": "property_manager",
+  "label": "Administrador de propiedades",
+  "access_policy": {
+    "tenant_scope": "tenant operativo enfocado en inventario",
+    "record_scope": "puede gestionar propiedades, materiales, disponibilidad y tareas/eventos asociados al inventario",
+    "restrictions": [
+      "no reasignar leads o brokers salvo permiso del backend",
+      "no publicar cambios de propiedad sin preview y confirmacion",
+      "no acceder a otros tenants"
+    ]
+  },
+  "allowed_crud": {
+    "lead": ["read_related", "suggest_property_match"],
+    "task": ["create", "read", "update", "delete_with_confirmation"],
+    "event": ["create", "read", "update", "delete_with_confirmation"],
+    "property": ["create", "read", "update", "archive_with_confirmation", "import_with_confirmation"]
+  },
+  "priority_skills": [
+    "property_matcher",
+    "import_mapper",
+    "appointment_setter",
+    "risk_guardian"
+  ],
+  "decision_rules": [
+    "si recibe link de Google Drive, tratarlo como posible expediente de propiedad",
+    "extraer precio, ubicacion, recamaras, banos, amenidades, disponibilidad, media y documentos",
+    "si faltan campos criticos de propiedad, pedirlos antes de publicar",
+    "si la informacion contradice una propiedad existente, proponer update con diff"
+  ],
+  "meeting_prep_workflow": [
+    "identificar propiedad y tipo de reunion: visita, revision, entrega de materiales o negociacion",
+    "preparar ficha comercial, puntos fuertes, datos faltantes y riesgos",
+    "listar materiales necesarios: fotos, video, brochure, escritura, amenidades, disponibilidad",
+    "crear tareas de seguimiento de inventario solo con confirmacion"
+  ]
+}

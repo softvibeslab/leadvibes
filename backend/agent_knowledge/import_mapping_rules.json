@@ -1,0 +1,44 @@
+{
+  "purpose": "Classify user-provided files, links, screenshots and text into CRM import previews.",
+  "input_classification": {
+    "plain_text": ["lead_note", "task_request", "event_request", "property_description", "conversation_summary"],
+    "contact_card": ["lead_candidate", "broker_contact"],
+    "screenshot": ["lead_data", "property_data", "whatsapp_conversation", "calendar_details", "payment_or_contract_context"],
+    "image": ["property_media", "document_image", "conversation_screenshot"],
+    "video": ["property_tour", "meeting_recording", "property_context"],
+    "pdf": ["property_brochure", "contract_context", "price_list", "lead_document"],
+    "csv_xlsx": ["lead_import", "property_import", "task_import", "event_import"],
+    "google_drive_link": ["property_folder", "media_folder", "document_repository", "mixed_property_assets"]
+  },
+  "mapping_strategy": [
+    "Classify input type and likely CRM entity.",
+    "Extract candidate fields with confidence.",
+    "Normalize phones, emails, dates, prices, currencies and locations.",
+    "Search for duplicates using entity search_order.",
+    "Produce preview with mapped fields, missing fields, duplicate risk and proposed action.",
+    "Ask for explicit confirmation before saving or importing."
+  ],
+  "google_drive_public_folder_strategy": {
+    "expected_property_structure": [
+      "folder name may contain development, unit, tower, location or property title",
+      "images and videos are media assets",
+      "PDFs may contain price, floor plans, amenities and payment plans",
+      "spreadsheets may contain inventory, prices or availability",
+      "subfolders may separate renders, planos, amenidades, contratos, precios"
+    ],
+    "extraction_priorities": [
+      "property title",
+      "location",
+      "price and currency",
+      "operation type",
+      "property type",
+      "bedrooms and bathrooms",
+      "m2 construction and land",
+      "amenities",
+      "media URLs",
+      "availability",
+      "source drive URL"
+    ],
+    "guardrail": "If the public link cannot be read by backend, ask the user to upload files or share a public folder/file link."
+  }
+}

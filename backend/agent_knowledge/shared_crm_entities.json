@@ -1,0 +1,162 @@
+{
+  "version": "2026-06-09",
+  "purpose": "Operational CRM schema and CRUD guidance for ROVI agents.",
+  "global_guardrails": [
+    "Never trust tenant_id, user_id or role sent by the user; backend auth token is the source of truth.",
+    "Never write, update, delete, import or bulk-change records without a preview and explicit confirmation.",
+    "If required fields are missing, mark them as pending and ask for the minimum missing data.",
+    "For destructive or bulk actions, explain affected records, risk and rollback expectation before asking for confirmation.",
+    "When uncertain whether incoming data is a lead, property, task or event, classify it and show the assumption before acting."
+  ],
+  "entities": {
+    "lead": {
+      "collection": "leads",
+      "api_routes": {
+        "list": "GET /api/leads",
+        "read": "GET /api/leads/{lead_id}",
+        "create": "POST /api/leads",
+        "update": "PUT /api/leads/{lead_id}",
+        "delete": "DELETE /api/leads/{lead_id}",
+        "duplicates": "POST /api/leads/check-duplicates",
+        "analysis": "POST /api/leads/{lead_id}/analyze"
+      },
+      "primary_fields": [
+        "name",
+        "phone",
+        "email",
+        "source",
+        "status",
+        "priority",
+        "operation_type",
+        "budget",
+        "location_interest",
+        "property_type",
+        "assigned_broker_id",
+        "notes",
+        "tags"
+      ],
+      "required_for_create": ["name or phone or email"],
+      "search_order": ["phone", "email", "exact name", "partial name", "whatsapp contact", "source reference"],
+      "duplicate_rules": ["same phone", "same email", "same name plus same source"],
+      "preview_template": {
+        "entity": "lead",
+        "action": "create_or_update",
+        "matched_existing_record": null,
+        "fields_to_save": {},
+        "missing_fields": [],
+        "duplicate_risk": "low|medium|high",
+        "confirmation_question": "¿Confirmas que lo guarde en ROVI?"
+      }
+    },
+    "task": {
+      "collection": "tasks",
+      "api_routes": {
+        "list": "GET /api/tasks",
+        "read": "GET /api/tasks/{task_id}",
+        "create": "POST /api/tasks",
+        "update": "PUT /api/tasks/{task_id}",
+        "status": "PATCH /api/tasks/{task_id}/status",
+        "delete": "DELETE /api/tasks/{task_id}"
+      },
+      "primary_fields": [
+        "title",
+        "description",
+        "status",
+        "priority",
+        "due_date",
+        "assigned_to",
+        "lead_id",
+        "tags",
+        "checklist"
+      ],
+      "required_for_create": ["title"],
+      "recommended_defaults": {
+        "status": "pendiente",
+        "priority": "media"
+      },
+      "search_order": ["due date", "assigned user", "lead_id", "title", "status", "priority"],
+      "preview_template": {
+        "entity": "task",
+        "action": "create_or_update",
+        "fields_to_save": {},
+        "missing_fields": [],
+        "confirmation_question": "¿Confirmas que cree o actualice esta tarea?"
+      }
+    },
+    "event": {
+      "collection": "calendar_events",
+      "api_routes": {
+        "list": "GET /api/calendar/events",
+        "today": "GET /api/calendar/today",
+        "create": "POST /api/calendar/events",
+        "update": "PUT /api/calendar/events/{event_id}",
+        "delete": "DELETE /api/calendar/events/{event_id}",
+        "sync_google": "POST /api/calendar/events/{event_id}/sync-google"
+      },
+      "primary_fields": [
+        "title",
+        "description",
+        "start_time",
+        "end_time",
+        "lead_id",
+        "property_id",
+        "location",
+        "attendees",
+        "notes"
+      ],
+      "required_for_create": ["title", "start_time"],
+      "meeting_prep_fields": [
+        "lead_summary",
+        "last_activities",
+        "open_tasks",
+        "property_interest",
+        "suggested_questions",
+        "objections_to_prepare",
+        "next_best_action",
+        "follow_up_task"
+      ],
+      "preview_template": {
+        "entity": "event",
+        "action": "create_or_update",
+        "fields_to_save": {},
+        "meeting_brief": {},
+        "missing_fields": [],
+        "confirmation_question": "¿Confirmas que lo agregue al calendario?"
+      }
+    },
+    "property": {
+      "collection": "products_services",
+      "api_area": "properties/products",
+      "primary_fields": [
+        "title",
+        "description",
+        "operation_type",
+        "property_type",
+        "location",
+        "price",
+        "currency",
+        "bedrooms",
+        "bathrooms",
+        "construction_m2",
+        "land_m2",
+        "amenities",
+        "media_urls",
+        "drive_url",
+        "availability",
+        "responsible_user_id"
+      ],
+      "required_for_create": ["title", "location or description"],
+      "search_order": ["title", "drive_url", "location", "price", "property_type", "external reference"],
+      "import_sources": ["google_drive_public_folder", "pdf", "images", "video", "csv", "xlsx", "text", "screenshot"],
+      "preview_template": {
+        "entity": "property",
+        "action": "create_or_update_or_import",
+        "fields_to_save": {},
+        "media_assets": [],
+        "missing_fields": [],
+        "duplicate_risk": "low|medium|high",
+        "confirmation_question": "¿Confirmas que importe o actualice esta propiedad?"
+      }
+    }
+  }
+}

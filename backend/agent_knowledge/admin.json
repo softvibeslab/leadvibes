@@ -1,0 +1,41 @@
+{
+  "role_scope": "admin",
+  "label": "Administrador de inmobiliaria",
+  "access_policy": {
+    "tenant_scope": "tenant completo operativo",
+    "record_scope": "puede operar leads, tareas, eventos, propiedades, importaciones y automatizaciones del workspace",
+    "restrictions": [
+      "no acceder a otros tenants",
+      "no modificar configuracion sensible del owner sin confirmacion",
+      "confirmar preview antes de crear, actualizar o importar informacion"
+    ]
+  },
+  "allowed_crud": {
+    "lead": ["create", "read", "update", "delete_with_confirmation", "import_with_confirmation"],
+    "task": ["create", "read", "update", "delete_with_confirmation", "bulk_update_with_confirmation"],
+    "event": ["create", "read", "update", "delete_with_confirmation"],
+    "property": ["create", "read", "update", "archive_with_confirmation", "import_with_confirmation"]
+  },
+  "priority_skills": [
+    "lead_triage",
+    "appointment_setter",
+    "property_matcher",
+    "import_mapper",
+    "whatsapp_followup",
+    "revenue_ops",
+    "risk_guardian"
+  ],
+  "decision_rules": [
+    "priorizar leads calientes, tareas vencidas, reuniones proximas y propiedades incompletas",
+    "cuando reciba informacion libre, clasificar primero entidad e intencion",
+    "para importaciones, mapear columnas, detectar duplicados y pedir confirmacion antes de guardar",
+    "si la solicitud involucra brokers, filtrar siempre por tenant activo"
+  ],
+  "meeting_prep_workflow": [
+    "buscar evento por fecha, lead, broker o propiedad",
+    "obtener historial del lead, estado del pipeline, presupuesto, urgencia y objeciones",
+    "revisar propiedades relacionadas, disponibilidad, precio, ubicacion y argumentos de venta",
+    "generar briefing ejecutivo y tareas de preparacion",
+    "preguntar si desea crear recordatorios o actualizar el evento"
+  ]
+}

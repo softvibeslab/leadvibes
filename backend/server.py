@@ -136,6 +136,7 @@ from hermes_bridge import (
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+AGENT_STUDIO_KNOWLEDGE_DIR = ROOT_DIR / "agent_knowledge"
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
@@ -4150,6 +4151,14 @@ AGENT_STUDIO_DEFAULT_TOOLS = {
     "imports": False,
     "bulk_changes": False,
 }
+AGENT_STUDIO_ROLE_KNOWLEDGE_FILES = {
+    "owner": "owner.json",
+    "admin": "admin.json",
+    "manager": "manager.json",
+    "property_manager": "property_manager.json",
+    "agency_admin": "agency_admin.json",
+    "broker": "broker.json",
+}
 
 AGENT_STUDIO_AGENCY_ADMIN_SYSTEM_PROMPT = """Eres el Agente Inmobiliaria de ROVI CRM, un copiloto ejecutivo y operativo para administradores de inmobiliarias, dueños de agencias y líderes comerciales.
 
@@ -4430,6 +4439,52 @@ def build_agent_studio_graphify_command(profile: dict, current_user: dict) -> st
     return f"graphify {corpus_dir} --mode deep"
 
 
+def load_agent_studio_knowledge_file(filename: str) -> dict:
+    path = AGENT_STUDIO_KNOWLEDGE_DIR / filename
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        logger.warning("Agent Studio knowledge file not found: %s", path)
+    except json.JSONDecodeError as exc:
+        logger.warning("Agent Studio knowledge file is invalid JSON: %s (%s)", path, exc)
+    return {}
+
+
+def load_agent_studio_operational_knowledge(role_scope: str | None) -> dict:
+    role_key = (role_scope or "broker").strip().lower()
+    role_filename = AGENT_STUDIO_ROLE_KNOWLEDGE_FILES.get(role_key, "broker.json")
+    role_policy_catalog = {
+        scope: load_agent_studio_knowledge_file(filename)
+        for scope, filename in AGENT_STUDIO_ROLE_KNOWLEDGE_FILES.items()
+    }
+    return {
+        "role_profile": load_agent_studio_knowledge_file(role_filename),
+        "role_policy_catalog": role_policy_catalog,
+        "shared_crm_entities": load_agent_studio_knowledge_file("shared_crm_entities.json"),
+        "import_mapping_rules": load_agent_studio_knowledge_file("import_mapping_rules.json"),
+        "routing_rules": load_agent_studio_knowledge_file("routing_rules.json"),
+    }
+
+
+def build_agent_studio_operational_knowledge_summary(role_scope: str | None) -> dict:
+    knowledge = load_agent_studio_operational_knowledge(role_scope)
+    role_profile = knowledge.get("role_profile") or {}
+    entities = (knowledge.get("shared_crm_entities") or {}).get("entities") or {}
+    return {
+        "role_scope": role_profile.get("role_scope") or role_scope,
+        "label": role_profile.get("label"),
+        "access_policy": role_profile.get("access_policy"),
+        "entities": list(entities.keys()),
+        "priority_skills": role_profile.get("priority_skills") or [],
+        "knowledge_files": [
+            "shared_crm_entities.json",
+            "import_mapping_rules.json",
+            "routing_rules.json",
+            AGENT_STUDIO_ROLE_KNOWLEDGE_FILES.get((role_scope or "broker").strip().lower(), "broker.json"),
+        ],
+    }
+
+
 async def find_agent_studio_knowledge_chunks(profile: dict, current_user: dict, message: str, limit: int = 5) -> list[dict]:
     words = {
         word.strip(".,;:!?()[]{}").lower()
@@ -4469,6 +4524,9 @@ def build_agent_studio_chat_messages(profile: dict, user_message: str, knowledge
             )
         knowledge_block = "\n\nBase de conocimiento disponible:\n" + "\n\n".join(sections)
 
+    operational_knowledge = load_agent_studio_operational_knowledge(profile.get("role_scope"))
+    operational_block = json.dumps(operational_knowledge, ensure_ascii=False, separators=(",", ":"))
+
     system_prompt = "\n\n".join([
         profile.get("system_prompt") or "",
         "Contexto ROVI Agent Studio:",
@@ -4476,10 +4534,13 @@ def build_agent_studio_chat_messages(profile: dict, user_message: str, knowledge
         f"- Role scope: {profile.get('role_scope')}",
         f"- Skills activas: {', '.join(profile.get('enabled_skills') or []) or 'ninguna'}",
         f"- Tools permitidas: {', '.join(tools_enabled) or 'ninguna'}",
+        "Base operativa ROVI:",
+        operational_block,
         "Reglas de prueba:",
         "- Responde como si estuvieras dentro del CRM de ROVI, pero no ejecutes escrituras reales desde este chat.",
         "- Si propones crear, actualizar o importar datos, muestra un preview y pide confirmacion.",
-        "- Usa la base de conocimiento solo cuando sea relevante y menciona las fuentes por nombre, sin inventar archivos.",
+        "- Usa la base operativa para decidir entidad, permisos, ruta CRUD, campos requeridos, validaciones e importacion.",
+        "- Usa archivos subidos solo cuando sean relevantes y menciona las fuentes por nombre, sin inventar archivos.",
         "- Mantente dentro del tenant, rol y permisos del perfil.",
     ]).strip()
     user_context = "\n\n".join([
@@ -4528,6 +4589,7 @@ def write_agent_studio_hermes_files(profile: dict, current_user: dict) -> dict:
     ).expanduser()
     profile_dir = profiles_root / safe_name
     profile_dir.mkdir(parents=True, exist_ok=True)
+    operational_knowledge = load_agent_studio_operational_knowledge(profile.get("role_scope"))
 
     soul = "\n".join([
         f"# {profile.get('name') or safe_name}",
@@ -4547,6 +4609,9 @@ def write_agent_studio_hermes_files(profile: dict, current_user: dict) -> dict:
         "## Guardrails",
         "- Aplica tenant, usuario, rol y scope antes de cualquier accion.",
         "- Pide confirmacion explicita antes de crear, actualizar, importar o hacer cambios masivos.",
+        "",
+        "## Operational Knowledge",
+        json.dumps(operational_knowledge, ensure_ascii=False, indent=2),
     ])
     (profile_dir / "SOUL.md").write_text(soul + "\n", encoding="utf-8")
 
@@ -4571,6 +4636,7 @@ def write_agent_studio_hermes_files(profile: dict, current_user: dict) -> dict:
         "tone_instructions": profile.get("tone_instructions"),
         "enabled_skills": profile.get("enabled_skills") or [],
         "tools": profile.get("tools") or {},
+        "operational_knowledge": operational_knowledge,
         "source": "rovi_agent_studio",
         "profile_id": profile["id"],
         "version": profile.get("version", 1),
@@ -4599,6 +4665,10 @@ async def list_agent_studio_profiles(current_user: dict = Depends(get_current_us
     ).sort("role_scope", 1).to_list(50)
     return {
         "profiles": [build_agent_studio_public(profile) for profile in profiles],
+        "knowledge_catalog": [
+            build_agent_studio_operational_knowledge_summary(profile.get("role_scope"))
+            for profile in profiles
+        ],
         "skill_catalog": SKILL_CATALOG,
         "tool_catalog": [
             {"id": "leads", "label": "Leads"},
