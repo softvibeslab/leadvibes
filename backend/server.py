@@ -4485,6 +4485,63 @@ def build_agent_studio_operational_knowledge_summary(role_scope: str | None) -> 
     }
 
 
+def build_agent_studio_runtime_knowledge(role_scope: str | None) -> dict:
+    full = load_agent_studio_operational_knowledge(role_scope)
+    entities = (full.get("shared_crm_entities") or {}).get("entities") or {}
+    routing_rules = (full.get("routing_rules") or {}).get("routing_rules") or []
+    import_rules = full.get("import_mapping_rules") or {}
+    role_catalog = full.get("role_policy_catalog") or {}
+    return {
+        "active_role_profile": {
+            "role_scope": (full.get("role_profile") or {}).get("role_scope"),
+            "label": (full.get("role_profile") or {}).get("label"),
+            "access_policy": (full.get("role_profile") or {}).get("access_policy"),
+            "allowed_crud": (full.get("role_profile") or {}).get("allowed_crud"),
+            "priority_skills": (full.get("role_profile") or {}).get("priority_skills"),
+            "meeting_prep_workflow": (full.get("role_profile") or {}).get("meeting_prep_workflow"),
+        },
+        "role_policy_catalog": {
+            scope: {
+                "label": policy.get("label"),
+                "tenant_scope": (policy.get("access_policy") or {}).get("tenant_scope"),
+                "record_scope": (policy.get("access_policy") or {}).get("record_scope"),
+                "allowed_crud": policy.get("allowed_crud"),
+            }
+            for scope, policy in role_catalog.items()
+        },
+        "crud_entities": {
+            entity_id: {
+                "collection": entity.get("collection"),
+                "api_routes": entity.get("api_routes"),
+                "required_fields_create": entity.get("required_fields_create"),
+                "common_search_fields": entity.get("common_search_fields"),
+                "crud_workflow": entity.get("crud_workflow"),
+            }
+            for entity_id, entity in entities.items()
+        },
+        "input_mapping": {
+            "input_types": list((import_rules.get("input_classification") or {}).keys()),
+            "mapping_strategy": import_rules.get("mapping_strategy"),
+            "google_drive_public_folder_strategy": import_rules.get("google_drive_public_folder_strategy"),
+        },
+        "routing_rules": [
+            {
+                "intent": rule.get("intent"),
+                "route_to": rule.get("route_to"),
+                "requires_confirmation": rule.get("requires_confirmation"),
+                "notes": rule.get("notes"),
+            }
+            for rule in routing_rules
+        ],
+        "non_negotiables": [
+            "filtrar siempre por tenant_id y rol/scope del usuario autenticado",
+            "para broker, acceder solo a registros propios o asignados",
+            "antes de crear, actualizar, eliminar, importar o hacer cambios masivos: preview y confirmacion explicita",
+            "si faltan datos, marcarlos como pendientes y preguntar lo minimo necesario",
+        ],
+    }
+
+
 async def find_agent_studio_knowledge_chunks(profile: dict, current_user: dict, message: str, limit: int = 5) -> list[dict]:
     words = {
         word.strip(".,;:!?()[]{}").lower()
@@ -4524,7 +4581,7 @@ def build_agent_studio_chat_messages(profile: dict, user_message: str, knowledge
             )
         knowledge_block = "\n\nBase de conocimiento disponible:\n" + "\n\n".join(sections)
 
-    operational_knowledge = load_agent_studio_operational_knowledge(profile.get("role_scope"))
+    operational_knowledge = build_agent_studio_runtime_knowledge(profile.get("role_scope"))
     operational_block = json.dumps(operational_knowledge, ensure_ascii=False, separators=(",", ":"))
 
     system_prompt = "\n\n".join([
