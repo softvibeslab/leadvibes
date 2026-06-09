@@ -984,6 +984,7 @@ async def run_agent_turn(
 
     return {
         "success": success,
+        "run_id": run_id,
         "run": serialize_doc(run_doc),
         "response": content,
         "usage": serialize_doc(usage_event),
