@@ -6,7 +6,9 @@ import {
   FileCode2,
   FileText,
   History,
+  KeyRound,
   Loader2,
+  Link2,
   MessageSquare,
   RefreshCw,
   Save,
@@ -17,6 +19,8 @@ import {
   Sparkles,
   Upload,
   UploadCloud,
+  UserCog,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
@@ -64,8 +68,17 @@ export const AgentStudioPage = () => {
   const [skillCatalog, setSkillCatalog] = useState([]);
   const [toolCatalog, setToolCatalog] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [agentUsers, setAgentUsers] = useState([]);
   const [selectedId, setSelectedId] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [form, setForm] = useState(defaultForm);
+  const [userSettingsDraft, setUserSettingsDraft] = useState({
+    tools: {},
+    preferences: '{}',
+    memory: '{}',
+    notes: '',
+    is_active: true,
+  });
   const [knowledgeFiles, setKnowledgeFiles] = useState([]);
   const [graphifyCommand, setGraphifyCommand] = useState('');
   const [uploadFiles, setUploadFiles] = useState([]);
@@ -81,6 +94,10 @@ export const AgentStudioPage = () => {
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedId) || null,
     [profiles, selectedId],
+  );
+  const selectedAgentUser = useMemo(
+    () => agentUsers.find((item) => item.user?.id === selectedUserId) || null,
+    [agentUsers, selectedUserId],
   );
 
   const activeSkillRole = skillRoleFilter === 'profile' ? form.role_scope : skillRoleFilter;
@@ -151,16 +168,20 @@ export const AgentStudioPage = () => {
   }, [filteredSkills]);
 
   const loadStudio = useCallback(async () => {
-    const [profilesResponse, auditResponse] = await Promise.all([
+    const [profilesResponse, usersResponse, auditResponse] = await Promise.all([
       api.get('/agent-studio/profiles'),
+      api.get('/agent-studio/users').catch(() => ({ data: { users: [] } })),
       api.get('/agent-studio/audit').catch(() => ({ data: { logs: [] } })),
     ]);
     const nextProfiles = profilesResponse.data?.profiles || [];
+    const nextUsers = usersResponse.data?.users || [];
     setProfiles(nextProfiles);
+    setAgentUsers(nextUsers);
     setSkillCatalog(profilesResponse.data?.skill_catalog || []);
     setToolCatalog(profilesResponse.data?.tool_catalog || []);
     setAuditLogs(auditResponse.data?.logs || []);
     setSelectedId((current) => current || nextProfiles[0]?.id || '');
+    setSelectedUserId((current) => current || nextUsers[0]?.user?.id || '');
   }, [api]);
 
   useEffect(() => {
@@ -200,6 +221,18 @@ export const AgentStudioPage = () => {
       setGraphifyCommand('');
     });
   }, [loadKnowledge]);
+
+  useEffect(() => {
+    if (!selectedAgentUser) return;
+    const settings = selectedAgentUser.settings || {};
+    setUserSettingsDraft({
+      tools: settings.tools || selectedAgentUser.profile?.tools || {},
+      preferences: JSON.stringify(settings.preferences || {}, null, 2),
+      memory: JSON.stringify(settings.memory || {}, null, 2),
+      notes: settings.notes || '',
+      is_active: settings.is_active !== false,
+    });
+  }, [selectedAgentUser]);
 
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -317,6 +350,40 @@ export const AgentStudioPage = () => {
     }
   };
 
+  const toggleUserTool = (toolId, checked) => {
+    setUserSettingsDraft((current) => ({ ...current, tools: { ...(current.tools || {}), [toolId]: checked } }));
+  };
+
+  const saveUserSettings = async () => {
+    if (!selectedAgentUser) return;
+    let preferences = {};
+    let memory = {};
+    try {
+      preferences = JSON.parse(userSettingsDraft.preferences || '{}');
+      memory = JSON.parse(userSettingsDraft.memory || '{}');
+    } catch (error) {
+      toast.error('Preferencias y memoria deben ser JSON valido');
+      return;
+    }
+    setBusy('user-settings');
+    try {
+      await api.put(`/agent-studio/users/${selectedAgentUser.user.id}/settings`, {
+        profile_id: selectedAgentUser.settings?.profile_id || selectedAgentUser.profile?.id,
+        tools: userSettingsDraft.tools,
+        preferences,
+        memory,
+        notes: userSettingsDraft.notes,
+        is_active: userSettingsDraft.is_active,
+      });
+      toast.success('Configuracion de usuario guardada');
+      await loadStudio();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'No pude guardar la configuracion del usuario'));
+    } finally {
+      setBusy('');
+    }
+  };
+
   const status = syncConfig[selectedProfile?.sync_status] || syncConfig.pending;
 
   return (
@@ -421,10 +488,11 @@ export const AgentStudioPage = () => {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="prompts">
-                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
+                <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7">
                   <TabsTrigger value="prompts">Prompts</TabsTrigger>
                   <TabsTrigger value="skills">Skills</TabsTrigger>
                   <TabsTrigger value="tools">Tools</TabsTrigger>
+                  <TabsTrigger value="users">Usuarios</TabsTrigger>
                   <TabsTrigger value="chat">Chat</TabsTrigger>
                   <TabsTrigger value="knowledge">Conocimiento</TabsTrigger>
                   <TabsTrigger value="sync">Sync</TabsTrigger>
@@ -614,6 +682,141 @@ export const AgentStudioPage = () => {
                         <Switch checked={!!form.tools?.[tool.id]} onCheckedChange={(checked) => toggleTool(tool.id, checked)} />
                       </div>
                     ))}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="users" className="mt-6 space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+                    <div className="space-y-3">
+                      <div className="rounded-lg border p-4">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-primary" />
+                          <p className="text-sm font-medium">Usuarios del workspace</p>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Cada usuario conserva memoria y permisos aislados por tenant, rol y perfil.
+                        </p>
+                      </div>
+                      <div className="max-h-[560px] space-y-2 overflow-y-auto pr-1">
+                        {agentUsers.map((item) => (
+                          <button
+                            type="button"
+                            key={item.user.id}
+                            onClick={() => setSelectedUserId(item.user.id)}
+                            className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                              selectedUserId === item.user.id ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/30 hover:bg-primary/5'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium">{item.user.name || item.user.email}</p>
+                                <p className="truncate text-xs text-muted-foreground">{item.user.email}</p>
+                              </div>
+                              {item.is_linked ? <Badge className="bg-emerald-500/10 text-emerald-700">Telegram</Badge> : <Badge variant="outline">Sin link</Badge>}
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Badge variant="secondary">{item.user.role}</Badge>
+                              <Badge variant="outline">{item.role_scope}</Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {selectedAgentUser ? (
+                      <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="rounded-lg border p-4">
+                            <UserCog className="mb-3 h-5 w-5 text-primary" />
+                            <p className="text-sm font-medium">{selectedAgentUser.user.name || selectedAgentUser.user.email}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{selectedAgentUser.user.role} · {selectedAgentUser.role_scope}</p>
+                          </div>
+                          <div className="rounded-lg border p-4">
+                            <Bot className="mb-3 h-5 w-5 text-primary" />
+                            <p className="text-sm font-medium">{selectedAgentUser.profile?.name || 'Perfil base'}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{selectedAgentUser.profile?.hermes_profile_name || 'Hermes dinamico'}</p>
+                          </div>
+                          <div className="rounded-lg border p-4">
+                            {selectedAgentUser.is_linked ? <Link2 className="mb-3 h-5 w-5 text-primary" /> : <KeyRound className="mb-3 h-5 w-5 text-muted-foreground" />}
+                            <p className="text-sm font-medium">{selectedAgentUser.is_linked ? 'Telegram vinculado' : 'Sin Telegram'}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {selectedAgentUser.telegram_link?.activated_at
+                                ? new Date(selectedAgentUser.telegram_link.activated_at).toLocaleString('es-MX')
+                                : 'Genera QR en Agentes IA'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border p-4">
+                          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium">Tools efectivas del usuario</p>
+                              <p className="text-xs text-muted-foreground">Overrides por usuario. Si cambian, Telegram los usa en el siguiente mensaje.</p>
+                            </div>
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Switch
+                                checked={userSettingsDraft.is_active}
+                                onCheckedChange={(checked) => setUserSettingsDraft((current) => ({ ...current, is_active: checked }))}
+                              />
+                              Runtime activo
+                            </label>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {toolCatalog.map((tool) => (
+                              <div key={`user-${tool.id}`} className="flex items-center justify-between rounded-lg border p-3">
+                                <div>
+                                  <p className="text-sm font-medium">{tool.label}</p>
+                                  <p className="text-xs text-muted-foreground">Scope individual</p>
+                                </div>
+                                <Switch checked={!!userSettingsDraft.tools?.[tool.id]} onCheckedChange={(checked) => toggleUserTool(tool.id, checked)} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <div>
+                            <Label>Preferencias JSON</Label>
+                            <Textarea
+                              className="mt-2 min-h-52 font-mono text-xs"
+                              value={userSettingsDraft.preferences}
+                              onChange={(event) => setUserSettingsDraft((current) => ({ ...current, preferences: event.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label>Memoria aislada JSON</Label>
+                            <Textarea
+                              className="mt-2 min-h-52 font-mono text-xs"
+                              value={userSettingsDraft.memory}
+                              onChange={(event) => setUserSettingsDraft((current) => ({ ...current, memory: event.target.value }))}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label>Notas internas</Label>
+                          <Textarea
+                            className="mt-2 min-h-20"
+                            value={userSettingsDraft.notes}
+                            onChange={(event) => setUserSettingsDraft((current) => ({ ...current, notes: event.target.value }))}
+                            placeholder="Notas para el admin sobre este agente de usuario..."
+                          />
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button onClick={saveUserSettings} disabled={busy === 'user-settings'}>
+                            {busy === 'user-settings' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Guardar usuario
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed p-8 text-center">
+                        <Users className="mx-auto mb-3 h-8 w-8 text-primary" />
+                        <p className="text-sm font-medium">Sin usuarios disponibles</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Cuando haya miembros activos apareceran aqui.</p>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 

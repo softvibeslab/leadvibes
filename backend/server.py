@@ -4362,8 +4362,18 @@ class AgentStudioChatRequest(BaseModel):
     include_knowledge: bool = True
 
 
+class AgentStudioUserSettingsUpdateRequest(BaseModel):
+    profile_id: Optional[str] = None
+    enabled_skills: Optional[List[str]] = None
+    tools: Optional[Dict[str, bool]] = None
+    preferences: Optional[Dict[str, Any]] = None
+    memory: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
 def require_agent_studio_admin(current_user: dict) -> dict:
-    if current_user.get("role") != AGENT_STUDIO_ADMIN_ROLE:
+    if (current_user.get("active_role") or current_user.get("role")) != AGENT_STUDIO_ADMIN_ROLE:
         raise HTTPException(status_code=403, detail="Agent Studio solo esta disponible para rol admin")
     return current_user
 
@@ -4372,6 +4382,145 @@ def build_agent_studio_public(profile: dict) -> dict:
     profile = serialize_doc(profile) or {}
     profile.pop("tenant_id", None)
     return profile
+
+
+def resolve_agent_studio_role_scope_from_role(role: str | None, account_type: str | None = None) -> str:
+    role = (role or "").strip().lower()
+    account_type = (account_type or "").strip().lower()
+    if role == "broker" or account_type == "individual":
+        return "broker"
+    if role in {"owner", "admin", "manager", "property_manager"}:
+        return "agency_admin"
+    if role.startswith("copim_"):
+        return role.replace("copim_admin", "copim_council")
+    if role.startswith("rovi_"):
+        return role
+    return "broker"
+
+
+def build_default_agent_user_preferences(role_scope: str, user_doc: dict | None = None) -> dict:
+    if role_scope == "agency_admin":
+        return {
+            "language": "es-MX",
+            "tone": "ejecutivo y accionable",
+            "response_style": "prioridades, riesgos y siguientes acciones",
+            "requires_preview_before_write": True,
+        }
+    return {
+        "language": "es-MX",
+        "tone": "breve, comercial y practico",
+        "response_style": "siguiente mejor accion y mensajes listos para copiar",
+        "requires_preview_before_write": True,
+    }
+
+
+def build_default_agent_user_memory(role_scope: str, user_doc: dict | None = None) -> dict:
+    user_doc = user_doc or {}
+    return {
+        "profile_summary": f"Usuario {user_doc.get('name') or user_doc.get('email') or 'ROVI'} con rol {role_scope}.",
+        "specialties": [],
+        "preferred_zones": [],
+        "working_rules": [
+            "usar solo informacion autorizada por tenant, usuario y rol",
+            "pedir confirmacion antes de guardar cambios",
+        ],
+    }
+
+
+async def get_agent_studio_profile_for_role(tenant_id: str, role_scope: str) -> dict | None:
+    return await db.agent_studio_profiles.find_one(
+        {"tenant_id": tenant_id, "role_scope": role_scope, "is_active": True},
+        {"_id": 0},
+    )
+
+
+async def ensure_agent_user_settings(
+    *,
+    tenant_id: str,
+    user_doc: dict,
+    role: str | None = None,
+    role_scope: str | None = None,
+    created_by: str | None = None,
+) -> dict:
+    role_scope = role_scope or resolve_agent_studio_role_scope_from_role(role or user_doc.get("role"), user_doc.get("account_type"))
+    role = role or user_doc.get("role") or "broker"
+    profile = await get_agent_studio_profile_for_role(tenant_id, role_scope)
+    now = datetime.now(timezone.utc).isoformat()
+    existing = await db.agent_user_settings.find_one(
+        {"tenant_id": tenant_id, "user_id": user_doc["id"], "role_scope": role_scope},
+        {"_id": 0},
+    )
+    base_update = {
+        "tenant_id": tenant_id,
+        "user_id": user_doc["id"],
+        "user_email": user_doc.get("email"),
+        "user_name": user_doc.get("name"),
+        "role": role,
+        "role_scope": role_scope,
+        "profile_id": (existing or {}).get("profile_id") or (profile or {}).get("id"),
+        "profile_name": (profile or {}).get("name"),
+        "hermes_profile_name": (profile or {}).get("hermes_profile_name"),
+        "updated_at": now,
+    }
+    if existing:
+        await db.agent_user_settings.update_one({"id": existing["id"]}, {"$set": base_update})
+        return await db.agent_user_settings.find_one({"id": existing["id"]}, {"_id": 0})
+    doc = {
+        "id": f"agent-user-settings-{uuid.uuid4()}",
+        **base_update,
+        "enabled_skills": None,
+        "tools": None,
+        "preferences": build_default_agent_user_preferences(role_scope, user_doc),
+        "memory": build_default_agent_user_memory(role_scope, user_doc),
+        "notes": "",
+        "is_active": True,
+        "source": "agent_studio",
+        "created_by": created_by,
+        "created_at": now,
+    }
+    await db.agent_user_settings.insert_one(doc)
+    return doc
+
+
+def merge_agent_user_settings_into_config(config: dict, user_settings: dict | None) -> dict:
+    if not user_settings or user_settings.get("is_active") is False:
+        return config
+    merged = {**config}
+    base_skills = list(config.get("enabled_skills") or [])
+    if user_settings.get("enabled_skills") is not None:
+        merged["enabled_skills"] = list(user_settings.get("enabled_skills") or [])
+    else:
+        merged["enabled_skills"] = base_skills
+    if user_settings.get("tools") is not None:
+        studio_tools = {**(config.get("studio_tools") or {}), **(user_settings.get("tools") or {})}
+        merged["studio_tools"] = studio_tools
+        merged["tools"] = build_agent_control_tools_from_studio(studio_tools, config.get("role_scope") or user_settings.get("role_scope") or "broker")
+    user_context = {
+        "agent_user_settings_id": user_settings.get("id"),
+        "user_id": user_settings.get("user_id"),
+        "user_email": user_settings.get("user_email"),
+        "user_name": user_settings.get("user_name"),
+        "tenant_id": user_settings.get("tenant_id"),
+        "role": user_settings.get("role"),
+        "role_scope": user_settings.get("role_scope"),
+        "profile_id": user_settings.get("profile_id"),
+        "preferences": user_settings.get("preferences") or {},
+        "memory": user_settings.get("memory") or {},
+        "notes": user_settings.get("notes") or "",
+    }
+    user_context_block = json.dumps(user_context, ensure_ascii=False, separators=(",", ":"))
+    merged["customer_prompt"] = "\n\n".join([
+        config.get("customer_prompt") or "",
+        "Configuracion dinamica y memoria aislada del usuario:",
+        user_context_block,
+        "Reglas de aislamiento dinamico:",
+        "- Esta configuracion pertenece solo a este user_id dentro de este tenant_id.",
+        "- No mezcles memoria ni preferencias de otros usuarios.",
+        "- Si el usuario es broker, consulta y modifica solo registros propios o asignados.",
+        "- Si el usuario es inmobiliaria/admin, opera solo el tenant activo.",
+    ]).strip()
+    merged["user_settings_id"] = user_settings.get("id")
+    return merged
 
 
 async def ensure_agent_studio_defaults(current_user: dict) -> None:
@@ -4730,6 +4879,158 @@ async def list_agent_studio_profiles(current_user: dict = Depends(get_current_us
         ],
         "access": {"role": "admin", "can_edit": True},
     }
+
+
+@api_router.get("/agent-studio/users", response_model=dict)
+async def list_agent_studio_users(current_user: dict = Depends(get_current_user)):
+    current_user = require_agent_studio_admin(current_user)
+    await ensure_agent_studio_defaults(current_user)
+    tenant_id = current_user["tenant_id"]
+    memberships = await db.tenant_memberships.find(
+        {"tenant_id": tenant_id, "status": "active"},
+        {"_id": 0},
+    ).sort("role", 1).to_list(500)
+    user_ids = [item.get("user_id") for item in memberships if item.get("user_id")]
+    tenant_users = await db.users.find(
+        {
+            "$or": [
+                {"id": {"$in": user_ids}},
+                {"tenant_id": tenant_id, "is_active": True},
+            ],
+        },
+        {"_id": 0, "password_hash": 0},
+    ).to_list(500)
+    users_by_id = {item["id"]: item for item in tenant_users}
+    membership_by_user = {item.get("user_id"): item for item in memberships if item.get("user_id")}
+    for user_doc in tenant_users:
+        membership_by_user.setdefault(user_doc["id"], {
+            "tenant_id": tenant_id,
+            "user_id": user_doc["id"],
+            "role": user_doc.get("role"),
+            "status": "active",
+        })
+
+    rows = []
+    for user_id, membership in membership_by_user.items():
+        user_doc = users_by_id.get(user_id)
+        if not user_doc:
+            continue
+        role = membership.get("role") or user_doc.get("role")
+        role_scope = resolve_agent_studio_role_scope_from_role(role, user_doc.get("account_type"))
+        settings = await ensure_agent_user_settings(
+            tenant_id=tenant_id,
+            user_doc=user_doc,
+            role=role,
+            role_scope=role_scope,
+            created_by=current_user["user_id"],
+        )
+        profile = await db.agent_studio_profiles.find_one(
+            {"id": settings.get("profile_id"), "tenant_id": tenant_id},
+            {"_id": 0, "id": 1, "name": 1, "role_scope": 1, "hermes_profile_name": 1, "tools": 1, "enabled_skills": 1},
+        )
+        active_link = await db.user_device_links.find_one(
+            {
+                "tenant_id": tenant_id,
+                "user_id": user_id,
+                "channel": "telegram",
+                "status": "active",
+            },
+            {"_id": 0, "id": 1, "telegram": 1, "role_scope": 1, "activated_at": 1},
+            sort=[("activated_at", -1)],
+        )
+        rows.append({
+            "user": {
+                "id": user_doc["id"],
+                "name": user_doc.get("name"),
+                "email": user_doc.get("email"),
+                "phone": user_doc.get("phone"),
+                "role": role,
+                "account_type": user_doc.get("account_type"),
+            },
+            "membership": serialize_doc(membership),
+            "role_scope": role_scope,
+            "profile": profile,
+            "settings": serialize_doc(settings),
+            "telegram_link": serialize_doc(active_link),
+            "is_linked": bool(active_link),
+        })
+    rows.sort(key=lambda item: ((item["user"].get("role") or ""), (item["user"].get("email") or "")))
+    return {"users": rows, "total": len(rows)}
+
+
+@api_router.put("/agent-studio/users/{user_id}/settings", response_model=dict)
+async def update_agent_studio_user_settings(
+    user_id: str,
+    payload: AgentStudioUserSettingsUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    current_user = require_agent_studio_admin(current_user)
+    tenant_id = current_user["tenant_id"]
+    active_memberships = await db.tenant_memberships.find(
+        {"tenant_id": tenant_id, "status": "active"},
+        {"_id": 0, "user_id": 1},
+    ).to_list(500)
+    active_user_ids = [item.get("user_id") for item in active_memberships if item.get("user_id")]
+    user_doc = await db.users.find_one(
+        {
+            "id": user_id,
+            "$or": [
+                {"tenant_id": tenant_id},
+                {"id": {"$in": active_user_ids}},
+            ],
+        },
+        {"_id": 0, "password_hash": 0},
+    )
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado en este workspace")
+    membership = await db.tenant_memberships.find_one(
+        {"tenant_id": tenant_id, "user_id": user_id, "status": "active"},
+        {"_id": 0},
+    )
+    role = (membership or {}).get("role") or user_doc.get("role")
+    role_scope = resolve_agent_studio_role_scope_from_role(role, user_doc.get("account_type"))
+    existing = await ensure_agent_user_settings(
+        tenant_id=tenant_id,
+        user_doc=user_doc,
+        role=role,
+        role_scope=role_scope,
+        created_by=current_user["user_id"],
+    )
+    update_payload = payload.model_dump(exclude_unset=True)
+    if "profile_id" in update_payload and update_payload["profile_id"]:
+        profile = await db.agent_studio_profiles.find_one(
+            {"id": update_payload["profile_id"], "tenant_id": tenant_id, "is_active": True},
+            {"_id": 0},
+        )
+        if not profile:
+            raise HTTPException(status_code=422, detail="Perfil de agente no encontrado")
+        update_payload["profile_name"] = profile.get("name")
+        update_payload["hermes_profile_name"] = profile.get("hermes_profile_name")
+        update_payload["role_scope"] = profile.get("role_scope") or role_scope
+    if "enabled_skills" in update_payload and update_payload["enabled_skills"] is not None:
+        valid_skills = {item["id"] for item in SKILL_CATALOG}
+        invalid = [skill for skill in update_payload["enabled_skills"] if skill not in valid_skills]
+        if invalid:
+            raise HTTPException(status_code=422, detail=f"Skills invalidas: {', '.join(invalid)}")
+    if "tools" in update_payload and update_payload["tools"] is not None:
+        update_payload["tools"] = {**AGENT_STUDIO_DEFAULT_TOOLS, **(update_payload.get("tools") or {})}
+    update_payload["updated_by"] = current_user["user_id"]
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.agent_user_settings.update_one({"id": existing["id"]}, {"$set": update_payload})
+    updated = await db.agent_user_settings.find_one({"id": existing["id"]}, {"_id": 0})
+    await db.agent_user_audit_logs.insert_one({
+        "id": f"agent-user-audit-{uuid.uuid4()}",
+        "tenant_id": tenant_id,
+        "user_id": user_id,
+        "settings_id": existing["id"],
+        "action": "settings_updated",
+        "actor_user_id": current_user["user_id"],
+        "actor_email": current_user.get("email"),
+        "before": existing,
+        "after": updated,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"settings": serialize_doc(updated)}
 
 
 @api_router.put("/agent-studio/profiles/{profile_id}", response_model=dict)
@@ -5959,9 +6260,32 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         "name": user.get("name"),
     }
     role_scope = link.get("role_scope") or "broker"
-    agent_profile = await resolve_telegram_agent_studio_profile(link, role_scope)
+    agent_user_settings = await ensure_agent_user_settings(
+        tenant_id=link.get("tenant_id") or user.get("tenant_id"),
+        user_doc=user,
+        role=link.get("role") or user.get("role"),
+        role_scope=role_scope,
+        created_by=user["id"],
+    )
+    if agent_user_settings.get("role_scope"):
+        role_scope = agent_user_settings["role_scope"]
+    agent_profile = None
+    if agent_user_settings.get("profile_id"):
+        agent_profile = await db.agent_studio_profiles.find_one(
+            {
+                "id": agent_user_settings.get("profile_id"),
+                "tenant_id": link.get("tenant_id") or user.get("tenant_id"),
+                "is_active": True,
+            },
+            {"_id": 0},
+        )
+    if not agent_profile:
+        agent_profile = await resolve_telegram_agent_studio_profile(link, role_scope)
     if agent_profile:
-        agent_config = build_agent_control_config_from_studio_profile(agent_profile, role_scope)
+        agent_config = merge_agent_user_settings_into_config(
+            build_agent_control_config_from_studio_profile(agent_profile, role_scope),
+            agent_user_settings,
+        )
         agent_name = agent_profile.get("name") or link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
         if not link.get("agent_studio_profile_id") or link.get("agent_studio_profile_id") != agent_profile.get("id"):
             await db.user_device_links.update_one(
@@ -5972,6 +6296,7 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
                     "agent_studio_hermes_profile_name": agent_profile.get("hermes_profile_name"),
                     "agent_studio_enabled_skills": agent_profile.get("enabled_skills") or [],
                     "agent_studio_tools": agent_profile.get("tools") or {},
+                    "agent_user_settings_id": agent_user_settings.get("id"),
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 }},
             )
@@ -6071,7 +6396,8 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         f"Perfil Hermes: {(agent_profile or {}).get('hermes_profile_name') or link.get('hermes_profile_name') or ''}\n"
         f"Rol permitido: {role_scope}\n"
         f"Perfil Agent Studio: {(agent_profile or {}).get('id') or 'fallback_agent_config'}\n"
-        f"Skills activas: {', '.join((agent_profile or {}).get('enabled_skills') or link.get('agent_studio_enabled_skills') or []) or 'sin skills activas'}\n"
+        f"Settings usuario: {agent_user_settings.get('id') or 'sin_settings'}\n"
+        f"Skills activas: {', '.join((agent_config or {}).get('enabled_skills') or (agent_profile or {}).get('enabled_skills') or link.get('agent_studio_enabled_skills') or []) or 'sin skills activas'}\n"
         f"Usuario ROVI: {user.get('email')}\n\n"
         f"Mensaje del usuario: {text}"
     )
