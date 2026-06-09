@@ -756,7 +756,8 @@ async def call_model(messages: list[dict], config: dict, session_id: str) -> dic
             try:
                 return await call_emergent_model(messages, session_id, config)
             except Exception as fallback_error:
-                return build_local_agent_response(messages, config, fallback_error)
+                combined_error = RuntimeError(f"Proveedor principal: {primary_error}. Fallback: {fallback_error}")
+                return build_local_agent_response(messages, config, combined_error)
         return build_local_agent_response(messages, config, primary_error)
 
 
