@@ -111,7 +111,7 @@ from dashboard_enhancements import (
 )
 from duplicate_detection import find_potential_duplicates, get_duplicate_suggestions
 from import_optimization import execute_import_optimized, execute_import_with_advanced_duplicates
-from agent_control import AgentRunRequest, create_agent_control_router, run_agent_turn
+from agent_control import AgentRunRequest, SKILL_CATALOG, call_model, create_agent_control_router, extract_text_from_upload, run_agent_turn
 from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
 from vibe_lab import create_vibe_lab_router
@@ -4140,6 +4140,536 @@ async def cleanup_tokens(current_user: dict = Depends(require_role(["admin"]))):
 
 
 # ==================== DEVICE LINK / HERMES TELEGRAM ROUTES ====================
+
+AGENT_STUDIO_ADMIN_ROLE = "admin"
+AGENT_STUDIO_DEFAULT_TOOLS = {
+    "leads": True,
+    "tasks": True,
+    "events": True,
+    "properties": True,
+    "imports": False,
+    "bulk_changes": False,
+}
+AGENT_STUDIO_DEFAULT_PROFILES = [
+    {
+        "role_scope": "agency_admin",
+        "name": "Agente Inmobiliaria",
+        "description": "Perfil operativo para administradores de inmobiliaria.",
+        "hermes_profile_name": "roviagencyadmin",
+        "system_prompt": (
+            "Actua como director comercial de una inmobiliaria en ROVI CRM. "
+            "Ayuda a priorizar brokers, leads, propiedades, tareas, agenda, importaciones, "
+            "automatizaciones y riesgos operativos. Responde en espanol mexicano con pasos concretos."
+        ),
+        "customer_prompt": (
+            "El usuario es administrador de una inmobiliaria. Solo puede operar datos de su tenant activo. "
+            "Antes de crear, actualizar o importar informacion, confirma el preview y pide autorizacion clara."
+        ),
+        "tone_instructions": "Claro, ejecutivo, accionable y prudente con cambios masivos.",
+        "enabled_skills": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher", "revenue_ops", "risk_guardian"],
+        "tools": {**AGENT_STUDIO_DEFAULT_TOOLS, "imports": True},
+    },
+    {
+        "role_scope": "broker",
+        "name": "Agente Broker",
+        "description": "Perfil de asistencia diaria para brokers.",
+        "hermes_profile_name": "rovibroker",
+        "system_prompt": (
+            "Actua como coach comercial inmobiliario conectado a ROVI CRM. "
+            "Ayuda al broker a calificar leads, crear tareas, preparar seguimientos, revisar agenda y encontrar propiedades."
+        ),
+        "customer_prompt": (
+            "El usuario es broker. Solo puede ver y modificar informacion que pertenezca a su usuario o a permisos asignados. "
+            "No ejecutes cambios sensibles sin confirmacion."
+        ),
+        "tone_instructions": "Humano, breve, vendedor, con siguiente mejor accion.",
+        "enabled_skills": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher"],
+        "tools": AGENT_STUDIO_DEFAULT_TOOLS,
+    },
+]
+
+
+class AgentStudioProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    role_scope: Optional[str] = None
+    hermes_profile_name: Optional[str] = None
+    system_prompt: Optional[str] = None
+    customer_prompt: Optional[str] = None
+    tone_instructions: Optional[str] = None
+    enabled_skills: Optional[List[str]] = None
+    tools: Optional[Dict[str, bool]] = None
+    model: Optional[str] = None
+    provider: Optional[str] = None
+    temperature: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+class AgentStudioChatRequest(BaseModel):
+    message: str
+    include_knowledge: bool = True
+
+
+def require_agent_studio_admin(current_user: dict) -> dict:
+    if current_user.get("role") != AGENT_STUDIO_ADMIN_ROLE:
+        raise HTTPException(status_code=403, detail="Agent Studio solo esta disponible para rol admin")
+    return current_user
+
+
+def build_agent_studio_public(profile: dict) -> dict:
+    profile = serialize_doc(profile) or {}
+    profile.pop("tenant_id", None)
+    return profile
+
+
+async def ensure_agent_studio_defaults(current_user: dict) -> None:
+    tenant_id = current_user["tenant_id"]
+    now = datetime.now(timezone.utc).isoformat()
+    for default in AGENT_STUDIO_DEFAULT_PROFILES:
+        existing = await db.agent_studio_profiles.find_one(
+            {"tenant_id": tenant_id, "role_scope": default["role_scope"]},
+            {"_id": 0, "id": 1},
+        )
+        if existing:
+            continue
+        doc = {
+            "id": f"agent-studio-profile-{uuid.uuid4()}",
+            "tenant_id": tenant_id,
+            "version": 1,
+            "provider": "rovi_crm",
+            "model": os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5"),
+            "temperature": 0.25,
+            "is_active": True,
+            "sync_status": "pending",
+            "last_synced_at": None,
+            "created_by": current_user["user_id"],
+            "created_at": now,
+            "updated_by": current_user["user_id"],
+            "updated_at": now,
+            **default,
+        }
+        await db.agent_studio_profiles.insert_one(doc)
+
+
+async def get_owned_agent_studio_profile(profile_id: str, current_user: dict) -> dict:
+    profile = await db.agent_studio_profiles.find_one(
+        {"id": profile_id, "tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Perfil de Agent Studio no encontrado")
+    return profile
+
+
+def safe_agent_studio_filename(filename: str | None) -> str:
+    raw_name = Path(filename or "knowledge.txt").name
+    safe_name = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "-" for ch in raw_name).strip(".-")
+    return safe_name or f"knowledge-{uuid.uuid4()}.txt"
+
+
+def split_agent_studio_text(text: str, *, chunk_size: int = 1800, overlap: int = 180) -> list[str]:
+    clean_text = "\n".join(line.strip() for line in (text or "").splitlines() if line.strip())
+    if not clean_text:
+        return []
+    chunks: list[str] = []
+    cursor = 0
+    while cursor < len(clean_text):
+        chunk = clean_text[cursor:cursor + chunk_size].strip()
+        if chunk:
+            chunks.append(chunk)
+        cursor += max(chunk_size - overlap, 1)
+    return chunks
+
+
+def build_agent_studio_graphify_command(profile: dict, current_user: dict) -> str:
+    safe_profile = safe_agent_studio_filename(profile.get("hermes_profile_name") or profile.get("role_scope") or profile["id"])
+    corpus_dir = UPLOADS_DIR / "agent-studio" / current_user["tenant_id"] / safe_profile / "raw"
+    return f"graphify {corpus_dir} --mode deep"
+
+
+async def find_agent_studio_knowledge_chunks(profile: dict, current_user: dict, message: str, limit: int = 5) -> list[dict]:
+    words = {
+        word.strip(".,;:!?()[]{}").lower()
+        for word in (message or "").split()
+        if len(word.strip(".,;:!?()[]{}")) >= 4
+    }
+    cursor = db.agent_studio_knowledge_chunks.find(
+        {"tenant_id": current_user["tenant_id"], "profile_id": profile["id"]},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(80)
+    chunks = await cursor.to_list(80)
+    ranked = []
+    for chunk in chunks:
+        content = (chunk.get("content") or "").lower()
+        score = sum(1 for word in words if word in content)
+        ranked.append((score, chunk))
+    ranked.sort(key=lambda item: (item[0], item[1].get("created_at") or ""), reverse=True)
+    selected = [chunk for score, chunk in ranked if score > 0][:limit]
+    if not selected:
+        selected = [chunk for _, chunk in ranked[:limit]]
+    return selected
+
+
+def build_agent_studio_chat_messages(profile: dict, user_message: str, knowledge_chunks: list[dict]) -> list[dict]:
+    tools_enabled = [
+        tool_id
+        for tool_id, enabled in (profile.get("tools") or {}).items()
+        if enabled
+    ]
+    knowledge_block = ""
+    if knowledge_chunks:
+        sections = []
+        for index, chunk in enumerate(knowledge_chunks, start=1):
+            sections.append(
+                f"[Fuente {index}: {chunk.get('filename') or chunk.get('title') or chunk.get('file_id')}]\n"
+                f"{chunk.get('content') or ''}"
+            )
+        knowledge_block = "\n\nBase de conocimiento disponible:\n" + "\n\n".join(sections)
+
+    system_prompt = "\n\n".join([
+        profile.get("system_prompt") or "",
+        "Contexto ROVI Agent Studio:",
+        f"- Perfil: {profile.get('name') or profile.get('role_scope')}",
+        f"- Role scope: {profile.get('role_scope')}",
+        f"- Skills activas: {', '.join(profile.get('enabled_skills') or []) or 'ninguna'}",
+        f"- Tools permitidas: {', '.join(tools_enabled) or 'ninguna'}",
+        "Reglas de prueba:",
+        "- Responde como si estuvieras dentro del CRM de ROVI, pero no ejecutes escrituras reales desde este chat.",
+        "- Si propones crear, actualizar o importar datos, muestra un preview y pide confirmacion.",
+        "- Usa la base de conocimiento solo cuando sea relevante y menciona las fuentes por nombre, sin inventar archivos.",
+        "- Mantente dentro del tenant, rol y permisos del perfil.",
+    ]).strip()
+    user_context = "\n\n".join([
+        f"Customer prompt:\n{profile.get('customer_prompt') or ''}",
+        f"Instrucciones de tono:\n{profile.get('tone_instructions') or ''}",
+        knowledge_block,
+        f"Mensaje de prueba del admin:\n{user_message}",
+    ]).strip()
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_context},
+    ]
+
+
+async def write_agent_studio_audit(
+    *,
+    profile: dict,
+    action: str,
+    current_user: dict,
+    before: dict | None = None,
+    after: dict | None = None,
+    metadata: dict | None = None,
+) -> None:
+    await db.agent_studio_audit_logs.insert_one({
+        "id": f"agent-studio-audit-{uuid.uuid4()}",
+        "tenant_id": current_user["tenant_id"],
+        "profile_id": profile["id"],
+        "role_scope": profile.get("role_scope"),
+        "action": action,
+        "actor_user_id": current_user["user_id"],
+        "actor_email": current_user.get("email"),
+        "before": before,
+        "after": after,
+        "metadata": metadata or {},
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+def write_agent_studio_hermes_files(profile: dict, current_user: dict) -> dict:
+    profile_name = (profile.get("hermes_profile_name") or profile.get("role_scope") or "rovi-agent").strip()
+    safe_name = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in profile_name).strip("-") or "rovi-agent"
+    profiles_root = Path(
+        os.environ.get("ROVI_HERMES_PROFILES_ROOT")
+        or os.environ.get("HERMES_PROFILES_ROOT")
+        or "/tmp/rovi-hermes-profiles"
+    ).expanduser()
+    profile_dir = profiles_root / safe_name
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    soul = "\n".join([
+        f"# {profile.get('name') or safe_name}",
+        "",
+        "## System Prompt",
+        profile.get("system_prompt") or "",
+        "",
+        "## Customer Prompt",
+        profile.get("customer_prompt") or "",
+        "",
+        "## Tone",
+        profile.get("tone_instructions") or "",
+        "",
+        "## Enabled Skills",
+        *(f"- {skill}" for skill in profile.get("enabled_skills") or []),
+        "",
+        "## Guardrails",
+        "- Aplica tenant, usuario, rol y scope antes de cualquier accion.",
+        "- Pide confirmacion explicita antes de crear, actualizar, importar o hacer cambios masivos.",
+    ])
+    (profile_dir / "SOUL.md").write_text(soul + "\n", encoding="utf-8")
+
+    profile_yaml = "\n".join([
+        f"name: {safe_name}",
+        f"display_name: {profile.get('name') or safe_name}",
+        f"role_scope: {profile.get('role_scope') or ''}",
+        f"provider: {profile.get('provider') or 'rovi_crm'}",
+        f"model: {profile.get('model') or ''}",
+        f"temperature: {profile.get('temperature', 0.25)}",
+        f"tenant_id: {current_user.get('tenant_id')}",
+        f"updated_at: {datetime.now(timezone.utc).isoformat()}",
+    ])
+    (profile_dir / "profile.yaml").write_text(profile_yaml + "\n", encoding="utf-8")
+
+    studio_payload = {
+        "profile_name": safe_name,
+        "tenant_id": current_user["tenant_id"],
+        "role_scope": profile.get("role_scope"),
+        "system_prompt": profile.get("system_prompt"),
+        "customer_prompt": profile.get("customer_prompt"),
+        "tone_instructions": profile.get("tone_instructions"),
+        "enabled_skills": profile.get("enabled_skills") or [],
+        "tools": profile.get("tools") or {},
+        "source": "rovi_agent_studio",
+        "profile_id": profile["id"],
+        "version": profile.get("version", 1),
+    }
+    (profile_dir / "rovi_agent_studio_profile.json").write_text(
+        json.dumps(studio_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return {
+        "profile_name": safe_name,
+        "profile_dir": str(profile_dir),
+        "soul_file": str(profile_dir / "SOUL.md"),
+        "profile_file": str(profile_dir / "profile.yaml"),
+        "studio_file": str(profile_dir / "rovi_agent_studio_profile.json"),
+        "status": "written",
+    }
+
+
+@api_router.get("/agent-studio/profiles", response_model=dict)
+async def list_agent_studio_profiles(current_user: dict = Depends(get_current_user)):
+    current_user = require_agent_studio_admin(current_user)
+    await ensure_agent_studio_defaults(current_user)
+    profiles = await db.agent_studio_profiles.find(
+        {"tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    ).sort("role_scope", 1).to_list(50)
+    return {
+        "profiles": [build_agent_studio_public(profile) for profile in profiles],
+        "skill_catalog": SKILL_CATALOG,
+        "tool_catalog": [
+            {"id": "leads", "label": "Leads"},
+            {"id": "tasks", "label": "Tareas"},
+            {"id": "events", "label": "Eventos"},
+            {"id": "properties", "label": "Propiedades"},
+            {"id": "imports", "label": "Importaciones"},
+            {"id": "bulk_changes", "label": "Cambios masivos"},
+        ],
+        "access": {"role": "admin", "can_edit": True},
+    }
+
+
+@api_router.put("/agent-studio/profiles/{profile_id}", response_model=dict)
+async def update_agent_studio_profile(
+    profile_id: str,
+    payload: AgentStudioProfileUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    current_user = require_agent_studio_admin(current_user)
+    existing = await get_owned_agent_studio_profile(profile_id, current_user)
+    update_payload = payload.model_dump(exclude_unset=True)
+    if "enabled_skills" in update_payload:
+        valid_skills = {item["id"] for item in SKILL_CATALOG}
+        invalid = [skill for skill in (update_payload.get("enabled_skills") or []) if skill not in valid_skills]
+        if invalid:
+            raise HTTPException(status_code=422, detail=f"Skills invalidas: {', '.join(invalid)}")
+    if "tools" in update_payload:
+        merged_tools = {**AGENT_STUDIO_DEFAULT_TOOLS, **(existing.get("tools") or {}), **(update_payload.get("tools") or {})}
+        update_payload["tools"] = merged_tools
+    if not update_payload:
+        return {"profile": build_agent_studio_public(existing)}
+    update_payload["version"] = int(existing.get("version", 1)) + 1
+    update_payload["sync_status"] = "pending"
+    update_payload["updated_by"] = current_user["user_id"]
+    update_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.agent_studio_profiles.update_one({"id": profile_id}, {"$set": update_payload})
+    updated = await db.agent_studio_profiles.find_one({"id": profile_id}, {"_id": 0})
+    await write_agent_studio_audit(profile=updated, action="updated", current_user=current_user, before=existing, after=updated)
+    return {"profile": build_agent_studio_public(updated)}
+
+
+@api_router.post("/agent-studio/profiles/{profile_id}/sync", response_model=dict)
+async def sync_agent_studio_profile(profile_id: str, current_user: dict = Depends(get_current_user)):
+    current_user = require_agent_studio_admin(current_user)
+    profile = await get_owned_agent_studio_profile(profile_id, current_user)
+    sync_result = write_agent_studio_hermes_files(profile, current_user)
+    now = datetime.now(timezone.utc).isoformat()
+    await db.agent_studio_profiles.update_one(
+        {"id": profile_id},
+        {"$set": {"sync_status": "synced", "last_synced_at": now, "hermes_sync": sync_result, "updated_at": now}},
+    )
+    updated = await db.agent_studio_profiles.find_one({"id": profile_id}, {"_id": 0})
+    await write_agent_studio_audit(
+        profile=updated,
+        action="synced",
+        current_user=current_user,
+        metadata={"hermes_sync": sync_result},
+    )
+    return {"profile": build_agent_studio_public(updated), "sync": sync_result}
+
+
+@api_router.post("/agent-studio/profiles/{profile_id}/chat", response_model=dict)
+async def test_agent_studio_profile_chat(
+    profile_id: str,
+    payload: AgentStudioChatRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    current_user = require_agent_studio_admin(current_user)
+    profile = await get_owned_agent_studio_profile(profile_id, current_user)
+    message = (payload.message or "").strip()
+    if not message:
+        raise HTTPException(status_code=422, detail="Escribe un mensaje para probar el agente")
+
+    knowledge_chunks = []
+    if payload.include_knowledge:
+        knowledge_chunks = await find_agent_studio_knowledge_chunks(profile, current_user, message)
+
+    messages = build_agent_studio_chat_messages(profile, message, knowledge_chunks)
+    config = {
+        "provider": profile.get("provider") or "openai_compatible",
+        "model": profile.get("model") or os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5"),
+        "temperature": profile.get("temperature", 0.25),
+        "role_scope": profile.get("role_scope"),
+        "max_output_tokens": 1200,
+    }
+    result = await call_model(messages, config, f"agent-studio-{profile_id}-{current_user['user_id']}")
+    now = datetime.now(timezone.utc).isoformat()
+    chat_doc = {
+        "id": f"agent-studio-chat-{uuid.uuid4()}",
+        "tenant_id": current_user["tenant_id"],
+        "profile_id": profile["id"],
+        "role_scope": profile.get("role_scope"),
+        "actor_user_id": current_user["user_id"],
+        "actor_email": current_user.get("email"),
+        "message": message,
+        "response": result.get("content") or "",
+        "knowledge_sources": [
+            {
+                "file_id": chunk.get("file_id"),
+                "filename": chunk.get("filename"),
+                "chunk_index": chunk.get("chunk_index"),
+            }
+            for chunk in knowledge_chunks
+        ],
+        "provider": result.get("raw_provider"),
+        "usage": result.get("usage") or {},
+        "created_at": now,
+    }
+    await db.agent_studio_chat_messages.insert_one(chat_doc)
+    return {
+        "message": serialize_doc(chat_doc),
+        "response": chat_doc["response"],
+        "knowledge_used": chat_doc["knowledge_sources"],
+        "provider": chat_doc["provider"],
+        "usage": chat_doc["usage"],
+    }
+
+
+@api_router.get("/agent-studio/profiles/{profile_id}/knowledge", response_model=dict)
+async def list_agent_studio_knowledge(profile_id: str, current_user: dict = Depends(get_current_user)):
+    current_user = require_agent_studio_admin(current_user)
+    profile = await get_owned_agent_studio_profile(profile_id, current_user)
+    files = await db.agent_studio_knowledge_files.find(
+        {"tenant_id": current_user["tenant_id"], "profile_id": profile["id"]},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(100).to_list(100)
+    return {
+        "files": [serialize_doc(file_doc) for file_doc in files],
+        "graphify_command": build_agent_studio_graphify_command(profile, current_user),
+    }
+
+
+@api_router.post("/agent-studio/profiles/{profile_id}/knowledge", response_model=dict)
+async def upload_agent_studio_knowledge(
+    profile_id: str,
+    files: List[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    current_user = require_agent_studio_admin(current_user)
+    profile = await get_owned_agent_studio_profile(profile_id, current_user)
+    if not files:
+        raise HTTPException(status_code=422, detail="Sube al menos un archivo")
+
+    safe_profile = safe_agent_studio_filename(profile.get("hermes_profile_name") or profile.get("role_scope") or profile["id"])
+    raw_dir = UPLOADS_DIR / "agent-studio" / current_user["tenant_id"] / safe_profile / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    uploaded = []
+
+    for upload in files:
+        data, extracted_text = await extract_text_from_upload(upload)
+        file_id = f"agent-studio-kb-{uuid.uuid4()}"
+        filename = safe_agent_studio_filename(upload.filename)
+        stored_filename = f"{file_id}-{filename}"
+        stored_path = raw_dir / stored_filename
+        stored_path.write_bytes(data)
+        chunks = split_agent_studio_text(extracted_text)
+        file_doc = {
+            "id": file_id,
+            "tenant_id": current_user["tenant_id"],
+            "profile_id": profile["id"],
+            "role_scope": profile.get("role_scope"),
+            "filename": filename,
+            "stored_filename": stored_filename,
+            "stored_path": str(stored_path),
+            "content_type": upload.content_type,
+            "size_bytes": len(data),
+            "extracted_chars": len(extracted_text or ""),
+            "chunk_count": len(chunks),
+            "graphify_status": "pending_graphify",
+            "uploaded_by": current_user["user_id"],
+            "uploaded_by_email": current_user.get("email"),
+            "created_at": now,
+            "updated_at": now,
+        }
+        await db.agent_studio_knowledge_files.insert_one(file_doc)
+        if chunks:
+            await db.agent_studio_knowledge_chunks.insert_many([
+                {
+                    "id": f"agent-studio-kb-chunk-{uuid.uuid4()}",
+                    "tenant_id": current_user["tenant_id"],
+                    "profile_id": profile["id"],
+                    "file_id": file_id,
+                    "filename": filename,
+                    "chunk_index": index,
+                    "content": chunk,
+                    "created_at": now,
+                }
+                for index, chunk in enumerate(chunks)
+            ])
+        uploaded.append(serialize_doc(file_doc))
+
+    await write_agent_studio_audit(
+        profile=profile,
+        action="knowledge_uploaded",
+        current_user=current_user,
+        metadata={"files": [{"id": item["id"], "filename": item["filename"], "chunks": item["chunk_count"]} for item in uploaded]},
+    )
+    return {
+        "uploaded": uploaded,
+        "graphify_command": build_agent_studio_graphify_command(profile, current_user),
+        "status": "pending_graphify",
+    }
+
+
+@api_router.get("/agent-studio/audit", response_model=dict)
+async def list_agent_studio_audit(current_user: dict = Depends(get_current_user)):
+    current_user = require_agent_studio_admin(current_user)
+    logs = await db.agent_studio_audit_logs.find(
+        {"tenant_id": current_user["tenant_id"]},
+        {"_id": 0, "before": 0, "after": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return {"logs": [serialize_doc(log) for log in logs]}
 
 class DeviceLinkQrSessionRequest(BaseModel):
     destination: str = ""

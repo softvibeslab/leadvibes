@@ -46,6 +46,7 @@ import {
   BriefcaseBusiness,
   Store,
   FlaskConical,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -78,6 +79,7 @@ const agencyNavItems = [
   { to: '/tasks', icon: ListChecks, label: 'Tareas' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/ai-agents', icon: Bot, label: 'Agentes IA' },
+  { to: '/agent-studio', icon: SlidersHorizontal, label: 'Agent Studio', adminOnly: true },
   { to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { to: '/automations', icon: Zap, label: 'Automatizaciones' },
   { to: '/scripts', icon: FileText, label: 'Scripts' },
@@ -177,6 +179,8 @@ export const Sidebar = ({ onClose }) => {
 
   const workspaces = getVisibleWorkspaces(user).filter((workspace) => workspace?.status === 'active');
   const activeWorkspace = user?.active_workspace;
+  const activeRole = activeWorkspace?.role || user?.role;
+  const canAccessAgentStudio = activeRole === 'admin';
   const isMemberPortal = isCopimMemberUser(user);
   const isLocalAssociationWorkspace = isCopimLocalAssociationUser(user);
   const isRoviInternalWorkspace = isRoviInternalUser(user);
@@ -216,7 +220,7 @@ export const Sidebar = ({ onClose }) => {
 
   // Choose nav items based on account type
   const currentModeValue = location.pathname.startsWith('/copim') ? 'copim' : appMode;
-  const navItems = isRoviInternalWorkspace || location.pathname.startsWith('/rovi')
+  const baseNavItems = isRoviInternalWorkspace || location.pathname.startsWith('/rovi')
     ? roviInternalNavItems.filter((item) => item.to !== '/rovi/ai-control' || isControlTowerOwner)
     : isPropertyManagerWorkspace || location.pathname.startsWith('/rentals')
     ? propertyManagerNavItems
@@ -225,6 +229,7 @@ export const Sidebar = ({ onClose }) => {
     : isIndividual
       ? individualNavItems
       : agencyNavItems;
+  const navItems = baseNavItems.filter((item) => !item.adminOnly || canAccessAgentStudio);
   const accountLabel = getAccountTypeLabel(user?.account_type, currentModeValue);
   const activeRoleLabel = getRoleLabel(getEffectiveRole(user));
 

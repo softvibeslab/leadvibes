@@ -17,6 +17,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AutomationsPage } from './pages/AutomationsPage';
 import { WhatsAppOpenWAPage } from './pages/WhatsAppOpenWAPage';
 import { AIAgentsPage } from './pages/AIAgentsPage';
+import { AgentStudioPage } from './pages/AgentStudioPage';
 import { TasksPage } from './pages/TasksPage';
 import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
@@ -253,6 +254,17 @@ const SalesCrmRoute = ({ children }) => {
   return children;
 };
 
+const AgentStudioAdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  const role = user?.active_workspace?.role || user?.role;
+
+  if (role !== 'admin') {
+    return <Navigate to={resolveAuthenticatedHome(user)} replace />;
+  }
+
+  return children;
+};
+
 const CopimHomeRedirect = () => {
   const { user } = useAuth();
   if (isCopimMemberUser(user)) {
@@ -339,6 +351,14 @@ function AppRoutes() {
             <SalesCrmRoute>
               <AIAgentsPage />
             </SalesCrmRoute>
+          }
+        />
+        <Route
+          path="/agent-studio"
+          element={
+            <AgentStudioAdminRoute>
+              <AgentStudioPage />
+            </AgentStudioAdminRoute>
           }
         />
         <Route
