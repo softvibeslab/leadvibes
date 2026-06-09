@@ -5155,6 +5155,10 @@ def public_device_link_agent_profile(profile: dict) -> dict:
 
 def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope: str) -> dict:
     studio_tools = studio_tools or {}
+    crm_write_enabled = any(
+        bool(studio_tools.get(key))
+        for key in ("leads", "tasks", "events", "properties", "imports", "bulk_changes")
+    )
     return {
         "list_leads": bool(studio_tools.get("leads", True)),
         "lead_metrics": bool(studio_tools.get("leads", True)),
@@ -5162,7 +5166,7 @@ def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope:
         "copim_context": role_scope.startswith("copim"),
         "rovi_internal_metrics": role_scope.startswith("rovi_"),
         "vibe_lab_context": False,
-        "write_actions": bool(studio_tools.get("bulk_changes") or studio_tools.get("imports")),
+        "write_actions": crm_write_enabled,
     }
 
 
@@ -5220,6 +5224,262 @@ async def resolve_telegram_agent_studio_profile(link: dict, role_scope: str) -> 
             if item.get("role_scope") == role_scope:
                 return item
     return None
+
+
+TELEGRAM_ACTION_CONFIRM_WORDS = {
+    "si",
+    "sí",
+    "confirmo",
+    "confirmar",
+    "ok",
+    "dale",
+    "adelante",
+    "autorizo",
+    "guardar",
+    "guardalo",
+    "guárdalo",
+}
+TELEGRAM_ACTION_CANCEL_WORDS = {
+    "no",
+    "cancelar",
+    "cancela",
+    "cancelalo",
+    "cancélalo",
+    "descartar",
+    "descarta",
+}
+
+
+def normalize_action_command(text: str) -> str:
+    return " ".join(str(text or "").strip().lower().split())
+
+
+def telegram_text_confirms_action(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    return normalized in TELEGRAM_ACTION_CONFIRM_WORDS or normalized.startswith("confirmo ")
+
+
+def telegram_text_cancels_action(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    return normalized in TELEGRAM_ACTION_CANCEL_WORDS
+
+
+def telegram_text_requests_task_creation(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    task_terms = ("tarea", "tareas", "pendiente", "pendientes", "follow up", "seguimiento")
+    create_terms = ("crea", "crear", "agrega", "agregar", "programa", "programar", "asigna", "asignar")
+    return any(term in normalized for term in task_terms) and any(term in normalized for term in create_terms)
+
+
+def telegram_text_mentions_broker_assignee(text: str) -> bool:
+    normalized = normalize_action_command(text)
+    return any(term in normalized for term in (" broker", " brokers", "asesor", "asesores", "agente"))
+
+
+async def find_recent_pending_telegram_action(link: dict, chat_id: str) -> dict | None:
+    now = datetime.now(timezone.utc)
+    return await db.telegram_agent_pending_actions.find_one(
+        {
+            "link_id": link["id"],
+            "chat_id": chat_id,
+            "status": "pending_confirmation",
+            "expires_at": {"$gt": now},
+        },
+        {"_id": 0},
+        sort=[("created_at", -1)],
+    )
+
+
+async def find_first_visible_lead_for_action(tenant_id: str, text: str) -> dict | None:
+    leads = await db.leads.find(
+        {"tenant_id": tenant_id, "deleted": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1, "status": 1, "priority": 1, "phone": 1, "email": 1},
+    ).sort("created_at", -1).limit(25).to_list(25)
+    normalized = normalize_action_command(text)
+    for lead in leads:
+        name = normalize_action_command(lead.get("name") or "")
+        if name and name in normalized:
+            return lead
+    if "lead" in normalized or "cliente" in normalized:
+        return leads[0] if leads else None
+    return None
+
+
+async def find_broker_assignee_for_action(tenant_id: str, current_user: dict) -> dict | None:
+    membership = await db.tenant_memberships.find_one(
+        {
+            "tenant_id": tenant_id,
+            "role": "broker",
+            "status": "active",
+            "user_id": {"$ne": current_user["id"]},
+        },
+        {"_id": 0, "user_id": 1},
+    )
+    if membership:
+        broker = await db.users.find_one(
+            {"id": membership["user_id"], "is_active": True},
+            {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1},
+        )
+        if broker:
+            return broker
+    return await db.users.find_one(
+        {
+            "tenant_id": tenant_id,
+            "role": "broker",
+            "id": {"$ne": current_user["id"]},
+            "is_active": True,
+        },
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1},
+    )
+
+
+def build_task_title_for_action(text: str, lead: dict | None, assignee_label: str) -> str:
+    normalized = normalize_action_command(text)
+    if "llamar" in normalized or "llamada" in normalized:
+        base = "Llamar"
+    elif "whatsapp" in normalized or "mensaje" in normalized:
+        base = "Enviar seguimiento por WhatsApp"
+    elif "revisar" in normalized or "analizar" in normalized:
+        base = "Revisar potencial comercial"
+    else:
+        base = "Seguimiento comercial"
+    if lead:
+        return f"{base}: {lead.get('name')}"
+    return f"{base} ({assignee_label})"
+
+
+async def build_pending_task_action(
+    *,
+    text: str,
+    link: dict,
+    user: dict,
+    role_scope: str,
+    agent_name: str,
+) -> dict | None:
+    tenant_id = link.get("tenant_id") or user.get("tenant_id")
+    if not tenant_id:
+        return None
+    lead = await find_first_visible_lead_for_action(tenant_id, text)
+    assignees = [{
+        "id": user["id"],
+        "name": user.get("name") or user.get("email") or "Usuario actual",
+        "email": user.get("email"),
+        "kind": "current_user",
+    }]
+    if role_scope == "agency_admin" and telegram_text_mentions_broker_assignee(text):
+        broker = await find_broker_assignee_for_action(tenant_id, user)
+        if broker and broker.get("id") not in {item["id"] for item in assignees}:
+            assignees.append({
+                "id": broker["id"],
+                "name": broker.get("name") or broker.get("email") or "Broker",
+                "email": broker.get("email"),
+                "kind": "broker",
+            })
+
+    tasks = []
+    for assignee in assignees:
+        title = build_task_title_for_action(text, lead, assignee["name"])
+        description_lines = [
+            f"Solicitud desde Telegram: {text.strip()}",
+            f"Agente: {agent_name}",
+        ]
+        if lead:
+            description_lines.append(f"Lead relacionado: {lead.get('name')} ({lead.get('id')})")
+        tasks.append({
+            "title": title,
+            "description": "\n".join(description_lines),
+            "status": "pendiente",
+            "priority": "alta" if lead else "media",
+            "due_date": None,
+            "assigned_to": assignee["id"],
+            "assigned_to_name": assignee["name"],
+            "lead_id": lead.get("id") if lead else None,
+            "lead_name": lead.get("name") if lead else None,
+            "tags": ["telegram", "agente-ia", "preview"],
+        })
+
+    now = datetime.now(timezone.utc)
+    pending_action = {
+        "id": f"telegram-agent-action-{uuid.uuid4()}",
+        "type": "create_tasks",
+        "status": "pending_confirmation",
+        "tenant_id": tenant_id,
+        "user_id": user["id"],
+        "link_id": link["id"],
+        "chat_id": (link.get("telegram") or {}).get("chat_id"),
+        "role_scope": role_scope,
+        "agent_name": agent_name,
+        "requested_text": text,
+        "payload": {"tasks": tasks},
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=30),
+    }
+    await db.telegram_agent_pending_actions.insert_one(pending_action)
+    return pending_action
+
+
+def format_pending_task_action_preview(action: dict) -> str:
+    tasks = (action.get("payload") or {}).get("tasks") or []
+    lines = [
+        "Puedo guardar esto en ROVI, pero primero te muestro el preview:",
+        "",
+    ]
+    for index, task in enumerate(tasks, start=1):
+        lines.extend([
+            f"{index}. {task.get('title')}",
+            f"   Responsable: {task.get('assigned_to_name') or 'Sin responsable'}",
+            f"   Prioridad: {task.get('priority')}",
+        ])
+        if task.get("lead_name"):
+            lines.append(f"   Lead: {task.get('lead_name')}")
+    lines.extend([
+        "",
+        "¿Confirmas que lo guarde en ROVI?",
+        "Responde `sí` para guardar o `no` para cancelar.",
+    ])
+    return "\n".join(lines)
+
+
+async def execute_pending_telegram_action(action: dict) -> dict:
+    now = datetime.now(timezone.utc)
+    if action.get("type") != "create_tasks":
+        return {"executed": False, "message": "Este tipo de acción todavía no tiene ejecutor."}
+
+    docs = []
+    for task in (action.get("payload") or {}).get("tasks") or []:
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "tenant_id": action["tenant_id"],
+            "created_by": action["user_id"],
+            "title": task.get("title") or "Seguimiento comercial",
+            "description": task.get("description") or "",
+            "status": task.get("status") or "pendiente",
+            "priority": task.get("priority") or "media",
+            "due_date": task.get("due_date"),
+            "assigned_to": task.get("assigned_to") or action["user_id"],
+            "lead_id": task.get("lead_id"),
+            "tags": task.get("tags") or ["telegram", "agente-ia"],
+            "checklist": [],
+            "comments": [],
+            "source": "telegram_agent",
+            "telegram_action_id": action["id"],
+            "deleted": False,
+            "created_at": now,
+            "updated_at": now,
+        })
+    if not docs:
+        return {"executed": False, "message": "No encontré tareas para crear."}
+    await db.tasks.insert_many(docs)
+    await db.telegram_agent_pending_actions.update_one(
+        {"id": action["id"]},
+        {"$set": {"status": "executed", "executed_at": now, "created_task_ids": [doc["id"] for doc in docs]}},
+    )
+    return {
+        "executed": True,
+        "message": f"Listo. Guardé {len(docs)} tarea(s) en ROVI.",
+        "task_ids": [doc["id"] for doc in docs],
+        "tasks": docs,
+    }
 
 
 def build_telegram_onboarding_message(link: dict, user: dict, active_workspace: dict | None) -> str:
@@ -5718,6 +5978,93 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
     else:
         agent_config = None
         agent_name = link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
+    tools_enabled = (agent_config or {}).get("tools") or build_agent_control_tools_from_studio(
+        link.get("agent_studio_tools") or {},
+        role_scope,
+    )
+    pending_action = await find_recent_pending_telegram_action(link, chat_id)
+    if pending_action and telegram_text_cancels_action(text):
+        await db.telegram_agent_pending_actions.update_one(
+            {"id": pending_action["id"]},
+            {"$set": {"status": "cancelled", "cancelled_at": datetime.now(timezone.utc)}},
+        )
+        response_text = "Listo, cancelé el preview. No guardé cambios en ROVI."
+        delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
+        await db.telegram_agent_messages.insert_one({
+            "id": f"telegram-agent-message-{uuid.uuid4()}",
+            "profile_id": link.get("hermes_profile_name") or "rovi-device-link",
+            "link_id": link["id"],
+            "tenant_id": link.get("tenant_id"),
+            "user_id": link["user_id"],
+            "role_scope": role_scope,
+            "chat_id": chat_id,
+            "telegram_user_id": str(telegram_user.get("id") or ""),
+            "message": text,
+            "response": response_text,
+            "delivery": delivery,
+            "agent_action_id": pending_action["id"],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        return {"ok": True, "status": "action_cancelled", "delivery": delivery}
+    if pending_action and telegram_text_confirms_action(text):
+        execution = await execute_pending_telegram_action(pending_action)
+        if execution.get("executed"):
+            created_lines = [
+                f"- {task.get('title')} → {task.get('assigned_to')}"
+                for task in execution.get("tasks", [])
+            ]
+            response_text = "\n".join([
+                execution["message"],
+                "",
+                *created_lines,
+            ])
+        else:
+            response_text = execution.get("message") or "No pude ejecutar el cambio."
+        delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
+        await db.telegram_agent_messages.insert_one({
+            "id": f"telegram-agent-message-{uuid.uuid4()}",
+            "profile_id": link.get("hermes_profile_name") or "rovi-device-link",
+            "link_id": link["id"],
+            "tenant_id": link.get("tenant_id"),
+            "user_id": link["user_id"],
+            "role_scope": role_scope,
+            "chat_id": chat_id,
+            "telegram_user_id": str(telegram_user.get("id") or ""),
+            "message": text,
+            "response": response_text,
+            "delivery": delivery,
+            "agent_action_id": pending_action["id"],
+            "created_task_ids": execution.get("task_ids") or [],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        return {"ok": True, "status": "action_executed", "delivery": delivery}
+    if tools_enabled.get("write_actions") and telegram_text_requests_task_creation(text):
+        action = await build_pending_task_action(
+            text=text,
+            link=link,
+            user=user,
+            role_scope=role_scope,
+            agent_name=agent_name,
+        )
+        if action:
+            response_text = format_pending_task_action_preview(action)
+            delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
+            await db.telegram_agent_messages.insert_one({
+                "id": f"telegram-agent-message-{uuid.uuid4()}",
+                "profile_id": link.get("hermes_profile_name") or "rovi-device-link",
+                "link_id": link["id"],
+                "tenant_id": link.get("tenant_id"),
+                "user_id": link["user_id"],
+                "role_scope": role_scope,
+                "chat_id": chat_id,
+                "telegram_user_id": str(telegram_user.get("id") or ""),
+                "message": text,
+                "response": response_text,
+                "delivery": delivery,
+                "agent_action_id": action["id"],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            return {"ok": True, "status": "action_preview", "delivery": delivery}
     agent_message = (
         f"Canal: Telegram vinculado por QR en ROVI CRM\n"
         f"Agente seleccionado: {agent_name}\n"
