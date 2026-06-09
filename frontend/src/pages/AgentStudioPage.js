@@ -10,6 +10,7 @@ import {
   MessageSquare,
   RefreshCw,
   Save,
+  Search,
   Send,
   ShieldCheck,
   SlidersHorizontal,
@@ -70,6 +71,11 @@ export const AgentStudioPage = () => {
   const [uploadFiles, setUploadFiles] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [skillSearch, setSkillSearch] = useState('');
+  const [skillCategory, setSkillCategory] = useState('all');
+  const [skillRoleFilter, setSkillRoleFilter] = useState('profile');
+  const [showRecommendedOnly, setShowRecommendedOnly] = useState(false);
+  const [showEnabledOnly, setShowEnabledOnly] = useState(false);
   const [busy, setBusy] = useState('');
 
   const selectedProfile = useMemo(
@@ -77,15 +83,50 @@ export const AgentStudioPage = () => {
     [profiles, selectedId],
   );
 
-  const groupedSkills = useMemo(() => {
-    const groups = {};
-    skillCatalog.forEach((skill) => {
-      const groupName = skill.subcategory || (skill.category === 'multimedia' ? 'Multimedia' : 'Skills comerciales');
-      if (!groups[groupName]) groups[groupName] = [];
-      groups[groupName].push(skill);
+  const activeSkillRole = skillRoleFilter === 'profile' ? form.role_scope : skillRoleFilter;
+
+  const filteredSkills = useMemo(() => {
+    const query = skillSearch.trim().toLowerCase();
+    const enabledSet = new Set(form.enabled_skills || []);
+    return skillCatalog.filter((skill) => {
+      const isSuperpower = skill.category === 'superpowers' || skill.is_superpower;
+      const recommendedRoles = skill.recommended_roles || [];
+      const isRecommended = activeSkillRole && recommendedRoles.includes(activeSkillRole);
+      const text = `${skill.label || ''} ${skill.description || ''} ${skill.subcategory || ''}`.toLowerCase();
+      if (query && !text.includes(query)) return false;
+      if (skillCategory === 'superpowers' && !isSuperpower) return false;
+      if (skillCategory === 'commercial' && isSuperpower) return false;
+      if (showRecommendedOnly && !isRecommended) return false;
+      if (showEnabledOnly && !enabledSet.has(skill.id)) return false;
+      return true;
     });
-    const priority = ['Skills comerciales', 'Archivos', 'Imagenes', 'Audio', 'Video', 'Links'];
-    return Object.entries(groups).sort(([a], [b]) => {
+  }, [activeSkillRole, form.enabled_skills, showEnabledOnly, showRecommendedOnly, skillCatalog, skillCategory, skillSearch]);
+
+  const groupedSkills = useMemo(() => {
+    const sections = {
+      superpowers: {},
+      commercial: {},
+    };
+    filteredSkills.forEach((skill) => {
+      const section = skill.category === 'superpowers' || skill.is_superpower ? 'superpowers' : 'commercial';
+      const groupName = skill.subcategory || (section === 'superpowers' ? 'General' : 'General comercial');
+      if (!sections[section][groupName]) sections[section][groupName] = [];
+      sections[section][groupName].push(skill);
+    });
+    const superpowerPriority = ['Archivos', 'Imagenes', 'Audio', 'Video', 'Links'];
+    const commercialPriority = [
+      'Calificacion y seguimiento',
+      'Seguimiento comercial',
+      'Agenda y reuniones',
+      'Inventario y propiedades',
+      'Direccion comercial',
+      'Estrategia y ofertas',
+      'Gobernanza y riesgo',
+      'COPIM',
+      'ROVI interno',
+      'Skills comerciales',
+    ];
+    const sortGroups = (groups, priority) => Object.entries(groups).sort(([a], [b]) => {
       const ai = priority.indexOf(a);
       const bi = priority.indexOf(b);
       if (ai === -1 && bi === -1) return a.localeCompare(b);
@@ -93,7 +134,21 @@ export const AgentStudioPage = () => {
       if (bi === -1) return -1;
       return ai - bi;
     });
-  }, [skillCatalog]);
+    return [
+      {
+        id: 'superpowers',
+        title: 'Superpoderes',
+        description: 'Entrada multimodal para interpretar informacion antes de mapearla al CRM.',
+        groups: sortGroups(sections.superpowers, superpowerPriority),
+      },
+      {
+        id: 'commercial',
+        title: 'Skills comerciales',
+        description: 'Capacidades operativas sugeridas por rol, flujo y objetivo comercial.',
+        groups: sortGroups(sections.commercial, commercialPriority),
+      },
+    ].filter((section) => section.groups.length > 0);
+  }, [filteredSkills]);
 
   const loadStudio = useCallback(async () => {
     const [profilesResponse, auditResponse] = await Promise.all([
@@ -406,44 +461,140 @@ export const AgentStudioPage = () => {
 
                 <TabsContent value="skills" className="mt-6">
                   <div className="space-y-5">
-                    {groupedSkills.map(([groupName, skills]) => (
-                      <section key={groupName} className="space-y-3">
+                    <div className="rounded-lg border bg-muted/10 p-4">
+                      <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            className="pl-9"
+                            value={skillSearch}
+                            onChange={(event) => setSkillSearch(event.target.value)}
+                            placeholder="Buscar skill, descripcion o categoria..."
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            ['all', 'Todas'],
+                            ['superpowers', 'Superpoderes'],
+                            ['commercial', 'Skills comerciales'],
+                          ].map(([value, label]) => (
+                            <Button
+                              key={value}
+                              type="button"
+                              variant={skillCategory === value ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setSkillCategory(value)}
+                            >
+                              {label}
+                            </Button>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            ['profile', 'Rol del perfil'],
+                            ['agency_admin', 'Inmobiliaria'],
+                            ['broker', 'Broker'],
+                            ['rovi_admin', 'ROVI'],
+                            ['copim_council', 'COPIM'],
+                          ].map(([value, label]) => (
+                            <Button
+                              key={value}
+                              type="button"
+                              variant={skillRoleFilter === value ? 'secondary' : 'outline'}
+                              size="sm"
+                              onClick={() => setSkillRoleFilter(value)}
+                            >
+                              {label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-4">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Switch checked={showRecommendedOnly} onCheckedChange={setShowRecommendedOnly} />
+                          Solo recomendadas
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Switch checked={showEnabledOnly} onCheckedChange={setShowEnabledOnly} />
+                          Solo activas
+                        </label>
+                        <Badge variant="outline">{filteredSkills.length} visibles</Badge>
+                      </div>
+                    </div>
+
+                    {groupedSkills.length === 0 ? (
+                      <div className="rounded-lg border border-dashed p-8 text-center">
+                        <Sparkles className="mx-auto mb-3 h-8 w-8 text-primary" />
+                        <p className="text-sm font-medium">Sin resultados</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Ajusta busqueda o filtros para ver mas skills.</p>
+                      </div>
+                    ) : null}
+
+                    {groupedSkills.map((section) => (
+                      <section key={section.id} className="space-y-4">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <h3 className="text-sm font-semibold text-foreground">{groupName}</h3>
-                            {['Archivos', 'Imagenes', 'Audio', 'Video', 'Links'].includes(groupName) && (
-                              <p className="text-xs text-muted-foreground">
-                                Habilita entrada multimodal para interpretar informacion antes de mapearla al CRM.
-                              </p>
-                            )}
+                            <h3 className="text-base font-semibold text-foreground">{section.title}</h3>
+                            <p className="text-xs text-muted-foreground">{section.description}</p>
                           </div>
-                          <Badge variant="secondary">{skills.length}</Badge>
+                          <Badge variant="secondary">
+                            {section.groups.reduce((total, [, skills]) => total + skills.length, 0)}
+                          </Badge>
                         </div>
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                          {skills.map((skill) => {
-                            const checked = (form.enabled_skills || []).includes(skill.id);
-                            const isMultimedia = skill.category === 'multimedia';
-                            return (
-                              <button
-                                type="button"
-                                key={skill.id}
-                                onClick={() => toggleSkill(skill.id)}
-                                className={`rounded-lg border p-3 text-left transition-colors ${
-                                  checked ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/30 hover:bg-primary/5'
-                                }`}
-                              >
-                                <div className="mb-2 flex items-center justify-between gap-2">
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    {isMultimedia ? <UploadCloud className="h-4 w-4 shrink-0 text-primary" /> : <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                                    <p className="truncate text-sm font-medium">{skill.label}</p>
-                                  </div>
-                                  {checked ? <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" /> : null}
-                                </div>
-                                <p className="line-clamp-3 text-xs text-muted-foreground">{skill.description}</p>
-                              </button>
-                            );
-                          })}
-                        </div>
+
+                        {section.groups.map(([groupName, skills]) => (
+                          <div key={`${section.id}-${groupName}`} className="space-y-3 rounded-lg border p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <h4 className="text-sm font-semibold text-foreground">{groupName}</h4>
+                                {section.id === 'superpowers' ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Habilita entrada multimodal para interpretar informacion antes de mapearla al CRM.
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">
+                                    Sugeridas segun rol, tenant y operacion del perfil.
+                                  </p>
+                                )}
+                              </div>
+                              <Badge variant="outline">{skills.length}</Badge>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                              {skills.map((skill) => {
+                                const checked = (form.enabled_skills || []).includes(skill.id);
+                                const isSuperpower = skill.category === 'superpowers' || skill.is_superpower;
+                                const isRecommended = activeSkillRole && (skill.recommended_roles || []).includes(activeSkillRole);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={skill.id}
+                                    onClick={() => toggleSkill(skill.id)}
+                                    className={`rounded-lg border p-3 text-left transition-colors ${
+                                      checked ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/30 hover:bg-primary/5'
+                                    }`}
+                                  >
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                      <div className="flex min-w-0 items-center gap-2">
+                                        {isSuperpower ? <UploadCloud className="h-4 w-4 shrink-0 text-primary" /> : <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                                        <p className="truncate text-sm font-medium">{skill.label}</p>
+                                      </div>
+                                      {checked ? <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" /> : null}
+                                    </div>
+                                    <p className="line-clamp-3 text-xs text-muted-foreground">{skill.description}</p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {isRecommended ? <Badge variant="secondary">Recomendada</Badge> : null}
+                                      {isSuperpower ? <Badge variant="outline">Superpoder</Badge> : null}
+                                      {(skill.input_types || []).slice(0, 3).map((type) => (
+                                        <Badge key={`${skill.id}-${type}`} variant="outline">{type}</Badge>
+                                      ))}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </section>
                     ))}
                   </div>
@@ -579,7 +730,7 @@ export const AgentStudioPage = () => {
                           className="mt-4"
                           type="file"
                           multiple
-                          accept=".txt,.md,.csv,.json,.html,.xml,.xlsx,.xls,.pdf"
+                          accept=".txt,.md,.csv,.json,.html,.xml,.xlsx,.xls,.pdf,.jpg,.jpeg,.png,.webp,.gif,.heic,.mp3,.m4a,.ogg,.wav,.aac,.mp4,.mov,.webm,.mkv"
                           onChange={(event) => setUploadFiles(Array.from(event.target.files || []))}
                         />
                         {uploadFiles.length ? (
@@ -658,6 +809,13 @@ export const AgentStudioPage = () => {
                     <pre className="mt-3 overflow-auto rounded-md bg-background p-3 text-xs text-muted-foreground">
                       {JSON.stringify(selectedProfile?.hermes_sync || {}, null, 2)}
                     </pre>
+                  </div>
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                    <p className="text-sm font-medium text-amber-800">Aplicacion en Hermes</p>
+                    <p className="mt-1 text-sm text-amber-800/80">
+                      Sincronizar actualiza SOUL.md, profile.yaml y rovi_agent_studio_profile.json con las skills activas.
+                      Si el gateway ya tenia este perfil cargado, reinicia Hermes Agent para asegurar que lea la version nueva.
+                    </p>
                   </div>
                 </TabsContent>
               </Tabs>

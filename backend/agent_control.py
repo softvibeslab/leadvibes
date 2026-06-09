@@ -184,17 +184,17 @@ except Exception:
     AGENCY_AGENTS_CATALOG = []
 
 SPECIALIST_AGENT_CATALOG = [
-    {"id": "lead_triage", "label": "Especialista en calificacion", "user_prompt": "Evalua intencion, presupuesto, urgencia, friccion y siguiente accion del lead."},
-    {"id": "whatsapp_followup", "label": "Copywriter WhatsApp", "user_prompt": "Escribe mensajes cortos, humanos, con contexto local y CTA claro; evita spam y presion abusiva."},
-    {"id": "appointment_setter", "label": "Agendador", "user_prompt": "Convierte conversaciones en citas: propone horarios, confirma datos y prepara recordatorios."},
-    {"id": "property_matcher", "label": "Matcher inmobiliario", "user_prompt": "Cruza necesidades, zona, presupuesto y etapa del cliente con inventario u oportunidades."},
-    {"id": "offer_architect", "label": "Arquitecto de ofertas", "user_prompt": "Disena ofertas simples con promesa, entregable, precio, margen, insumos y flujo de cumplimiento."},
-    {"id": "audience_intel", "label": "Inteligencia de audiencia", "user_prompt": "Analiza segmentos, grupos, lenguaje, permiso comercial y sensibilidad cultural antes de comunicar."},
-    {"id": "fulfillment_operator", "label": "Operador fulfillment", "user_prompt": "Transforma datos del comprador en entregable final, mensaje de entrega y solicitud de testimonio."},
-    {"id": "ab_test_analyst", "label": "Analista A/B", "user_prompt": "Compara variantes por replies, clicks, pagos y revenue; recomienda ganador y siguiente experimento."},
-    {"id": "revenue_ops", "label": "Revenue Ops", "user_prompt": "Revisa pipeline, conversion, presupuestos, costos, calidad de datos y cuellos de botella."},
-    {"id": "copim_membership_ops", "label": "Operacion COPIM", "user_prompt": "Gestiona membresias, cobranza, eventos, cursos, comunidad, marketplace y KPIs institucionales."},
-    {"id": "risk_guardian", "label": "Guardian de riesgo", "user_prompt": "Detecta permisos faltantes, claims sensibles, riesgo reputacional, scraping y mensajes tipo spam."},
+    {"id": "lead_triage", "label": "Especialista en calificacion", "user_prompt": "Evalua intencion, presupuesto, urgencia, friccion y siguiente accion del lead.", "subcategory": "Calificacion y seguimiento", "recommended_roles": ["agency_admin", "broker"]},
+    {"id": "whatsapp_followup", "label": "Copywriter WhatsApp", "user_prompt": "Escribe mensajes cortos, humanos, con contexto local y CTA claro; evita spam y presion abusiva.", "subcategory": "Seguimiento comercial", "recommended_roles": ["broker", "agency_admin", "copim_council", "copim_association"]},
+    {"id": "appointment_setter", "label": "Agendador", "user_prompt": "Convierte conversaciones en citas: propone horarios, confirma datos y prepara recordatorios.", "subcategory": "Agenda y reuniones", "recommended_roles": ["agency_admin", "broker", "copim_council", "copim_association"]},
+    {"id": "property_matcher", "label": "Matcher inmobiliario", "user_prompt": "Cruza necesidades, zona, presupuesto y etapa del cliente con inventario u oportunidades.", "subcategory": "Inventario y propiedades", "recommended_roles": ["agency_admin", "broker"]},
+    {"id": "offer_architect", "label": "Arquitecto de ofertas", "user_prompt": "Disena ofertas simples con promesa, entregable, precio, margen, insumos y flujo de cumplimiento.", "subcategory": "Estrategia y ofertas", "recommended_roles": ["rovi_sales", "rovi_marketing", "copim_council", "copim_association"]},
+    {"id": "audience_intel", "label": "Inteligencia de audiencia", "user_prompt": "Analiza segmentos, grupos, lenguaje, permiso comercial y sensibilidad cultural antes de comunicar.", "subcategory": "ROVI interno", "recommended_roles": ["rovi_marketing", "rovi_sales"]},
+    {"id": "fulfillment_operator", "label": "Operador fulfillment", "user_prompt": "Transforma datos del comprador en entregable final, mensaje de entrega y solicitud de testimonio.", "subcategory": "ROVI interno", "recommended_roles": ["rovi_ops", "rovi_customer_success"]},
+    {"id": "ab_test_analyst", "label": "Analista A/B", "user_prompt": "Compara variantes por replies, clicks, pagos y revenue; recomienda ganador y siguiente experimento.", "subcategory": "ROVI interno", "recommended_roles": ["rovi_marketing", "rovi_sales"]},
+    {"id": "revenue_ops", "label": "Revenue Ops", "user_prompt": "Revisa pipeline, conversion, presupuestos, costos, calidad de datos y cuellos de botella.", "subcategory": "Direccion comercial", "recommended_roles": ["agency_admin", "rovi_ops", "rovi_admin"]},
+    {"id": "copim_membership_ops", "label": "Operacion COPIM", "user_prompt": "Gestiona membresias, cobranza, eventos, cursos, comunidad, marketplace y KPIs institucionales.", "subcategory": "COPIM", "recommended_roles": ["copim_council", "copim_association", "copim_member"]},
+    {"id": "risk_guardian", "label": "Guardian de riesgo", "user_prompt": "Detecta permisos faltantes, claims sensibles, riesgo reputacional, scraping y mensajes tipo spam.", "subcategory": "Gobernanza y riesgo", "recommended_roles": ["agency_admin", "rovi_admin", "rovi_ops"]},
     *AGENCY_AGENTS_CATALOG,
 ]
 
@@ -203,36 +203,46 @@ MULTIMODAL_SKILL_CATALOG = [
         "id": "file_reader",
         "label": "Lectura de archivos",
         "user_prompt": "Lee documentos cargados por el usuario, extrae hechos clave, detecta tipo de entidad CRM y propone mapping antes de importar.",
-        "category": "multimedia",
+        "category": "superpowers",
         "subcategory": "Archivos",
+        "recommended_roles": ["agency_admin", "broker", "property_manager", "manager"],
+        "input_types": ["pdf", "doc", "docx", "txt", "md", "csv", "xlsx", "json"],
     },
     {
         "id": "image_ocr",
         "label": "Imagenes y screenshots",
         "user_prompt": "Analiza imagenes, screenshots y fotos de documentos para extraer texto, contactos, datos de propiedad, tareas o eventos.",
-        "category": "multimedia",
+        "category": "superpowers",
         "subcategory": "Imagenes",
+        "recommended_roles": ["agency_admin", "broker", "property_manager", "manager"],
+        "input_types": ["jpg", "jpeg", "png", "webp", "screenshot"],
     },
     {
         "id": "audio_transcription",
         "label": "Audios y notas de voz",
         "user_prompt": "Transcribe audios o notas de voz, resume intencion y convierte pendientes en leads, tareas, eventos o propiedades con confirmacion.",
-        "category": "multimedia",
+        "category": "superpowers",
         "subcategory": "Audio",
+        "recommended_roles": ["agency_admin", "broker", "property_manager"],
+        "input_types": ["mp3", "m4a", "ogg", "wav", "voice_note"],
     },
     {
         "id": "video_understanding",
         "label": "Video",
         "user_prompt": "Procesa videos compartidos, identifica contexto comercial y extrae informacion util para propiedades, leads, reuniones o seguimiento.",
-        "category": "multimedia",
+        "category": "superpowers",
         "subcategory": "Video",
+        "recommended_roles": ["agency_admin", "broker", "property_manager"],
+        "input_types": ["mp4", "mov", "webm"],
     },
     {
         "id": "drive_folder_reader",
         "label": "Links y carpetas publicas",
         "user_prompt": "Interpreta links publicos, especialmente Google Drive, detecta estructura de carpetas y propone una ruta de extraccion para CRM.",
-        "category": "multimedia",
+        "category": "superpowers",
         "subcategory": "Links",
+        "recommended_roles": ["agency_admin", "broker", "property_manager", "manager"],
+        "input_types": ["url", "google_drive", "public_folder"],
     },
 ]
 
@@ -243,6 +253,9 @@ SKILL_CATALOG = [
         "description": item["user_prompt"],
         "category": item.get("category", "operacion"),
         "subcategory": item.get("subcategory", "Skills comerciales"),
+        "recommended_roles": item.get("recommended_roles", []),
+        "input_types": item.get("input_types", []),
+        "is_superpower": item.get("category") == "superpowers",
     }
     for item in [*SPECIALIST_AGENT_CATALOG, *MULTIMODAL_SKILL_CATALOG]
 ]
@@ -1606,6 +1619,15 @@ async def extract_text_from_upload(file: UploadFile) -> tuple[bytes, str]:
             return data, text
         except Exception:
             return data, "PDF cargado. Instala pypdf en el backend para extraer texto automaticamente."
+
+    if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic"}:
+        return data, f"Imagen cargada ({file.filename}). Pendiente de OCR/vision antes de mapear al CRM."
+
+    if suffix in {".mp3", ".m4a", ".ogg", ".wav", ".aac"}:
+        return data, f"Audio cargado ({file.filename}). Pendiente de transcripcion antes de mapear al CRM."
+
+    if suffix in {".mp4", ".mov", ".webm", ".mkv"}:
+        return data, f"Video cargado ({file.filename}). Pendiente de analisis/transcripcion antes de mapear al CRM."
 
     return data, data.decode("utf-8", errors="ignore")
 
