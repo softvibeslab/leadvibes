@@ -4685,7 +4685,8 @@ async def test_agent_studio_profile_chat(
         "api_key_env": os.environ.get("ROVI_AI_KEY_ENV", "ROVI_AI_API_KEY"),
         "temperature": profile.get("temperature", 0.25),
         "role_scope": profile.get("role_scope"),
-        "max_output_tokens": 1200,
+        "max_output_tokens": 700,
+        "timeout_seconds": 180,
     }
     result = await call_model(messages, config, f"agent-studio-{profile_id}-{current_user['user_id']}")
     now = datetime.now(timezone.utc).isoformat()

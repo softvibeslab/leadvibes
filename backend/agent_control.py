@@ -619,7 +619,8 @@ async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    async with httpx.AsyncClient(timeout=45.0) as client:
+    timeout_seconds = float(config.get("timeout_seconds") or (180 if provider in {"ollama", "ollama_local", "local_ollama"} else 45))
+    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
         response = await client.post(
             endpoint,
             headers=headers,
