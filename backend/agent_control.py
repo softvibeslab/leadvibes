@@ -638,7 +638,7 @@ async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
             "output_tokens": usage.get("completion_tokens"),
             "total_tokens": usage.get("total_tokens"),
         },
-        "raw_provider": "openai_compatible",
+        "raw_provider": provider or "openai_compatible",
     }
 
 
