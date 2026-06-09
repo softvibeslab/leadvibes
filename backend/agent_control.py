@@ -198,9 +198,53 @@ SPECIALIST_AGENT_CATALOG = [
     *AGENCY_AGENTS_CATALOG,
 ]
 
+MULTIMODAL_SKILL_CATALOG = [
+    {
+        "id": "file_reader",
+        "label": "Lectura de archivos",
+        "user_prompt": "Lee documentos cargados por el usuario, extrae hechos clave, detecta tipo de entidad CRM y propone mapping antes de importar.",
+        "category": "multimedia",
+        "subcategory": "Archivos",
+    },
+    {
+        "id": "image_ocr",
+        "label": "Imagenes y screenshots",
+        "user_prompt": "Analiza imagenes, screenshots y fotos de documentos para extraer texto, contactos, datos de propiedad, tareas o eventos.",
+        "category": "multimedia",
+        "subcategory": "Imagenes",
+    },
+    {
+        "id": "audio_transcription",
+        "label": "Audios y notas de voz",
+        "user_prompt": "Transcribe audios o notas de voz, resume intencion y convierte pendientes en leads, tareas, eventos o propiedades con confirmacion.",
+        "category": "multimedia",
+        "subcategory": "Audio",
+    },
+    {
+        "id": "video_understanding",
+        "label": "Video",
+        "user_prompt": "Procesa videos compartidos, identifica contexto comercial y extrae informacion util para propiedades, leads, reuniones o seguimiento.",
+        "category": "multimedia",
+        "subcategory": "Video",
+    },
+    {
+        "id": "drive_folder_reader",
+        "label": "Links y carpetas publicas",
+        "user_prompt": "Interpreta links publicos, especialmente Google Drive, detecta estructura de carpetas y propone una ruta de extraccion para CRM.",
+        "category": "multimedia",
+        "subcategory": "Links",
+    },
+]
+
 SKILL_CATALOG = [
-    {"id": item["id"], "label": item["label"], "description": item["user_prompt"]}
-    for item in SPECIALIST_AGENT_CATALOG
+    {
+        "id": item["id"],
+        "label": item["label"],
+        "description": item["user_prompt"],
+        "category": item.get("category", "operacion"),
+        "subcategory": item.get("subcategory", "Skills comerciales"),
+    }
+    for item in [*SPECIALIST_AGENT_CATALOG, *MULTIMODAL_SKILL_CATALOG]
 ]
 
 MEMBERSHIP_AGENT_RULES = {

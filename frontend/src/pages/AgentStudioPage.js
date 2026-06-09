@@ -77,6 +77,24 @@ export const AgentStudioPage = () => {
     [profiles, selectedId],
   );
 
+  const groupedSkills = useMemo(() => {
+    const groups = {};
+    skillCatalog.forEach((skill) => {
+      const groupName = skill.subcategory || (skill.category === 'multimedia' ? 'Multimedia' : 'Skills comerciales');
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(skill);
+    });
+    const priority = ['Skills comerciales', 'Archivos', 'Imagenes', 'Audio', 'Video', 'Links'];
+    return Object.entries(groups).sort(([a], [b]) => {
+      const ai = priority.indexOf(a);
+      const bi = priority.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [skillCatalog]);
+
   const loadStudio = useCallback(async () => {
     const [profilesResponse, auditResponse] = await Promise.all([
       api.get('/agent-studio/profiles'),
@@ -387,26 +405,47 @@ export const AgentStudioPage = () => {
                 </TabsContent>
 
                 <TabsContent value="skills" className="mt-6">
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {skillCatalog.map((skill) => {
-                      const checked = (form.enabled_skills || []).includes(skill.id);
-                      return (
-                        <button
-                          type="button"
-                          key={skill.id}
-                          onClick={() => toggleSkill(skill.id)}
-                          className={`rounded-lg border p-3 text-left transition-colors ${
-                            checked ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/30 hover:bg-primary/5'
-                          }`}
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium">{skill.label}</p>
-                            {checked ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <Sparkles className="h-4 w-4 text-muted-foreground" />}
+                  <div className="space-y-5">
+                    {groupedSkills.map(([groupName, skills]) => (
+                      <section key={groupName} className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-sm font-semibold text-foreground">{groupName}</h3>
+                            {['Archivos', 'Imagenes', 'Audio', 'Video', 'Links'].includes(groupName) && (
+                              <p className="text-xs text-muted-foreground">
+                                Habilita entrada multimodal para interpretar informacion antes de mapearla al CRM.
+                              </p>
+                            )}
                           </div>
-                          <p className="line-clamp-3 text-xs text-muted-foreground">{skill.description}</p>
-                        </button>
-                      );
-                    })}
+                          <Badge variant="secondary">{skills.length}</Badge>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          {skills.map((skill) => {
+                            const checked = (form.enabled_skills || []).includes(skill.id);
+                            const isMultimedia = skill.category === 'multimedia';
+                            return (
+                              <button
+                                type="button"
+                                key={skill.id}
+                                onClick={() => toggleSkill(skill.id)}
+                                className={`rounded-lg border p-3 text-left transition-colors ${
+                                  checked ? 'border-primary/40 bg-primary/10' : 'hover:border-primary/30 hover:bg-primary/5'
+                                }`}
+                              >
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    {isMultimedia ? <UploadCloud className="h-4 w-4 shrink-0 text-primary" /> : <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                                    <p className="truncate text-sm font-medium">{skill.label}</p>
+                                  </div>
+                                  {checked ? <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" /> : null}
+                                </div>
+                                <p className="line-clamp-3 text-xs text-muted-foreground">{skill.description}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ))}
                   </div>
                 </TabsContent>
 
