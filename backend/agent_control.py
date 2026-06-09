@@ -339,6 +339,21 @@ def public_config(config: dict) -> dict:
     return config
 
 
+def apply_runtime_ai_overrides(config: dict) -> dict:
+    """Let production env pick the live provider without rewriting stored profiles."""
+    resolved = dict(config or {})
+    overrides = {
+        "provider": os.environ.get("ROVI_AI_PROVIDER"),
+        "model": os.environ.get("ROVI_AI_DEFAULT_MODEL"),
+        "base_url": os.environ.get("ROVI_AI_BASE_URL"),
+        "api_key_env": os.environ.get("ROVI_AI_KEY_ENV"),
+    }
+    for key, value in overrides.items():
+        if value:
+            resolved[key] = value
+    return resolved
+
+
 def resolve_role_scope(current_user: dict) -> str:
     role = current_user.get("role") or "broker"
     account_type = current_user.get("account_type") or "individual"
@@ -819,7 +834,7 @@ async def run_agent_turn(
     if role_scope not in ROLE_SCOPES:
         raise HTTPException(status_code=422, detail="Rol de agente invalido.")
 
-    config = await resolve_agent_config(db, role_scope)
+    config = apply_runtime_ai_overrides(await resolve_agent_config(db, role_scope))
     tools = config.get("tools") or {}
     db_context = await build_database_context(db, current_user, role_scope, tools) if request.include_context else {}
     knowledge_chunks = (
