@@ -4374,7 +4374,7 @@ class AgentStudioUserSettingsUpdateRequest(BaseModel):
 
 class AgentStudioTelegramE2ETestRequest(BaseModel):
     user_id: Optional[str] = None
-    message: str = "Prueba E2E desde Agent Studio: confirma tu perfil, rol, tenant y tools activas."
+    message: str = "crea una tarea de prueba E2E desde Agent Studio para validar Telegram y auditoria"
 
 
 def require_agent_studio_admin(current_user: dict) -> dict:

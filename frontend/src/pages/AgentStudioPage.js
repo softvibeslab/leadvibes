@@ -393,7 +393,7 @@ export const AgentStudioPage = () => {
     try {
       const response = await api.post('/agent-studio/telegram-e2e-test', {
         user_id: selectedAgentUser.user.id,
-        message: 'Prueba E2E desde Agent Studio: confirma tu perfil, rol, tenant, tools activas y responde en una sola línea.',
+        message: 'crea una tarea de prueba E2E desde Agent Studio para validar Telegram y auditoria',
       });
       toast.success(`Prueba Telegram en cola: ${response.data?.update_id || 'queued'}`);
       await loadStudio();
