@@ -58,6 +58,8 @@ services:
       ROVI_HERMES_WEBHOOK_SECRET: ${ROVI_HERMES_WEBHOOK_SECRET:-}
       HERMES_WEBHOOK_SECRET: ${HERMES_WEBHOOK_SECRET:-}
       ROVI_HERMES_PROFILES_ROOT: ${ROVI_HERMES_PROFILES_ROOT:-/mnt/hermes-data/profiles}
+      ROVI_HERMES_AGENT_BASE_URL: ${ROVI_HERMES_AGENT_BASE_URL:-http://hermes-agent:8642}
+      ROVI_HERMES_WORKSPACE_BASE_URL: ${ROVI_HERMES_WORKSPACE_BASE_URL:-http://hermes-workspace:3000}
 
       # CORS - Production domain
       CORS_ORIGINS: ${CORS_ORIGINS:-http://srv1318804.hstgr.cloud,https://srv1318804.hstgr.cloud}
@@ -78,6 +80,7 @@ services:
     networks:
       - rovi-network
       - openwa-network
+      - hermes-workspace-network
 
   # Frontend (React + Nginx)
   frontend:
@@ -107,3 +110,6 @@ networks:
     driver: bridge
   openwa-network:
     external: true
+  hermes-workspace-network:
+    external: true
+    name: hermes-workspace_default

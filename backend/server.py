@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect, Form, BackgroundTasks
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -6695,7 +6695,7 @@ async def hermes_telegram_contact(payload: HermesTelegramContactRequest, request
 
 
 @api_router.post("/telegram/rovi-agent/webhook/{secret}", response_model=dict)
-async def rovi_telegram_agent_webhook(secret: str, request: Request):
+async def rovi_telegram_agent_webhook(secret: str, request: Request, background_tasks: BackgroundTasks):
     expected_secret = get_rovi_telegram_webhook_secret()
     if not expected_secret:
         raise HTTPException(status_code=503, detail="Falta configurar el secreto del webhook Telegram")
@@ -6733,7 +6733,76 @@ async def rovi_telegram_agent_webhook(secret: str, request: Request):
         )
         return {"ok": True, "status": "command_ignored", "delivery": delivery}
 
-    return await handle_rovi_telegram_agent_message(text=text, chat_id=chat_id, telegram_user=telegram_user)
+    update_id = str(update.get("update_id") or uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    existing_update = await db.telegram_webhook_updates.find_one(
+        {"id": update_id, "channel": "rovi-agent"},
+        {"_id": 0, "status": 1},
+    )
+    if existing_update:
+        return {"ok": True, "status": "duplicate_accepted", "update_id": update_id}
+
+    await db.telegram_webhook_updates.insert_one({
+        "id": update_id,
+        "channel": "rovi-agent",
+        "status": "queued",
+        "chat_id": chat_id,
+        "telegram_user_id": str(telegram_user.get("id") or ""),
+        "message_preview": text[:280],
+        "created_at": now,
+        "updated_at": now,
+    })
+    background_tasks.add_task(
+        process_rovi_telegram_agent_message_background,
+        update_id=update_id,
+        text=text,
+        chat_id=chat_id,
+        telegram_user=telegram_user,
+    )
+    return {"ok": True, "status": "queued", "update_id": update_id}
+
+
+async def process_rovi_telegram_agent_message_background(
+    *,
+    update_id: str,
+    text: str,
+    chat_id: str,
+    telegram_user: dict,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    await db.telegram_webhook_updates.update_one(
+        {"id": update_id, "channel": "rovi-agent"},
+        {"$set": {"status": "processing", "started_at": now, "updated_at": now}},
+    )
+    try:
+        result = await handle_rovi_telegram_agent_message(text=text, chat_id=chat_id, telegram_user=telegram_user)
+        finished_at = datetime.now(timezone.utc).isoformat()
+        await db.telegram_webhook_updates.update_one(
+            {"id": update_id, "channel": "rovi-agent"},
+            {"$set": {
+                "status": "processed",
+                "result_status": result.get("status"),
+                "finished_at": finished_at,
+                "updated_at": finished_at,
+            }},
+        )
+    except Exception as exc:
+        logger.exception("Error processing ROVI Telegram agent update %s", update_id)
+        failed_at = datetime.now(timezone.utc).isoformat()
+        await db.telegram_webhook_updates.update_one(
+            {"id": update_id, "channel": "rovi-agent"},
+            {"$set": {
+                "status": "failed",
+                "error": str(exc)[:600],
+                "failed_at": failed_at,
+                "updated_at": failed_at,
+            }},
+        )
+        await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Tu mensaje llegó a ROVI, pero tuve un problema procesándolo. Intenta de nuevo en un momento.",
+        )
 
 
 @api_router.post("/telegram-miniapp/session", response_model=dict)
@@ -12687,6 +12756,52 @@ async def root():
 @api_router.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+@api_router.get("/hermes/health", response_model=dict)
+async def hermes_health_check(current_user: dict = Depends(get_current_user)):
+    require_agent_studio_admin(current_user)
+    agent_base_url = (os.environ.get("ROVI_HERMES_AGENT_BASE_URL") or "http://hermes-agent:8642").rstrip("/")
+    workspace_base_url = (os.environ.get("ROVI_HERMES_WORKSPACE_BASE_URL") or "http://hermes-workspace:3000").rstrip("/")
+    profiles_root = Path(
+        os.environ.get("ROVI_HERMES_PROFILES_ROOT")
+        or os.environ.get("HERMES_PROFILES_ROOT")
+        or "/tmp/rovi-hermes-profiles"
+    )
+
+    async def probe(url: str) -> dict:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5) as client:
+                response = await client.get(url)
+            return {
+                "ok": response.status_code < 500,
+                "status_code": response.status_code,
+                "content_type": response.headers.get("content-type"),
+                "body_preview": response.text[:180],
+            }
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:240]}
+
+    profile_files = []
+    if profiles_root.exists():
+        profile_files = [
+            str(path.relative_to(profiles_root))
+            for path in sorted(profiles_root.glob("*/rovi_agent_studio_profile.json"))
+        ][:50]
+
+    agent_probe, workspace_probe = await asyncio.gather(
+        probe(f"{agent_base_url}/health"),
+        probe(workspace_base_url),
+    )
+    return {
+        "status": "ok" if agent_probe.get("ok") and workspace_probe.get("ok") and profile_files else "degraded",
+        "agent": {"base_url": agent_base_url, **agent_probe},
+        "workspace": {"base_url": workspace_base_url, **workspace_probe},
+        "profiles_root": str(profiles_root),
+        "profiles_found": profile_files,
+        "profiles_count": len(profile_files),
+    }
 
 # ==================== LANDING PAGE LEADS ====================
 
