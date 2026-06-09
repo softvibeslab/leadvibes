@@ -57,6 +57,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       ROVI_HERMES_WEBHOOK_SECRET: ${ROVI_HERMES_WEBHOOK_SECRET:-}
       HERMES_WEBHOOK_SECRET: ${HERMES_WEBHOOK_SECRET:-}
+      ROVI_HERMES_PROFILES_ROOT: ${ROVI_HERMES_PROFILES_ROOT:-/mnt/hermes-data/profiles}
 
       # CORS - Production domain
       CORS_ORIGINS: ${CORS_ORIGINS:-http://srv1318804.hstgr.cloud,https://srv1318804.hstgr.cloud}
@@ -68,6 +69,8 @@ services:
       - "8000:8000"
     expose:
       - "8000"
+    volumes:
+      - hermes_agent_data:/mnt/hermes-data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -95,6 +98,9 @@ services:
 volumes:
   mongodb_data:
     driver: local
+  hermes_agent_data:
+    external: true
+    name: hermes-workspace_hermes-agent-data
 
 networks:
   rovi-network:
