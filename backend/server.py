@@ -4500,15 +4500,8 @@ def build_agent_studio_runtime_knowledge(role_scope: str | None) -> dict:
             "priority_skills": (full.get("role_profile") or {}).get("priority_skills"),
             "meeting_prep_workflow": (full.get("role_profile") or {}).get("meeting_prep_workflow"),
         },
-        "role_policy_catalog": {
-            scope: {
-                "label": policy.get("label"),
-                "tenant_scope": (policy.get("access_policy") or {}).get("tenant_scope"),
-                "record_scope": (policy.get("access_policy") or {}).get("record_scope"),
-                "allowed_crud": policy.get("allowed_crud"),
-            }
-            for scope, policy in role_catalog.items()
-        },
+        "available_role_scopes": list(role_catalog.keys()),
+        "role_policy_note": "para ejecutar acciones reales, el backend debe resolver el rol autenticado y cargar su JSON especifico antes de aplicar permisos",
         "crud_entities": {
             entity_id: {
                 "collection": entity.get("collection"),
