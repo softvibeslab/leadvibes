@@ -85,7 +85,7 @@ def build_telegram_deep_link(code: str) -> str:
         os.environ.get("ROVI_TELEGRAM_BOT_USERNAME")
         or os.environ.get("HERMES_TELEGRAM_BOT_USERNAME")
         or os.environ.get("TELEGRAM_BOT_USERNAME")
-        or "RoviHermesBot"
+        or "rovigodmode_bot"
     ).strip().lstrip("@")
     start_payload = f"rovi_{code}"
     return f"https://t.me/{bot_username}?start={start_payload}"

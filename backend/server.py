@@ -5219,7 +5219,7 @@ def build_agent_telegram_link(profile: dict, code: str) -> str:
             os.environ.get("ROVI_TELEGRAM_BOT_USERNAME")
             or os.environ.get("HERMES_TELEGRAM_BOT_USERNAME")
             or os.environ.get("TELEGRAM_BOT_USERNAME")
-            or "RoviHermesBot"
+            or "rovigodmode_bot"
         )
     return f"https://t.me/{username}?start=rovi_{code}"
 
