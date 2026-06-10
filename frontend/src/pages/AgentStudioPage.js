@@ -75,6 +75,7 @@ export const AgentStudioPage = () => {
     webhook_updates: [],
     interpretation_jobs: [],
     skill_drafts: [],
+    campaign_drafts: [],
   });
   const [selectedId, setSelectedId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -180,7 +181,7 @@ export const AgentStudioPage = () => {
       api.get('/agent-studio/profiles'),
       api.get('/agent-studio/users').catch(() => ({ data: { users: [] } })),
       api.get('/agent-studio/action-audit').catch(() => ({
-        data: { logs: [], pending_actions: [], webhook_updates: [], interpretation_jobs: [], skill_drafts: [] },
+        data: { logs: [], pending_actions: [], webhook_updates: [], interpretation_jobs: [], skill_drafts: [], campaign_drafts: [] },
       })),
       api.get('/agent-studio/audit').catch(() => ({ data: { logs: [] } })),
     ]);
@@ -196,6 +197,7 @@ export const AgentStudioPage = () => {
       webhook_updates: [],
       interpretation_jobs: [],
       skill_drafts: [],
+      campaign_drafts: [],
     });
     setAuditLogs(auditResponse.data?.logs || []);
     setSelectedId((current) => current || nextProfiles[0]?.id || '');
@@ -866,7 +868,7 @@ export const AgentStudioPage = () => {
                 </TabsContent>
 
                 <TabsContent value="audit" className="mt-6 space-y-4">
-                  <div className="grid gap-4 md:grid-cols-5">
+                  <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                     <div className="rounded-lg border p-4">
                       <History className="mb-3 h-5 w-5 text-primary" />
                       <p className="text-sm font-medium">Acciones ejecutadas</p>
@@ -891,6 +893,11 @@ export const AgentStudioPage = () => {
                       <FileCode2 className="mb-3 h-5 w-5 text-primary" />
                       <p className="text-sm font-medium">Skills draft</p>
                       <p className="mt-1 text-2xl font-semibold">{actionAudit.skill_drafts?.length || 0}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <FileText className="mb-3 h-5 w-5 text-primary" />
+                      <p className="text-sm font-medium">Campañas draft</p>
+                      <p className="mt-1 text-2xl font-semibold">{actionAudit.campaign_drafts?.length || 0}</p>
                     </div>
                   </div>
 
@@ -988,6 +995,20 @@ export const AgentStudioPage = () => {
                               <Badge variant="outline">{item.status}</Badge>
                             </div>
                             <p className="mt-1 text-xs text-muted-foreground">{item.scope} · {item.role_scope || 'todos los perfiles'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm font-medium">Campañas y conocimiento</p>
+                      <div className="mt-3 space-y-2">
+                        {(actionAudit.campaign_drafts || []).slice(0, 8).map((item) => (
+                          <div key={item.id} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-medium">{item.title}</p>
+                              <Badge variant="outline">{item.status}</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.source_type || 'material'} · {item.role_scope || 'workspace'}</p>
                           </div>
                         ))}
                       </div>

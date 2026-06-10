@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 
 
 URL_PATTERN = re.compile(r"https?://[^\s<>\]\)\"']+", re.IGNORECASE)
+PHONE_PATTERN = re.compile(r"(?:\+?\d[\d\s().-]{7,}\d)")
 
 SOURCE_TYPE_BY_FILE_TYPE = {
     "image": "image",
@@ -34,6 +35,15 @@ def extract_public_urls(text: str | None) -> list[str]:
 
 def normalize_text(value: str | None) -> str:
     return " ".join(str(value or "").strip().lower().split())
+
+
+def contains_phone_like_value(value: str | None) -> bool:
+    text = value or ""
+    for match in PHONE_PATTERN.finditer(text):
+        digits = "".join(ch for ch in match.group(0) if ch.isdigit())
+        if len(digits) >= 8:
+            return True
+    return False
 
 
 def classify_url_source(url: str) -> dict[str, Any]:
@@ -175,6 +185,14 @@ def classify_agent_input_intent(
             "confidence": 0.82,
             "proposed_next_action": "parse_contact_and_upsert_lead",
         }
+    if contains_phone_like_value(text):
+        return {
+            "intent": "create_or_update_lead",
+            "entity_type": "lead",
+            "crm_target": "leads",
+            "confidence": 0.76,
+            "proposed_next_action": "extract_contact_fields_and_upsert_lead",
+        }
     if source_type in {"youtube", "social_link"}:
         return {
             "intent": "create_campaign_or_knowledge",
@@ -292,4 +310,3 @@ def build_agent_interpretation_job_doc(
         "created_at": now,
         "updated_at": now,
     }
-

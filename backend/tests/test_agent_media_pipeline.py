@@ -58,3 +58,34 @@ def test_audio_maps_to_pending_interpretation_job():
     assert job["source_type"] == "audio"
     assert job["entity_type"] == "task"
     assert job["extraction_status"] == "queued"
+
+
+def test_image_caption_with_phone_maps_to_lead():
+    job = build_agent_interpretation_job_doc(
+        tenant_id="tenant-1",
+        user_id="user-1",
+        role_scope="broker",
+        source_channel="telegram",
+        text="Juan Perez busca lote en Tulum, WhatsApp +52 984 123 4567",
+        attachment={
+            "filename": "screenshot.png",
+            "mime_type": "image/png",
+            "kind": "photo",
+        },
+    )
+    assert job["source_type"] == "image"
+    assert job["entity_type"] == "lead"
+    assert job["crm_target"] == "leads"
+
+
+def test_youtube_link_maps_to_campaign_draft():
+    job = build_agent_interpretation_job_doc(
+        tenant_id="tenant-1",
+        user_id="user-1",
+        role_scope="growth_partner",
+        source_channel="telegram",
+        text="Analiza este video https://youtu.be/demo123 para sacar ideas de campaña",
+    )
+    assert job["source_type"] == "youtube"
+    assert job["entity_type"] == "campaign"
+    assert job["crm_target"] == "campaigns"

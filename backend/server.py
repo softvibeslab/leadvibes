@@ -5500,12 +5500,17 @@ async def list_agent_studio_action_audit(current_user: dict = Depends(get_curren
         {"tenant_id": tenant_id},
         {"_id": 0, "skill_spec": 0},
     ).sort("created_at", -1).limit(50).to_list(50)
+    campaign_drafts = await db.agent_campaign_drafts.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
     return {
         "logs": [serialize_doc(item) for item in logs],
         "pending_actions": [serialize_doc(item) for item in pending],
         "webhook_updates": [serialize_doc(item) for item in webhook_updates],
         "interpretation_jobs": [serialize_doc(item) for item in interpretation_jobs],
         "skill_drafts": [serialize_doc(item) for item in skill_drafts],
+        "campaign_drafts": [serialize_doc(item) for item in campaign_drafts],
     }
 
 
@@ -7133,6 +7138,249 @@ async def execute_pending_telegram_action(action: dict) -> dict:
     return result
 
 
+def build_interpretation_autopilot_text(job: dict) -> str:
+    raw_text = (job.get("raw_text_preview") or "").strip()
+    urls = " ".join(job.get("urls") or [])
+    filename = job.get("original_filename") or job.get("source_label") or "entrada multimodal"
+    context = " ".join(part for part in [raw_text, urls] if part).strip()
+    if not context:
+        context = filename
+    entity_type = job.get("entity_type")
+    if entity_type == "task":
+        return f"crea tarea {context}"
+    if entity_type == "lead":
+        return f"crea lead {context}"
+    if entity_type == "event":
+        return f"crea evento {context}"
+    if entity_type == "property":
+        title = "Propiedad desde Google Drive" if job.get("source_type") == "google_drive" else "Propiedad desde material compartido"
+        return f"crea propiedad {title}: {context}"
+    return context
+
+
+async def link_interpretation_media_to_records(job: dict, execution: dict) -> None:
+    media_asset_id = job.get("media_asset_id")
+    if not media_asset_id or not execution.get("executed"):
+        return
+    links = []
+    for key, entity_type in (
+        ("lead_ids", "lead"),
+        ("property_ids", "property"),
+        ("task_ids", "task"),
+        ("event_ids", "event"),
+    ):
+        for entity_id in execution.get(key) or []:
+            links.append({
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "confidence": job.get("confidence", 0.7),
+                "reason": f"Vinculado por interpretation job {job.get('id')}",
+                "linked_at": datetime.now(timezone.utc).isoformat(),
+            })
+    if not links:
+        return
+    await db.media_assets.update_one(
+        {"id": media_asset_id, "tenant_id": job.get("tenant_id")},
+        {
+            "$addToSet": {"linked_entities": {"$each": links}},
+            "$set": {"status": "mapped", "updated_at": datetime.now(timezone.utc).isoformat()},
+        },
+    )
+    asset = await db.media_assets.find_one({"id": media_asset_id, "tenant_id": job.get("tenant_id")}, {"_id": 0})
+    if not asset:
+        return
+    if asset.get("file_type") == "image" and execution.get("property_ids"):
+        image_doc = {
+            "id": media_asset_id,
+            "url": asset.get("url") or asset.get("preview_url"),
+            "alt": asset.get("original_filename") or asset.get("filename") or "Imagen de propiedad",
+            "source": "media_hub",
+            "media_asset_id": media_asset_id,
+            "is_cover": False,
+        }
+        for property_id in execution.get("property_ids") or []:
+            await db.products.update_one(
+                {"id": property_id, "tenant_id": job.get("tenant_id")},
+                {
+                    "$addToSet": {"images": image_doc},
+                    "$set": {"updated_at": datetime.now(timezone.utc).isoformat()},
+                },
+            )
+
+
+async def create_campaign_draft_from_interpretation(job: dict, user: dict, link: dict | None = None) -> dict:
+    now = datetime.now(timezone.utc).isoformat()
+    title_source = (job.get("raw_text_preview") or "Campaña desde material compartido").strip()
+    draft = {
+        "id": f"agent-campaign-draft-{uuid.uuid4()}",
+        "tenant_id": job["tenant_id"],
+        "user_id": user["id"],
+        "link_id": (link or {}).get("id"),
+        "role_scope": job.get("role_scope"),
+        "source_type": job.get("source_type"),
+        "source_urls": job.get("urls") or [],
+        "interpretation_job_id": job["id"],
+        "title": title_source[:120],
+        "status": "draft",
+        "channel": "telegram",
+        "proposal": {
+            "objective": "Convertir material compartido en campaña, script o conocimiento reutilizable.",
+            "next_step": job.get("proposed_next_action"),
+            "raw_context": job.get("raw_text_preview"),
+        },
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.agent_campaign_drafts.insert_one(draft)
+    return {"executed": True, "message": "Listo. Guardé 1 draft de campaña/conocimiento.", "record_ids": [draft["id"]], "records": [draft], "campaign_draft_ids": [draft["id"]]}
+
+
+async def create_skill_draft_from_interpretation(job: dict, user: dict, link: dict | None = None) -> dict:
+    now = datetime.now(timezone.utc).isoformat()
+    title = (job.get("raw_text_preview") or "Skill propuesta por agente").strip()[:120]
+    draft = {
+        "id": f"agent-skill-draft-{uuid.uuid4()}",
+        "tenant_id": job["tenant_id"],
+        "created_by": user["id"],
+        "created_by_email": user.get("email"),
+        "title": title,
+        "description": "Draft generado desde una interpretación multimodal o conversación repetitiva.",
+        "trigger": job.get("raw_text_preview") or "",
+        "scope": "tenant",
+        "role_scope": job.get("role_scope"),
+        "source": "agent_interpretation",
+        "status": "draft",
+        "interpretation_job_id": job["id"],
+        "skill_spec": {
+            "input_types": job.get("input_types") or [],
+            "source_type": job.get("source_type"),
+            "proposed_next_action": job.get("proposed_next_action"),
+            "guardrails": ["tenant_isolation_required", "delete_requires_confirmation"],
+        },
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.agent_skill_drafts.insert_one(draft)
+    return {"executed": True, "message": "Listo. Guardé 1 skill draft para revisión del orquestador.", "record_ids": [draft["id"]], "records": [draft], "skill_draft_ids": [draft["id"]]}
+
+
+async def execute_interpretation_job_autopilot(
+    *,
+    job: dict,
+    link: dict,
+    user: dict,
+    role_scope: str,
+    agent_name: str,
+) -> dict:
+    if not job.get("autopilot_allowed") or job.get("confidence", 0) < 0.6:
+        return {"executed": False, "message": "Interpretación guardada para revisión; confianza insuficiente para Autopilot."}
+
+    raw_text = (job.get("raw_text_preview") or "").strip()
+    has_urls = bool(job.get("urls"))
+    source_type = job.get("source_type")
+    entity_type = job.get("entity_type")
+    if source_type in {"audio", "image", "video", "document", "spreadsheet"} and not raw_text:
+        return {"executed": False, "message": "Interpretación guardada. Falta OCR/transcripción/extracción antes de ejecutar cambios CRM."}
+
+    if entity_type == "campaign":
+        execution = await create_campaign_draft_from_interpretation(job, user, link)
+    elif entity_type == "skill":
+        execution = await create_skill_draft_from_interpretation(job, user, link)
+    elif entity_type in {"task", "lead", "event", "property"}:
+        autopilot_text = build_interpretation_autopilot_text(job)
+        if entity_type == "task":
+            action = await build_pending_task_action(text=autopilot_text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+        elif entity_type == "lead":
+            action = await build_pending_lead_action(text=autopilot_text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+        elif entity_type == "event":
+            action = await build_pending_event_action(text=autopilot_text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+        else:
+            action = await build_pending_property_action(text=autopilot_text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+            if action and has_urls:
+                property_payload = ((action.get("payload") or {}).get("property") or {})
+                property_payload["custom_fields_data"] = {
+                    **(property_payload.get("custom_fields_data") or {}),
+                    "source_urls": job.get("urls") or [],
+                    "interpretation_job_id": job.get("id"),
+                }
+        if not action:
+            execution = {"executed": False, "message": "No pude construir una acción CRM segura desde la interpretación."}
+        else:
+            action["interpretation_job_id"] = job["id"]
+            execution = await execute_pending_telegram_action(action)
+    else:
+        execution = {"executed": False, "message": "Interpretación guardada como conocimiento para revisión."}
+
+    now = datetime.now(timezone.utc).isoformat()
+    await link_interpretation_media_to_records(job, execution)
+    await db.agent_interpretation_jobs.update_one(
+        {"id": job["id"]},
+        {"$set": {
+            "mapping_status": "executed" if execution.get("executed") else "needs_review",
+            "autopilot_execution": serialize_doc(execution),
+            "updated_at": now,
+        }},
+    )
+    await db.agent_action_audit.insert_one({
+        "id": f"agent-action-audit-{uuid.uuid4()}",
+        "tenant_id": job.get("tenant_id"),
+        "user_id": job.get("user_id"),
+        "link_id": job.get("link_id"),
+        "role_scope": job.get("role_scope"),
+        "action_type": "interpretation_autopilot",
+        "status": "executed" if execution.get("executed") else "needs_review",
+        "requested_text": job.get("raw_text_preview") or "interpretacion multimodal",
+        "payload": {
+            "interpretation_job_id": job.get("id"),
+            "entity_type": job.get("entity_type"),
+            "source_type": job.get("source_type"),
+            "crm_target": job.get("crm_target"),
+        },
+        "result": serialize_doc(execution),
+        "created_at": now,
+    })
+    return execution
+
+
+async def mark_interpretation_job_resolved(job: dict | None, execution: dict, action: dict | None = None) -> None:
+    if not job:
+        return
+    await db.agent_interpretation_jobs.update_one(
+        {"id": job["id"]},
+        {"$set": {
+            "mapping_status": "executed" if execution.get("executed") else "needs_review",
+            "direct_action_id": (action or {}).get("id"),
+            "autopilot_execution": serialize_doc(execution),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+
+
+def format_interpretation_autopilot_response(job: dict, execution: dict) -> str:
+    base_lines = [
+        f"Intención detectada: {job.get('intent')} → {job.get('entity_type')}",
+        f"Estado: {'ejecutado' if execution.get('executed') else 'por revisar'}",
+    ]
+    if execution.get("executed"):
+        records = execution.get("records") or []
+        touched = [
+            f"- {record.get('title') or record.get('name') or record.get('id')}"
+            for record in records[:5]
+        ]
+        return "\n".join([
+            execution.get("message") or "Listo. Ejecuté la acción en ROVI.",
+            "",
+            *base_lines,
+            *(["", "Registros:"] + touched if touched else []),
+        ]).strip()
+    return "\n".join([
+        "Guardé la interpretación para revisión del agente.",
+        "",
+        *base_lines,
+        execution.get("message") or "",
+    ]).strip()
+
+
 def build_telegram_onboarding_message(link: dict, user: dict, active_workspace: dict | None) -> str:
     role_scope = link.get("role_scope") or default_device_link_role_scope(user, active_workspace)
     agent_name = link.get("agent_studio_profile_name") or ("Agente Inmobiliaria" if role_scope == "agency_admin" else "Agente Broker")
@@ -7894,15 +8142,20 @@ async def handle_rovi_telegram_agent_media(*, message: dict, chat_id: str, teleg
             "telegram_username": telegram_user.get("username"),
         },
     )
+    execution = await execute_interpretation_job_autopilot(
+        job=interpretation_job,
+        link=link,
+        user=user,
+        role_scope=link.get("role_scope") or "broker",
+        agent_name=link.get("agent_studio_profile_name") or link.get("hermes_profile_name") or "Agente ROVI",
+    )
+    execution_summary = format_interpretation_autopilot_response(interpretation_job, execution)
     response_text = (
         "Listo. Guardé el archivo en Media Hub.\n\n"
         f"Archivo: {asset.get('original_filename') or asset.get('filename')}\n"
         f"Tipo: {asset.get('file_type')}\n"
-        f"Intención detectada: {interpretation_job.get('intent')} → {interpretation_job.get('entity_type')}\n"
-        f"Estado: {interpretation_job.get('mapping_status')}\n"
         f"ID: {asset.get('id')}\n\n"
-        "Ya aparece en ROVI > Media Hub y quedó en la cola de interpretación del agente. "
-        "Altas/actualizaciones seguras pueden correr en Autopilot; eliminar siempre pedirá confirmación."
+        f"{execution_summary}"
     )
     delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
     await db.telegram_agent_messages.insert_one({
@@ -7919,9 +8172,17 @@ async def handle_rovi_telegram_agent_media(*, message: dict, chat_id: str, teleg
         "delivery": delivery,
         "media_asset_id": asset.get("id"),
         "interpretation_job_id": interpretation_job.get("id"),
+        "interpretation_execution": serialize_doc(execution),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
-    return {"ok": True, "status": "media_ingested", "delivery": delivery, "asset": asset, "interpretation_job": interpretation_job}
+    return {
+        "ok": True,
+        "status": "media_ingested",
+        "delivery": delivery,
+        "asset": asset,
+        "interpretation_job": interpretation_job,
+        "execution": execution,
+    }
 
 
 async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegram_user: dict) -> dict:
@@ -8155,6 +8416,8 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
                     ]).strip()
                 else:
                     response_text = execution.get("message") or "No pude ejecutar la acción."
+                if interpretation_job:
+                    await mark_interpretation_job_resolved(interpretation_job, execution, action)
                 delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
                 await db.telegram_agent_messages.insert_one({
                     "id": f"telegram-agent-message-{uuid.uuid4()}",
@@ -8193,6 +8456,34 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
             return {"ok": True, "status": "action_preview", "delivery": delivery}
+    if interpretation_job and tools_enabled.get("write_actions"):
+        execution = await execute_interpretation_job_autopilot(
+            job=interpretation_job,
+            link=link,
+            user=user,
+            role_scope=role_scope,
+            agent_name=agent_name,
+        )
+        if execution.get("executed"):
+            response_text = format_interpretation_autopilot_response(interpretation_job, execution)
+            delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
+            await db.telegram_agent_messages.insert_one({
+                "id": f"telegram-agent-message-{uuid.uuid4()}",
+                "profile_id": link.get("hermes_profile_name") or "rovi-device-link",
+                "link_id": link["id"],
+                "tenant_id": link.get("tenant_id"),
+                "user_id": link["user_id"],
+                "role_scope": role_scope,
+                "chat_id": chat_id,
+                "telegram_user_id": str(telegram_user.get("id") or ""),
+                "message": text,
+                "response": response_text,
+                "delivery": delivery,
+                "interpretation_job_id": interpretation_job.get("id"),
+                "interpretation_execution": serialize_doc(execution),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            return {"ok": True, "status": "interpretation_executed", "delivery": delivery}
     agent_message = (
         f"Canal: Telegram vinculado por QR en ROVI CRM\n"
         f"Agente seleccionado: {agent_name}\n"
