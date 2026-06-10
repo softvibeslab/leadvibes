@@ -7033,6 +7033,28 @@ async def activate_hermes_device_link(link: dict, user: dict, active_workspace: 
     profile_spec = build_hermes_profile_spec(user=user, link=link, active_workspace=active_workspace)
     profile_files = write_hermes_profile_files(profile_spec)
     telegram = link.get("telegram") or {}
+    telegram_identity_filters = []
+    if telegram.get("chat_id"):
+        telegram_identity_filters.append({"telegram.chat_id": str(telegram.get("chat_id"))})
+    if telegram.get("user_id"):
+        telegram_identity_filters.append({"telegram.user_id": str(telegram.get("user_id"))})
+    if telegram_identity_filters:
+        await db.user_device_links.update_many(
+            {
+                "id": {"$ne": link["id"]},
+                "channel": "telegram",
+                "status": "active",
+                "$or": telegram_identity_filters,
+            },
+            {
+                "$set": {
+                    "status": "revoked",
+                    "revoked_reason": "superseded_by_new_telegram_link",
+                    "revoked_at": now,
+                    "updated_at": now,
+                }
+            },
+        )
     confirmation = await send_telegram_confirmation(
         telegram.get("chat_id"),
         build_telegram_onboarding_message(link, user, active_workspace),
@@ -7436,6 +7458,38 @@ async def handle_rovi_telegram_agent_media(*, message: dict, chat_id: str, teleg
 
 
 async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegram_user: dict) -> dict:
+    pending_link = await db.user_device_links.find_one(
+        {
+            "channel": "telegram",
+            "telegram.chat_id": chat_id,
+            "status": {"$in": ["awaiting_contact", "scanned"]},
+        },
+        {"_id": 0, "hermes_profile_spec": 0},
+        sort=[("updated_at", -1)],
+    )
+    if pending_link:
+        user = await db.users.find_one({"id": pending_link["user_id"]}, {"_id": 0, "password_hash": 0})
+        if not user or not user.get("is_active", True):
+            delivery = await send_telegram_message_with_token(
+                get_rovi_telegram_bot_token(),
+                chat_id,
+                "La cuenta ROVI vinculada no está activa.",
+            )
+            return {"ok": True, "status": "inactive_user", "delivery": delivery}
+        if device_link_is_expired(pending_link):
+            now = datetime.now(timezone.utc).isoformat()
+            await db.user_device_links.update_one({"id": pending_link["id"]}, {"$set": {"status": "expired", "updated_at": now}})
+            delivery = await send_telegram_message_with_token(
+                get_rovi_telegram_bot_token(),
+                chat_id,
+                "Este QR expiró. Genera uno nuevo desde Agentes IA en ROVI.",
+                reply_markup={"remove_keyboard": True},
+            )
+            return {"ok": True, "status": "expired", "delivery": delivery}
+        if pending_link.get("phone_match_required") or user.get("phone"):
+            delivery = await send_rovi_telegram_contact_request(chat_id, user, pending_link.get("user_phone"))
+            return {"ok": True, "status": "awaiting_contact", "delivery": delivery}
+
     link = await db.user_device_links.find_one(
         {"channel": "telegram", "telegram.chat_id": chat_id, "status": "active"},
         {"_id": 0, "hermes_profile_spec": 0},
