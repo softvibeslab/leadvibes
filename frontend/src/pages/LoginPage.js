@@ -299,7 +299,7 @@ export const LoginPage = () => {
                             data-testid="account-type-copim"
                           >
                             <Globe2 className={`mb-2 h-5 w-5 ${registerForm.account_type === 'copim' ? 'text-primary' : 'text-muted-foreground'}`} />
-                            <p className="text-sm font-semibold">COPIM institucional</p>
+                            <p className="text-sm font-semibold">Institucional</p>
                             <p className="mt-1 text-xs leading-snug text-muted-foreground">Administra asociaciones, socios, eventos y membresias</p>
                           </button>
                           <button
