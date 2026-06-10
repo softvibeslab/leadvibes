@@ -52,7 +52,8 @@ class TestAuth:
             "name": "Test Agency Admin",
             "password": "test123",
             "role": "manager",
-            "account_type": "agency"
+            "account_type": "agency",
+            "invitation_code": "VIBES"
         })
         assert response.status_code == 200
         data = response.json()
@@ -99,7 +100,8 @@ class TestDashboard:
             "name": "Test Agency",
             "password": "test123",
             "role": "manager",
-            "account_type": "agency"
+            "account_type": "agency",
+            "invitation_code": "VIBES"
         })
         token = response.json()["access_token"]
         return {"Authorization": f"Bearer {token}"}

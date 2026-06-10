@@ -224,8 +224,8 @@ export const AuthProvider = ({ children }) => {
     return completeSessionUpdate(response.data);
   };
 
-  const register = async (name, email, password, role = 'broker', account_type = 'individual') => {
-    const response = await api.post('/auth/register', { name, email, password, role, account_type });
+  const register = async (name, email, password, role = 'broker', account_type = 'individual', invitation_code = '') => {
+    const response = await api.post('/auth/register', { name, email, password, role, account_type, invitation_code });
     return completeSessionUpdate(response.data);
   };
 

@@ -58,6 +58,7 @@ class UserCreate(BaseModel):
     role: str = "broker"
     phone: Optional[str] = None
     account_type: str = "individual"  # individual, agency, copim, copim_member, rovi_internal
+    invitation_code: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr

@@ -23,6 +23,7 @@ export const LoginPage = () => {
     name: '', 
     email: '', 
     password: '',
+    invitation_code: '',
     account_type: 'individual' 
   });
   const nextPath = new URLSearchParams(window.location.search).get('next');
@@ -84,7 +85,8 @@ export const LoginPage = () => {
         registerForm.email, 
         registerForm.password, 
         registrationRole,
-        registerForm.account_type
+        registerForm.account_type,
+        registerForm.invitation_code
       );
       toast.success('¡Cuenta creada! Configura tus metas');
       if (safeNextPath) {
@@ -341,6 +343,20 @@ export const LoginPage = () => {
                         onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
                         required
                         data-testid="register-email"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="rovi-label" htmlFor="register-invitation-code">Código de invitación</Label>
+                      <Input
+                        id="register-invitation-code"
+                        name="invitation_code"
+                        type="text"
+                        placeholder="Ingresa tu código"
+                        value={registerForm.invitation_code}
+                        onChange={(e) => setRegisterForm({ ...registerForm, invitation_code: e.target.value })}
+                        required
+                        autoCapitalize="characters"
+                        data-testid="register-invitation-code"
                       />
                     </div>
                     <div className="space-y-2">

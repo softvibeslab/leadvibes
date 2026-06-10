@@ -3758,9 +3758,15 @@ def personalize_email_content(template: dict, lead: dict, broker_data: dict = No
 
 # ==================== AUTH ROUTES ====================
 
+ROVI_SIGNUP_INVITATION_CODE = os.environ.get("ROVI_SIGNUP_INVITATION_CODE", "VIBES").strip()
+
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     """Register a new user"""
+    invitation_code = (user_data.invitation_code or "").strip()
+    if ROVI_SIGNUP_INVITATION_CODE and invitation_code.upper() != ROVI_SIGNUP_INVITATION_CODE.upper():
+        raise HTTPException(status_code=403, detail="Código de invitación inválido")
+
     # Check if user exists
     existing = await db.users.find_one({"email": user_data.email}, {"_id": 0})
     if existing:
