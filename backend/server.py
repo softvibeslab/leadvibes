@@ -13083,9 +13083,32 @@ async def update_media_asset_status(
 
 
 @api_router.delete("/media/{media_id}", response_model=dict)
-async def archive_media_asset(media_id: str, current_user: dict = Depends(get_current_user)):
+async def archive_media_asset(
+    media_id: str,
+    permanent: bool = Query(False),
+    current_user: dict = Depends(get_current_user),
+):
+    query = {**media_tenant_query(current_user), "id": media_id}
+    asset = await db.media_assets.find_one(query, {"_id": 0})
+    if not asset:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    if permanent:
+        if asset.get("storage_provider") == "local":
+            relative_path = asset.get("storage_ref", {}).get("path")
+            if relative_path:
+                file_path = (UPLOADS_DIR / relative_path).resolve()
+                uploads_root = UPLOADS_DIR.resolve()
+                if str(file_path).startswith(str(uploads_root)) and file_path.exists():
+                    file_path.unlink()
+                    parent = file_path.parent
+                    if str(parent).startswith(str(uploads_root)) and parent != uploads_root:
+                        shutil.rmtree(parent, ignore_errors=True)
+        await db.media_assets.delete_one(query)
+        return {"message": "Archivo eliminado definitivamente", "id": media_id}
+
     result = await db.media_assets.update_one(
-        {**media_tenant_query(current_user), "id": media_id},
+        query,
         {"$set": {"status": "archived", "archived_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
     if result.matched_count == 0:

@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Trash2,
   UploadCloud,
   Video,
 } from 'lucide-react';
@@ -173,6 +174,24 @@ export const MediaHubPage = () => {
       await loadMedia();
     } catch (error) {
       const detail = error?.response?.data?.detail || 'No se pudo archivar el archivo';
+      toast.error(detail);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const deleteAsset = async (asset) => {
+    const label = asset.original_filename || asset.filename || 'este archivo';
+    const confirmed = window.confirm(`Eliminar definitivamente "${label}"? Esta accion no se puede deshacer.`);
+    if (!confirmed) return;
+
+    setBusy(`delete-${asset.id}`);
+    try {
+      await api.delete(`/media/${asset.id}`, { params: { permanent: true } });
+      toast.success('Archivo eliminado');
+      await loadMedia();
+    } catch (error) {
+      const detail = error?.response?.data?.detail || 'No se pudo eliminar el archivo';
       toast.error(detail);
     } finally {
       setBusy('');
@@ -369,7 +388,7 @@ export const MediaHubPage = () => {
                     ))}
                   </div>
                   <Separator />
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <Button variant="outline" size="sm" onClick={() => openPreview(asset)}>
                       <Eye className="mr-1 h-4 w-4" />
                       Ver
@@ -381,6 +400,10 @@ export const MediaHubPage = () => {
                     <Button variant="outline" size="sm" onClick={() => archiveAsset(asset)} disabled={busy === asset.id}>
                       {busy === asset.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Archive className="mr-1 h-4 w-4" />}
                       Archivar
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => deleteAsset(asset)} disabled={busy === `delete-${asset.id}`}>
+                      {busy === `delete-${asset.id}` ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1 h-4 w-4" />}
+                      Eliminar
                     </Button>
                   </div>
                 </CardContent>
