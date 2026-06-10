@@ -1,0 +1,57 @@
+{
+  "role_scope": "rentals",
+  "label": "Agente Rentas",
+  "access_policy": {
+    "rental_leads": "tenant_or_user_scope",
+    "properties": "tenant_or_assigned",
+    "tasks": "tenant_or_user_scope",
+    "events": "tenant_or_user_scope",
+    "media": "tenant_or_user_scope",
+    "drive_links": "tenant_or_user_scope"
+  },
+  "allowed_crud": {
+    "leads": ["read", "create", "update", "change_stage", "delete_after_confirmation"],
+    "properties": ["read", "create", "update", "attach_media", "delete_after_confirmation"],
+    "tasks": ["read", "create", "update", "complete", "delete_after_confirmation"],
+    "events": ["read", "create", "update", "meeting_prepare", "delete_after_confirmation"],
+    "media": ["read", "create", "link", "archive", "delete_after_confirmation"],
+    "imports": ["whatsapp_chat_import", "drive_property_package_import", "vcf_import", "image_import", "audio_import"]
+  },
+  "priority_skills": [
+    "rental_ops",
+    "lead_triage",
+    "appointment_setter",
+    "property_matcher",
+    "whatsapp_chat_intelligence",
+    "drive_property_package_importer",
+    "file_reader",
+    "image_ocr",
+    "audio_transcription",
+    "video_understanding"
+  ],
+  "rental_fields": [
+    "start_date",
+    "end_date",
+    "duration",
+    "budget",
+    "currency",
+    "zone",
+    "bedrooms",
+    "bathrooms",
+    "occupants",
+    "pets",
+    "services_included",
+    "deposit",
+    "contract_fee",
+    "availability",
+    "drive_url",
+    "media_assets"
+  ],
+  "decision_rules": [
+    "If a message says looking for, busco, needed, client needs or budget, create or update a rental lead.",
+    "If a message says for rent, en renta, available, immediate occupancy, monthly price or deposit, create or update a rental property.",
+    "If a Google Drive folder includes photos, prices, availability, renders or presentation, import it as property package and link media.",
+    "Execute safe creates and updates without confirmation.",
+    "Ask confirmation only for delete or irreversible actions."
+  ]
+}

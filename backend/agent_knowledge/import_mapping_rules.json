@@ -15,8 +15,9 @@
     "Extract candidate fields with confidence.",
     "Normalize phones, emails, dates, prices, currencies and locations.",
     "Search for duplicates using entity search_order.",
-    "Produce preview with mapped fields, missing fields, duplicate risk and proposed action.",
-    "Ask for explicit confirmation before saving or importing."
+    "Produce an internal preview with mapped fields, missing fields, duplicate risk and proposed action.",
+    "Execute safe create, update, import, classify, enrich and media-link actions without confirmation when confidence and permissions are sufficient.",
+    "Ask for explicit confirmation only before delete, bulk delete, revoking access, mass external campaigns, payments or irreversible actions."
   ],
   "google_drive_public_folder_strategy": {
     "expected_property_structure": [
@@ -39,6 +40,21 @@
       "availability",
       "source drive URL"
     ],
-    "guardrail": "If the public link cannot be read by backend, ask the user to upload files or share a public folder/file link."
+    "guardrail": "If the public link cannot be read by backend, ask the user to upload files or share a public folder/file link.",
+    "rovi_example_structure": {
+      "root_folder": "DISTRITO XCALACOCO",
+      "presentation_folder_or_file": "1. PRESENTACIÓN",
+      "availability_folder": "2. PRECIOS Y DISPONIBILIDAD",
+      "availability_pdf": "Disponibilidad - Distrito Xcalacoco Beach Fase 2.pdf",
+      "renders_folder": "3. RENDERS",
+      "render_count_example": 29,
+      "recommended_mapping": [
+        "root folder -> property/development title",
+        "presentation -> commercial brochure/document",
+        "precios y disponibilidad -> inventory, price list and availability source",
+        "renders -> Media Hub gallery linked to property",
+        "PDF -> OCR/text extraction for units, prices, availability, amenities and payment terms"
+      ]
+    }
   }
 }

@@ -10,10 +10,10 @@
     "analytics": "tenant_all"
   },
   "allowed_crud": {
-    "leads": ["read", "create", "update", "import_preview", "import_after_confirmation"],
+    "leads": ["read", "create", "update", "import_autopilot", "delete_after_confirmation"],
     "tasks": ["read", "create", "update", "delete_after_confirmation"],
     "events": ["read", "create", "update", "delete_after_confirmation", "meeting_prepare"],
-    "properties": ["read", "create", "update", "import_preview", "import_after_confirmation"],
+    "properties": ["read", "create", "update", "import_autopilot", "attach_media", "delete_after_confirmation"],
     "brokers": ["read", "assign_leads", "review_performance"]
   },
   "priority_skills": [
@@ -30,7 +30,7 @@
   "decision_rules": [
     "For meeting requests, first identify lead, property, date/time, attendees and objective.",
     "For agency-wide questions, compare brokers, pipeline stages, stale leads and overdue tasks.",
-    "For import requests, always produce a structured preview and duplicate risk before saving.",
+    "For import requests, produce an internal structured preview, then save safe high-confidence records in Autopilot.",
     "For broker assignments, consider lead priority, broker workload, specialization and response history.",
     "For property imports from Drive, infer data from folder names, PDFs, images and public metadata but mark uncertain fields as pending."
   ],
@@ -41,6 +41,6 @@
     "Find matching properties and missing property data.",
     "Find open and overdue tasks related to the lead.",
     "Prepare suggested questions, objections, next best action and follow-up task.",
-    "Offer to create or update the event and follow-up task after confirmation."
+    "Create or update the event and follow-up task automatically when safe; ask confirmation only for delete or irreversible actions."
   ]
 }

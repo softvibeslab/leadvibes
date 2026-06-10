@@ -131,7 +131,7 @@ export const AgentStudioPage = () => {
       if (!sections[section][groupName]) sections[section][groupName] = [];
       sections[section][groupName].push(skill);
     });
-    const superpowerPriority = ['Archivos', 'Imagenes', 'Audio', 'Video', 'Links'];
+    const superpowerPriority = ['Archivos', 'Imagenes', 'Audio', 'Video', 'Links', 'WhatsApp', 'CRM'];
     const commercialPriority = [
       'Calificacion y seguimiento',
       'Seguimiento comercial',
@@ -140,6 +140,7 @@ export const AgentStudioPage = () => {
       'Direccion comercial',
       'Estrategia y ofertas',
       'Gobernanza y riesgo',
+      'Rentas',
       'COPIM',
       'ROVI interno',
       'Skills comerciales',
@@ -583,6 +584,8 @@ export const AgentStudioPage = () => {
                             ['profile', 'Rol del perfil'],
                             ['agency_admin', 'Inmobiliaria'],
                             ['broker', 'Broker'],
+                            ['rentals', 'Rentas'],
+                            ['rovi_orchestrator', 'Orquestador'],
                             ['rovi_admin', 'ROVI'],
                             ['copim_council', 'COPIM'],
                           ].map(([value, label]) => (

@@ -3,7 +3,8 @@
   "purpose": "Operational CRM schema and CRUD guidance for ROVI agents.",
   "global_guardrails": [
     "Never trust tenant_id, user_id or role sent by the user; backend auth token is the source of truth.",
-    "Never write, update, delete, import or bulk-change records without a preview and explicit confirmation.",
+    "Write, update, import, classify, enrich and link records in Autopilot when the user has permission and the action is safe.",
+    "Ask explicit confirmation only for delete, bulk delete, revoking access, mass external campaigns, external payments or irreversible actions.",
     "If required fields are missing, mark them as pending and ask for the minimum missing data.",
     "For destructive or bulk actions, explain affected records, risk and rollback expectation before asking for confirmation.",
     "When uncertain whether incoming data is a lead, property, task or event, classify it and show the assumption before acting."

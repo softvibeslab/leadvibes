@@ -10,7 +10,7 @@
     "analytics": "own_performance_only"
   },
   "allowed_crud": {
-    "leads": ["read_own", "create", "update_own", "import_preview_own"],
+    "leads": ["read_own", "create", "update_own", "import_autopilot_own", "delete_own_after_confirmation"],
     "tasks": ["read_own", "create", "update_own", "delete_own_after_confirmation"],
     "events": ["read_own", "create", "update_own", "delete_own_after_confirmation", "meeting_prepare"],
     "properties": ["read_available", "suggest_match", "prepare_interest"],
@@ -34,11 +34,11 @@
   ],
   "meeting_prep_workflow": [
     "Identify lead/contact and meeting time.",
-    "Find own lead record or prepare a lead preview if it does not exist.",
+    "Find own lead record or create/update the lead automatically if confidence is sufficient.",
     "Summarize known budget, zone, urgency and property interest.",
     "Suggest 3 to 5 questions for qualification.",
     "Suggest matching properties if context exists.",
-    "Prepare one WhatsApp confirmation message and one follow-up task.",
-    "Ask for confirmation before creating the event or task."
+    "Prepare one WhatsApp confirmation message and create one follow-up task automatically.",
+    "Ask for confirmation only before deleting or irreversible actions."
   ]
 }

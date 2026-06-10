@@ -137,6 +137,45 @@ from hermes_bridge import (
     write_hermes_profile_files,
 )
 
+# === HERMES EXTENSION: Imports para CRUD completo ===
+try:
+    from hermes_crud_extensions import (
+        telegram_text_requests_lead_read,
+        telegram_text_requests_property_read,
+        telegram_text_requests_task_read,
+        telegram_text_requests_event_read,
+        telegram_text_requests_property_update,
+        telegram_text_requests_task_update,
+        telegram_text_requests_event_update,
+        telegram_text_requests_lead_delete,
+        telegram_text_requests_property_delete,
+        telegram_text_requests_task_delete,
+        telegram_text_requests_event_delete,
+    )
+    from hermes_action_builders import (
+        build_pending_lead_read_action,
+        build_pending_property_read_action,
+        build_pending_task_read_action,
+        build_pending_event_read_action,
+        build_pending_property_update_action,
+        build_pending_task_update_action,
+        build_pending_event_update_action,
+        build_pending_lead_delete_action,
+        build_pending_property_delete_action,
+        build_pending_task_delete_action,
+        build_pending_event_delete_action,
+        execute_hermes_read_action,
+        execute_hermes_update_action,
+        execute_hermes_delete_action,
+        format_read_action_preview,
+        format_update_action_preview,
+        format_delete_action_preview,
+    )
+    HERMES_EXTENSIONS_AVAILABLE = True
+except ImportError:
+    HERMES_EXTENSIONS_AVAILABLE = False
+# === FIN HERMES EXTENSION ===
+
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -4152,8 +4191,11 @@ AGENT_STUDIO_DEFAULT_TOOLS = {
     "tasks": True,
     "events": True,
     "properties": True,
-    "imports": False,
-    "bulk_changes": False,
+    "imports": True,
+    "bulk_changes": True,
+    "media": True,
+    "drive_links": True,
+    "whatsapp_intelligence": True,
 }
 AGENT_STUDIO_ROLE_KNOWLEDGE_FILES = {
     "owner": "owner.json",
@@ -4162,6 +4204,36 @@ AGENT_STUDIO_ROLE_KNOWLEDGE_FILES = {
     "property_manager": "property_manager.json",
     "agency_admin": "agency_admin.json",
     "broker": "broker.json",
+    "rovi_orchestrator": "rovi_orchestrator.json",
+    "rentals": "rentals.json",
+}
+AGENT_STUDIO_DEFAULT_PROFILE_VERSION = 3
+AGENT_STUDIO_AUTOPILOT_POLICY = {
+    "mode": "autopilot",
+    "no_confirmation_required": [
+        "read",
+        "create",
+        "update",
+        "import",
+        "classify",
+        "enrich",
+        "link_media",
+        "change_stage",
+        "create_task",
+        "create_event",
+        "drive_import",
+        "whatsapp_chat_import",
+    ],
+    "confirmation_required": [
+        "delete",
+        "bulk_delete",
+        "revoke_access",
+        "send_mass_campaign",
+        "external_payment_action",
+        "irreversible_action",
+    ],
+    "audit_every_action": True,
+    "tenant_isolation_required": True,
 }
 
 AGENT_STUDIO_AGENCY_ADMIN_SYSTEM_PROMPT = """Eres el Agente Inmobiliaria de ROVI CRM, un copiloto ejecutivo y operativo para administradores de inmobiliarias, dueños de agencias y líderes comerciales.
@@ -4319,16 +4391,109 @@ Antes de guardar:
 
 AGENT_STUDIO_BROKER_TONE = "Humano, breve, vendedor y orientado a cierre. Habla como un asistente comercial que ayuda al broker a moverse rápido. Evita lenguaje corporativo. Da mensajes listos para copiar, tareas claras y recomendaciones concretas."
 
+AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS = """Política ROVI Autopilot:
+- Puedes crear, actualizar, importar, clasificar, enriquecer, vincular multimedia, cambiar stage y crear tareas/eventos sin pedir confirmación previa.
+- Solo pide confirmación explícita para eliminar, borrado masivo, revocar accesos, enviar campañas masivas, pagos externos o acciones irreversibles.
+- Después de ejecutar una acción segura, informa qué hiciste, qué registros tocaste y qué quedó pendiente.
+- Si faltan datos, guarda lo que tenga confianza suficiente y deja campos pendientes o crea tarea de seguimiento.
+- Toda acción debe respetar tenant_id, user_id, rol, scope y auditoría.
+- Nunca mezcles información de otro tenant o usuario. Si el usuario es broker, opera solo su universo permitido.
+"""
+
+AGENT_STUDIO_ORCHESTRATOR_SYSTEM_PROMPT = """Eres ROVI Orchestrator, el perfil maestro de Hermes para entrenar, auditar y mejorar los agentes de ROVI CRM.
+
+Tu misión es elevar la inteligencia operativa de los agentes agency_admin, broker y rentals. No eres un chatbot de soporte: eres el director de calidad, entrenamiento, memoria, skills y herramientas de agentes inmobiliarios.
+
+Responsabilidades:
+1. Analizar conversaciones reales de Telegram, WhatsApp, Agent Studio y auditoría.
+2. Detectar fallos de comportamiento: no usó tool, pidió datos innecesarios, ignoró CRM, inventó información, no ejecutó acción segura o pidió confirmación cuando no debía.
+3. Recomendar mejoras de system prompt, customer prompt, tone, skills, tools y knowledge packs.
+4. Crear casos de prueba E2E para leads, propiedades, tareas, eventos, rentas, multimedia, Google Drive y exports de WhatsApp.
+5. Auditar acciones del agente y proponer reglas de seguridad sin frenar productividad.
+6. Convertir agentes genéricos en asistentes que mejoran la calidad de vida del broker y del dueño de la inmobiliaria.
+7. Supervisar que las acciones seguras se ejecuten en Autopilot y que solo las destructivas pidan confirmación.
+
+Debes razonar como un operador senior de CRM inmobiliario, revenue operations, data quality, sales coaching y AI governance. Tu salida debe ser accionable: cambio recomendado, razón, impacto esperado, riesgo y test para validar."""
+
+AGENT_STUDIO_ORCHESTRATOR_CUSTOMER_PROMPT = """El usuario es administrador de ROVI y quiere entrenar el comportamiento de los agentes del CRM.
+
+Tienes acceso conceptual a perfiles, knowledge packs, skills, tools, auditoría y conversaciones. Tu trabajo es proponer y preparar cambios para que los agentes sean más autónomos, útiles y seguros.
+
+Prioriza:
+- Menos fricción para brokers.
+- Mejor importación de leads y propiedades.
+- Mejor interpretación de WhatsApp, Drive, imágenes, audios, videos y documentos.
+- Mejor uso del CRM como control remoto.
+- Auditoría clara de acciones.
+- Confirmación solo en delete o acciones irreversibles."""
+
+AGENT_STUDIO_ORCHESTRATOR_TONE = "Directivo, preciso, crítico y orientado a mejora continua. Señala problemas sin rodeos y propone cambios concretos con pruebas E2E."
+
+AGENT_STUDIO_RENTALS_SYSTEM_PROMPT = """Eres el Agente Rentas de ROVI CRM, un operador experto en rentas inmobiliarias de corto, mediano y largo plazo.
+
+Tu objetivo es ayudar a brokers, property managers e inmobiliarias a capturar, ordenar y operar oportunidades de renta usando ROVI CRM.
+
+Responsabilidades:
+1. Interpretar solicitudes de renta desde WhatsApp, Telegram, texto libre, audios, imágenes, videos, contactos y links.
+2. Crear leads de renta con presupuesto, fechas, duración, zona, ocupantes, mascotas, requisitos y preferencias.
+3. Crear y actualizar propiedades en renta con disponibilidad, precio mensual, depósito, contrato, servicios incluidos, reglas y amenidades.
+4. Agendar visitas, check-ins, llamadas, recordatorios y tareas de seguimiento.
+5. Analizar links públicos de Google Drive/Photos y convertirlos en propiedades, documentos y galería en Media Hub.
+6. Detectar inventarios enviados en bloque y mapearlos a propiedades/unidades.
+7. Preparar mensajes de seguimiento humanos y breves para clientes, dueños y brokers.
+8. Mantener operación ordenada sin pedir confirmación para altas o actualizaciones seguras.
+
+Debes ser muy bueno entendiendo mensajes mixtos en español/inglés como: “Looking for 2BR long term 38k, pet friendly, Centro”, “FOR RENT studio 12,500 MXN, Drive link”, o “Busco renta depa no estudio, 2 gatos, largo plazo”."""
+
+AGENT_STUDIO_RENTALS_CUSTOMER_PROMPT = """El usuario opera rentas dentro de ROVI CRM.
+
+Puede gestionar leads de renta, propiedades, tareas, eventos, multimedia, links de Drive, inventarios y seguimiento operativo del tenant o de su propio scope según su usuario.
+
+Prioriza capturar información aunque venga incompleta. Si puedes crear un lead, propiedad, tarea o evento con confianza razonable, hazlo sin pedir confirmación. Solo pide confirmación para eliminar o acciones irreversibles.
+
+Campos importantes de rentas:
+- fechas de entrada/salida
+- largo plazo/corto plazo
+- presupuesto y moneda
+- zona
+- recámaras/baños
+- ocupantes
+- mascotas
+- servicios incluidos
+- depósito, contrato, comisión
+- disponibilidad
+- link de media/documentos"""
+
+AGENT_STUDIO_RENTALS_TONE = "Rápido, operativo, claro y muy práctico. Habla como un coordinador de rentas que ordena solicitudes y mueve la operación sin fricción."
+
+AGENT_STUDIO_ALL_DEFAULT_SKILLS = [
+    "lead_triage",
+    "whatsapp_followup",
+    "appointment_setter",
+    "property_matcher",
+    "revenue_ops",
+    "risk_guardian",
+    "file_reader",
+    "image_ocr",
+    "audio_transcription",
+    "video_understanding",
+    "drive_folder_reader",
+    "whatsapp_chat_intelligence",
+    "drive_property_package_importer",
+    "crm_remote_control",
+    "rental_ops",
+]
+
 AGENT_STUDIO_DEFAULT_PROFILES = [
     {
         "role_scope": "agency_admin",
         "name": "Agente Inmobiliaria",
         "description": "Perfil operativo para administradores de inmobiliaria.",
         "hermes_profile_name": "roviagencyadmin",
-        "system_prompt": AGENT_STUDIO_AGENCY_ADMIN_SYSTEM_PROMPT,
-        "customer_prompt": AGENT_STUDIO_AGENCY_ADMIN_CUSTOMER_PROMPT,
+        "system_prompt": f"{AGENT_STUDIO_AGENCY_ADMIN_SYSTEM_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
+        "customer_prompt": f"{AGENT_STUDIO_AGENCY_ADMIN_CUSTOMER_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
         "tone_instructions": AGENT_STUDIO_AGENCY_ADMIN_TONE,
-        "enabled_skills": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher", "revenue_ops", "risk_guardian"],
+        "enabled_skills": AGENT_STUDIO_ALL_DEFAULT_SKILLS,
         "tools": {**AGENT_STUDIO_DEFAULT_TOOLS, "imports": True},
     },
     {
@@ -4336,10 +4501,32 @@ AGENT_STUDIO_DEFAULT_PROFILES = [
         "name": "Agente Broker",
         "description": "Perfil de asistencia diaria para brokers.",
         "hermes_profile_name": "rovibroker",
-        "system_prompt": AGENT_STUDIO_BROKER_SYSTEM_PROMPT,
-        "customer_prompt": AGENT_STUDIO_BROKER_CUSTOMER_PROMPT,
+        "system_prompt": f"{AGENT_STUDIO_BROKER_SYSTEM_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
+        "customer_prompt": f"{AGENT_STUDIO_BROKER_CUSTOMER_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
         "tone_instructions": AGENT_STUDIO_BROKER_TONE,
-        "enabled_skills": ["lead_triage", "whatsapp_followup", "appointment_setter", "property_matcher"],
+        "enabled_skills": AGENT_STUDIO_ALL_DEFAULT_SKILLS,
+        "tools": AGENT_STUDIO_DEFAULT_TOOLS,
+    },
+    {
+        "role_scope": "rovi_orchestrator",
+        "name": "ROVI Orchestrator",
+        "description": "Perfil maestro para entrenar, auditar y mejorar los agentes Hermes.",
+        "hermes_profile_name": "roviorchestrator",
+        "system_prompt": f"{AGENT_STUDIO_ORCHESTRATOR_SYSTEM_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
+        "customer_prompt": AGENT_STUDIO_ORCHESTRATOR_CUSTOMER_PROMPT,
+        "tone_instructions": AGENT_STUDIO_ORCHESTRATOR_TONE,
+        "enabled_skills": AGENT_STUDIO_ALL_DEFAULT_SKILLS,
+        "tools": AGENT_STUDIO_DEFAULT_TOOLS,
+    },
+    {
+        "role_scope": "rentals",
+        "name": "Agente Rentas",
+        "description": "Perfil operativo para rentas, disponibilidad, citas, documentos y seguimiento.",
+        "hermes_profile_name": "rovirentals",
+        "system_prompt": f"{AGENT_STUDIO_RENTALS_SYSTEM_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
+        "customer_prompt": f"{AGENT_STUDIO_RENTALS_CUSTOMER_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
+        "tone_instructions": AGENT_STUDIO_RENTALS_TONE,
+        "enabled_skills": AGENT_STUDIO_ALL_DEFAULT_SKILLS,
         "tools": AGENT_STUDIO_DEFAULT_TOOLS,
     },
 ]
@@ -4398,6 +4585,10 @@ def resolve_agent_studio_role_scope_from_role(role: str | None, account_type: st
     account_type = (account_type or "").strip().lower()
     if role == "broker" or account_type == "individual":
         return "broker"
+    if role in {"property_manager", "rentals", "rental_manager"}:
+        return "rentals"
+    if role in {"rovi_orchestrator", "orchestrator"}:
+        return "rovi_orchestrator"
     if role in {"owner", "admin", "manager", "property_manager"}:
         return "agency_admin"
     if role.startswith("copim_"):
@@ -4408,18 +4599,38 @@ def resolve_agent_studio_role_scope_from_role(role: str | None, account_type: st
 
 
 def build_default_agent_user_preferences(role_scope: str, user_doc: dict | None = None) -> dict:
+    base = {
+        "language": "es-MX",
+        "autopilot_mode": True,
+        "requires_confirmation_only_for": AGENT_STUDIO_AUTOPILOT_POLICY["confirmation_required"],
+        "no_confirmation_required": AGENT_STUDIO_AUTOPILOT_POLICY["no_confirmation_required"],
+    }
     if role_scope == "agency_admin":
         return {
-            "language": "es-MX",
+            **base,
             "tone": "ejecutivo y accionable",
             "response_style": "prioridades, riesgos y siguientes acciones",
-            "requires_preview_before_write": True,
+            "requires_preview_before_write": False,
+        }
+    if role_scope == "rentals":
+        return {
+            **base,
+            "tone": "operativo, rapido y orientado a disponibilidad",
+            "response_style": "captura de renta, accion ejecutada y pendientes",
+            "requires_preview_before_write": False,
+        }
+    if role_scope == "rovi_orchestrator":
+        return {
+            **base,
+            "tone": "directivo, critico y orientado a mejora continua",
+            "response_style": "diagnostico, cambio recomendado y prueba E2E",
+            "requires_preview_before_write": False,
         }
     return {
-        "language": "es-MX",
+        **base,
         "tone": "breve, comercial y practico",
         "response_style": "siguiente mejor accion y mensajes listos para copiar",
-        "requires_preview_before_write": True,
+        "requires_preview_before_write": False,
     }
 
 
@@ -4431,7 +4642,8 @@ def build_default_agent_user_memory(role_scope: str, user_doc: dict | None = Non
         "preferred_zones": [],
         "working_rules": [
             "usar solo informacion autorizada por tenant, usuario y rol",
-            "pedir confirmacion antes de guardar cambios",
+            "ejecutar altas, actualizaciones e importaciones seguras en Autopilot",
+            "pedir confirmacion solo para eliminar o acciones irreversibles",
         ],
     }
 
@@ -4538,14 +4750,24 @@ async def ensure_agent_studio_defaults(current_user: dict) -> None:
     for default in AGENT_STUDIO_DEFAULT_PROFILES:
         existing = await db.agent_studio_profiles.find_one(
             {"tenant_id": tenant_id, "role_scope": default["role_scope"]},
-            {"_id": 0, "id": 1},
+            {"_id": 0},
         )
         if existing:
+            if int(existing.get("default_profile_version") or 0) < AGENT_STUDIO_DEFAULT_PROFILE_VERSION:
+                update_doc = {
+                    **default,
+                    "default_profile_version": AGENT_STUDIO_DEFAULT_PROFILE_VERSION,
+                    "sync_status": "pending",
+                    "updated_by": current_user["user_id"],
+                    "updated_at": now,
+                }
+                await db.agent_studio_profiles.update_one({"id": existing["id"]}, {"$set": update_doc})
             continue
         doc = {
             "id": f"agent-studio-profile-{uuid.uuid4()}",
             "tenant_id": tenant_id,
             "version": 1,
+            "default_profile_version": AGENT_STUDIO_DEFAULT_PROFILE_VERSION,
             "provider": "rovi_crm",
             "model": os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5"),
             "temperature": 0.25,
@@ -4621,6 +4843,7 @@ def load_agent_studio_operational_knowledge(role_scope: str | None) -> dict:
         "shared_crm_entities": load_agent_studio_knowledge_file("shared_crm_entities.json"),
         "import_mapping_rules": load_agent_studio_knowledge_file("import_mapping_rules.json"),
         "routing_rules": load_agent_studio_knowledge_file("routing_rules.json"),
+        "whatsapp_drive_intelligence": load_agent_studio_knowledge_file("whatsapp_drive_intelligence.json"),
     }
 
 
@@ -4638,6 +4861,7 @@ def build_agent_studio_operational_knowledge_summary(role_scope: str | None) -> 
             "shared_crm_entities.json",
             "import_mapping_rules.json",
             "routing_rules.json",
+            "whatsapp_drive_intelligence.json",
             AGENT_STUDIO_ROLE_KNOWLEDGE_FILES.get((role_scope or "broker").strip().lower(), "broker.json"),
         ],
     }
@@ -4648,6 +4872,7 @@ def build_agent_studio_runtime_knowledge(role_scope: str | None) -> dict:
     entities = (full.get("shared_crm_entities") or {}).get("entities") or {}
     routing_rules = (full.get("routing_rules") or {}).get("routing_rules") or []
     import_rules = full.get("import_mapping_rules") or {}
+    whatsapp_drive = full.get("whatsapp_drive_intelligence") or {}
     role_catalog = full.get("role_policy_catalog") or {}
     return {
         "active_role_profile": {
@@ -4674,6 +4899,7 @@ def build_agent_studio_runtime_knowledge(role_scope: str | None) -> dict:
             "input_types": list((import_rules.get("input_classification") or {}).keys()),
             "mapping_strategy": import_rules.get("mapping_strategy"),
             "google_drive_public_folder_strategy": import_rules.get("google_drive_public_folder_strategy"),
+            "whatsapp_drive_intelligence": whatsapp_drive,
         },
         "routing_rules": [
             {
@@ -4684,10 +4910,12 @@ def build_agent_studio_runtime_knowledge(role_scope: str | None) -> dict:
             }
             for rule in routing_rules
         ],
+        "autopilot_policy": AGENT_STUDIO_AUTOPILOT_POLICY,
         "non_negotiables": [
             "filtrar siempre por tenant_id y rol/scope del usuario autenticado",
             "para broker, acceder solo a registros propios o asignados",
-            "antes de crear, actualizar, eliminar, importar o hacer cambios masivos: preview y confirmacion explicita",
+            "crear, actualizar, importar, clasificar, enriquecer, vincular media y cambiar stage sin pedir confirmacion si la accion es segura",
+            "pedir confirmacion explicita solo para eliminar, borrado masivo, revocar accesos, campañas masivas externas, pagos externos o acciones irreversibles",
             "si faltan datos, marcarlos como pendientes y preguntar lo minimo necesario",
         ],
     }
@@ -4746,7 +4974,8 @@ def build_agent_studio_chat_messages(profile: dict, user_message: str, knowledge
         operational_block,
         "Reglas de prueba:",
         "- Responde como si estuvieras dentro del CRM de ROVI, pero no ejecutes escrituras reales desde este chat.",
-        "- Si propones crear, actualizar o importar datos, muestra un preview y pide confirmacion.",
+        "- En produccion, crear/actualizar/importar/clasificar/enriquecer se ejecuta en Autopilot sin confirmacion; en este chat solo simula y reporta que habrias ejecutado.",
+        "- Solo pide confirmacion para eliminar o acciones irreversibles.",
         "- Usa la base operativa para decidir entidad, permisos, ruta CRUD, campos requeridos, validaciones e importacion.",
         "- Usa archivos subidos solo cuando sean relevantes y menciona las fuentes por nombre, sin inventar archivos.",
         "- Mantente dentro del tenant, rol y permisos del perfil.",
@@ -4816,7 +5045,11 @@ def write_agent_studio_hermes_files(profile: dict, current_user: dict) -> dict:
         "",
         "## Guardrails",
         "- Aplica tenant, usuario, rol y scope antes de cualquier accion.",
-        "- Pide confirmacion explicita antes de crear, actualizar, importar o hacer cambios masivos.",
+        "- Ejecuta crear, actualizar, importar, clasificar, enriquecer y vincular media en Autopilot cuando el usuario tenga permisos.",
+        "- Pide confirmacion explicita solo para eliminar, borrado masivo o acciones irreversibles.",
+        "",
+        "## Autopilot Policy",
+        json.dumps(AGENT_STUDIO_AUTOPILOT_POLICY, ensure_ascii=False, indent=2),
         "",
         "## Operational Knowledge",
         json.dumps(operational_knowledge, ensure_ascii=False, indent=2),
@@ -4844,6 +5077,7 @@ def write_agent_studio_hermes_files(profile: dict, current_user: dict) -> dict:
         "tone_instructions": profile.get("tone_instructions"),
         "enabled_skills": profile.get("enabled_skills") or [],
         "tools": profile.get("tools") or {},
+        "autopilot_policy": AGENT_STUDIO_AUTOPILOT_POLICY,
         "operational_knowledge": operational_knowledge,
         "source": "rovi_agent_studio",
         "profile_id": profile["id"],
@@ -4885,6 +5119,9 @@ async def list_agent_studio_profiles(current_user: dict = Depends(get_current_us
             {"id": "properties", "label": "Propiedades"},
             {"id": "imports", "label": "Importaciones"},
             {"id": "bulk_changes", "label": "Cambios masivos"},
+            {"id": "media", "label": "Media Hub"},
+            {"id": "drive_links", "label": "Google Drive publico"},
+            {"id": "whatsapp_intelligence", "label": "WhatsApp Intelligence"},
         ],
         "access": {"role": "admin", "can_edit": True},
     }
@@ -5383,7 +5620,7 @@ class TelegramAgentTestMessageRequest(BaseModel):
     message: str = "Prueba de conexión desde ROVI. Tu agente Telegram está listo."
 
 
-TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES = {"broker", "agency_admin"}
+TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES = {"broker", "agency_admin", "rentals", "rovi_orchestrator"}
 
 DEFAULT_TELEGRAM_AGENT_PROFILES = {
     "broker": {
@@ -5405,6 +5642,25 @@ DEFAULT_TELEGRAM_AGENT_PROFILES = {
             "y gamificación. Responde en español mexicano, con visión gerencial y siguientes pasos claros."
         ),
         "bot_username": os.environ.get("ROVI_AGENCY_TELEGRAM_BOT_USERNAME", ""),
+    },
+    "rentals": {
+        "name": "Agente Rentas ROVI",
+        "description": "Asistente operativo para rentas: leads, disponibilidad, propiedades, visitas, documentos, Drive y seguimiento.",
+        "system_prompt": (
+            "Eres el agente Telegram del rol rentas en ROVI CRM. Ayuda a interpretar solicitudes de renta, "
+            "crear leads, actualizar propiedades, agendar visitas, analizar Drive y guardar multimedia. "
+            "Ejecuta altas y actualizaciones seguras sin confirmacion; confirma solo eliminaciones."
+        ),
+        "bot_username": os.environ.get("ROVI_RENTALS_TELEGRAM_BOT_USERNAME", ""),
+    },
+    "rovi_orchestrator": {
+        "name": "ROVI Orchestrator",
+        "description": "Agente maestro para entrenar, auditar y mejorar perfiles Hermes, prompts, skills y pruebas E2E.",
+        "system_prompt": (
+            "Eres ROVI Orchestrator. Audita conversaciones, detecta fallas, mejora prompts, skills, tools, "
+            "knowledge packs y pruebas E2E de los agentes ROVI."
+        ),
+        "bot_username": os.environ.get("ROVI_ORCHESTRATOR_TELEGRAM_BOT_USERNAME", ""),
     },
 }
 
@@ -5442,17 +5698,19 @@ def resolve_telegram_agent_role_scope(current_user: dict) -> str:
 
 
 def allowed_device_link_role_scopes(user: dict, active_workspace: dict | None) -> list[str]:
-    active_role = (active_workspace or {}).get("role") or user.get("role", "broker")
+    active_role = ((active_workspace or {}).get("role") or user.get("role", "broker") or "broker").lower()
     account_type = user.get("account_type") or "individual"
     tenant_type = (active_workspace or {}).get("tenant_type")
     if active_role == "broker":
-        return ["broker"]
-    if active_role in {"owner", "admin", "manager", "property_manager"} and tenant_type == "agency":
-        return ["agency_admin"]
+        return ["broker", "rentals"]
+    if active_role == "property_manager":
+        return ["rentals", "agency_admin"]
+    if active_role in {"owner", "admin", "manager"} and tenant_type == "agency":
+        return ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
     if user.get("role") == "broker":
-        return ["broker"]
+        return ["broker", "rentals"]
     if account_type == "agency":
-        return ["agency_admin"]
+        return ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
     return ["broker"]
 
 
@@ -5480,6 +5738,7 @@ async def ensure_device_link_agent_studio_profiles(user: dict, active_workspace:
             "id": f"agent-studio-profile-{uuid.uuid4()}",
             "tenant_id": tenant_id,
             "version": 1,
+            "default_profile_version": AGENT_STUDIO_DEFAULT_PROFILE_VERSION,
             "provider": "rovi_crm",
             "model": os.environ.get("ROVI_AI_DEFAULT_MODEL", "glm-5"),
             "temperature": 0.25,
@@ -5544,7 +5803,7 @@ def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope:
     studio_tools = studio_tools or {}
     crm_write_enabled = any(
         bool(studio_tools.get(key))
-        for key in ("leads", "tasks", "events", "properties", "imports", "bulk_changes")
+        for key in ("leads", "tasks", "events", "properties", "imports", "bulk_changes", "media", "drive_links", "whatsapp_intelligence")
     )
     return {
         "list_leads": bool(studio_tools.get("leads", True)),
@@ -5553,6 +5812,11 @@ def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope:
         "copim_context": role_scope.startswith("copim"),
         "rovi_internal_metrics": role_scope.startswith("rovi_"),
         "vibe_lab_context": False,
+        "media_hub": bool(studio_tools.get("media", True)),
+        "drive_public_links": bool(studio_tools.get("drive_links", True)),
+        "whatsapp_intelligence": bool(studio_tools.get("whatsapp_intelligence", True)),
+        "imports": bool(studio_tools.get("imports", True)),
+        "bulk_changes": bool(studio_tools.get("bulk_changes", True)),
         "write_actions": True,
         "write_actions_profile_requested": crm_write_enabled,
     }
@@ -5878,7 +6142,7 @@ async def build_pending_task_action(
     pending_action = {
         "id": f"telegram-agent-action-{uuid.uuid4()}",
         "type": "create_tasks",
-        "status": "pending_confirmation",
+        "status": "ready_to_execute",
         "tenant_id": tenant_id,
         "user_id": user["id"],
         "link_id": link["id"],
@@ -5931,7 +6195,7 @@ async def build_pending_lead_action(
     action = {
         "id": f"telegram-agent-action-{uuid.uuid4()}",
         "type": "create_lead",
-        "status": "pending_confirmation",
+        "status": "ready_to_execute",
         "tenant_id": tenant_id,
         "user_id": user["id"],
         "link_id": link["id"],
@@ -5977,7 +6241,7 @@ async def build_pending_event_action(
     action = {
         "id": f"telegram-agent-action-{uuid.uuid4()}",
         "type": "create_event",
-        "status": "pending_confirmation",
+        "status": "ready_to_execute",
         "tenant_id": tenant_id,
         "user_id": user["id"],
         "link_id": link["id"],
@@ -6029,7 +6293,7 @@ async def build_pending_property_action(
     action = {
         "id": f"telegram-agent-action-{uuid.uuid4()}",
         "type": "create_property",
-        "status": "pending_confirmation",
+        "status": "ready_to_execute",
         "tenant_id": tenant_id,
         "user_id": user["id"],
         "link_id": link["id"],
@@ -6070,7 +6334,7 @@ async def build_pending_lead_update_action(
     action = {
         "id": f"telegram-agent-action-{uuid.uuid4()}",
         "type": "update_lead",
-        "status": "pending_confirmation",
+        "status": "ready_to_execute",
         "tenant_id": tenant_id,
         "user_id": user["id"],
         "link_id": link["id"],
@@ -6094,6 +6358,7 @@ async def build_pending_telegram_action_from_text(
     role_scope: str,
     agent_name: str,
 ) -> dict | None:
+    # Operaciones CREATE existentes
     if telegram_text_requests_task_creation(text):
         return await build_pending_task_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
     if telegram_text_requests_lead_creation(text):
@@ -6104,6 +6369,38 @@ async def build_pending_telegram_action_from_text(
         return await build_pending_property_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
     if telegram_text_requests_lead_update(text):
         return await build_pending_lead_update_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name)
+
+    # === HERMES EXTENSION: Nuevas operaciones READ/UPDATE/DELETE ===
+    if HERMES_EXTENSIONS_AVAILABLE:
+        # Operaciones READ
+        if telegram_text_requests_lead_read(text):
+            return await build_pending_lead_read_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_property_read(text):
+            return await build_pending_property_read_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_task_read(text):
+            return await build_pending_task_read_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_event_read(text):
+            return await build_pending_event_read_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+
+        # Operaciones UPDATE (extendidas)
+        if telegram_text_requests_property_update(text):
+            return await build_pending_property_update_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_task_update(text):
+            return await build_pending_task_update_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_event_update(text):
+            return await build_pending_event_update_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+
+        # Operaciones DELETE
+        if telegram_text_requests_lead_delete(text):
+            return await build_pending_lead_delete_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_property_delete(text):
+            return await build_pending_property_delete_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_task_delete(text):
+            return await build_pending_task_delete_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+        if telegram_text_requests_event_delete(text):
+            return await build_pending_event_delete_action(text=text, link=link, user=user, role_scope=role_scope, agent_name=agent_name, db=db)
+    # === FIN HERMES EXTENSION ===
+
     return None
 
 
@@ -6167,6 +6464,23 @@ def format_pending_telegram_action_preview(action: dict) -> str:
             "Responde `sí` para guardar o `no` para cancelar.",
         ]
         return "\n".join(lines)
+
+    # === HERMES EXTENSION: Nuevos formateadores ===
+    if action_type in ("read_leads", "read_properties", "read_tasks", "read_events"):
+        if HERMES_EXTENSIONS_AVAILABLE:
+            # Para READ, se ejecutará inmediatamente en handle_rovi_telegram_agent_message
+            # Este formateador es fallback si se llama desde otro lugar
+            return f"📊 Consultando {action_type.replace('read_', '')}... (ejecución inmediata)"
+
+    if action_type in ("update_property", "update_task", "update_event"):
+        if HERMES_EXTENSIONS_AVAILABLE:
+            return format_update_action_preview(action)
+
+    if action_type in ("delete_lead", "delete_property", "delete_task", "delete_event"):
+        if HERMES_EXTENSIONS_AVAILABLE:
+            return format_delete_action_preview(action)
+    # === FIN HERMES EXTENSION ===
+
     return "Preparé un cambio para ROVI. ¿Confirmas que lo guarde?"
 
 
@@ -6327,6 +6641,19 @@ async def execute_pending_telegram_action(action: dict) -> dict:
         if update.matched_count == 0:
             return {"executed": False, "message": "No encontré el lead para actualizar."}
         result = {"executed": True, "message": "Listo. Actualicé el lead en ROVI.", "record_ids": [payload["lead_id"]], "records": [{"id": payload["lead_id"], **update_payload}], "lead_ids": [payload["lead_id"]]}
+
+    # === HERMES EXTENSION: Nuevos ejecutores ===
+    elif HERMES_EXTENSIONS_AVAILABLE:
+        if action_type in ("read_leads", "read_properties", "read_tasks", "read_events"):
+            result = await execute_hermes_read_action(action, db)
+        elif action_type in ("update_property", "update_task", "update_event"):
+            result = await execute_hermes_update_action(action, db)
+        elif action_type in ("delete_lead", "delete_property", "delete_task", "delete_event"):
+            result = await execute_hermes_delete_action(action, db)
+        else:
+            return {"executed": False, "message": "Este tipo de acción todavía no tiene ejecutor."}
+    # === FIN HERMES EXTENSION ===
+
     else:
         return {"executed": False, "message": "Este tipo de acción todavía no tiene ejecutor."}
 
@@ -6361,12 +6688,26 @@ def build_telegram_onboarding_message(link: dict, user: dict, active_workspace: 
             "revisar leads, brokers, tareas, eventos y propiedades del tenant",
             "preparar reuniones con contexto comercial",
             "mapear informacion para importar leads o propiedades",
-            "proponer acciones con preview antes de guardar",
+            "crear y actualizar datos seguros en Autopilot",
+        ]
+    elif role_scope == "rentals":
+        capabilities = [
+            "crear leads de renta desde mensajes, audios, contactos o screenshots",
+            "actualizar propiedades, disponibilidad, precios y requisitos",
+            "analizar links publicos de Google Drive y guardar multimedia",
+            "agendar visitas, llamadas y tareas de seguimiento",
+        ]
+    elif role_scope == "rovi_orchestrator":
+        capabilities = [
+            "auditar conversaciones y acciones de agentes",
+            "proponer mejoras de prompts, skills y tools",
+            "preparar pruebas E2E por perfil",
+            "detectar fallos de Autopilot, permisos y calidad de datos",
         ]
     else:
         capabilities = [
             "priorizar tus leads y seguimientos",
-            "crear previews de tareas y eventos",
+            "crear tareas y eventos sin friccion",
             "consultar propiedades disponibles o asignadas",
             "convertir mensajes o notas en acciones comerciales",
         ]
@@ -6379,7 +6720,8 @@ def build_telegram_onboarding_message(link: dict, user: dict, active_workspace: 
         "Puedo ayudarte con:\n"
         f"{capability_text}\n\n"
         "Por seguridad, solo usare informacion permitida por tu usuario, rol y tenant. "
-        "Para crear, actualizar o importar datos primero te mostrare un preview y pedire confirmacion.\n\n"
+        "Para crear, actualizar, importar, clasificar o vincular media trabajare en Autopilot. "
+        "Solo pedire confirmacion cuando quieras eliminar o hacer una accion irreversible.\n\n"
         "Para empezar, escribeme algo como: \"prepara mis reuniones de hoy\" o \"crea una tarea para llamar a este lead\"."
     )
 
@@ -7200,6 +7542,43 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
             agent_name=agent_name,
         )
         if action:
+            action_type = action.get("type")
+            if action.get("status") == "ready_to_execute" and not str(action_type or "").startswith("delete_"):
+                execution = await execute_pending_telegram_action(action)
+                if action_type in ("read_leads", "read_properties", "read_tasks", "read_events"):
+                    response_text = format_read_action_preview({**action, **execution})
+                elif execution.get("executed"):
+                    created_lines = [
+                        f"- {record.get('title') or record.get('name') or record.get('id')} → {record.get('assigned_to') or record.get('status') or record.get('event_type') or 'guardado'}"
+                        for record in execution.get("records", [])
+                    ]
+                    response_text = "\n".join([
+                        execution.get("message") or "Listo. Ejecuté la acción en ROVI.",
+                        "",
+                        *created_lines,
+                    ]).strip()
+                else:
+                    response_text = execution.get("message") or "No pude ejecutar la acción."
+                delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
+                await db.telegram_agent_messages.insert_one({
+                    "id": f"telegram-agent-message-{uuid.uuid4()}",
+                    "profile_id": link.get("hermes_profile_name") or "rovi-device-link",
+                    "link_id": link["id"],
+                    "tenant_id": link.get("tenant_id"),
+                    "user_id": link["user_id"],
+                    "role_scope": role_scope,
+                    "chat_id": chat_id,
+                    "telegram_user_id": str(telegram_user.get("id") or ""),
+                    "message": text,
+                    "response": response_text,
+                    "delivery": delivery,
+                    "agent_action_id": action["id"],
+                    "action_type": action_type,
+                    "execution": serialize_doc(execution),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                })
+                return {"ok": True, "status": "action_executed", "delivery": delivery}
+
             response_text = format_pending_telegram_action_preview(action)
             delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
             await db.telegram_agent_messages.insert_one({

@@ -1,0 +1,55 @@
+{
+  "purpose": "Teach ROVI agents to interpret real WhatsApp group exports and public Google Drive folders used by brokers to share leads and properties.",
+  "whatsapp_patterns": {
+    "lead_request": [
+      "Looking for a villa 6 Bdr starting July 1 contract for a year Budget around 70000",
+      "Busco Renta Depa no estudio Solo centro 1 pax 2 gatos Largo plazo $12,000-$17,000",
+      "I’m looking an apartment for a client. 1 or 2 bedrooms 38k pesos monthly for a year."
+    ],
+    "property_offer": [
+      "FOR RENT STUDIO Long-term rent 12,500 pesos per month deposit contract Drive link",
+      "Se vende casa frente al mar en Playacar fase 1 3 recamaras 2 baños Precio 2,500,000 USD",
+      "Open house today House 3 bedroom 170sq2 low HOA close to downtown and beach Price 365,000usd"
+    ],
+    "contact_card": [
+      "VCF broker contact",
+      "VCF provider contact",
+      "VCF lawyer or service provider"
+    ],
+    "media_bundle": [
+      "Multimedia omitido",
+      "IMG-* and VID-* files adjacent to WhatsApp export",
+      "Google Photos or Drive gallery links"
+    ]
+  },
+  "drive_patterns": {
+    "property_package": {
+      "root_name_signal": "development/property title",
+      "presentation_signal": ["presentacion", "brochure", "deck"],
+      "availability_signal": ["precios", "disponibilidad", "inventory", "price list"],
+      "media_signal": ["renders", "fotos", "amenidades", "planos", "videos"],
+      "document_signal": ["pdf", "doc", "xlsx", "sheet"]
+    },
+    "example": {
+      "root": "DISTRITO XCALACOCO",
+      "children": [
+        "1. PRESENTACIÓN",
+        "2. PRECIOS Y DISPONIBILIDAD/Disponibilidad - Distrito Xcalacoco Beach Fase 2.pdf",
+        "3. RENDERS/29 exterior render images"
+      ],
+      "rovi_mapping": {
+        "property_title": "Distrito Xcalacoco Beach Fase 2",
+        "entity_type": "development_property",
+        "documents": ["presentation", "price_availability_pdf"],
+        "media_gallery": ["renders"],
+        "actions": ["create_or_update_property", "save_media_hub_assets", "link_media_to_property", "extract_inventory_from_pdf"]
+      }
+    }
+  },
+  "autopilot_rules": [
+    "Create leads, properties, tasks, events, media assets and imports without confirmation when safe.",
+    "If confidence is medium, create record with needs_review=true and missing_fields.",
+    "If confidence is low, save as Media Hub/Inbox item and create review task.",
+    "Ask confirmation only for delete, bulk delete, access revocation, external mass communication, payments or irreversible actions."
+  ]
+}

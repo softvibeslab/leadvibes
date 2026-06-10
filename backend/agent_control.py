@@ -52,11 +52,13 @@ ROLE_SCOPES = [
     "rovi_marketing",
     "rovi_customer_success",
     "rovi_ops",
+    "rovi_orchestrator",
     "copim_council",
     "copim_association",
     "copim_member",
     "agency_admin",
     "broker",
+    "rentals",
     "vibe_orchestrator",
     "audience_intel",
     "offer_architect",
@@ -73,11 +75,13 @@ ROLE_LABELS = {
     "rovi_marketing": "ROVI Marketing",
     "rovi_customer_success": "ROVI Customer Success",
     "rovi_ops": "ROVI Ops",
+    "rovi_orchestrator": "ROVI Orchestrator",
     "copim_council": "Consejo COPIM",
     "copim_association": "Asociacion COPIM",
     "copim_member": "Miembro COPIM",
     "agency_admin": "Inmobiliaria",
     "broker": "Broker",
+    "rentals": "Rentas",
     "vibe_orchestrator": "VibeLab Orquestador",
     "audience_intel": "VibeLab Audience Intel",
     "offer_architect": "VibeLab Offer Architect",
@@ -151,11 +155,13 @@ ROLE_PROMPTS = {
     "rovi_marketing": "Actua como estratega de demanda para ROVI. Optimiza fuentes, mensajes, audiencias, CPL, MQL y handoff hacia ventas.",
     "rovi_customer_success": "Actua como Customer Success Manager. Prioriza onboarding, adopcion, expansion, salud de cuenta y riesgo de churn.",
     "rovi_ops": "Actua como Revenue Ops. Revisa calidad de datos, automatizaciones, integraciones, permisos, costos y confiabilidad operativa.",
+    "rovi_orchestrator": "Actua como orquestador maestro de agentes ROVI. Audita, entrena y mejora perfiles, skills, prompts, tools y casos E2E.",
     "copim_council": "Actua como asesor institucional COPIM. Ayuda a gestionar asociaciones, membresias, cobranza, eventos, marketplace y KPIs nacionales.",
     "copim_association": "Actua como operador de asociacion COPIM. Ayuda con socios locales, cobranza, eventos, cursos, comunidad y activacion comercial.",
     "copim_member": "Actua como asistente de un miembro COPIM. Ayuda con perfil profesional, cursos, eventos, propiedades, marketplace y oportunidades comerciales.",
     "agency_admin": "Actua como director comercial de una inmobiliaria. Ayuda a priorizar brokers, leads, pipeline, campanas, conversion y revenue.",
     "broker": "Actua como coach comercial inmobiliario. Ayuda a calificar leads, preparar seguimientos, scripts, tareas y siguientes acciones concretas.",
+    "rentals": "Actua como operador experto de rentas inmobiliarias. Ayuda con leads de renta, disponibilidad, citas, documentos, contratos, pagos y seguimiento.",
     "vibe_orchestrator": "Actua como orquestador de VibeLab. Convierte contexto, oferta, segmento y metricas en la siguiente accion comercial. Prioriza velocidad, etica, ROI y aprendizaje.",
     "audience_intel": "Actua como analista de audiencias hiperlocales. Clasifica grupos por intencion, permiso comercial, sensibilidad cultural, riesgo de spam y mejor propuesta de valor.",
     "offer_architect": "Actua como arquitecto de ofertas digitales. Disena ofertas entregables en menos de 30 minutos con precio, promesa, insumos, margen y flujo de fulfillment.",
@@ -243,6 +249,42 @@ MULTIMODAL_SKILL_CATALOG = [
         "subcategory": "Links",
         "recommended_roles": ["agency_admin", "broker", "property_manager", "manager"],
         "input_types": ["url", "google_drive", "public_folder"],
+    },
+    {
+        "id": "whatsapp_chat_intelligence",
+        "label": "WhatsApp Intelligence",
+        "user_prompt": "Interpreta exports, grupos y mensajes de WhatsApp con propiedades, leads, brokers, contactos, precios, ubicaciones, VCF, multimedia y solicitudes mixtas español/inglés.",
+        "category": "superpowers",
+        "subcategory": "WhatsApp",
+        "recommended_roles": ["agency_admin", "broker", "rentals", "rovi_orchestrator"],
+        "input_types": ["whatsapp_export", "txt", "vcf", "chat", "group_message"],
+    },
+    {
+        "id": "drive_property_package_importer",
+        "label": "Paquetes Drive de propiedades",
+        "user_prompt": "Analiza carpetas publicas de Google Drive como paquetes inmobiliarios: presentación, precios, disponibilidad, renders, planos, brochures y media para crear o enriquecer propiedades.",
+        "category": "superpowers",
+        "subcategory": "Links",
+        "recommended_roles": ["agency_admin", "broker", "rentals", "property_manager", "rovi_orchestrator"],
+        "input_types": ["google_drive", "public_folder", "pdf", "image_gallery"],
+    },
+    {
+        "id": "crm_remote_control",
+        "label": "Control remoto CRM",
+        "user_prompt": "Opera el CRM como asistente con CRUD de leads, propiedades, tareas, eventos, importaciones y media, ejecutando acciones seguras en Autopilot y confirmando solo eliminaciones.",
+        "category": "superpowers",
+        "subcategory": "CRM",
+        "recommended_roles": ["agency_admin", "broker", "rentals", "rovi_orchestrator", "property_manager", "manager"],
+        "input_types": ["command", "telegram", "whatsapp", "natural_language"],
+    },
+    {
+        "id": "rental_ops",
+        "label": "Operación de rentas",
+        "user_prompt": "Gestiona leads de renta, disponibilidad, requisitos, citas, contratos, depósitos, servicios incluidos, mascotas, seguimiento y propiedades en renta.",
+        "category": "operacion",
+        "subcategory": "Rentas",
+        "recommended_roles": ["rentals", "agency_admin", "broker", "property_manager"],
+        "input_types": ["rental_request", "availability", "drive_folder", "message"],
     },
 ]
 
@@ -665,7 +707,8 @@ Reglas de seguridad:
 - Usa solo los datos del contexto CRM que te fueron entregados.
 - Si falta informacion, dilo y recomienda la siguiente accion.
 - No inventes datos financieros, usuarios, leads, membresias ni permisos.
-- Para acciones de escritura, prepara una propuesta y pide confirmacion humana.
+- Ejecuta acciones seguras de escritura en Autopilot cuando la tool/backend lo permita: crear, actualizar, importar, clasificar, enriquecer, vincular media, cambiar stage y crear tareas/eventos.
+- Pide confirmacion humana solo para eliminar, borrado masivo, revocar accesos, campañas masivas externas, pagos externos o acciones irreversibles.
 """
 
     return [

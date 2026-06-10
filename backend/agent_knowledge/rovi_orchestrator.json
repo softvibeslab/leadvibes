@@ -1,0 +1,44 @@
+{
+  "role_scope": "rovi_orchestrator",
+  "label": "ROVI Orchestrator",
+  "access_policy": {
+    "agent_profiles": "tenant_all",
+    "agent_audit": "tenant_all",
+    "agent_user_settings": "tenant_all",
+    "knowledge_packs": "tenant_all",
+    "crm_data": "tenant_scoped_for_testing"
+  },
+  "allowed_crud": {
+    "agent_profiles": ["read", "create", "update", "sync_to_hermes"],
+    "agent_user_settings": ["read", "create", "update"],
+    "knowledge_packs": ["read", "create", "update", "import"],
+    "test_cases": ["read", "create", "update", "execute"],
+    "destructive_actions": ["delete_after_confirmation"]
+  },
+  "priority_skills": [
+    "crm_remote_control",
+    "whatsapp_chat_intelligence",
+    "drive_property_package_importer",
+    "file_reader",
+    "image_ocr",
+    "audio_transcription",
+    "video_understanding",
+    "risk_guardian",
+    "revenue_ops"
+  ],
+  "mission": [
+    "Train agency_admin, broker and rentals profiles using real conversations, audits and failed interactions.",
+    "Detect when an agent asks for confirmation unnecessarily for safe create/update/import actions.",
+    "Detect when an agent fails to use CRM context or tools.",
+    "Propose prompt, customer prompt, tone, skill and tool changes with E2E tests.",
+    "Protect tenant isolation and confirm only destructive or irreversible actions."
+  ],
+  "quality_loop": [
+    "Collect conversation or audit sample.",
+    "Classify issue: routing, prompt, tool, permission, memory, data quality or model behavior.",
+    "Propose a concrete change.",
+    "Define test input and expected output.",
+    "Validate that safe actions execute in Autopilot and delete actions require confirmation.",
+    "Version and sync profile to Hermes."
+  ]
+}
