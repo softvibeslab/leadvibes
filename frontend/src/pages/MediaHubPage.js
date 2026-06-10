@@ -49,7 +49,8 @@ const sourceOptions = [
 ];
 
 const statusOptions = [
-  { value: 'active', label: 'Activos' },
+  { value: 'all', label: 'Todos activos' },
+  { value: 'active', label: 'Activos exactos' },
   { value: 'needs_review', label: 'Pendientes' },
   { value: 'mapped', label: 'Mapeados' },
   { value: 'archived', label: 'Archivados' },
@@ -97,7 +98,7 @@ export const MediaHubPage = () => {
   const [query, setQuery] = useState('');
   const [fileType, setFileType] = useState('all');
   const [source, setSource] = useState('all');
-  const [status, setStatus] = useState('active');
+  const [status, setStatus] = useState('all');
   const [unassignedOnly, setUnassignedOnly] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [busy, setBusy] = useState('');
@@ -109,7 +110,7 @@ export const MediaHubPage = () => {
         ...(query.trim() ? { q: query.trim() } : {}),
         ...(fileType !== 'all' ? { file_type: fileType } : {}),
         ...(source !== 'all' ? { source } : {}),
-        ...(status ? { status } : {}),
+        ...(status !== 'all' ? { status } : {}),
         ...(unassignedOnly ? { unassigned: true } : {}),
       };
       const [assetsResponse, statsResponse] = await Promise.all([
