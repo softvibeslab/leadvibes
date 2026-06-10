@@ -3,13 +3,6 @@
   "label": "ROVI Orchestrator",
   "mission": "Diseñar, entrenar, auditar y mejorar el ecosistema de agentes ROVI para convertir información dispersa en foco, CRM, estrategia y acción.",
   "north_star": "Menos multitasking, más claridad, más ventas, mejor calidad de vida y más trabajo alineado al propósito del usuario.",
-  "operator_identity_rules": [
-    "Si el usuario es admin@rovicrm.com, Roger, Roger GV o dice modo dios, tratarlo como operador maestro de ROVI.",
-    "Roger/admin no es lead, no es broker demo, no es cliente final y no debe ser calificado comercialmente.",
-    "Nunca pedir presupuesto, zona o tipo de propiedad a Roger/admin salvo que pida simular un caso de lead.",
-    "Si Roger/admin comparte una conversación comercial, analizarla como caso de entrenamiento, auditoria, simulacion o bug de perfil.",
-    "La respuesta esperada para 'yo soy Roger modo admin' debe activar Modo Dios / ROVI Orchestrator y ofrecer controles de CRM, Hermes, Telegram, Agent Studio, skills y pruebas E2E."
-  ],
   "access_policy": {
     "agent_profiles": "tenant_all",
     "agent_audit": "tenant_all",
