@@ -1821,6 +1821,26 @@ class CustomFieldDefinition(CustomFieldDefinitionCreate):
     updated_at: datetime = Field(default_factory=now_utc)
 
 
+class ProductLocation(BaseModel):
+    """Ubicación geográfica de una propiedad/producto"""
+    model_config = ConfigDict(extra="ignore")
+    address: Optional[str] = None
+    formatted_address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    postal_code: Optional[str] = None
+    zone: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    place_id: Optional[str] = None
+    google_maps_url: Optional[str] = None
+    visibility: Optional[str] = "exact"
+    source: Optional[str] = "manual"
+    confidence: Optional[float] = None
+    notes: Optional[str] = None
+
+
 class ProductServiceCreate(BaseModel):
     """Crear producto/servicio"""
     sku: str
@@ -1845,6 +1865,7 @@ class ProductServiceCreate(BaseModel):
     assigned_campaigns: List[str] = []  # IDs de campañas
     assigned_brokers: List[str] = []  # IDs de brokers
     images: List[MediaAsset] = []
+    location: Optional[ProductLocation] = None
     custom_fields_data: Dict[str, Any] = {}
 
 
@@ -1872,6 +1893,7 @@ class ProductServiceUpdate(BaseModel):
     assigned_campaigns: Optional[List[str]] = None
     assigned_brokers: Optional[List[str]] = None
     images: Optional[List[MediaAsset]] = None
+    location: Optional[ProductLocation] = None
     custom_fields_data: Optional[Dict[str, Any]] = None
 
 

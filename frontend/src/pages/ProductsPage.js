@@ -13,7 +13,8 @@ import { Switch } from '../components/ui/switch';
 import { toast } from 'sonner';
 import {
   Plus, Edit, Trash2, Package, Sparkles, Loader2, Grid3X3, List, Search, SlidersHorizontal,
-  ImagePlus, X, Star, Settings2, ArrowUp, ArrowDown, UserCircle, FolderOpen, CheckCircle2
+  ImagePlus, X, Star, Settings2, ArrowUp, ArrowDown, UserCircle, FolderOpen, CheckCircle2,
+  MapPin, ExternalLink, LocateFixed, MousePointer2
 } from 'lucide-react';
 
 const PRODUCT_TYPES = [
@@ -57,8 +58,30 @@ const EMPTY_PRODUCT = {
   external_id: '',
   is_active: true,
   images: [],
+  location: null,
   custom_fields_data: {},
 };
+
+const EMPTY_LOCATION = {
+  address: '',
+  formatted_address: '',
+  city: '',
+  state: '',
+  country: 'MX',
+  postal_code: '',
+  zone: '',
+  lat: '',
+  lng: '',
+  place_id: '',
+  google_maps_url: '',
+  visibility: 'exact',
+  source: 'manual',
+  confidence: '',
+  notes: '',
+};
+
+const DEFAULT_MAP_CENTER = { lat: 20.2114, lng: -87.4654 };
+const MAP_ZOOM = 15;
 
 const EMPTY_CUSTOM_FIELD = {
   label: '',
@@ -135,6 +158,178 @@ const calculateEstimatedCommission = (product) => {
   return price * (commission / 100);
 };
 
+const toFiniteNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const normalizeLocationForForm = (location) => {
+  if (!location) return { ...EMPTY_LOCATION };
+  return {
+    ...EMPTY_LOCATION,
+    ...location,
+    lat: location.lat ?? '',
+    lng: location.lng ?? '',
+    confidence: location.confidence ?? '',
+    visibility: location.visibility || 'exact',
+    source: location.source || 'manual',
+    country: location.country || 'MX',
+  };
+};
+
+const cleanLocationForPayload = (location) => {
+  const normalized = normalizeLocationForForm(location);
+  const lat = toFiniteNumber(normalized.lat);
+  const lng = toFiniteNumber(normalized.lng);
+  const payload = {
+    ...normalized,
+    lat,
+    lng,
+    confidence: toFiniteNumber(normalized.confidence),
+  };
+  const hasMeaningfulValue = [
+    payload.address,
+    payload.formatted_address,
+    payload.city,
+    payload.state,
+    payload.zone,
+    payload.postal_code,
+    payload.place_id,
+    payload.notes,
+  ].some((value) => String(value || '').trim()) || (lat !== null && lng !== null);
+
+  if (!hasMeaningfulValue) return null;
+  return payload;
+};
+
+const locationHasCoordinates = (location) => {
+  const lat = toFiniteNumber(location?.lat);
+  const lng = toFiniteNumber(location?.lng);
+  return lat !== null && lng !== null;
+};
+
+const locationLabel = (location) => {
+  if (!location) return 'Sin ubicación';
+  return location.zone || location.city || location.formatted_address || location.address || 'Ubicación guardada';
+};
+
+const buildGoogleMapsUrl = (location) => {
+  if (!location) return '';
+  const lat = toFiniteNumber(location.lat);
+  const lng = toFiniteNumber(location.lng);
+  if (lat !== null && lng !== null) {
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  }
+  const query = location.formatted_address || location.address || [location.zone, location.city, location.state, location.country].filter(Boolean).join(', ');
+  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
+};
+
+const parseCoordinates = (value) => {
+  const match = String(value || '').match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const lat = Number(match[1]);
+  const lng = Number(match[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+};
+
+const latLngToWorldPoint = (lat, lng, zoom) => {
+  const sinLat = Math.sin((lat * Math.PI) / 180);
+  const scale = 256 * (2 ** zoom);
+  return {
+    x: ((lng + 180) / 360) * scale,
+    y: (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale,
+  };
+};
+
+const worldPointToLatLng = (x, y, zoom) => {
+  const scale = 256 * (2 ** zoom);
+  const lng = (x / scale) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * y) / scale;
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return { lat, lng };
+};
+
+const openGoogleMaps = (location) => {
+  const url = buildGoogleMapsUrl(location);
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const PropertyMapPicker = ({ location, onPick }) => {
+  const lat = toFiniteNumber(location?.lat) ?? DEFAULT_MAP_CENTER.lat;
+  const lng = toFiniteNumber(location?.lng) ?? DEFAULT_MAP_CENTER.lng;
+  const center = latLngToWorldPoint(lat, lng, MAP_ZOOM);
+  const centerTileX = Math.floor(center.x / 256);
+  const centerTileY = Math.floor(center.y / 256);
+  const offsetX = center.x - centerTileX * 256;
+  const offsetY = center.y - centerTileY * 256;
+  const maxTile = (2 ** MAP_ZOOM) - 1;
+  const hasCoordinates = locationHasCoordinates(location);
+
+  const handleClick = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+    const nextPoint = {
+      x: center.x + clickX - rect.width / 2,
+      y: center.y + clickY - rect.height / 2,
+    };
+    const next = worldPointToLatLng(nextPoint.x, nextPoint.y, MAP_ZOOM);
+    onPick({
+      lat: Number(next.lat.toFixed(6)),
+      lng: Number(next.lng.toFixed(6)),
+      source: 'manual',
+    });
+  };
+
+  const tiles = [];
+  for (let y = -1; y <= 1; y += 1) {
+    for (let x = -1; x <= 1; x += 1) {
+      const tileX = Math.min(Math.max(centerTileX + x, 0), maxTile);
+      const tileY = Math.min(Math.max(centerTileY + y, 0), maxTile);
+      tiles.push({ x, y, tileX, tileY });
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="relative h-72 w-full overflow-hidden rounded-xl border border-border/70 bg-slate-100 text-left focus:outline-none focus:ring-2 focus:ring-primary"
+    >
+      <div
+        className="absolute grid h-[768px] w-[768px] grid-cols-3 grid-rows-3"
+        style={{
+          left: `calc(50% - ${(offsetX + 256).toFixed(2)}px)`,
+          top: `calc(50% - ${(offsetY + 256).toFixed(2)}px)`,
+        }}
+      >
+        {tiles.map((tile) => (
+          <img
+            key={`${tile.tileX}-${tile.tileY}`}
+            src={`https://tile.openstreetmap.org/${MAP_ZOOM}/${tile.tileX}/${tile.tileY}.png`}
+            alt=""
+            className="h-64 w-64 select-none"
+            draggable={false}
+          />
+        ))}
+      </div>
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] bg-[size:40px_40px]" />
+      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-full flex-col items-center">
+        <MapPin className={`h-9 w-9 drop-shadow ${hasCoordinates ? 'fill-primary text-primary' : 'text-slate-500'}`} />
+        <span className="mt-1 rounded-full bg-background/95 px-2 py-1 text-[11px] font-medium shadow">
+          {hasCoordinates ? 'Pin de propiedad' : 'Da clic para ubicar'}
+        </span>
+      </div>
+      <div className="absolute bottom-3 left-3 rounded-full bg-background/95 px-3 py-1 text-xs text-muted-foreground shadow">
+        Clic en el mapa para mover el pin
+      </div>
+    </button>
+  );
+};
+
 export const ProductsPage = () => {
   const { api, user } = useAuth();
   const [products, setProducts] = useState([]);
@@ -171,6 +366,10 @@ export const ProductsPage = () => {
   const [mediaAssets, setMediaAssets] = useState([]);
   const [loadingMediaAssets, setLoadingMediaAssets] = useState(false);
   const [mediaSearch, setMediaSearch] = useState('');
+  const [locationSearch, setLocationSearch] = useState('');
+  const [locationResults, setLocationResults] = useState([]);
+  const [locationSearching, setLocationSearching] = useState(false);
+  const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const [productInterestForm, setProductInterestForm] = useState({
     lead_id: 'none',
     interest_type: 'principal',
@@ -317,6 +516,11 @@ export const ProductsPage = () => {
           product.sku,
           product.title,
           product.description,
+          product.location?.formatted_address,
+          product.location?.address,
+          product.location?.zone,
+          product.location?.city,
+          product.location?.state,
           ...(product.aliases || []),
           ...(product.keywords || []),
         ].join(' ').toLowerCase();
@@ -362,7 +566,9 @@ export const ProductsPage = () => {
 
   const resetForm = () => {
     setEditingProduct(null);
-    setFormData(EMPTY_PRODUCT);
+    setFormData({ ...EMPTY_PRODUCT, location: { ...EMPTY_LOCATION }, images: [], features: [], aliases: [], keywords: [], custom_fields_data: {} });
+    setLocationSearch('');
+    setLocationResults([]);
   };
 
   const openCreateDialog = () => {
@@ -481,6 +687,97 @@ export const ProductsPage = () => {
     }));
   };
 
+  const updateLocation = (partial) => {
+    setFormData((prev) => ({
+      ...prev,
+      location: {
+        ...normalizeLocationForForm(prev.location),
+        ...partial,
+      },
+    }));
+  };
+
+  const clearLocation = () => {
+    setFormData((prev) => ({ ...prev, location: { ...EMPTY_LOCATION } }));
+    setLocationSearch('');
+    setLocationResults([]);
+  };
+
+  const searchLocation = async () => {
+    const query = locationSearch.trim();
+    if (!query) {
+      toast.error('Escribe una dirección, zona o coordenadas');
+      return;
+    }
+
+    const coordinates = parseCoordinates(query);
+    if (coordinates) {
+      updateLocation({
+        ...coordinates,
+        source: 'coordinates',
+        formatted_address: query,
+      });
+      setLocationResults([]);
+      toast.success('Coordenadas aplicadas al mapa');
+      return;
+    }
+
+    setLocationSearching(true);
+    try {
+      const res = await api.get('/products/location/search', { params: { q: query, limit: 6 } });
+      const results = res.data?.results || [];
+      setLocationResults(results);
+      if (!results.length) {
+        toast.info('No encontré ubicaciones para esa búsqueda');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'No pude buscar la ubicación');
+    } finally {
+      setLocationSearching(false);
+    }
+  };
+
+  const selectLocationResult = (location) => {
+    setFormData((prev) => ({
+      ...prev,
+      location: normalizeLocationForForm({
+        ...location,
+        source: 'search',
+      }),
+    }));
+    setLocationSearch(location.formatted_address || location.address || '');
+    setLocationResults([]);
+    toast.success('Ubicación aplicada');
+  };
+
+  const reverseGeocodeLocation = async () => {
+    const lat = toFiniteNumber(formData.location?.lat);
+    const lng = toFiniteNumber(formData.location?.lng);
+    if (lat === null || lng === null) {
+      toast.error('Primero selecciona un punto en el mapa');
+      return;
+    }
+
+    setReverseGeocoding(true);
+    try {
+      const res = await api.get('/products/location/reverse', { params: { lat, lng } });
+      const nextLocation = {
+        ...normalizeLocationForForm(formData.location),
+        ...(res.data?.location || {}),
+        lat,
+        lng,
+        source: 'manual',
+      };
+      setFormData((prev) => ({ ...prev, location: normalizeLocationForForm(nextLocation) }));
+      setLocationSearch(nextLocation.formatted_address || nextLocation.address || '');
+      toast.success('Dirección aproximada aplicada');
+    } catch (error) {
+      toast.error('No pude obtener la dirección desde el pin');
+    } finally {
+      setReverseGeocoding(false);
+    }
+  };
+
   const editProduct = (product) => {
     setEditingProduct(product);
     setFormData({
@@ -504,8 +801,11 @@ export const ProductsPage = () => {
       external_id: product.external_id || '',
       is_active: product.is_active ?? true,
       images: product.images || [],
+      location: normalizeLocationForForm(product.location),
       custom_fields_data: product.custom_fields_data || {},
     });
+    setLocationSearch(product.location?.formatted_address || product.location?.address || '');
+    setLocationResults([]);
     setDialogOpen(true);
   };
 
@@ -545,6 +845,7 @@ export const ProductsPage = () => {
         order: index,
         is_cover: image.is_cover || (index === 0 && !formData.images.some((candidate) => candidate.is_cover)),
       })),
+      location: cleanLocationForPayload(formData.location),
     };
 
     setSaving(true);
@@ -1120,6 +1421,20 @@ export const ProductsPage = () => {
                     </p>
                   </div>
                 </div>
+                <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">Ubicación</p>
+                      <p className="truncate font-medium">{locationLabel(product.location)}</p>
+                    </div>
+                  </div>
+                  {buildGoogleMapsUrl(product.location) && (
+                    <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => openGoogleMaps(product.location)}>
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Badge variant={Number(product.commission_percentage || 0) > 0 ? 'default' : 'secondary'}>
                     Comisión: {formatCommissionPercentage(product.commission_percentage)}
@@ -1197,6 +1512,7 @@ export const ProductsPage = () => {
               <TableHead>Tipo</TableHead>
               <TableHead>Operación</TableHead>
               <TableHead>Nicho</TableHead>
+              <TableHead>Ubicación</TableHead>
               <TableHead>Responsable</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Comisión</TableHead>
@@ -1228,6 +1544,17 @@ export const ProductsPage = () => {
                   <TableCell>{PRODUCT_TYPES.find((type) => type.value === product.product_type)?.label || product.product_type}</TableCell>
                   <TableCell>{OPERATION_TYPES.find((type) => type.value === (product.operation_type || 'sale'))?.label || 'Venta'}</TableCell>
                   <TableCell>{product.niche || '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex max-w-[220px] items-center gap-2">
+                      <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="truncate">{locationLabel(product.location)}</span>
+                      {buildGoogleMapsUrl(product.location) && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => openGoogleMaps(product.location)}>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="max-w-[180px]">
                       <p className="truncate font-medium">{product.responsible_broker_name || 'Sin asignar'}</p>
@@ -1391,6 +1718,168 @@ export const ProductsPage = () => {
     </Dialog>
   );
 
+  const renderLocationSection = () => {
+    const location = normalizeLocationForForm(formData.location);
+    const googleMapsUrl = buildGoogleMapsUrl(location);
+    const hasCoordinates = locationHasCoordinates(location);
+
+    return (
+      <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              <h3 className="font-semibold">Ubicación inteligente</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Busca una dirección, pega coordenadas o selecciona el punto manualmente en el mapa.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={reverseGeocodeLocation} disabled={!hasCoordinates || reverseGeocoding}>
+              {reverseGeocoding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LocateFixed className="mr-2 h-4 w-4" />}
+              Dirección desde pin
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => openGoogleMaps(location)} disabled={!googleMapsUrl}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Google Maps
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={clearLocation}>
+              Limpiar
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={locationSearch}
+              onChange={(event) => setLocationSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  searchLocation();
+                }
+              }}
+              placeholder="Buscar dirección, desarrollo, zona o 20.2114, -87.4654"
+              className="pl-9"
+            />
+          </div>
+          <Button type="button" variant="outline" onClick={searchLocation} disabled={locationSearching}>
+            {locationSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+            Buscar
+          </Button>
+        </div>
+
+        {locationResults.length > 0 && (
+          <div className="space-y-2 rounded-xl border border-border/70 bg-background p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Resultados</p>
+            {locationResults.map((result) => (
+              <button
+                type="button"
+                key={`${result.place_id}-${result.lat}-${result.lng}`}
+                onClick={() => selectLocationResult(result)}
+                className="w-full rounded-lg border border-border/60 px-3 py-2 text-left text-sm hover:bg-muted/40"
+              >
+                <p className="font-medium">{result.zone || result.city || result.state || 'Ubicación encontrada'}</p>
+                <p className="line-clamp-2 text-xs text-muted-foreground">{result.formatted_address || result.address}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-3">
+            <PropertyMapPicker
+              location={location}
+              onPick={(next) => updateLocation({
+                ...next,
+                formatted_address: location.formatted_address,
+                address: location.address,
+              })}
+            />
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <MousePointer2 className="h-3.5 w-3.5" />
+              <span>El pin se guarda como coordenadas de la propiedad. Puedes abrirlo en Google Maps para navegar.</span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Dirección completa</Label>
+              <Textarea
+                value={location.formatted_address || location.address || ''}
+                onChange={(event) => updateLocation({
+                  formatted_address: event.target.value,
+                  address: event.target.value,
+                  source: 'manual',
+                })}
+                rows={3}
+                placeholder="Dirección, desarrollo, referencia pública"
+              />
+            </div>
+            <div>
+              <Label>Latitud</Label>
+              <Input
+                value={location.lat}
+                onChange={(event) => updateLocation({ lat: event.target.value, source: 'coordinates' })}
+                placeholder="20.2114"
+              />
+            </div>
+            <div>
+              <Label>Longitud</Label>
+              <Input
+                value={location.lng}
+                onChange={(event) => updateLocation({ lng: event.target.value, source: 'coordinates' })}
+                placeholder="-87.4654"
+              />
+            </div>
+            <div>
+              <Label>Zona / colonia</Label>
+              <Input value={location.zone} onChange={(event) => updateLocation({ zone: event.target.value })} placeholder="Aldea Zama" />
+            </div>
+            <div>
+              <Label>Ciudad</Label>
+              <Input value={location.city} onChange={(event) => updateLocation({ city: event.target.value })} placeholder="Tulum" />
+            </div>
+            <div>
+              <Label>Estado</Label>
+              <Input value={location.state} onChange={(event) => updateLocation({ state: event.target.value })} placeholder="Quintana Roo" />
+            </div>
+            <div>
+              <Label>Código postal</Label>
+              <Input value={location.postal_code} onChange={(event) => updateLocation({ postal_code: event.target.value })} />
+            </div>
+            <div>
+              <Label>País</Label>
+              <Input value={location.country} onChange={(event) => updateLocation({ country: event.target.value })} />
+            </div>
+            <div>
+              <Label>Visibilidad</Label>
+              <Select value={location.visibility || 'exact'} onValueChange={(value) => updateLocation({ visibility: value })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="exact">Exacta</SelectItem>
+                  <SelectItem value="approximate">Aproximada</SelectItem>
+                  <SelectItem value="hidden">Oculta para clientes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-2">
+              <Label>Referencia interna</Label>
+              <Input
+                value={location.notes}
+                onChange={(event) => updateLocation({ notes: event.target.value })}
+                placeholder="Entrada, lote, punto de reunión o referencia para visita"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderProductDialog = () => (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogContent className="flex max-h-[90vh] max-w-5xl min-h-0 flex-col overflow-hidden p-0">
@@ -1524,6 +2013,8 @@ export const ProductsPage = () => {
             </div>
             <Textarea value={formData.description} onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))} rows={5} />
           </div>
+
+          {renderLocationSection()}
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>

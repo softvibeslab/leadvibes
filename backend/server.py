@@ -14429,6 +14429,118 @@ def normalize_product_images(images: Optional[List[Dict[str, Any]]]) -> List[Dic
     return sorted(normalized_images, key=lambda image: (image.get("order", 0), image.get("filename") or ""))
 
 
+def build_google_maps_url(location: Optional[Dict[str, Any]]) -> str:
+    location = location or {}
+    lat = location.get("lat")
+    lng = location.get("lng")
+    if lat is not None and lng is not None:
+        return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+
+    query = (
+        location.get("formatted_address")
+        or location.get("address")
+        or " ".join(
+            str(location.get(key) or "").strip()
+            for key in ("zone", "city", "state", "country")
+            if str(location.get(key) or "").strip()
+        )
+    )
+    if query:
+        return f"https://www.google.com/maps/search/?api=1&query={quote(query)}"
+    return ""
+
+
+def normalize_product_location(location: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if hasattr(location, "model_dump"):
+        location = location.model_dump()
+    if not location:
+        return None
+
+    def clean_text(key: str) -> Optional[str]:
+        value = location.get(key)
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+    def clean_float(key: str, minimum: float, maximum: float) -> Optional[float]:
+        value = location.get(key)
+        if value in (None, ""):
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if number < minimum or number > maximum:
+            return None
+        return number
+
+    visibility = clean_text("visibility") or "exact"
+    if visibility not in {"exact", "approximate", "hidden"}:
+        visibility = "exact"
+
+    normalized = {
+        "address": clean_text("address"),
+        "formatted_address": clean_text("formatted_address") or clean_text("address"),
+        "city": clean_text("city"),
+        "state": clean_text("state"),
+        "country": clean_text("country") or "MX",
+        "postal_code": clean_text("postal_code"),
+        "zone": clean_text("zone"),
+        "lat": clean_float("lat", -90, 90),
+        "lng": clean_float("lng", -180, 180),
+        "place_id": clean_text("place_id"),
+        "visibility": visibility,
+        "source": clean_text("source") or "manual",
+        "notes": clean_text("notes"),
+    }
+
+    confidence = location.get("confidence")
+    if confidence not in (None, ""):
+        try:
+            normalized["confidence"] = max(0.0, min(1.0, float(confidence)))
+        except (TypeError, ValueError):
+            normalized["confidence"] = None
+    else:
+        normalized["confidence"] = None
+
+    if not any(
+        normalized.get(key)
+        for key in ("address", "formatted_address", "city", "state", "zone", "lat", "lng", "place_id", "notes")
+    ):
+        return None
+
+    normalized["google_maps_url"] = clean_text("google_maps_url") or build_google_maps_url(normalized)
+    return normalized
+
+
+def normalize_nominatim_location(item: Dict[str, Any]) -> Dict[str, Any]:
+    address = item.get("address") or {}
+    city = (
+        address.get("city")
+        or address.get("town")
+        or address.get("village")
+        or address.get("municipality")
+        or address.get("county")
+    )
+    zone = address.get("suburb") or address.get("neighbourhood") or address.get("quarter") or address.get("city_district")
+    location = normalize_product_location({
+        "address": item.get("display_name"),
+        "formatted_address": item.get("display_name"),
+        "city": city,
+        "state": address.get("state"),
+        "country": address.get("country_code", "MX").upper(),
+        "postal_code": address.get("postcode"),
+        "zone": zone,
+        "lat": item.get("lat"),
+        "lng": item.get("lon"),
+        "place_id": str(item.get("place_id") or item.get("osm_id") or ""),
+        "source": "search",
+        "confidence": float(item.get("importance") or 0.75),
+    })
+    return location or {}
+
+
 def build_media_assets_from_urls(image_urls: Optional[List[str]], title: str) -> List[Dict[str, Any]]:
     assets = []
     for index, image_url in enumerate(image_urls or []):
@@ -14546,6 +14658,81 @@ async def resolve_product_responsible_broker(
         "responsible_broker_email": broker.get("email"),
     }
 
+
+@api_router.get("/products/location/search", response_model=dict)
+async def search_product_locations(
+    q: str = Query(..., min_length=2),
+    limit: int = Query(6, ge=1, le=10),
+    current_user: dict = Depends(get_current_user),
+):
+    """Busca direcciones/lugares para ubicar una propiedad."""
+    del current_user
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={
+                    "q": q,
+                    "format": "jsonv2",
+                    "addressdetails": 1,
+                    "limit": limit,
+                    "countrycodes": "mx",
+                },
+                headers={
+                    "User-Agent": "ROVI CRM Location Search/1.0 (https://rovicrm.com)",
+                    "Accept-Language": "es-MX,es;q=0.9,en;q=0.5",
+                },
+            )
+            response.raise_for_status()
+        results = [
+            normalize_nominatim_location(item)
+            for item in response.json()
+        ]
+        return {"results": [item for item in results if item]}
+    except Exception as exc:
+        logger.warning("Location search failed: %s", exc)
+        raise HTTPException(status_code=502, detail="No pude buscar ubicaciones en este momento")
+
+
+@api_router.get("/products/location/reverse", response_model=dict)
+async def reverse_product_location(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    current_user: dict = Depends(get_current_user),
+):
+    """Obtiene una dirección aproximada desde coordenadas."""
+    del current_user
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={
+                    "lat": lat,
+                    "lon": lng,
+                    "format": "jsonv2",
+                    "addressdetails": 1,
+                    "zoom": 18,
+                },
+                headers={
+                    "User-Agent": "ROVI CRM Location Reverse/1.0 (https://rovicrm.com)",
+                    "Accept-Language": "es-MX,es;q=0.9,en;q=0.5",
+                },
+            )
+            response.raise_for_status()
+        location = normalize_nominatim_location(response.json())
+        if not location:
+            location = normalize_product_location({"lat": lat, "lng": lng, "source": "coordinates"}) or {}
+        return {"location": location}
+    except Exception as exc:
+        logger.warning("Location reverse failed: %s", exc)
+        fallback = normalize_product_location({"lat": lat, "lng": lng, "source": "coordinates"}) or {}
+        return {"location": fallback, "warning": "No pude obtener dirección, pero guardé coordenadas"}
+
+
 @api_router.get("/products")
 async def get_products(
     is_active: Optional[bool] = None,
@@ -14596,6 +14783,7 @@ async def create_product(
         **product_data.model_dump(),
         **responsible_payload,
         "images": normalize_product_images(product_data.images),
+        "location": normalize_product_location(product_data.location),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
@@ -14830,6 +15018,8 @@ async def update_product(
         ))
     if "images" in update_dict:
         update_dict["images"] = normalize_product_images(update_dict["images"])
+    if "location" in update_data.model_fields_set:
+        update_dict["location"] = normalize_product_location(update_data.location)
     update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     result = await db.products.update_one(
