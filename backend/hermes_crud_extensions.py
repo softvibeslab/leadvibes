@@ -362,23 +362,48 @@ def extract_reason(text: str) -> Optional[str]:
 # FUNCIONES DE BÚSQUEDA DE REGISTROS
 # ============================================================================
 
-def apply_role_scope_visibility(query: dict, entity: str, user_id: str | None, role_scope: str | None) -> dict:
-    """Restrict record lookup for broker-scoped Telegram CRUD actions."""
-    if role_scope != "broker" or not user_id:
+BROKER_SCOPED_ROLES = {"broker"}
+TENANT_SCOPED_ROLES = {"agency_admin", "rentals", "growth_partner", "manager", "property_manager"}
+GLOBAL_SCOPED_ROLES = {"rovi_orchestrator", "rovi_admin", "admin", "owner"}
+
+
+def _append_scope_or(query: dict, conditions: list[dict]) -> dict:
+    """Append an ownership $or without clobbering an existing $or query."""
+    if not conditions:
         return query
+    if "$or" in query:
+        return {"$and": [query, {"$or": conditions}]}
+    return {**query, "$or": conditions}
+
+
+def _deny_scope(query: dict) -> dict:
+    return {"$and": [query, {"__rovi_scope_denied__": "__never__"}]}
+
+
+def apply_role_scope_visibility(query: dict, entity: str, user_id: str | None, role_scope: str | None) -> dict:
+    """Apply hard visibility filters for Hermes/Telegram CRUD actions.
+
+    The caller must still include tenant_id when the role is tenant-scoped.
+    Broker scope is the strictest: own/assigned records only, and no user_id
+    means no records.
+    """
+    role = (role_scope or "").strip().lower()
+    if role in GLOBAL_SCOPED_ROLES or role in TENANT_SCOPED_ROLES:
+        return query
+    if role not in BROKER_SCOPED_ROLES:
+        return query
+    if not user_id:
+        return _deny_scope(query)
     if entity == "lead":
-        return {**query, "$or": [{"assigned_broker_id": user_id}, {"created_by": user_id}]}
+        return _append_scope_or(query, [{"assigned_broker_id": user_id}, {"created_by": user_id}])
     if entity == "property":
-        return {
-            **query,
-            "$or": [
-                {"responsible_broker_id": user_id},
-                {"assigned_brokers": user_id},
-                {"created_by": user_id},
-            ],
-        }
+        return _append_scope_or(query, [
+            {"responsible_broker_id": user_id},
+            {"assigned_brokers": user_id},
+            {"created_by": user_id},
+        ])
     if entity == "task":
-        return {**query, "$or": [{"assigned_to": user_id}, {"created_by": user_id}]}
+        return _append_scope_or(query, [{"assigned_to": user_id}, {"created_by": user_id}])
     if entity == "event":
         return {**query, "user_id": user_id}
     return query

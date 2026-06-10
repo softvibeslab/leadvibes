@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Query, WebSocket, WebSocketDisconnect, Form, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -116,6 +116,7 @@ from dashboard_enhancements import (
 from duplicate_detection import find_potential_duplicates, get_duplicate_suggestions
 from import_optimization import execute_import_optimized, execute_import_with_advanced_duplicates
 from agent_control import AgentRunRequest, SKILL_CATALOG, call_model, create_agent_control_router, extract_text_from_upload, run_agent_turn
+from agent_media_pipeline import build_agent_interpretation_job_doc, extract_public_urls
 from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
 from vibe_lab import create_vibe_lab_router
@@ -4659,6 +4660,7 @@ AGENT_STUDIO_ALL_DEFAULT_SKILLS = [
     "drive_folder_reader",
     "whatsapp_chat_intelligence",
     "drive_property_package_importer",
+    "shared_contact_mapper",
     "youtube_understanding",
     "social_link_intelligence",
     "crm_remote_control",
@@ -4762,6 +4764,21 @@ class AgentStudioTelegramE2ETestRequest(BaseModel):
     message: str = "crea una tarea de prueba E2E desde Agent Studio para validar Telegram y auditoria"
 
 
+class AgentSkillDraftCreateRequest(BaseModel):
+    title: str
+    description: str = ""
+    trigger: str = ""
+    scope: str = "tenant"
+    role_scope: Optional[str] = None
+    source: str = "agent_studio"
+    skill_spec: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentSkillDraftPublishRequest(BaseModel):
+    publish_scope: str = "tenant"
+    notes: str = ""
+
+
 def require_agent_studio_admin(current_user: dict) -> dict:
     if (current_user.get("active_role") or current_user.get("role")) != AGENT_STUDIO_ADMIN_ROLE:
         raise HTTPException(status_code=403, detail="Agent Studio solo esta disponible para rol admin")
@@ -4772,6 +4789,26 @@ def build_agent_studio_public(profile: dict) -> dict:
     profile = serialize_doc(profile) or {}
     profile.pop("tenant_id", None)
     return profile
+
+
+def build_agent_studio_capability_update(existing: dict) -> dict:
+    """Add missing default skills/tools without overwriting profile prompts."""
+    existing_skills = list(existing.get("enabled_skills") or [])
+    skill_set = set(existing_skills)
+    merged_skills = existing_skills + [
+        skill for skill in AGENT_STUDIO_ALL_DEFAULT_SKILLS
+        if skill not in skill_set
+    ]
+    merged_tools = {
+        **AGENT_STUDIO_DEFAULT_TOOLS,
+        **(existing.get("tools") or {}),
+    }
+    update_doc: dict[str, Any] = {}
+    if merged_skills != existing_skills:
+        update_doc["enabled_skills"] = merged_skills
+    if merged_tools != (existing.get("tools") or {}):
+        update_doc["tools"] = merged_tools
+    return update_doc
 
 
 def resolve_agent_studio_role_scope_from_role(role: str | None, account_type: str | None = None, email: str | None = None) -> str:
@@ -4963,15 +5000,27 @@ async def ensure_agent_studio_defaults(current_user: dict) -> None:
             {"_id": 0},
         )
         if existing:
+            capability_update = build_agent_studio_capability_update(existing)
             if int(existing.get("default_profile_version") or 0) < AGENT_STUDIO_DEFAULT_PROFILE_VERSION:
                 update_doc = {
                     **default,
+                    **capability_update,
                     "default_profile_version": AGENT_STUDIO_DEFAULT_PROFILE_VERSION,
                     "sync_status": "pending",
                     "updated_by": current_user["user_id"],
                     "updated_at": now,
                 }
                 await db.agent_studio_profiles.update_one({"id": existing["id"]}, {"$set": update_doc})
+            elif capability_update:
+                await db.agent_studio_profiles.update_one(
+                    {"id": existing["id"]},
+                    {"$set": {
+                        **capability_update,
+                        "sync_status": "pending",
+                        "updated_by": current_user["user_id"],
+                        "updated_at": now,
+                    }},
+                )
             continue
         doc = {
             "id": f"agent-studio-profile-{uuid.uuid4()}",
@@ -5443,11 +5492,117 @@ async def list_agent_studio_action_audit(current_user: dict = Depends(get_curren
         {"channel": "rovi-agent"},
         {"_id": 0},
     ).sort("created_at", -1).limit(50).to_list(50)
+    interpretation_jobs = await db.agent_interpretation_jobs.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0, "source_payload": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
+    skill_drafts = await db.agent_skill_drafts.find(
+        {"tenant_id": tenant_id},
+        {"_id": 0, "skill_spec": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
     return {
         "logs": [serialize_doc(item) for item in logs],
         "pending_actions": [serialize_doc(item) for item in pending],
         "webhook_updates": [serialize_doc(item) for item in webhook_updates],
+        "interpretation_jobs": [serialize_doc(item) for item in interpretation_jobs],
+        "skill_drafts": [serialize_doc(item) for item in skill_drafts],
     }
+
+
+@api_router.get("/agent-studio/skill-drafts", response_model=dict)
+async def list_agent_skill_drafts(current_user: dict = Depends(get_current_user)):
+    current_user = require_agent_studio_admin(current_user)
+    drafts = await db.agent_skill_drafts.find(
+        {"tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(100).to_list(100)
+    return {"drafts": [serialize_doc(item) for item in drafts]}
+
+
+@api_router.post("/agent-studio/skill-drafts", response_model=dict)
+async def create_agent_skill_draft(
+    payload: AgentSkillDraftCreateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    current_user = require_agent_studio_admin(current_user)
+    title = (payload.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="El draft necesita un titulo")
+    scope = (payload.scope or "tenant").strip().lower()
+    if scope not in {"personal", "tenant", "global"}:
+        raise HTTPException(status_code=422, detail="Scope invalido para skill draft")
+    now = datetime.now(timezone.utc).isoformat()
+    draft = {
+        "id": f"agent-skill-draft-{uuid.uuid4()}",
+        "tenant_id": current_user["tenant_id"],
+        "created_by": current_user["user_id"],
+        "created_by_email": current_user.get("email"),
+        "title": title,
+        "description": payload.description,
+        "trigger": payload.trigger,
+        "scope": scope,
+        "role_scope": payload.role_scope,
+        "source": payload.source or "agent_studio",
+        "status": "draft",
+        "skill_spec": payload.skill_spec or {},
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.agent_skill_drafts.insert_one(draft)
+    await db.agent_action_audit.insert_one({
+        "id": f"agent-action-audit-{uuid.uuid4()}",
+        "tenant_id": current_user["tenant_id"],
+        "user_id": current_user["user_id"],
+        "role_scope": "rovi_orchestrator",
+        "action_type": "skill_draft_created",
+        "status": "draft",
+        "requested_text": title,
+        "payload": {"draft_id": draft["id"], "scope": scope, "role_scope": payload.role_scope},
+        "created_at": now,
+    })
+    return {"draft": serialize_doc(draft)}
+
+
+@api_router.post("/agent-studio/skill-drafts/{draft_id}/publish", response_model=dict)
+async def publish_agent_skill_draft(
+    draft_id: str,
+    payload: AgentSkillDraftPublishRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    current_user = require_agent_studio_admin(current_user)
+    draft = await db.agent_skill_drafts.find_one(
+        {"id": draft_id, "tenant_id": current_user["tenant_id"]},
+        {"_id": 0},
+    )
+    if not draft:
+        raise HTTPException(status_code=404, detail="Skill draft no encontrado")
+    publish_scope = (payload.publish_scope or draft.get("scope") or "tenant").strip().lower()
+    if publish_scope not in {"personal", "tenant", "global"}:
+        raise HTTPException(status_code=422, detail="Scope de publicacion invalido")
+    now = datetime.now(timezone.utc).isoformat()
+    update_doc = {
+        "status": "published",
+        "publish_scope": publish_scope,
+        "published_by": current_user["user_id"],
+        "published_by_email": current_user.get("email"),
+        "published_at": now,
+        "publish_notes": payload.notes,
+        "updated_at": now,
+    }
+    await db.agent_skill_drafts.update_one({"id": draft_id}, {"$set": update_doc})
+    updated = await db.agent_skill_drafts.find_one({"id": draft_id}, {"_id": 0})
+    await db.agent_action_audit.insert_one({
+        "id": f"agent-action-audit-{uuid.uuid4()}",
+        "tenant_id": current_user["tenant_id"],
+        "user_id": current_user["user_id"],
+        "role_scope": "rovi_orchestrator",
+        "action_type": "skill_draft_published",
+        "status": "published",
+        "requested_text": draft.get("title"),
+        "payload": {"draft_id": draft_id, "publish_scope": publish_scope},
+        "created_at": now,
+    })
+    return {"draft": serialize_doc(updated)}
 
 
 @api_router.post("/agent-studio/telegram-e2e-test", response_model=dict)
@@ -5977,15 +6132,27 @@ async def ensure_device_link_agent_studio_profiles(user: dict, active_workspace:
             continue
         existing = await db.agent_studio_profiles.find_one(
             {"tenant_id": tenant_id, "role_scope": default["role_scope"]},
-            {"_id": 0, "id": 1, "default_profile_version": 1},
+            {"_id": 0, "id": 1, "default_profile_version": 1, "enabled_skills": 1, "tools": 1},
         )
         if existing:
+            capability_update = build_agent_studio_capability_update(existing)
             if int(existing.get("default_profile_version") or 0) < AGENT_STUDIO_DEFAULT_PROFILE_VERSION:
                 await db.agent_studio_profiles.update_one(
                     {"id": existing["id"]},
                     {"$set": {
                         **default,
+                        **capability_update,
                         "default_profile_version": AGENT_STUDIO_DEFAULT_PROFILE_VERSION,
+                        "sync_status": "pending",
+                        "updated_by": user["id"],
+                        "updated_at": now,
+                    }},
+                )
+            elif capability_update:
+                await db.agent_studio_profiles.update_one(
+                    {"id": existing["id"]},
+                    {"$set": {
+                        **capability_update,
                         "sync_status": "pending",
                         "updated_by": user["id"],
                         "updated_at": now,
@@ -7624,6 +7791,55 @@ async def create_media_hub_asset_from_telegram(
     return serialize_doc(asset_doc)
 
 
+async def create_agent_interpretation_job(
+    *,
+    tenant_id: str,
+    user_id: str,
+    role_scope: str,
+    source_channel: str,
+    text: str = "",
+    attachment: dict | None = None,
+    asset: dict | None = None,
+    link_id: str | None = None,
+    profile_id: str | None = None,
+    source_payload: dict | None = None,
+) -> dict:
+    job = build_agent_interpretation_job_doc(
+        tenant_id=tenant_id,
+        user_id=user_id,
+        role_scope=role_scope,
+        source_channel=source_channel,
+        source_payload=source_payload,
+        text=text,
+        attachment=attachment,
+        asset=asset,
+        link_id=link_id,
+        profile_id=profile_id,
+    )
+    await db.agent_interpretation_jobs.insert_one(job)
+    await db.agent_action_audit.insert_one({
+        "id": f"agent-action-audit-{uuid.uuid4()}",
+        "tenant_id": tenant_id,
+        "user_id": user_id,
+        "link_id": link_id,
+        "role_scope": role_scope,
+        "action_type": "agent_input_interpreted",
+        "status": job.get("mapping_status"),
+        "requested_text": (text or job.get("original_filename") or job.get("source_type") or "")[:500],
+        "payload": {
+            "interpretation_job_id": job["id"],
+            "source_type": job.get("source_type"),
+            "intent": job.get("intent"),
+            "entity_type": job.get("entity_type"),
+            "crm_target": job.get("crm_target"),
+            "confidence": job.get("confidence"),
+            "autopilot_allowed": job.get("autopilot_allowed"),
+        },
+        "created_at": job["created_at"],
+    })
+    return serialize_doc(job)
+
+
 async def handle_rovi_telegram_agent_media(*, message: dict, chat_id: str, telegram_user: dict, caption: str = "") -> dict:
     link = await db.user_device_links.find_one(
         {"channel": "telegram", "telegram.chat_id": chat_id, "status": "active"},
@@ -7662,13 +7878,31 @@ async def handle_rovi_telegram_agent_media(*, message: dict, chat_id: str, teleg
         telegram_user=telegram_user,
         message_id=message.get("message_id"),
     )
+    interpretation_job = await create_agent_interpretation_job(
+        tenant_id=link.get("tenant_id") or user.get("tenant_id"),
+        user_id=user["id"],
+        role_scope=link.get("role_scope") or "broker",
+        source_channel="telegram",
+        text=caption,
+        attachment=attachment,
+        asset=asset,
+        link_id=link.get("id"),
+        profile_id=link.get("agent_studio_profile_id"),
+        source_payload={
+            "telegram_message_id": message.get("message_id"),
+            "telegram_user_id": str(telegram_user.get("id") or ""),
+            "telegram_username": telegram_user.get("username"),
+        },
+    )
     response_text = (
         "Listo. Guardé el archivo en Media Hub.\n\n"
         f"Archivo: {asset.get('original_filename') or asset.get('filename')}\n"
         f"Tipo: {asset.get('file_type')}\n"
-        f"Estado: Por mapear\n"
+        f"Intención detectada: {interpretation_job.get('intent')} → {interpretation_job.get('entity_type')}\n"
+        f"Estado: {interpretation_job.get('mapping_status')}\n"
         f"ID: {asset.get('id')}\n\n"
-        "Ya aparece en ROVI > Media Hub. El siguiente paso es analizarlo y mapearlo como lead, propiedad, tarea o evento con tu confirmación."
+        "Ya aparece en ROVI > Media Hub y quedó en la cola de interpretación del agente. "
+        "Altas/actualizaciones seguras pueden correr en Autopilot; eliminar siempre pedirá confirmación."
     )
     delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
     await db.telegram_agent_messages.insert_one({
@@ -7684,9 +7918,10 @@ async def handle_rovi_telegram_agent_media(*, message: dict, chat_id: str, teleg
         "response": response_text,
         "delivery": delivery,
         "media_asset_id": asset.get("id"),
+        "interpretation_job_id": interpretation_job.get("id"),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
-    return {"ok": True, "status": "media_ingested", "delivery": delivery, "asset": asset}
+    return {"ok": True, "status": "media_ingested", "delivery": delivery, "asset": asset, "interpretation_job": interpretation_job}
 
 
 async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegram_user: dict) -> dict:
@@ -7803,6 +8038,26 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         link.get("agent_studio_tools") or {},
         role_scope,
     )
+    interpretation_job = None
+    detected_urls = extract_public_urls(text)
+    if detected_urls and any(
+        tools_enabled.get(tool_key)
+        for tool_key in ("drive_public_links", "youtube_links", "social_links", "whatsapp_intelligence", "media_hub")
+    ):
+        interpretation_job = await create_agent_interpretation_job(
+            tenant_id=link.get("tenant_id") or user.get("tenant_id"),
+            user_id=user["id"],
+            role_scope=role_scope,
+            source_channel="telegram",
+            text=text,
+            link_id=link.get("id"),
+            profile_id=(agent_profile or {}).get("id") or link.get("agent_studio_profile_id"),
+            source_payload={
+                "telegram_user_id": str(telegram_user.get("id") or ""),
+                "telegram_username": telegram_user.get("username"),
+                "urls": detected_urls,
+            },
+        )
     pending_action = await find_recent_pending_telegram_action(link, chat_id)
     if pending_action and telegram_text_cancels_action(text):
         cancelled_at = datetime.now(timezone.utc)
@@ -7947,6 +8202,8 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         f"Settings usuario: {agent_user_settings.get('id') or 'sin_settings'}\n"
         f"Skills activas: {', '.join((agent_config or {}).get('enabled_skills') or (agent_profile or {}).get('enabled_skills') or link.get('agent_studio_enabled_skills') or []) or 'sin skills activas'}\n"
         f"Usuario ROVI: {user.get('email')}\n\n"
+        f"Interpretation job: {(interpretation_job or {}).get('id') or 'sin job'}\n"
+        f"Intent detectado: {(interpretation_job or {}).get('intent') or 'n/a'}\n\n"
         f"Mensaje del usuario: {text}"
     )
     result = await run_agent_turn(
@@ -7972,6 +8229,7 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         "response": response_text,
         "delivery": delivery,
         "agent_run_id": result.get("run_id"),
+        "interpretation_job_id": (interpretation_job or {}).get("id"),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"ok": True, "status": "responded", "delivery": delivery}

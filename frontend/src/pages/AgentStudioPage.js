@@ -69,7 +69,13 @@ export const AgentStudioPage = () => {
   const [toolCatalog, setToolCatalog] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [agentUsers, setAgentUsers] = useState([]);
-  const [actionAudit, setActionAudit] = useState({ logs: [], pending_actions: [], webhook_updates: [] });
+  const [actionAudit, setActionAudit] = useState({
+    logs: [],
+    pending_actions: [],
+    webhook_updates: [],
+    interpretation_jobs: [],
+    skill_drafts: [],
+  });
   const [selectedId, setSelectedId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [form, setForm] = useState(defaultForm);
@@ -131,7 +137,7 @@ export const AgentStudioPage = () => {
       if (!sections[section][groupName]) sections[section][groupName] = [];
       sections[section][groupName].push(skill);
     });
-    const superpowerPriority = ['Archivos', 'Imagenes', 'Audio', 'Video', 'Links', 'YouTube', 'Redes sociales', 'WhatsApp', 'CRM', 'Skills', 'Memoria'];
+    const superpowerPriority = ['Archivos', 'Imagenes', 'Audio', 'Video', 'Links', 'YouTube', 'Redes sociales', 'WhatsApp', 'Contactos', 'CRM', 'Skills', 'Memoria'];
     const commercialPriority = [
       'Calificacion y seguimiento',
       'Seguimiento comercial',
@@ -173,7 +179,9 @@ export const AgentStudioPage = () => {
     const [profilesResponse, usersResponse, actionAuditResponse, auditResponse] = await Promise.all([
       api.get('/agent-studio/profiles'),
       api.get('/agent-studio/users').catch(() => ({ data: { users: [] } })),
-      api.get('/agent-studio/action-audit').catch(() => ({ data: { logs: [], pending_actions: [], webhook_updates: [] } })),
+      api.get('/agent-studio/action-audit').catch(() => ({
+        data: { logs: [], pending_actions: [], webhook_updates: [], interpretation_jobs: [], skill_drafts: [] },
+      })),
       api.get('/agent-studio/audit').catch(() => ({ data: { logs: [] } })),
     ]);
     const nextProfiles = profilesResponse.data?.profiles || [];
@@ -182,7 +190,13 @@ export const AgentStudioPage = () => {
     setAgentUsers(nextUsers);
     setSkillCatalog(profilesResponse.data?.skill_catalog || []);
     setToolCatalog(profilesResponse.data?.tool_catalog || []);
-    setActionAudit(actionAuditResponse.data || { logs: [], pending_actions: [], webhook_updates: [] });
+    setActionAudit(actionAuditResponse.data || {
+      logs: [],
+      pending_actions: [],
+      webhook_updates: [],
+      interpretation_jobs: [],
+      skill_drafts: [],
+    });
     setAuditLogs(auditResponse.data?.logs || []);
     setSelectedId((current) => current || nextProfiles[0]?.id || '');
     setSelectedUserId((current) => current || nextUsers[0]?.user?.id || '');
@@ -852,7 +866,7 @@ export const AgentStudioPage = () => {
                 </TabsContent>
 
                 <TabsContent value="audit" className="mt-6 space-y-4">
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-5">
                     <div className="rounded-lg border p-4">
                       <History className="mb-3 h-5 w-5 text-primary" />
                       <p className="text-sm font-medium">Acciones ejecutadas</p>
@@ -867,6 +881,16 @@ export const AgentStudioPage = () => {
                       <MessageSquare className="mb-3 h-5 w-5 text-primary" />
                       <p className="text-sm font-medium">Webhook updates</p>
                       <p className="mt-1 text-2xl font-semibold">{actionAudit.webhook_updates?.length || 0}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <Sparkles className="mb-3 h-5 w-5 text-primary" />
+                      <p className="text-sm font-medium">Interpretaciones</p>
+                      <p className="mt-1 text-2xl font-semibold">{actionAudit.interpretation_jobs?.length || 0}</p>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <FileCode2 className="mb-3 h-5 w-5 text-primary" />
+                      <p className="text-sm font-medium">Skills draft</p>
+                      <p className="mt-1 text-2xl font-semibold">{actionAudit.skill_drafts?.length || 0}</p>
                     </div>
                   </div>
 
@@ -934,6 +958,36 @@ export const AgentStudioPage = () => {
                               <Badge variant={item.status === 'processed' ? 'default' : 'outline'}>{item.status}</Badge>
                             </div>
                             <p className="mt-1 text-xs text-muted-foreground">{item.created_at ? new Date(item.created_at).toLocaleString('es-MX') : 'sin fecha'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm font-medium">Interpretación multimodal</p>
+                      <div className="mt-3 space-y-2">
+                        {(actionAudit.interpretation_jobs || []).slice(0, 8).map((item) => (
+                          <div key={item.id} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-medium">{item.source_label || item.source_type}</p>
+                              <Badge variant="outline">{item.entity_type || item.intent}</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {item.intent} · {item.mapping_status} · {item.confidence ? `${Math.round(item.confidence * 100)}%` : 'sin confianza'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <p className="text-sm font-medium">Skills dinámicas</p>
+                      <div className="mt-3 space-y-2">
+                        {(actionAudit.skill_drafts || []).slice(0, 8).map((item) => (
+                          <div key={item.id} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-medium">{item.title}</p>
+                              <Badge variant="outline">{item.status}</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.scope} · {item.role_scope || 'todos los perfiles'}</p>
                           </div>
                         ))}
                       </div>

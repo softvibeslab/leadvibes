@@ -281,6 +281,15 @@ MULTIMODAL_SKILL_CATALOG = [
         "input_types": ["whatsapp_export", "txt", "vcf", "chat", "group_message"],
     },
     {
+        "id": "shared_contact_mapper",
+        "label": "Contactos compartidos",
+        "user_prompt": "Interpreta contactos compartidos, VCF, tarjetas de contacto y capturas con telefono/email para crear o actualizar leads, tareas de seguimiento o contactos relacionados.",
+        "category": "superpowers",
+        "subcategory": "Contactos",
+        "recommended_roles": ["agency_admin", "broker", "rentals", "rovi_orchestrator", "growth_partner"],
+        "input_types": ["vcf", "contact", "phone", "email", "contact_screenshot"],
+    },
+    {
         "id": "drive_property_package_importer",
         "label": "Paquetes Drive de propiedades",
         "user_prompt": "Analiza carpetas publicas de Google Drive como paquetes inmobiliarios: presentación, precios, disponibilidad, renders, planos, brochures y media para crear o enriquecer propiedades.",
