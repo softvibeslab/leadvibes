@@ -13128,6 +13128,7 @@ def normalize_product_images(images: Optional[List[Dict[str, Any]]]) -> List[Dic
             "is_cover": bool(image.get("is_cover", False)),
             "order": image.get("order", index),
             "source": image.get("source", "upload"),
+            "media_asset_id": image.get("media_asset_id"),
         })
 
     if normalized_images and not any(image.get("is_cover") for image in normalized_images):

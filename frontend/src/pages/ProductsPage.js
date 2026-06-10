@@ -13,7 +13,7 @@ import { Switch } from '../components/ui/switch';
 import { toast } from 'sonner';
 import {
   Plus, Edit, Trash2, Package, Sparkles, Loader2, Grid3X3, List, Search, SlidersHorizontal,
-  ImagePlus, X, Star, Settings2, ArrowUp, ArrowDown, UserCircle
+  ImagePlus, X, Star, Settings2, ArrowUp, ArrowDown, UserCircle, FolderOpen, CheckCircle2
 } from 'lucide-react';
 
 const PRODUCT_TYPES = [
@@ -167,6 +167,10 @@ export const ProductsPage = () => {
   const [leadOptions, setLeadOptions] = useState([]);
   const [loadingProductInterests, setLoadingProductInterests] = useState(false);
   const [savingProductInterest, setSavingProductInterest] = useState(false);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [mediaAssets, setMediaAssets] = useState([]);
+  const [loadingMediaAssets, setLoadingMediaAssets] = useState(false);
+  const [mediaSearch, setMediaSearch] = useState('');
   const [productInterestForm, setProductInterestForm] = useState({
     lead_id: 'none',
     interest_type: 'principal',
@@ -401,6 +405,55 @@ export const ProductsPage = () => {
     }
   };
 
+  const fetchMediaAssets = async () => {
+    setLoadingMediaAssets(true);
+    try {
+      const params = {
+        file_type: 'image',
+        limit: 120,
+        ...(mediaSearch.trim() ? { q: mediaSearch.trim() } : {}),
+      };
+      const res = await api.get('/media', { params });
+      setMediaAssets(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      toast.error('No se pudo cargar Media Hub');
+    } finally {
+      setLoadingMediaAssets(false);
+    }
+  };
+
+  const openMediaPicker = async () => {
+    setMediaPickerOpen(true);
+    await fetchMediaAssets();
+  };
+
+  const addMediaHubImage = (asset) => {
+    const imageUrl = asset.preview_url || asset.url;
+    if (!imageUrl) {
+      toast.error('Este asset no tiene una URL disponible para usarlo como imagen');
+      return;
+    }
+    if (formData.images.some((image) => image.media_asset_id === asset.id || image.url === imageUrl)) {
+      toast.info('Esta imagen ya está agregada a la propiedad');
+      return;
+    }
+    const nextImage = {
+      id: crypto.randomUUID(),
+      url: imageUrl,
+      filename: asset.original_filename || asset.filename || 'Imagen de Media Hub',
+      alt: formData.title || asset.original_filename || asset.filename || 'Imagen de propiedad',
+      is_cover: formData.images.length === 0,
+      order: formData.images.length,
+      source: 'media_hub',
+      media_asset_id: asset.id,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      images: [...prev.images, nextImage],
+    }));
+    toast.success('Imagen agregada desde Media Hub');
+  };
+
   const removeImage = (imageId) => {
     setFormData((prev) => {
       const nextImages = prev.images.filter((image) => image.id !== imageId);
@@ -496,12 +549,27 @@ export const ProductsPage = () => {
 
     setSaving(true);
     try {
+      let savedProductId = editingProduct?.id;
       if (editingProduct) {
         await api.put(`/products/${editingProduct.id}`, payload);
         toast.success('Propiedad actualizada');
       } else {
-        await api.post('/products', payload);
+        const created = await api.post('/products', payload);
+        savedProductId = created.data?.id;
         toast.success('Propiedad creada');
+      }
+      const mediaImageIds = Array.from(new Set(
+        formData.images
+          .map((image) => image.media_asset_id)
+          .filter(Boolean)
+      ));
+      if (savedProductId && mediaImageIds.length) {
+        await Promise.allSettled(mediaImageIds.map((mediaId) => api.put(`/media/${mediaId}/link`, {
+          entity_type: 'property',
+          entity_id: savedProductId,
+          confidence: 1,
+          reason: 'Imagen seleccionada desde el formulario de propiedades',
+        })));
       }
       setDialogOpen(false);
       resetForm();
@@ -1227,6 +1295,102 @@ export const ProductsPage = () => {
     </Card>
   );
 
+  const renderMediaPickerDialog = () => (
+    <Dialog open={mediaPickerOpen} onOpenChange={setMediaPickerOpen}>
+      <DialogContent className="flex max-h-[86vh] max-w-5xl min-h-0 flex-col overflow-hidden p-0">
+        <DialogHeader className="border-b px-6 pb-4 pt-6">
+          <DialogTitle>Elegir imágenes de Media Hub</DialogTitle>
+          <DialogDescription>
+            Selecciona fotos, screenshots o renders ya guardados para usarlos en esta propiedad.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="border-b px-6 py-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={mediaSearch}
+                onChange={(event) => setMediaSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') fetchMediaAssets();
+                }}
+                placeholder="Buscar por nombre, tag o contexto"
+                className="pl-9"
+              />
+            </div>
+            <Button variant="outline" onClick={fetchMediaAssets} disabled={loadingMediaAssets}>
+              {loadingMediaAssets ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+              Buscar
+            </Button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          {loadingMediaAssets ? (
+            <div className="flex min-h-56 items-center justify-center text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Cargando Media Hub...
+            </div>
+          ) : mediaAssets.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground">
+              No encontré imágenes en Media Hub para esta búsqueda.
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              {mediaAssets.map((asset) => {
+                const selected = formData.images.some((image) => image.media_asset_id === asset.id || image.url === (asset.preview_url || asset.url));
+                return (
+                  <div key={asset.id} className="overflow-hidden rounded-xl border border-border/70 bg-card">
+                    <div className="relative aspect-[4/3] bg-slate-900/70">
+                      {(asset.preview_url || asset.url) ? (
+                        <img
+                          src={asset.preview_url || asset.url}
+                          alt={asset.original_filename || asset.filename}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                          Sin preview
+                        </div>
+                      )}
+                      {selected && (
+                        <div className="absolute left-2 top-2 rounded-full bg-emerald-500 px-2 py-1 text-xs font-medium text-white">
+                          Agregada
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3 p-3">
+                      <div>
+                        <p className="truncate text-sm font-medium">{asset.original_filename || asset.filename}</p>
+                        <p className="text-xs text-muted-foreground">{asset.source || 'media'} · {asset.status || 'activo'}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        variant={selected ? 'outline' : 'default'}
+                        onClick={() => addMediaHubImage(asset)}
+                        disabled={selected}
+                      >
+                        {selected ? <CheckCircle2 className="mr-2 h-4 w-4" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                        {selected ? 'Ya agregada' : 'Agregar a propiedad'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="border-t px-6 py-4">
+          <Button variant="outline" onClick={() => setMediaPickerOpen(false)}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   const renderProductDialog = () => (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogContent className="flex max-h-[90vh] max-w-5xl min-h-0 flex-col overflow-hidden p-0">
@@ -1394,13 +1558,19 @@ export const ProductsPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">Imágenes de la propiedad</h3>
-                <p className="text-sm text-muted-foreground">Sube una o varias imágenes para armar la portada y el catálogo visual.</p>
+                <p className="text-sm text-muted-foreground">Sube imágenes o elige assets existentes desde Media Hub.</p>
               </div>
-              <label className="inline-flex cursor-pointer items-center rounded-md border border-border/70 px-3 py-2 text-sm font-medium hover:bg-muted/40">
-                <ImagePlus className="mr-2 h-4 w-4" />
-                Agregar imágenes
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelection} />
-              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={openMediaPicker}>
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  Elegir de Media Hub
+                </Button>
+                <label className="inline-flex cursor-pointer items-center rounded-md border border-border/70 px-3 py-2 text-sm font-medium hover:bg-muted/40">
+                  <ImagePlus className="mr-2 h-4 w-4" />
+                  Subir local
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelection} />
+                </label>
+              </div>
             </div>
 
             {formData.images.length === 0 ? (
@@ -1424,9 +1594,16 @@ export const ProductsPage = () => {
                     </div>
                     <div className="space-y-2 p-3">
                       <p className="truncate text-sm font-medium">{image.filename || 'Imagen'}</p>
-                      <Badge variant={image.is_cover ? 'default' : 'secondary'}>
-                        {image.is_cover ? 'Portada' : 'Secundaria'}
-                      </Badge>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={image.is_cover ? 'default' : 'secondary'}>
+                          {image.is_cover ? 'Portada' : 'Secundaria'}
+                        </Badge>
+                        {image.source === 'media_hub' && (
+                          <Badge variant="outline" className="border-cyan-500/20 bg-cyan-500/10 text-cyan-700">
+                            Media Hub
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1814,6 +1991,7 @@ export const ProductsPage = () => {
       {renderFilters()}
       {filteredProducts.length === 0 ? renderEmptyState() : viewMode === 'grid' ? renderGridView() : renderTableView()}
       {renderProductDialog()}
+      {renderMediaPickerDialog()}
       {renderCustomFieldsManager()}
       {renderProductInterestsDialog()}
     </div>

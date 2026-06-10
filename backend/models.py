@@ -1762,6 +1762,7 @@ class MediaAsset(BaseModel):
     is_cover: bool = False
     order: int = 0
     source: str = "upload"
+    media_asset_id: Optional[str] = None
 
 
 class CustomFieldType(str, Enum):
