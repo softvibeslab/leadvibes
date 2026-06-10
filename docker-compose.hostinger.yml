@@ -72,6 +72,7 @@ services:
     expose:
       - "8000"
     volumes:
+      - backend_uploads:/app/uploads
       - hermes_agent_data:/mnt/hermes-data
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -100,6 +101,8 @@ services:
 
 volumes:
   mongodb_data:
+    driver: local
+  backend_uploads:
     driver: local
   hermes_agent_data:
     external: true
