@@ -173,7 +173,7 @@ DEFAULT_TOOLS = {
     "copim_context": True,
     "rovi_internal_metrics": True,
     "vibe_lab_context": True,
-    "write_actions": False,
+    "write_actions": True,
 }
 
 

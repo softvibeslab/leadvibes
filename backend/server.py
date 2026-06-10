@@ -5553,7 +5553,8 @@ def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope:
         "copim_context": role_scope.startswith("copim"),
         "rovi_internal_metrics": role_scope.startswith("rovi_"),
         "vibe_lab_context": False,
-        "write_actions": crm_write_enabled,
+        "write_actions": True,
+        "write_actions_profile_requested": crm_write_enabled,
     }
 
 
@@ -6831,6 +6832,212 @@ async def handle_rovi_telegram_contact(*, contact: dict, chat_id: str, telegram_
     return {"ok": True, "status": "active", "link": build_device_link_public(activated), "delivery": delivery}
 
 
+def extract_rovi_telegram_media_attachment(message: dict) -> dict | None:
+    photos = message.get("photo") or []
+    if photos:
+        photo = sorted(photos, key=lambda item: item.get("file_size") or 0)[-1]
+        file_id = photo.get("file_id")
+        if file_id:
+            return {
+                "kind": "photo",
+                "file_id": file_id,
+                "file_unique_id": photo.get("file_unique_id"),
+                "filename": f"telegram-photo-{photo.get('file_unique_id') or file_id[:12]}.jpg",
+                "mime_type": "image/jpeg",
+                "file_size": photo.get("file_size"),
+                "width": photo.get("width"),
+                "height": photo.get("height"),
+            }
+
+    media_specs = [
+        ("document", "document", "application/octet-stream", "telegram-document"),
+        ("audio", "audio", "audio/mpeg", "telegram-audio"),
+        ("voice", "voice", "audio/ogg", "telegram-voice"),
+        ("video", "video", "video/mp4", "telegram-video"),
+        ("video_note", "video_note", "video/mp4", "telegram-video-note"),
+        ("animation", "animation", "video/mp4", "telegram-animation"),
+    ]
+    for message_key, kind, fallback_mime, fallback_name in media_specs:
+        payload = message.get(message_key) or {}
+        file_id = payload.get("file_id")
+        if not file_id:
+            continue
+        extension = mimetypes.guess_extension(payload.get("mime_type") or fallback_mime) or ""
+        filename = payload.get("file_name") or f"{fallback_name}-{payload.get('file_unique_id') or file_id[:12]}{extension}"
+        return {
+            "kind": kind,
+            "file_id": file_id,
+            "file_unique_id": payload.get("file_unique_id"),
+            "filename": filename,
+            "mime_type": payload.get("mime_type") or fallback_mime,
+            "file_size": payload.get("file_size"),
+            "duration": payload.get("duration"),
+            "width": payload.get("width"),
+            "height": payload.get("height"),
+        }
+    return None
+
+
+async def download_rovi_telegram_file(file_id: str) -> dict:
+    token = get_rovi_telegram_bot_token()
+    if not token:
+        raise HTTPException(status_code=503, detail="Falta configurar el token de Telegram")
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            file_response = await client.get(f"https://api.telegram.org/bot{token}/getFile", params={"file_id": file_id})
+            file_response.raise_for_status()
+            file_payload = file_response.json()
+            if not file_payload.get("ok") or not file_payload.get("result", {}).get("file_path"):
+                raise HTTPException(status_code=502, detail="Telegram no devolvio una ruta de archivo valida")
+            file_path = file_payload["result"]["file_path"]
+            download_response = await client.get(f"https://api.telegram.org/file/bot{token}/{file_path}")
+            download_response.raise_for_status()
+            return {
+                "bytes": download_response.content,
+                "telegram_file_path": file_path,
+                "telegram_file_size": file_payload.get("result", {}).get("file_size"),
+            }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"No pude descargar el archivo de Telegram: {exc}") from exc
+
+
+async def create_media_hub_asset_from_telegram(
+    *,
+    link: dict,
+    user: dict,
+    attachment: dict,
+    downloaded: dict,
+    caption: str,
+    telegram_user: dict,
+    message_id: str | int | None,
+) -> dict:
+    tenant_id = link.get("tenant_id") or user.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="No encontre tenant para guardar el archivo")
+    media_id = str(uuid.uuid4())
+    safe_name = sanitize_media_filename(attachment.get("filename") or "telegram-file")
+    mime_type = attachment.get("mime_type") or mimetypes.guess_type(safe_name)[0] or "application/octet-stream"
+    file_type = infer_media_file_type(mime_type, safe_name)
+    storage = await store_media_bytes(
+        downloaded.get("bytes") or b"",
+        tenant_id=tenant_id,
+        media_id=media_id,
+        filename=safe_name,
+        mime_type=mime_type,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    asset_doc = {
+        "id": media_id,
+        "tenant_id": tenant_id,
+        "uploaded_by": user["id"],
+        "uploaded_by_email": user.get("email"),
+        "original_filename": attachment.get("filename"),
+        "filename": safe_name,
+        "mime_type": mime_type,
+        "file_type": file_type,
+        "source": "telegram",
+        "status": "needs_review",
+        "storage_provider": storage["provider"],
+        "storage_ref": storage["storage_ref"],
+        "url": storage.get("url"),
+        "preview_url": storage.get("url") if file_type in {"image", "video", "audio", "document"} else None,
+        "size_bytes": storage.get("size_bytes", 0),
+        "checksum_sha256": storage.get("checksum_sha256"),
+        "tags": normalize_media_tags("telegram,agente-ia,por-mapear", file_type, "telegram", None),
+        "linked_entities": [],
+        "ai_summary": (
+            "Archivo recibido desde Telegram. Pendiente de analisis/mapping a lead, propiedad, tarea o evento."
+            + (f" Caption: {caption[:500]}" if caption else "")
+        ),
+        "ai_extraction_status": "pending",
+        "telegram": {
+            "link_id": link.get("id"),
+            "chat_id": (link.get("telegram") or {}).get("chat_id"),
+            "message_id": message_id,
+            "telegram_user_id": str(telegram_user.get("id") or ""),
+            "telegram_username": telegram_user.get("username"),
+            "file_id": attachment.get("file_id"),
+            "file_unique_id": attachment.get("file_unique_id"),
+            "file_path": downloaded.get("telegram_file_path"),
+            "kind": attachment.get("kind"),
+            "caption": caption,
+            "metadata": {key: value for key, value in attachment.items() if key not in {"file_id"}},
+        },
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.media_assets.insert_one(asset_doc)
+    return serialize_doc(asset_doc)
+
+
+async def handle_rovi_telegram_agent_media(*, message: dict, chat_id: str, telegram_user: dict, caption: str = "") -> dict:
+    link = await db.user_device_links.find_one(
+        {"channel": "telegram", "telegram.chat_id": chat_id, "status": "active"},
+        {"_id": 0, "hermes_profile_spec": 0},
+        sort=[("activated_at", -1)],
+    )
+    if not link:
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Este chat todavía no está vinculado a ROVI. Abre Agentes IA y escanea un QR nuevo.",
+        )
+        return {"ok": True, "status": "link_required", "delivery": delivery}
+
+    user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
+    if not user or not user.get("is_active", True):
+        delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, "La cuenta ROVI vinculada no está activa.")
+        return {"ok": True, "status": "inactive_user", "delivery": delivery}
+
+    attachment = extract_rovi_telegram_media_attachment(message)
+    if not attachment:
+        delivery = await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Recibí el mensaje, pero todavía no pude identificar un archivo compatible para Media Hub.",
+        )
+        return {"ok": True, "status": "unsupported_media", "delivery": delivery}
+
+    downloaded = await download_rovi_telegram_file(attachment["file_id"])
+    asset = await create_media_hub_asset_from_telegram(
+        link=link,
+        user=user,
+        attachment=attachment,
+        downloaded=downloaded,
+        caption=caption,
+        telegram_user=telegram_user,
+        message_id=message.get("message_id"),
+    )
+    response_text = (
+        "Listo. Guardé el archivo en Media Hub.\n\n"
+        f"Archivo: {asset.get('original_filename') or asset.get('filename')}\n"
+        f"Tipo: {asset.get('file_type')}\n"
+        f"Estado: Por mapear\n"
+        f"ID: {asset.get('id')}\n\n"
+        "Ya aparece en ROVI > Media Hub. El siguiente paso es analizarlo y mapearlo como lead, propiedad, tarea o evento con tu confirmación."
+    )
+    delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
+    await db.telegram_agent_messages.insert_one({
+        "id": f"telegram-agent-message-{uuid.uuid4()}",
+        "profile_id": link.get("hermes_profile_name") or "rovi-device-link",
+        "link_id": link["id"],
+        "tenant_id": link.get("tenant_id"),
+        "user_id": link["user_id"],
+        "role_scope": link.get("role_scope") or "broker",
+        "chat_id": chat_id,
+        "telegram_user_id": str(telegram_user.get("id") or ""),
+        "message": caption or f"[{attachment.get('kind')}]",
+        "response": response_text,
+        "delivery": delivery,
+        "media_asset_id": asset.get("id"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True, "status": "media_ingested", "delivery": delivery, "asset": asset}
+
+
 async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegram_user: dict) -> dict:
     link = await db.user_device_links.find_one(
         {"channel": "telegram", "telegram.chat_id": chat_id, "status": "active"},
@@ -7337,8 +7544,9 @@ async def rovi_telegram_agent_webhook(secret: str, request: Request, background_
     if contact:
         return await handle_rovi_telegram_contact(contact=contact, chat_id=chat_id, telegram_user=telegram_user)
 
-    text = (message.get("text") or "").strip()
-    if not text:
+    text = (message.get("text") or message.get("caption") or "").strip()
+    attachment = extract_rovi_telegram_media_attachment(message)
+    if not text and not attachment:
         return {"ok": True, "ignored": True}
 
     if text.startswith("/start"):
@@ -7369,18 +7577,88 @@ async def rovi_telegram_agent_webhook(secret: str, request: Request, background_
         "status": "queued",
         "chat_id": chat_id,
         "telegram_user_id": str(telegram_user.get("id") or ""),
-        "message_preview": text[:280],
+        "message_preview": text[:280] or f"[{attachment.get('kind') if attachment else 'media'}]",
+        "has_media": bool(attachment),
+        "media_kind": attachment.get("kind") if attachment else None,
         "created_at": now,
         "updated_at": now,
     })
-    background_tasks.add_task(
-        process_rovi_telegram_agent_message_background,
-        update_id=update_id,
-        text=text,
-        chat_id=chat_id,
-        telegram_user=telegram_user,
-    )
+    if attachment:
+        background_tasks.add_task(
+            process_rovi_telegram_agent_media_background,
+            update_id=update_id,
+            message=message,
+            text=text,
+            chat_id=chat_id,
+            telegram_user=telegram_user,
+        )
+    else:
+        background_tasks.add_task(
+            process_rovi_telegram_agent_message_background,
+            update_id=update_id,
+            text=text,
+            chat_id=chat_id,
+            telegram_user=telegram_user,
+        )
     return {"ok": True, "status": "queued", "update_id": update_id}
+
+
+async def process_rovi_telegram_agent_media_background(
+    *,
+    update_id: str,
+    message: dict,
+    text: str,
+    chat_id: str,
+    telegram_user: dict,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    await db.telegram_webhook_updates.update_one(
+        {"id": update_id, "channel": "rovi-agent"},
+        {"$set": {"status": "processing", "started_at": now, "updated_at": now}},
+    )
+    typing_task = asyncio.create_task(
+        keep_telegram_typing_indicator(token=get_rovi_telegram_bot_token(), chat_id=chat_id)
+    )
+    try:
+        result = await handle_rovi_telegram_agent_media(
+            message=message,
+            chat_id=chat_id,
+            telegram_user=telegram_user,
+            caption=text,
+        )
+        typing_task.cancel()
+        try:
+            await typing_task
+        except asyncio.CancelledError:
+            pass
+        finished_at = datetime.now(timezone.utc).isoformat()
+        await db.telegram_webhook_updates.update_one(
+            {"id": update_id, "channel": "rovi-agent"},
+            {"$set": {
+                "status": "processed",
+                "result_status": result.get("status"),
+                "media_asset_id": (result.get("asset") or {}).get("id"),
+                "finished_at": finished_at,
+                "updated_at": finished_at,
+            }},
+        )
+    except Exception as exc:
+        typing_task.cancel()
+        try:
+            await typing_task
+        except asyncio.CancelledError:
+            pass
+        logger.exception("Error processing ROVI Telegram media update %s", update_id)
+        failed_at = datetime.now(timezone.utc).isoformat()
+        await db.telegram_webhook_updates.update_one(
+            {"id": update_id, "channel": "rovi-agent"},
+            {"$set": {"status": "failed", "error": str(exc)[:600], "failed_at": failed_at, "updated_at": failed_at}},
+        )
+        await send_telegram_message_with_token(
+            get_rovi_telegram_bot_token(),
+            chat_id,
+            "Recibí tu archivo, pero tuve un problema guardándolo en Media Hub. Intenta de nuevo en un momento.",
+        )
 
 
 async def process_rovi_telegram_agent_message_background(
@@ -12512,6 +12790,22 @@ async def store_media_file_local(file: UploadFile, tenant_id: str, media_id: str
     }
 
 
+async def store_media_bytes_local(data: bytes, tenant_id: str, media_id: str, filename: str) -> Dict[str, Any]:
+    media_dir = MEDIA_HUB_DIR / tenant_id / media_id
+    media_dir.mkdir(parents=True, exist_ok=True)
+    local_path = media_dir / filename
+    payload = data or b""
+    local_path.write_bytes(payload)
+    relative_path = local_path.relative_to(UPLOADS_DIR).as_posix()
+    return {
+        "provider": "local",
+        "storage_ref": {"path": relative_path},
+        "url": f"/api/uploads/{quote(relative_path, safe='/')}",
+        "size_bytes": len(payload),
+        "checksum_sha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
 async def store_media_file_pentaract(file: UploadFile, tenant_id: str, media_id: str, filename: str) -> Dict[str, Any]:
     base_url = os.environ.get("PENTARACT_BASE_URL", "").rstrip("/")
     token = os.environ.get("PENTARACT_TOKEN", "")
@@ -12557,10 +12851,53 @@ async def store_media_file_pentaract(file: UploadFile, tenant_id: str, media_id:
     }
 
 
+async def store_media_bytes_pentaract(data: bytes, tenant_id: str, media_id: str, filename: str, mime_type: str) -> Dict[str, Any]:
+    base_url = os.environ.get("PENTARACT_BASE_URL", "").rstrip("/")
+    token = os.environ.get("PENTARACT_TOKEN", "")
+    storage_id = os.environ.get("PENTARACT_STORAGE_ID", "")
+    if not base_url or not token or not storage_id:
+        raise HTTPException(status_code=502, detail="Pentaract no esta configurado para Media Hub")
+
+    payload_bytes = data or b""
+    object_path = f"tenants/{tenant_id}/media/{media_id}/{filename}"
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{base_url}/api/storages/{storage_id}/files/upload",
+                headers={"Authorization": f"Bearer {token}"},
+                data={"path": object_path},
+                files={"file": (filename, payload_bytes, mime_type or "application/octet-stream")},
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo conectar con Pentaract: {exc}") from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"Pentaract rechazo el archivo: {response.text[:240]}")
+
+    try:
+        response_payload = response.json()
+    except Exception:
+        response_payload = {"raw": response.text[:500]}
+    return {
+        "provider": "pentaract",
+        "storage_ref": {"storage_id": storage_id, "path": object_path, "response": response_payload},
+        "url": None,
+        "size_bytes": len(payload_bytes),
+        "checksum_sha256": hashlib.sha256(payload_bytes).hexdigest(),
+    }
+
+
 async def store_media_file(file: UploadFile, tenant_id: str, media_id: str, filename: str) -> Dict[str, Any]:
     if get_media_storage_provider() == "pentaract":
         return await store_media_file_pentaract(file, tenant_id, media_id, filename)
     return await store_media_file_local(file, tenant_id, media_id, filename)
+
+
+async def store_media_bytes(data: bytes, tenant_id: str, media_id: str, filename: str, mime_type: str) -> Dict[str, Any]:
+    if get_media_storage_provider() == "pentaract":
+        return await store_media_bytes_pentaract(data, tenant_id, media_id, filename, mime_type)
+    return await store_media_bytes_local(data, tenant_id, media_id, filename)
 
 
 @api_router.get("/media/stats", response_model=dict)
