@@ -4202,6 +4202,10 @@ AGENT_STUDIO_DEFAULT_TOOLS = {
     "media": True,
     "drive_links": True,
     "whatsapp_intelligence": True,
+    "youtube_links": True,
+    "social_links": True,
+    "skill_builder": True,
+    "personal_memory": True,
 }
 AGENT_STUDIO_ROLE_KNOWLEDGE_FILES = {
     "owner": "owner.json",
@@ -4211,9 +4215,10 @@ AGENT_STUDIO_ROLE_KNOWLEDGE_FILES = {
     "agency_admin": "agency_admin.json",
     "broker": "broker.json",
     "rovi_orchestrator": "rovi_orchestrator.json",
+    "growth_partner": "growth_partner.json",
     "rentals": "rentals.json",
 }
-AGENT_STUDIO_DEFAULT_PROFILE_VERSION = 4
+AGENT_STUDIO_DEFAULT_PROFILE_VERSION = 5
 AGENT_STUDIO_AUTOPILOT_POLICY = {
     "mode": "autopilot",
     "no_confirmation_required": [
@@ -4241,6 +4246,35 @@ AGENT_STUDIO_AUTOPILOT_POLICY = {
     "audit_every_action": True,
     "tenant_isolation_required": True,
 }
+
+
+def parse_email_allowlist_env(env_name: str, default: str) -> set[str]:
+    return {
+        item.strip().lower()
+        for item in os.environ.get(env_name, default).split(",")
+        if item.strip()
+    }
+
+
+ROVI_ORCHESTRATOR_DEFAULT_EMAILS = parse_email_allowlist_env(
+    "ROVI_ORCHESTRATOR_DEFAULT_EMAILS",
+    "admin@rovicrm.com",
+)
+ROVI_GROWTH_PARTNER_DEFAULT_EMAILS = parse_email_allowlist_env(
+    "ROVI_GROWTH_PARTNER_DEFAULT_EMAILS",
+    "owner@rovicrm.com",
+)
+
+
+def resolve_special_agent_role_scope_for_email(email: str | None) -> str | None:
+    normalized = (email or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized in ROVI_ORCHESTRATOR_DEFAULT_EMAILS:
+        return "rovi_orchestrator"
+    if normalized in ROVI_GROWTH_PARTNER_DEFAULT_EMAILS:
+        return "growth_partner"
+    return None
 
 AGENT_STUDIO_AGENCY_ADMIN_SYSTEM_PROMPT = """Eres el Agente Inmobiliaria de ROVI CRM: un director comercial aumentado para dueños, administradores y líderes de inmobiliaria.
 
@@ -4419,15 +4453,16 @@ Agentes especializados que debes coordinar conceptualmente:
 1. Agente Inmobiliaria: dirección comercial, pipeline, brokers, propiedades, tareas, eventos, campañas y revenue.
 2. Agente Broker: foco diario, seguimiento, leads propios, mensajes, tareas, citas y cierre.
 3. Agente Rentas: solicitudes, disponibilidad, contratos, visitas, documentos, media y seguimiento.
-4. Sales Coach: hábitos comerciales, seguimiento y desarrollo de brokers.
-5. Deal Strategist: potencial de oportunidad, riesgos, objeciones y estrategia de cierre.
-6. Discovery Coach: preguntas que revelan motivación, presupuesto, urgencia y fit.
-7. Pipeline Analyst: salud de pipeline, velocidad, etapas, cuellos de botella y forecast.
-8. Behavioral Nudge Engine: reducir carga cognitiva y dar el siguiente paso correcto.
-9. Data Consolidation Agent: convertir datos dispersos en reportes útiles.
-10. Automation Governance Architect: automatizar solo lo que ahorra tiempo real y tiene control.
-11. Visual Storyteller: convertir propiedades, zonas y oportunidades en narrativa visual.
-12. MCP/Skill Builder: diseñar nuevas skills reutilizables cuando un patrón se repite.
+4. Vivi Growth Partner: marketing, ventas, comunicación, adopción, entrenamiento de agentes, campañas, playbooks y creación de skills.
+5. Sales Coach: hábitos comerciales, seguimiento y desarrollo de brokers.
+6. Deal Strategist: potencial de oportunidad, riesgos, objeciones y estrategia de cierre.
+7. Discovery Coach: preguntas que revelan motivación, presupuesto, urgencia y fit.
+8. Pipeline Analyst: salud de pipeline, velocidad, etapas, cuellos de botella y forecast.
+9. Behavioral Nudge Engine: reducir carga cognitiva y dar el siguiente paso correcto.
+10. Data Consolidation Agent: convertir datos dispersos en reportes útiles.
+11. Automation Governance Architect: automatizar solo lo que ahorra tiempo real y tiene control.
+12. Visual Storyteller: convertir propiedades, zonas y oportunidades en narrativa visual.
+13. MCP/Skill Builder: diseñar nuevas skills reutilizables cuando un patrón se repite.
 
 Responsabilidades:
 1. Auditar conversaciones reales de Telegram, WhatsApp, Agent Studio y acciones del CRM.
@@ -4474,6 +4509,90 @@ Prioriza:
 Si el usuario trae una idea grande, aterrízala en un plan de prueba de pocas horas con mensajes, casos, prompts y criterios de éxito."""
 
 AGENT_STUDIO_ORCHESTRATOR_TONE = "Directivo, preciso, crítico y orientado a mejora continua. Señala problemas sin rodeos y propone cambios concretos con pruebas E2E."
+
+AGENT_STUDIO_GROWTH_PARTNER_SYSTEM_PROMPT = """Eres Vivi Growth Partner de ROVI: una socia estrategica de marketing, ventas, comunicacion y adopcion para el ecosistema de agentes ROVI.
+
+Tu misión es entrenar la forma en que ROVI se comunica, vende, acompaña, motiva y convierte conocimiento comercial en hábitos, contenido, campañas, scripts y skills reutilizables.
+
+Tu enfoque no es solo marketing. Tu enfoque es calidad de vida, propósito, foco y crecimiento comercial con IA:
+- ayudar a brokers e inmobiliarias a usar ROVI sin sentirse abrumados,
+- convertir caos de mensajes, audios, screenshots, videos, links y redes sociales en acciones de CRM,
+- diseñar dinámicas de adopción que se sientan humanas,
+- entrenar a los agentes para hablar mejor con cada usuario,
+- crear playbooks y skills que reduzcan multitasking,
+- y traducir aprendizajes reales en campañas, mensajes, scripts y automatizaciones.
+
+Agentes que debes entrenar y coordinar desde comunicación:
+1. @rovi_broker_bot: debe hablar como coach comercial personal, breve, motivador y accionable.
+2. @rovi_agency_bot: debe hablar como directora comercial ejecutiva, estratégica y clara.
+3. @rovi_rentals_bot: debe hablar como coordinador operativo de rentas, rápido y preciso.
+4. ROVI Orchestrator: debe auditar, convertir casos en training data y diseñar skills.
+
+Responsabilidades principales:
+1. Diseñar mensajes, prompts, customer prompts, tonos, playbooks y casos de uso para los perfiles broker, inmobiliaria y rentas.
+2. Analizar ejemplos reales de conversaciones para detectar intención, emoción, objeciones, urgencia, oportunidad y siguiente mejor acción.
+3. Convertir audios, imágenes, videos, links, YouTube, redes sociales, Drive y WhatsApp en ideas de campaña, datos CRM, tareas, eventos, propiedades o skills.
+4. Crear guiones de onboarding y workshop para que los usuarios conozcan al agente como un aliado, no como una herramienta fría.
+5. Proponer campañas de adquisición, retención, reactivación, referidos, open house, lanzamientos de propiedades y contenido educativo.
+6. Entrenar a los agentes a responder con empatía, estrategia y foco sin perder precisión operativa.
+7. Detectar patrones repetidos y convertirlos en skills personales, grupales o de rol.
+8. Crear piezas listas para usar: WhatsApps, captions, emails, scripts de llamada, dinámicas de grupo, briefs de reunión, secuencias y CTAs.
+9. Ayudar a que cada usuario encuentre su estilo comercial, fortalezas y hábitos de alto impacto.
+10. Medir si una mejora funciona: adopción, respuesta, tiempo ahorrado, leads creados, tareas completadas, citas agendadas y feedback emocional.
+
+Política de acción:
+- Puedes crear, actualizar, importar, clasificar, enriquecer, vincular media, cambiar stage y crear tareas/eventos sin confirmación previa si el backend lo permite.
+- Pide confirmación explícita solo para eliminar, borrado masivo, revocar accesos, campañas masivas externas, pagos externos o acciones irreversibles.
+- Si detectas baja confianza, guarda como pendiente de revisión o crea tarea de validación.
+
+Reglas de seguridad:
+- Opera solo la información autorizada por el backend.
+- Para brokers, nunca mezcles datos privados de otros brokers.
+- Para inmobiliarias, opera el tenant activo.
+- Para admin/owner autorizados, puedes analizar múltiples perfiles y tenants solo cuando el backend entregue ese contexto.
+- Nunca reveles tokens, secretos o credenciales.
+
+Cuando entrenes un agente, entrega:
+- Qué comportamiento cambiar.
+- Prompt exacto o regla exacta.
+- Ejemplo antes/después.
+- Skill o tool que debe activarse.
+- Caso E2E para probar.
+- Métrica de mejora.
+
+Cuando diseñes adopción o marketing, entrega:
+- Historia central.
+- Mensaje listo.
+- Canal.
+- Objetivo.
+- Acción esperada.
+- Cómo medirlo.
+
+Tu tono:
+Estratégico, cálido, creativo, comercial y profundamente humano. Habla con claridad y energía, sin exagerar. Tu trabajo es hacer que ROVI se sienta como una aliada que entiende a la persona y le ayuda a ganar tiempo, foco y oportunidades."""
+
+AGENT_STUDIO_GROWTH_PARTNER_CUSTOMER_PROMPT = """El usuario de este perfil es Vivi / Growth Partner de ROVI.
+
+Ella ayuda a entrenar cómo deben comunicarse los agentes, documenta casos de uso, mejora prompts y convierte conversaciones reales en playbooks, skills, campañas y experiencia de adopción.
+
+Debe poder trabajar con:
+- casos de uso de brokers, inmobiliarias y rentas,
+- ejemplos de mensajes reales,
+- notas de voz, screenshots, videos, links, YouTube, redes sociales y Google Drive,
+- perfiles de usuario, fortalezas, objeciones y hábitos,
+- campañas y contenidos para adquisición, activación y retención,
+- entrenamiento de @rovi_broker_bot, @rovi_agency_bot y @rovi_rentals_bot.
+
+Modo de trabajo:
+1. Si recibe una conversación, analiza intención, emoción, oportunidad, fricción y cómo debería responder el agente.
+2. Si recibe una idea, conviértela en campaña, skill, prompt o dinámica.
+3. Si recibe feedback de usuario, tradúcelo a mejora de agente con prueba E2E.
+4. Si detecta una tarea repetitiva, propón una skill reutilizable.
+5. Si comparte material multimedia o links, extrae valor comercial y sugiere cómo guardarlo o mapearlo a ROVI.
+
+Responde con estructura, creatividad y acciones listas para usar."""
+
+AGENT_STUDIO_GROWTH_PARTNER_TONE = "Cálido, creativo, estratégico y orientado a adopción. Combina marketing, ventas, coaching y diseño de experiencia. Debe sonar como una socia brillante que aterriza ideas en mensajes, playbooks, skills y pruebas concretas."
 
 AGENT_STUDIO_RENTALS_SYSTEM_PROMPT = """Eres el Agente Rentas de ROVI CRM, un operador experto en rentas inmobiliarias de corto, mediano y largo plazo.
 
@@ -4526,7 +4645,11 @@ AGENT_STUDIO_ALL_DEFAULT_SKILLS = [
     "drive_folder_reader",
     "whatsapp_chat_intelligence",
     "drive_property_package_importer",
+    "youtube_understanding",
+    "social_link_intelligence",
     "crm_remote_control",
+    "skill_builder",
+    "personal_memory_builder",
     "rental_ops",
 ]
 
@@ -4561,6 +4684,17 @@ AGENT_STUDIO_DEFAULT_PROFILES = [
         "system_prompt": f"{AGENT_STUDIO_ORCHESTRATOR_SYSTEM_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
         "customer_prompt": AGENT_STUDIO_ORCHESTRATOR_CUSTOMER_PROMPT,
         "tone_instructions": AGENT_STUDIO_ORCHESTRATOR_TONE,
+        "enabled_skills": AGENT_STUDIO_ALL_DEFAULT_SKILLS,
+        "tools": AGENT_STUDIO_DEFAULT_TOOLS,
+    },
+    {
+        "role_scope": "growth_partner",
+        "name": "Vivi Growth Partner",
+        "description": "Perfil para marketing, ventas, comunicación, adopción y entrenamiento de agentes ROVI.",
+        "hermes_profile_name": "rovivivi",
+        "system_prompt": f"{AGENT_STUDIO_GROWTH_PARTNER_SYSTEM_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
+        "customer_prompt": f"{AGENT_STUDIO_GROWTH_PARTNER_CUSTOMER_PROMPT}\n\n{AGENT_STUDIO_AUTOPILOT_INSTRUCTIONS}",
+        "tone_instructions": AGENT_STUDIO_GROWTH_PARTNER_TONE,
         "enabled_skills": AGENT_STUDIO_ALL_DEFAULT_SKILLS,
         "tools": AGENT_STUDIO_DEFAULT_TOOLS,
     },
@@ -4626,7 +4760,10 @@ def build_agent_studio_public(profile: dict) -> dict:
     return profile
 
 
-def resolve_agent_studio_role_scope_from_role(role: str | None, account_type: str | None = None) -> str:
+def resolve_agent_studio_role_scope_from_role(role: str | None, account_type: str | None = None, email: str | None = None) -> str:
+    special_scope = resolve_special_agent_role_scope_for_email(email)
+    if special_scope:
+        return special_scope
     role = (role or "").strip().lower()
     account_type = (account_type or "").strip().lower()
     if role == "broker" or account_type == "individual":
@@ -4672,6 +4809,14 @@ def build_default_agent_user_preferences(role_scope: str, user_doc: dict | None 
             "response_style": "diagnostico, cambio recomendado y prueba E2E",
             "requires_preview_before_write": False,
         }
+    if role_scope == "growth_partner":
+        return {
+            **base,
+            "tone": "calido, creativo, estrategico y orientado a adopcion",
+            "response_style": "mensaje listo, playbook, skill o caso E2E",
+            "requires_preview_before_write": False,
+            "training_focus": ["@rovi_broker_bot", "@rovi_agency_bot", "@rovi_rentals_bot"],
+        }
     return {
         **base,
         "tone": "breve, comercial y practico",
@@ -4690,6 +4835,7 @@ def build_default_agent_user_memory(role_scope: str, user_doc: dict | None = Non
             "usar solo informacion autorizada por tenant, usuario y rol",
             "ejecutar altas, actualizaciones e importaciones seguras en Autopilot",
             "pedir confirmacion solo para eliminar o acciones irreversibles",
+            "convertir patrones repetidos en skills reutilizables cuando se repitan",
         ],
     }
 
@@ -4709,7 +4855,11 @@ async def ensure_agent_user_settings(
     role_scope: str | None = None,
     created_by: str | None = None,
 ) -> dict:
-    role_scope = role_scope or resolve_agent_studio_role_scope_from_role(role or user_doc.get("role"), user_doc.get("account_type"))
+    role_scope = role_scope or resolve_agent_studio_role_scope_from_role(
+        role or user_doc.get("role"),
+        user_doc.get("account_type"),
+        user_doc.get("email"),
+    )
     role = role or user_doc.get("role") or "broker"
     profile = await get_agent_studio_profile_for_role(tenant_id, role_scope)
     now = datetime.now(timezone.utc).isoformat()
@@ -5177,6 +5327,10 @@ async def list_agent_studio_profiles(current_user: dict = Depends(get_current_us
             {"id": "media", "label": "Media Hub"},
             {"id": "drive_links", "label": "Google Drive publico"},
             {"id": "whatsapp_intelligence", "label": "WhatsApp Intelligence"},
+            {"id": "youtube_links", "label": "YouTube"},
+            {"id": "social_links", "label": "Redes sociales"},
+            {"id": "skill_builder", "label": "Creador de skills"},
+            {"id": "personal_memory", "label": "Memoria personal/grupal"},
         ],
         "access": {"role": "admin", "can_edit": True},
     }
@@ -5217,7 +5371,7 @@ async def list_agent_studio_users(current_user: dict = Depends(get_current_user)
         if not user_doc:
             continue
         role = membership.get("role") or user_doc.get("role")
-        role_scope = resolve_agent_studio_role_scope_from_role(role, user_doc.get("account_type"))
+        role_scope = resolve_agent_studio_role_scope_from_role(role, user_doc.get("account_type"), user_doc.get("email"))
         settings = await ensure_agent_user_settings(
             tenant_id=tenant_id,
             user_doc=user_doc,
@@ -5366,7 +5520,7 @@ async def update_agent_studio_user_settings(
         {"_id": 0},
     )
     role = (membership or {}).get("role") or user_doc.get("role")
-    role_scope = resolve_agent_studio_role_scope_from_role(role, user_doc.get("account_type"))
+    role_scope = resolve_agent_studio_role_scope_from_role(role, user_doc.get("account_type"), user_doc.get("email"))
     existing = await ensure_agent_user_settings(
         tenant_id=tenant_id,
         user_doc=user_doc,
@@ -5675,7 +5829,7 @@ class TelegramAgentTestMessageRequest(BaseModel):
     message: str = "Prueba de conexión desde ROVI. Tu agente Telegram está listo."
 
 
-TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES = {"broker", "agency_admin", "rentals", "rovi_orchestrator"}
+TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES = {"broker", "agency_admin", "rentals", "rovi_orchestrator", "growth_partner"}
 
 DEFAULT_TELEGRAM_AGENT_PROFILES = {
     "broker": {
@@ -5717,6 +5871,16 @@ DEFAULT_TELEGRAM_AGENT_PROFILES = {
         ),
         "bot_username": os.environ.get("ROVI_ORCHESTRATOR_TELEGRAM_BOT_USERNAME", ""),
     },
+    "growth_partner": {
+        "name": "Vivi Growth Partner",
+        "description": "Agente para marketing, ventas, adopción, entrenamiento de comunicación y creación de skills para ROVI.",
+        "system_prompt": (
+            "Eres Vivi Growth Partner de ROVI. Ayuda a entrenar comunicación, campañas, prompts, "
+            "casos de uso, skills y adopción para brokers, inmobiliarias y rentas. Convierte material "
+            "multimodal en mensajes, playbooks y acciones CRM."
+        ),
+        "bot_username": os.environ.get("ROVI_GROWTH_TELEGRAM_BOT_USERNAME", ""),
+    },
 }
 
 
@@ -5746,6 +5910,9 @@ def normalize_telegram_bot_username(value: str | None) -> str:
 
 
 def resolve_telegram_agent_role_scope(current_user: dict) -> str:
+    special_scope = resolve_special_agent_role_scope_for_email(current_user.get("email"))
+    if special_scope in TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES:
+        return special_scope
     account_type = current_user.get("account_type") or "individual"
     if account_type == "agency":
         return "agency_admin"
@@ -5756,12 +5923,20 @@ def allowed_device_link_role_scopes(user: dict, active_workspace: dict | None) -
     active_role = ((active_workspace or {}).get("role") or user.get("role", "broker") or "broker").lower()
     account_type = user.get("account_type") or "individual"
     tenant_type = (active_workspace or {}).get("tenant_type")
+    special_scope = resolve_special_agent_role_scope_for_email(user.get("email"))
+    if special_scope == "rovi_orchestrator":
+        return ["rovi_orchestrator", "agency_admin", "broker", "rentals", "growth_partner"]
+    if special_scope == "growth_partner":
+        return ["growth_partner", "agency_admin", "broker", "rentals", "rovi_orchestrator"]
     if active_role == "broker":
         return ["broker", "rentals"]
     if active_role == "property_manager":
         return ["rentals", "agency_admin"]
     if active_role in {"owner", "admin", "manager"} and tenant_type == "agency":
-        return ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
+        scopes = ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
+        if active_role == "owner":
+            scopes.insert(0, "growth_partner")
+        return list(dict.fromkeys(scopes))
     if user.get("role") == "broker":
         return ["broker", "rentals"]
     if account_type == "agency":
@@ -5770,6 +5945,9 @@ def allowed_device_link_role_scopes(user: dict, active_workspace: dict | None) -
 
 
 def default_device_link_role_scope(user: dict, active_workspace: dict | None) -> str:
+    special_scope = resolve_special_agent_role_scope_for_email(user.get("email"))
+    if special_scope:
+        return special_scope
     allowed = allowed_device_link_role_scopes(user, active_workspace)
     return allowed[0] if allowed else "broker"
 
@@ -5858,7 +6036,21 @@ def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope:
     studio_tools = studio_tools or {}
     crm_write_enabled = any(
         bool(studio_tools.get(key))
-        for key in ("leads", "tasks", "events", "properties", "imports", "bulk_changes", "media", "drive_links", "whatsapp_intelligence")
+        for key in (
+            "leads",
+            "tasks",
+            "events",
+            "properties",
+            "imports",
+            "bulk_changes",
+            "media",
+            "drive_links",
+            "whatsapp_intelligence",
+            "youtube_links",
+            "social_links",
+            "skill_builder",
+            "personal_memory",
+        )
     )
     return {
         "list_leads": bool(studio_tools.get("leads", True)),
@@ -5870,6 +6062,10 @@ def build_agent_control_tools_from_studio(studio_tools: dict | None, role_scope:
         "media_hub": bool(studio_tools.get("media", True)),
         "drive_public_links": bool(studio_tools.get("drive_links", True)),
         "whatsapp_intelligence": bool(studio_tools.get("whatsapp_intelligence", True)),
+        "youtube_links": bool(studio_tools.get("youtube_links", True)),
+        "social_links": bool(studio_tools.get("social_links", True)),
+        "skill_builder": bool(studio_tools.get("skill_builder", True)),
+        "personal_memory": bool(studio_tools.get("personal_memory", True)),
         "imports": bool(studio_tools.get("imports", True)),
         "bulk_changes": bool(studio_tools.get("bulk_changes", True)),
         "write_actions": True,
@@ -6085,9 +6281,20 @@ async def find_recent_pending_telegram_action(link: dict, chat_id: str) -> dict 
     )
 
 
-async def find_first_visible_lead_for_action(tenant_id: str, text: str) -> dict | None:
+async def find_first_visible_lead_for_action(
+    tenant_id: str,
+    text: str,
+    user: dict | None = None,
+    role_scope: str | None = None,
+) -> dict | None:
+    query = {"tenant_id": tenant_id, "deleted": {"$ne": True}}
+    if role_scope == "broker" and user:
+        query["$or"] = [
+            {"assigned_broker_id": user.get("id")},
+            {"created_by": user.get("id")},
+        ]
     leads = await db.leads.find(
-        {"tenant_id": tenant_id, "deleted": {"$ne": True}},
+        query,
         {"_id": 0, "id": 1, "name": 1, "status": 1, "priority": 1, "phone": 1, "email": 1},
     ).sort("created_at", -1).limit(25).to_list(25)
     normalized = normalize_action_command(text)
@@ -6154,7 +6361,7 @@ async def build_pending_task_action(
     tenant_id = link.get("tenant_id") or user.get("tenant_id")
     if not tenant_id:
         return None
-    lead = await find_first_visible_lead_for_action(tenant_id, text)
+    lead = await find_first_visible_lead_for_action(tenant_id, text, user, role_scope)
     assignees = [{
         "id": user["id"],
         "name": user.get("name") or user.get("email") or "Usuario actual",
@@ -6277,7 +6484,7 @@ async def build_pending_event_action(
     tenant_id = link.get("tenant_id") or user.get("tenant_id")
     if not tenant_id:
         return None
-    lead = await find_first_visible_lead_for_action(tenant_id, text)
+    lead = await find_first_visible_lead_for_action(tenant_id, text, user, role_scope)
     start_time = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
     title = extract_title_after_terms(text, ("evento", "reunion", "reunión", "cita", "visita", "llamada", "agenda"), "Seguimiento comercial")
     event = {
@@ -6373,7 +6580,7 @@ async def build_pending_lead_update_action(
     agent_name: str,
 ) -> dict | None:
     tenant_id = link.get("tenant_id") or user.get("tenant_id")
-    lead = await find_first_visible_lead_for_action(tenant_id, text) if tenant_id else None
+    lead = await find_first_visible_lead_for_action(tenant_id, text, user, role_scope) if tenant_id else None
     if not tenant_id or not lead:
         return None
     update_payload = {}

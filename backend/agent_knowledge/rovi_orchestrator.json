@@ -35,6 +35,11 @@
         "id": "rentals",
         "name": "Agente Rentas",
         "purpose": "Solicitudes de renta, disponibilidad, visitas, contratos, media, documentos y seguimiento."
+      },
+      {
+        "id": "growth_partner",
+        "name": "Vivi Growth Partner",
+        "purpose": "Marketing, ventas, comunicacion, adopcion, entrenamiento de agentes, campanas, playbooks y creacion de skills."
       }
     ],
     "agency_agents_to_borrow": [
@@ -66,10 +71,14 @@
     "workshop_orchestration",
     "whatsapp_chat_intelligence",
     "drive_property_package_importer",
+    "youtube_understanding",
+    "social_link_intelligence",
     "file_reader",
     "image_ocr",
     "audio_transcription",
     "video_understanding",
+    "skill_builder",
+    "personal_memory_builder",
     "risk_guardian",
     "revenue_ops",
     "behavioral_nudges"

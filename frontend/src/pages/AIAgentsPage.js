@@ -113,6 +113,21 @@ const roleCopy = {
     profile: 'rovi-agency-admin',
     scope: 'Leads, tareas, eventos y propiedades del tenant',
   },
+  rovi_orchestrator: {
+    label: 'ROVI Orchestrator',
+    profile: 'rovi-orchestrator',
+    scope: 'Entrenamiento, auditoría y mejora de perfiles, skills y pruebas E2E',
+  },
+  growth_partner: {
+    label: 'Growth Partner',
+    profile: 'rovi-vivi-growth',
+    scope: 'Marketing, ventas, comunicación, adopción y entrenamiento de agentes',
+  },
+  rentals: {
+    label: 'Rentas',
+    profile: 'rovi-rentals',
+    scope: 'Solicitudes de renta, propiedades, visitas, documentos y seguimiento',
+  },
   manager: {
     label: 'Manager',
     profile: 'rovi-manager',
@@ -124,7 +139,7 @@ const permissionGroups = [
   {
     title: 'Gestión diaria',
     items: [
-      { icon: FolderKanban, label: 'Leads', value: 'Consultar, crear y actualizar con confirmación' },
+      { icon: FolderKanban, label: 'Leads', value: 'Consultar, crear, actualizar y mover stage en Autopilot' },
       { icon: ListChecks, label: 'Tareas', value: 'Crear seguimiento, cambiar estado y reasignar según rol' },
       { icon: CalendarDays, label: 'Eventos', value: 'Agendar visitas, llamadas y recordatorios' },
       { icon: Package, label: 'Propiedades', value: 'Consultar inventario y actualizar campos permitidos' },
@@ -133,8 +148,8 @@ const permissionGroups = [
   {
     title: 'Acciones protegidas',
     items: [
-      { icon: ShieldCheck, label: 'Importaciones', value: 'Preview obligatorio antes de guardar' },
-      { icon: KeyRound, label: 'Cambios masivos', value: 'Requieren aprobación explícita del usuario' },
+      { icon: ShieldCheck, label: 'Importaciones', value: 'Crear o actualizar en Autopilot cuando sea seguro' },
+      { icon: KeyRound, label: 'Eliminar / irreversible', value: 'Requiere aprobación explícita del usuario' },
     ],
   },
 ];
@@ -162,10 +177,14 @@ export const AIAgentsPage = () => {
 
   const activeWorkspace = user?.active_workspace;
   const roleScope = useMemo(() => {
+    const email = (user?.email || '').toLowerCase();
+    if (email === 'admin@rovicrm.com') return 'rovi_orchestrator';
+    if (email === 'owner@rovicrm.com') return 'growth_partner';
+    if (activeWorkspace?.role === 'property_manager') return 'rentals';
     if (activeWorkspace?.role && ['admin', 'owner'].includes(activeWorkspace.role)) return 'agency_admin';
     if (user?.account_type === 'agency') return 'agency_admin';
     return activeWorkspace?.role === 'manager' ? 'manager' : 'broker';
-  }, [activeWorkspace?.role, user?.account_type]);
+  }, [activeWorkspace?.role, user?.account_type, user?.email]);
   const role = roleCopy[roleScope] || roleCopy.broker;
   const selectedAgentProfile = useMemo(
     () => agentProfiles.find((profile) => profile.id === selectedAgentProfileId) || agentProfiles[0] || null,

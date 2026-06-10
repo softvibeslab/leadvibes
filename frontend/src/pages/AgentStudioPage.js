@@ -131,7 +131,7 @@ export const AgentStudioPage = () => {
       if (!sections[section][groupName]) sections[section][groupName] = [];
       sections[section][groupName].push(skill);
     });
-    const superpowerPriority = ['Archivos', 'Imagenes', 'Audio', 'Video', 'Links', 'WhatsApp', 'CRM'];
+    const superpowerPriority = ['Archivos', 'Imagenes', 'Audio', 'Video', 'Links', 'YouTube', 'Redes sociales', 'WhatsApp', 'CRM', 'Skills', 'Memoria'];
     const commercialPriority = [
       'Calificacion y seguimiento',
       'Seguimiento comercial',
@@ -586,6 +586,7 @@ export const AgentStudioPage = () => {
                             ['broker', 'Broker'],
                             ['rentals', 'Rentas'],
                             ['rovi_orchestrator', 'Orquestador'],
+                            ['growth_partner', 'Vivi/Growth'],
                             ['rovi_admin', 'ROVI'],
                             ['copim_council', 'COPIM'],
                           ].map(([value, label]) => (

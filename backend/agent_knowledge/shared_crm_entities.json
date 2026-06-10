@@ -46,7 +46,7 @@
         "fields_to_save": {},
         "missing_fields": [],
         "duplicate_risk": "low|medium|high",
-        "confirmation_question": "¿Confirmas que lo guarde en ROVI?"
+        "autopilot_note": "Guardar o actualizar automaticamente si la confianza es suficiente; pedir confirmacion solo para eliminar o irreversible."
       }
     },
     "task": {
@@ -81,7 +81,7 @@
         "action": "create_or_update",
         "fields_to_save": {},
         "missing_fields": [],
-        "confirmation_question": "¿Confirmas que cree o actualice esta tarea?"
+        "autopilot_note": "Crear o actualizar automaticamente si la confianza es suficiente; pedir confirmacion solo para eliminar o irreversible."
       }
     },
     "event": {
@@ -122,7 +122,7 @@
         "fields_to_save": {},
         "meeting_brief": {},
         "missing_fields": [],
-        "confirmation_question": "¿Confirmas que lo agregue al calendario?"
+        "autopilot_note": "Crear o actualizar automaticamente si la confianza es suficiente; pedir confirmacion solo para eliminar o irreversible."
       }
     },
     "property": {
@@ -156,7 +156,7 @@
         "media_assets": [],
         "missing_fields": [],
         "duplicate_risk": "low|medium|high",
-        "confirmation_question": "¿Confirmas que importe o actualice esta propiedad?"
+        "autopilot_note": "Importar o actualizar automaticamente si la confianza es suficiente; pedir confirmacion solo para eliminar o irreversible."
       }
     }
   }

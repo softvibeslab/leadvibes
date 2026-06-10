@@ -6,15 +6,16 @@
     "record_scope": "puede consultar y gestionar informacion operativa, configuracion, auditoria y roles del workspace",
     "restrictions": [
       "no acceder a otros tenants",
-      "confirmar cambios masivos, importaciones, reasignaciones y eliminaciones",
+      "ejecutar altas, actualizaciones, importaciones y clasificaciones seguras en Autopilot",
+      "confirmar solo cambios destructivos, cambios masivos sensibles, revocar accesos, pagos externos o eliminaciones",
       "no mostrar secretos, tokens ni credenciales completas"
     ]
   },
   "allowed_crud": {
-    "lead": ["create", "read", "update", "delete_with_confirmation", "import_with_confirmation"],
+    "lead": ["create_autopilot", "read", "update_autopilot", "delete_with_confirmation", "import_autopilot"],
     "task": ["create", "read", "update", "delete_with_confirmation", "bulk_update_with_confirmation"],
     "event": ["create", "read", "update", "delete_with_confirmation"],
-    "property": ["create", "read", "update", "archive_with_confirmation", "import_with_confirmation"]
+    "property": ["create_autopilot", "read", "update_autopilot", "archive_with_confirmation", "import_autopilot"]
   },
   "priority_skills": [
     "revenue_ops",
@@ -36,6 +37,6 @@
     "consultar historial de actividades, tareas pendientes, notas, mensajes e intereses",
     "resumir contexto comercial, riesgos, objeciones probables y oportunidad",
     "proponer agenda, preguntas de calificacion, materiales y siguiente mejor accion",
-    "crear tareas o evento solo despues de confirmacion"
+    "crear tareas o eventos automaticamente cuando sea seguro; pedir confirmacion solo si implica eliminar o una accion irreversible"
   ]
 }

@@ -33,11 +33,21 @@ from hermes_crud_extensions import (
     extract_due_date,
     extract_new_time,
     extract_reason,
+    apply_role_scope_visibility,
     find_lead_match,
     find_property_match,
     find_task_match,
     find_event_match,
 )
+
+
+def add_or_conditions(query: dict, conditions: list[dict]) -> dict:
+    if not conditions:
+        return query
+    if "$or" in query:
+        return {"$and": [query, {"$or": conditions}]}
+    query["$or"] = conditions
+    return query
 
 
 # ============================================================================
@@ -231,7 +241,7 @@ async def build_pending_property_update_action(
     if not tenant_id:
         return None
 
-    property_doc = await find_property_match(db, tenant_id, text)
+    property_doc = await find_property_match(db, tenant_id, text, user["id"], role_scope)
     if not property_doc:
         return None
 
@@ -291,7 +301,7 @@ async def build_pending_task_update_action(
     if not tenant_id:
         return None
 
-    task_doc = await find_task_match(db, tenant_id, user["id"], text)
+    task_doc = await find_task_match(db, tenant_id, user["id"], text, role_scope)
     if not task_doc:
         return None
 
@@ -349,7 +359,7 @@ async def build_pending_event_update_action(
     if not tenant_id:
         return None
 
-    event_doc = await find_event_match(db, tenant_id, user["id"], text)
+    event_doc = await find_event_match(db, tenant_id, user["id"], text, role_scope)
     if not event_doc:
         return None
 
@@ -411,7 +421,7 @@ async def build_pending_lead_delete_action(
     if not tenant_id:
         return None
 
-    lead_doc = await find_lead_match(db, tenant_id, text)
+    lead_doc = await find_lead_match(db, tenant_id, text, user["id"], role_scope)
     if not lead_doc:
         return None
 
@@ -453,7 +463,7 @@ async def build_pending_property_delete_action(
     if not tenant_id:
         return None
 
-    property_doc = await find_property_match(db, tenant_id, text)
+    property_doc = await find_property_match(db, tenant_id, text, user["id"], role_scope)
     if not property_doc:
         return None
 
@@ -495,7 +505,7 @@ async def build_pending_task_delete_action(
     if not tenant_id:
         return None
 
-    task_doc = await find_task_match(db, tenant_id, user["id"], text)
+    task_doc = await find_task_match(db, tenant_id, user["id"], text, role_scope)
     if not task_doc:
         return None
 
@@ -537,7 +547,7 @@ async def build_pending_event_delete_action(
     if not tenant_id:
         return None
 
-    event_doc = await find_event_match(db, tenant_id, user["id"], text)
+    event_doc = await find_event_match(db, tenant_id, user["id"], text, role_scope)
     if not event_doc:
         return None
 
@@ -577,7 +587,7 @@ async def execute_hermes_read_action(action: dict, db: Any) -> dict:
     limit = filters.get("limit", 10)
 
     if action_type == "read_leads":
-        query = {"tenant_id": tenant_id, "deleted": {"$ne": True}}
+        query = apply_role_scope_visibility({"tenant_id": tenant_id, "deleted": {"$ne": True}}, "lead", action.get("user_id"), action.get("role_scope"))
         if filters.get("status"):
             if isinstance(filters["status"], list):
                 query["status"] = {"$in": filters["status"]}
@@ -587,7 +597,7 @@ async def execute_hermes_read_action(action: dict, db: Any) -> dict:
             query["priority"] = filters["priority"]
         if filters.get("search"):
             regex = {"$regex": filters["search"], "$options": "i"}
-            query["$or"] = [{"name": regex}, {"email": regex}, {"phone": {"$regex": filters["search"].replace(r"\D", "")}}]
+            query = add_or_conditions(query, [{"name": regex}, {"email": regex}, {"phone": {"$regex": filters["search"].replace(r"\D", "")}}])
 
         cursor = db.leads.find(query, {"_id": 0}).sort("created_at", -1).limit(limit)
         records = await cursor.to_list(limit)
@@ -600,7 +610,7 @@ async def execute_hermes_read_action(action: dict, db: Any) -> dict:
         }
 
     elif action_type == "read_properties":
-        query = {"tenant_id": tenant_id, "is_active": True}
+        query = apply_role_scope_visibility({"tenant_id": tenant_id, "is_active": True}, "property", action.get("user_id"), action.get("role_scope"))
         if filters.get("niche"):
             query["niche"] = filters["niche"]
         if filters.get("operation_type"):
@@ -611,7 +621,7 @@ async def execute_hermes_read_action(action: dict, db: Any) -> dict:
             query.setdefault("price_mxn", {})["$gte"] = filters["price_min"]
         if filters.get("search"):
             regex = {"$regex": filters["search"], "$options": "i"}
-            query["$or"] = [{"title": regex}, {"sku": regex}, {"description": regex}]
+            query = add_or_conditions(query, [{"title": regex}, {"sku": regex}, {"description": regex}])
 
         cursor = db.products.find(query, {"_id": 0}).sort("created_at", -1).limit(limit)
         records = await cursor.to_list(limit)
@@ -624,15 +634,7 @@ async def execute_hermes_read_action(action: dict, db: Any) -> dict:
         }
 
     elif action_type == "read_tasks":
-        # Para tasks, agregar filtro de visibilidad del usuario
-        query = {
-            "tenant_id": tenant_id,
-            "deleted": {"$ne": True},
-            "$or": [
-                {"assigned_to": action["user_id"]},
-                {"created_by": action["user_id"]},
-            ],
-        }
+        query = apply_role_scope_visibility({"tenant_id": tenant_id, "deleted": {"$ne": True}}, "task", action.get("user_id"), action.get("role_scope"))
         if filters.get("status"):
             if isinstance(filters["status"], list):
                 query["status"] = {"$in": filters["status"]}
@@ -652,7 +654,7 @@ async def execute_hermes_read_action(action: dict, db: Any) -> dict:
         }
 
     elif action_type == "read_events":
-        query = {"tenant_id": tenant_id, "user_id": action["user_id"]}
+        query = apply_role_scope_visibility({"tenant_id": tenant_id}, "event", action.get("user_id"), action.get("role_scope"))
         if filters.get("start_from"):
             query["start_time"] = {"$gte": filters["start_from"]}
         if filters.get("start_until"):
@@ -686,7 +688,7 @@ async def execute_hermes_update_action(action: dict, db: Any) -> dict:
         update_fields["updated_at"] = now.isoformat()
 
         result = await db.products.update_one(
-            {"tenant_id": action["tenant_id"], "id": property_id},
+            apply_role_scope_visibility({"tenant_id": action["tenant_id"], "id": property_id}, "property", action.get("user_id"), action.get("role_scope")),
             {"$set": update_fields}
         )
         if result.matched_count == 0:
@@ -709,7 +711,7 @@ async def execute_hermes_update_action(action: dict, db: Any) -> dict:
             update_fields["completed_at"] = now.isoformat()
 
         result = await db.tasks.update_one(
-            {"tenant_id": action["tenant_id"], "id": task_id},
+            apply_role_scope_visibility({"tenant_id": action["tenant_id"], "id": task_id}, "task", action.get("user_id"), action.get("role_scope")),
             {"$set": update_fields}
         )
         if result.matched_count == 0:
@@ -727,7 +729,7 @@ async def execute_hermes_update_action(action: dict, db: Any) -> dict:
         update_fields = {k: v for k, v in payload.get("update", {}).items() if v is not None}
 
         result = await db.calendar_events.update_one(
-            {"tenant_id": action["tenant_id"], "id": event_id},
+            apply_role_scope_visibility({"tenant_id": action["tenant_id"], "id": event_id}, "event", action.get("user_id"), action.get("role_scope")),
             {"$set": update_fields}
         )
         if result.matched_count == 0:
@@ -750,7 +752,7 @@ async def execute_hermes_delete_action(action: dict, db: Any) -> dict:
     if action_type == "delete_lead":
         lead_id = (action.get("payload") or {}).get("lead_id")
         result = await db.leads.update_one(
-            {"tenant_id": action["tenant_id"], "id": lead_id},
+            apply_role_scope_visibility({"tenant_id": action["tenant_id"], "id": lead_id}, "lead", action.get("user_id"), action.get("role_scope")),
             {"$set": {"deleted": True, "deleted_at": now.isoformat()}}
         )
         if result.matched_count == 0:
@@ -766,7 +768,7 @@ async def execute_hermes_delete_action(action: dict, db: Any) -> dict:
         property_id = (action.get("payload") or {}).get("property_id")
         # Soft delete: marcar como inactivo
         result = await db.products.update_one(
-            {"tenant_id": action["tenant_id"], "id": property_id},
+            apply_role_scope_visibility({"tenant_id": action["tenant_id"], "id": property_id}, "property", action.get("user_id"), action.get("role_scope")),
             {"$set": {"is_active": False, "deleted_at": now.isoformat()}}
         )
         if result.matched_count == 0:
@@ -781,7 +783,7 @@ async def execute_hermes_delete_action(action: dict, db: Any) -> dict:
     elif action_type == "delete_task":
         task_id = (action.get("payload") or {}).get("task_id")
         result = await db.tasks.update_one(
-            {"tenant_id": action["tenant_id"], "id": task_id},
+            apply_role_scope_visibility({"tenant_id": action["tenant_id"], "id": task_id}, "task", action.get("user_id"), action.get("role_scope")),
             {"$set": {"deleted": True, "deleted_at": now.isoformat()}}
         )
         if result.matched_count == 0:
@@ -797,7 +799,7 @@ async def execute_hermes_delete_action(action: dict, db: Any) -> dict:
         event_id = (action.get("payload") or {}).get("event_id")
         # Para eventos, hard delete
         result = await db.calendar_events.delete_one(
-            {"tenant_id": action["tenant_id"], "id": event_id}
+            apply_role_scope_visibility({"tenant_id": action["tenant_id"], "id": event_id}, "event", action.get("user_id"), action.get("role_scope"))
         )
         if result.deleted_count == 0:
             return {"executed": False, "message": "No encontré el evento para eliminar."}

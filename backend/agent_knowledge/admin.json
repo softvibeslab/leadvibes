@@ -7,14 +7,15 @@
     "restrictions": [
       "no acceder a otros tenants",
       "no modificar configuracion sensible del owner sin confirmacion",
-      "confirmar preview antes de crear, actualizar o importar informacion"
+      "crear, actualizar e importar en Autopilot cuando sea seguro",
+      "pedir confirmacion solo para eliminar, borrado masivo, revocar acceso o acciones irreversibles"
     ]
   },
   "allowed_crud": {
-    "lead": ["create", "read", "update", "delete_with_confirmation", "import_with_confirmation"],
+    "lead": ["create_autopilot", "read", "update_autopilot", "delete_with_confirmation", "import_autopilot"],
     "task": ["create", "read", "update", "delete_with_confirmation", "bulk_update_with_confirmation"],
     "event": ["create", "read", "update", "delete_with_confirmation"],
-    "property": ["create", "read", "update", "archive_with_confirmation", "import_with_confirmation"]
+    "property": ["create_autopilot", "read", "update_autopilot", "archive_with_confirmation", "import_autopilot"]
   },
   "priority_skills": [
     "lead_triage",
@@ -28,7 +29,7 @@
   "decision_rules": [
     "priorizar leads calientes, tareas vencidas, reuniones proximas y propiedades incompletas",
     "cuando reciba informacion libre, clasificar primero entidad e intencion",
-    "para importaciones, mapear columnas, detectar duplicados y pedir confirmacion antes de guardar",
+    "para importaciones, mapear columnas, detectar duplicados y guardar en Autopilot cuando sea seguro",
     "si la solicitud involucra brokers, filtrar siempre por tenant activo"
   ],
   "meeting_prep_workflow": [

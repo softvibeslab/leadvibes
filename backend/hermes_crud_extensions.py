@@ -362,13 +362,35 @@ def extract_reason(text: str) -> Optional[str]:
 # FUNCIONES DE BÚSQUEDA DE REGISTROS
 # ============================================================================
 
-async def find_lead_match(db, tenant_id: str, text: str) -> Optional[dict]:
+def apply_role_scope_visibility(query: dict, entity: str, user_id: str | None, role_scope: str | None) -> dict:
+    """Restrict record lookup for broker-scoped Telegram CRUD actions."""
+    if role_scope != "broker" or not user_id:
+        return query
+    if entity == "lead":
+        return {**query, "$or": [{"assigned_broker_id": user_id}, {"created_by": user_id}]}
+    if entity == "property":
+        return {
+            **query,
+            "$or": [
+                {"responsible_broker_id": user_id},
+                {"assigned_brokers": user_id},
+                {"created_by": user_id},
+            ],
+        }
+    if entity == "task":
+        return {**query, "$or": [{"assigned_to": user_id}, {"created_by": user_id}]}
+    if entity == "event":
+        return {**query, "user_id": user_id}
+    return query
+
+
+async def find_lead_match(db, tenant_id: str, text: str, user_id: str | None = None, role_scope: str | None = None) -> Optional[dict]:
     """Busca lead por nombre o ID en texto"""
     # Primero intentar extraer ID
     lead_id = extract_id_from_text(text)
     if lead_id:
         lead = await db.leads.find_one(
-            {"tenant_id": tenant_id, "id": lead_id, "deleted": {"$ne": True}},
+            apply_role_scope_visibility({"tenant_id": tenant_id, "id": lead_id, "deleted": {"$ne": True}}, "lead", user_id, role_scope),
             {"_id": 0, "id": 1, "name": 1, "status": 1, "priority": 1}
         )
         if lead:
@@ -376,7 +398,7 @@ async def find_lead_match(db, tenant_id: str, text: str) -> Optional[dict]:
 
     # Si no hay ID, buscar por nombre
     leads = await db.leads.find(
-        {"tenant_id": tenant_id, "deleted": {"$ne": True}},
+        apply_role_scope_visibility({"tenant_id": tenant_id, "deleted": {"$ne": True}}, "lead", user_id, role_scope),
         {"_id": 0, "id": 1, "name": 1, "status": 1, "priority": 1}
     ).limit(25).to_list(25)
 
@@ -389,13 +411,13 @@ async def find_lead_match(db, tenant_id: str, text: str) -> Optional[dict]:
     return leads[0] if leads else None
 
 
-async def find_property_match(db, tenant_id: str, text: str) -> Optional[dict]:
+async def find_property_match(db, tenant_id: str, text: str, user_id: str | None = None, role_scope: str | None = None) -> Optional[dict]:
     """Busca propiedad por nombre o ID en texto"""
     # Primero intentar extraer ID
     prop_id = extract_id_from_text(text)
     if prop_id:
         prop = await db.products.find_one(
-            {"tenant_id": tenant_id, "id": prop_id},
+            apply_role_scope_visibility({"tenant_id": tenant_id, "id": prop_id}, "property", user_id, role_scope),
             {"_id": 0, "id": 1, "title": 1, "sku": 1, "price_mxn": 1}
         )
         if prop:
@@ -403,7 +425,7 @@ async def find_property_match(db, tenant_id: str, text: str) -> Optional[dict]:
 
     # Si no hay ID, buscar por título
     products = await db.products.find(
-        {"tenant_id": tenant_id, "is_active": True},
+        apply_role_scope_visibility({"tenant_id": tenant_id, "is_active": True}, "property", user_id, role_scope),
         {"_id": 0, "id": 1, "title": 1, "sku": 1, "price_mxn": 1}
     ).limit(25).to_list(25)
 
@@ -415,13 +437,13 @@ async def find_property_match(db, tenant_id: str, text: str) -> Optional[dict]:
     return products[0] if products else None
 
 
-async def find_task_match(db, tenant_id: str, user_id: str, text: str) -> Optional[dict]:
+async def find_task_match(db, tenant_id: str, user_id: str, text: str, role_scope: str | None = None) -> Optional[dict]:
     """Busca tarea por título o ID en texto"""
     # Primero intentar extraer ID
     task_id = extract_id_from_text(text)
     if task_id:
         task = await db.tasks.find_one(
-            {"tenant_id": tenant_id, "id": task_id, "deleted": {"$ne": True}},
+            apply_role_scope_visibility({"tenant_id": tenant_id, "id": task_id, "deleted": {"$ne": True}}, "task", user_id, role_scope),
             {"_id": 0, "id": 1, "title": 1, "status": 1}
         )
         if task:
@@ -429,7 +451,7 @@ async def find_task_match(db, tenant_id: str, user_id: str, text: str) -> Option
 
     # Si no hay ID, buscar por título (tareas del usuario)
     tasks = await db.tasks.find(
-        {"tenant_id": tenant_id, "deleted": {"$ne": True}, "$or": [{"assigned_to": user_id}, {"created_by": user_id}]},
+        apply_role_scope_visibility({"tenant_id": tenant_id, "deleted": {"$ne": True}}, "task", user_id, role_scope),
         {"_id": 0, "id": 1, "title": 1, "status": 1}
     ).limit(25).to_list(25)
 
@@ -441,13 +463,13 @@ async def find_task_match(db, tenant_id: str, user_id: str, text: str) -> Option
     return tasks[0] if tasks else None
 
 
-async def find_event_match(db, tenant_id: str, user_id: str, text: str) -> Optional[dict]:
+async def find_event_match(db, tenant_id: str, user_id: str, text: str, role_scope: str | None = None) -> Optional[dict]:
     """Busca evento por título o ID en texto"""
     # Primero intentar extraer ID
     event_id = extract_id_from_text(text)
     if event_id:
         event = await db.calendar_events.find_one(
-            {"tenant_id": tenant_id, "id": event_id},
+            apply_role_scope_visibility({"tenant_id": tenant_id, "id": event_id}, "event", user_id, role_scope),
             {"_id": 0, "id": 1, "title": 1, "start_time": 1}
         )
         if event:
@@ -455,7 +477,7 @@ async def find_event_match(db, tenant_id: str, user_id: str, text: str) -> Optio
 
     # Si no hay ID, buscar por título (eventos del usuario)
     events = await db.calendar_events.find(
-        {"tenant_id": tenant_id, "user_id": user_id},
+        apply_role_scope_visibility({"tenant_id": tenant_id}, "event", user_id, role_scope),
         {"_id": 0, "id": 1, "title": 1, "start_time": 1}
     ).sort("start_time", -1).limit(25).to_list(25)
 
@@ -533,6 +555,7 @@ __all__ = [
     "extract_new_time",
     "extract_reason",
     # Buscadores de registros
+    "apply_role_scope_visibility",
     "find_lead_match",
     "find_property_match",
     "find_task_match",
