@@ -26,8 +26,8 @@ export const OnboardingPage = () => {
     tasa_conversion: 10,
     apartados_mes: 10,
     periodo: 'mensual',
-    utilidades_actuales_mensuales: 0,
-    utilidades_meta_mensuales: 0
+    utilidades_actuales_mensuales: '',
+    utilidades_meta_mensuales: ''
   });
   const [aiProfile, setAiProfile] = useState({
     experience: '',
@@ -78,7 +78,6 @@ export const OnboardingPage = () => {
         };
 
         await api.post('/goals', salesGoals);
-        await api.post('/seed');
       } else {
         // Save goals
         await api.post('/goals', goals);
@@ -93,9 +92,6 @@ export const OnboardingPage = () => {
             goals: aiProfile.goals || `${goals.ventas_mes} ventas mensuales de $${(goals.ingresos_objetivo / 1000000).toFixed(1)}M MXN`
           });
         }
-
-        // Seed demo data
-        await api.post('/seed');
       }
 
       toast.success(isCopim
@@ -222,7 +218,7 @@ export const OnboardingPage = () => {
                     value={goals.utilidades_actuales_mensuales}
                     onChange={(e) => setGoals({
                       ...goals,
-                      utilidades_actuales_mensuales: parseFloat(e.target.value) || 0
+                      utilidades_actuales_mensuales: e.target.value
                     })}
                     min={0}
                     step={5000}
@@ -239,7 +235,7 @@ export const OnboardingPage = () => {
                     value={goals.utilidades_meta_mensuales}
                     onChange={(e) => setGoals({
                       ...goals,
-                      utilidades_meta_mensuales: parseFloat(e.target.value) || 0
+                      utilidades_meta_mensuales: e.target.value
                     })}
                     min={0}
                     step={5000}

@@ -47,6 +47,7 @@ import {
   Store,
   FlaskConical,
   SlidersHorizontal,
+  Images,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
@@ -58,6 +59,7 @@ const individualNavItems = [
   { to: '/leads', icon: FolderKanban, label: 'Pipeline de Leads' },
   { to: '/import', icon: Upload, label: 'Importador' },
   { to: '/products', icon: Package, label: 'Propiedades' },
+  { to: '/media', icon: Images, label: 'Media Hub' },
   { to: '/tasks', icon: ListChecks, label: 'Tareas' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
   { to: '/ai-agents', icon: Bot, label: 'Agentes IA' },
@@ -75,6 +77,7 @@ const agencyNavItems = [
   { to: '/leads', icon: FolderKanban, label: 'Pipeline de Leads' },
   { to: '/import', icon: Upload, label: 'Importador' },
   { to: '/products', icon: Package, label: 'Propiedades' },
+  { to: '/media', icon: Images, label: 'Media Hub' },
   { to: '/brokers/manage', icon: UserCircle, label: 'Brokers' },
   { to: '/tasks', icon: ListChecks, label: 'Tareas' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendario' },

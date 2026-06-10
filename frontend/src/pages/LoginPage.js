@@ -381,12 +381,6 @@ export const LoginPage = () => {
               </p>
             </CardFooter>
           </Card>
-
-          <div className="rovi-glass mt-5 rounded-2xl p-4 text-center">
-            <p className="text-xs text-muted-foreground">
-              Demo: carlos.mendoza@leadvibes.mx / demo123
-            </p>
-          </div>
         </div>
         </section>
       </main>

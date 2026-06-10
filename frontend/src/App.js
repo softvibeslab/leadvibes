@@ -23,6 +23,7 @@ import { ImportLeadsPage } from './pages/ImportLeadsPage';
 import { EmailEditorPage } from './pages/EmailEditorPage';
 import { DatabaseChatPage } from './pages/DatabaseChatPage';
 import { ProductsPage } from './pages/ProductsPage';
+import { MediaHubPage } from './pages/MediaHubPage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import { RoviInternalWorkspacePage } from './pages/RoviInternalWorkspacePage';
 import { RoviAIControlTowerPage } from './pages/RoviAIControlTowerPage';
@@ -372,6 +373,14 @@ function AppRoutes() {
         <Route path="/import" element={<ImportLeadsPage />} />
         <Route path="/encuentra-leads" element={<EncuentraLeadsPage />} />
         <Route path="/products" element={<ProductsPage />} />
+        <Route
+          path="/media"
+          element={
+            <SalesCrmRoute>
+              <MediaHubPage />
+            </SalesCrmRoute>
+          }
+        />
         <Route
           path="/rentals/*"
           element={

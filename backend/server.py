@@ -17,12 +17,16 @@ import csv
 import io
 import asyncio
 import math
+import mimetypes
+import re
+import shutil
 import jwt
 import base64
 import json
 import hmac
 import hashlib
 from urllib.parse import quote, urlparse, parse_qsl
+from starlette.responses import FileResponse
 
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, AuthMeResponse, SwitchWorkspaceRequest, OnboardingCompletionRequest,
@@ -6444,6 +6448,44 @@ async def send_telegram_message_with_token(
         return {"sent": False, "reason": str(exc)}
 
 
+async def send_telegram_chat_action_with_token(
+    token: str | None,
+    chat_id: str | None,
+    action: str = "typing",
+) -> dict:
+    if not token or not chat_id:
+        return {"sent": False, "reason": "missing_token_or_chat_id"}
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=6) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{token}/sendChatAction",
+                json={"chat_id": chat_id, "action": action},
+            )
+        if response.status_code >= 400:
+            return {"sent": False, "status_code": response.status_code, "body": response.text[:300]}
+        return {"sent": True, "status_code": response.status_code}
+    except Exception as exc:
+        return {"sent": False, "reason": str(exc)}
+
+
+async def keep_telegram_typing_indicator(
+    *,
+    token: str | None,
+    chat_id: str | None,
+    interval_seconds: float = 4.0,
+) -> None:
+    try:
+        while True:
+            await send_telegram_chat_action_with_token(token, chat_id, "typing")
+            await asyncio.sleep(interval_seconds)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.exception("Error sending Telegram typing indicator for chat %s", chat_id)
+
+
 async def public_telegram_agent_profile(profile: dict) -> dict:
     public = serialize_doc(profile) or {}
     token = public.pop("telegram_bot_token", "")
@@ -7353,8 +7395,19 @@ async def process_rovi_telegram_agent_message_background(
         {"id": update_id, "channel": "rovi-agent"},
         {"$set": {"status": "processing", "started_at": now, "updated_at": now}},
     )
+    typing_task = asyncio.create_task(
+        keep_telegram_typing_indicator(
+            token=get_rovi_telegram_bot_token(),
+            chat_id=chat_id,
+        )
+    )
     try:
         result = await handle_rovi_telegram_agent_message(text=text, chat_id=chat_id, telegram_user=telegram_user)
+        typing_task.cancel()
+        try:
+            await typing_task
+        except asyncio.CancelledError:
+            pass
         finished_at = datetime.now(timezone.utc).isoformat()
         await db.telegram_webhook_updates.update_one(
             {"id": update_id, "channel": "rovi-agent"},
@@ -7366,6 +7419,11 @@ async def process_rovi_telegram_agent_message_background(
             }},
         )
     except Exception as exc:
+        typing_task.cancel()
+        try:
+            await typing_task
+        except asyncio.CancelledError:
+            pass
         logger.exception("Error processing ROVI Telegram agent update %s", update_id)
         failed_at = datetime.now(timezone.utc).isoformat()
         await db.telegram_webhook_updates.update_one(
@@ -12357,6 +12415,362 @@ async def seed_demo_data(current_user: dict = Depends(get_current_user)):
         )
     
     return {"message": "Datos de demo cargados exitosamente", "brokers": 5, "leads": 20}
+
+# ==================== MEDIA HUB ====================
+
+MEDIA_HUB_DIR = UPLOADS_DIR / "media-hub"
+MEDIA_HUB_DIR.mkdir(parents=True, exist_ok=True)
+
+MEDIA_ENTITY_TYPES = {"lead", "property", "task", "event", "broker", "campaign", "import_job"}
+MEDIA_SOURCES = {"manual", "telegram", "whatsapp", "import", "agent", "system", "drive", "link"}
+MEDIA_STATUSES = {"active", "needs_review", "mapped", "archived"}
+
+
+class MediaHubLinkRequest(BaseModel):
+    entity_type: str
+    entity_id: str
+    confidence: float = 1.0
+    reason: Optional[str] = None
+
+
+class MediaHubStatusRequest(BaseModel):
+    status: str
+
+
+def sanitize_media_filename(filename: str) -> str:
+    original = Path(filename or "archivo").name
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", original).strip(".-")
+    return (safe or "archivo")[:160]
+
+
+def infer_media_file_type(mime_type: Optional[str], filename: str) -> str:
+    mime_type = str(mime_type or "").lower()
+    suffix = Path(filename or "").suffix.lower()
+
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("video/"):
+        return "video"
+    if mime_type.startswith("audio/"):
+        return "audio"
+    if mime_type in {"application/pdf", "text/plain"} or suffix in {".pdf", ".doc", ".docx", ".txt", ".md"}:
+        return "document"
+    if suffix in {".csv", ".xls", ".xlsx", ".tsv", ".numbers"}:
+        return "spreadsheet"
+    if suffix in {".zip", ".rar", ".7z"}:
+        return "archive"
+    return "file"
+
+
+def normalize_media_tags(raw_tags: Optional[str], file_type: str, source: str, entity_type: Optional[str]) -> List[str]:
+    tags = []
+    if raw_tags:
+        tags.extend([tag.strip().lower() for tag in raw_tags.split(",") if tag.strip()])
+    tags.extend([file_type, source])
+    if entity_type:
+        tags.append(entity_type)
+    return sorted(set(tags))
+
+
+def get_media_storage_provider() -> str:
+    provider = os.environ.get("ROVI_MEDIA_STORAGE_PROVIDER", "local").strip().lower()
+    return provider if provider in {"local", "pentaract"} else "local"
+
+
+def media_tenant_query(current_user: dict) -> Dict[str, Any]:
+    tenant_id = (
+        current_user.get("active_tenant_id")
+        or current_user.get("tenant_id")
+        or f"tenant-{current_user['user_id'][:8]}"
+    )
+    return {"tenant_id": tenant_id}
+
+
+async def store_media_file_local(file: UploadFile, tenant_id: str, media_id: str, filename: str) -> Dict[str, Any]:
+    media_dir = MEDIA_HUB_DIR / tenant_id / media_id
+    media_dir.mkdir(parents=True, exist_ok=True)
+    local_path = media_dir / filename
+    checksum = hashlib.sha256()
+    size_bytes = 0
+
+    with local_path.open("wb") as output:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            size_bytes += len(chunk)
+            checksum.update(chunk)
+            output.write(chunk)
+
+    relative_path = local_path.relative_to(UPLOADS_DIR).as_posix()
+    return {
+        "provider": "local",
+        "storage_ref": {"path": relative_path},
+        "url": f"/api/uploads/{quote(relative_path, safe='/')}",
+        "size_bytes": size_bytes,
+        "checksum_sha256": checksum.hexdigest(),
+    }
+
+
+async def store_media_file_pentaract(file: UploadFile, tenant_id: str, media_id: str, filename: str) -> Dict[str, Any]:
+    base_url = os.environ.get("PENTARACT_BASE_URL", "").rstrip("/")
+    token = os.environ.get("PENTARACT_TOKEN", "")
+    storage_id = os.environ.get("PENTARACT_STORAGE_ID", "")
+    if not base_url or not token or not storage_id:
+        raise HTTPException(status_code=502, detail="Pentaract no esta configurado para Media Hub")
+
+    data = await file.read()
+    checksum = hashlib.sha256(data).hexdigest()
+    object_path = f"tenants/{tenant_id}/media/{media_id}/{filename}"
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{base_url}/api/storages/{storage_id}/files/upload",
+                headers={"Authorization": f"Bearer {token}"},
+                data={"path": object_path},
+                files={"file": (filename, data, file.content_type or "application/octet-stream")},
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo conectar con Pentaract: {exc}") from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"Pentaract rechazo el archivo: {response.text[:240]}")
+
+    payload = {}
+    try:
+        payload = response.json()
+    except Exception:
+        payload = {"raw": response.text[:500]}
+
+    return {
+        "provider": "pentaract",
+        "storage_ref": {
+            "storage_id": storage_id,
+            "path": object_path,
+            "response": payload,
+        },
+        "url": None,
+        "size_bytes": len(data),
+        "checksum_sha256": checksum,
+    }
+
+
+async def store_media_file(file: UploadFile, tenant_id: str, media_id: str, filename: str) -> Dict[str, Any]:
+    if get_media_storage_provider() == "pentaract":
+        return await store_media_file_pentaract(file, tenant_id, media_id, filename)
+    return await store_media_file_local(file, tenant_id, media_id, filename)
+
+
+@api_router.get("/media/stats", response_model=dict)
+async def get_media_hub_stats(current_user: dict = Depends(get_current_user)):
+    tenant_query = media_tenant_query(current_user)
+    active_query = {**tenant_query, "status": {"$ne": "archived"}}
+    pipeline = [
+        {"$match": active_query},
+        {
+            "$group": {
+                "_id": "$file_type",
+                "count": {"$sum": 1},
+                "bytes": {"$sum": "$size_bytes"},
+            }
+        },
+    ]
+    by_type = await db.media_assets.aggregate(pipeline).to_list(50)
+    total = await db.media_assets.count_documents(active_query)
+    unassigned = await db.media_assets.count_documents({**active_query, "linked_entities.0": {"$exists": False}})
+    needs_review = await db.media_assets.count_documents({**tenant_query, "status": "needs_review"})
+    return {
+        "total": total,
+        "unassigned": unassigned,
+        "needs_review": needs_review,
+        "by_type": [{"file_type": item["_id"], "count": item["count"], "bytes": item.get("bytes", 0)} for item in by_type],
+        "provider": get_media_storage_provider(),
+    }
+
+
+@api_router.get("/media", response_model=List[dict])
+async def list_media_assets(
+    q: Optional[str] = None,
+    file_type: Optional[str] = None,
+    source: Optional[str] = None,
+    status_filter: Optional[str] = Query(default=None, alias="status"),
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    unassigned: Optional[bool] = None,
+    limit: int = Query(80, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+):
+    query: Dict[str, Any] = {**media_tenant_query(current_user)}
+    if status_filter:
+        query["status"] = status_filter
+    else:
+        query["status"] = {"$ne": "archived"}
+    if file_type:
+        query["file_type"] = file_type
+    if source:
+        query["source"] = source
+    if entity_type:
+        query["linked_entities.entity_type"] = entity_type
+    if entity_id:
+        query["linked_entities.entity_id"] = entity_id
+    if unassigned is True:
+        query["linked_entities.0"] = {"$exists": False}
+    if q:
+        escaped = re.escape(q.strip())
+        query["$or"] = [
+            {"filename": {"$regex": escaped, "$options": "i"}},
+            {"original_filename": {"$regex": escaped, "$options": "i"}},
+            {"tags": {"$elemMatch": {"$regex": escaped, "$options": "i"}}},
+            {"ai_summary": {"$regex": escaped, "$options": "i"}},
+        ]
+
+    assets = await db.media_assets.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return [serialize_doc(asset) for asset in assets]
+
+
+@api_router.post("/media/upload", response_model=dict)
+async def upload_media_assets(
+    files: List[UploadFile] = File(...),
+    source: str = Form("manual"),
+    entity_type: Optional[str] = Form(default=None),
+    entity_id: Optional[str] = Form(default=None),
+    tags: Optional[str] = Form(default=None),
+    current_user: dict = Depends(get_current_user),
+):
+    source = source if source in MEDIA_SOURCES else "manual"
+    if entity_type and entity_type not in MEDIA_ENTITY_TYPES:
+        raise HTTPException(status_code=400, detail="Tipo de entidad no soportado")
+
+    tenant_id = media_tenant_query(current_user)["tenant_id"]
+    created_assets = []
+
+    for file in files:
+        media_id = str(uuid.uuid4())
+        safe_name = sanitize_media_filename(file.filename)
+        mime_type = file.content_type or mimetypes.guess_type(safe_name)[0] or "application/octet-stream"
+        file_type = infer_media_file_type(mime_type, safe_name)
+        storage = await store_media_file(file, tenant_id, media_id, safe_name)
+        now = datetime.now(timezone.utc).isoformat()
+        linked_entities = []
+        if entity_type and entity_id:
+            linked_entities.append({
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "confidence": 1.0,
+                "reason": "Carga manual vinculada",
+                "linked_at": now,
+                "linked_by": current_user["user_id"],
+            })
+
+        asset_doc = {
+            "id": media_id,
+            "tenant_id": tenant_id,
+            "uploaded_by": current_user["user_id"],
+            "uploaded_by_email": current_user.get("email"),
+            "original_filename": file.filename,
+            "filename": safe_name,
+            "mime_type": mime_type,
+            "file_type": file_type,
+            "source": source,
+            "status": "mapped" if linked_entities else "needs_review",
+            "storage_provider": storage["provider"],
+            "storage_ref": storage["storage_ref"],
+            "url": storage.get("url"),
+            "preview_url": storage.get("url") if file_type in {"image", "video", "audio", "document"} else None,
+            "size_bytes": storage.get("size_bytes", 0),
+            "checksum_sha256": storage.get("checksum_sha256"),
+            "tags": normalize_media_tags(tags, file_type, source, entity_type),
+            "linked_entities": linked_entities,
+            "ai_summary": None,
+            "ai_extraction_status": "pending",
+            "created_at": now,
+            "updated_at": now,
+        }
+        await db.media_assets.insert_one(asset_doc)
+        created_assets.append(serialize_doc(asset_doc))
+
+    return {"message": "Archivos cargados", "assets": created_assets}
+
+
+@api_router.put("/media/{media_id}/link", response_model=dict)
+async def link_media_asset(
+    media_id: str,
+    request: MediaHubLinkRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    if request.entity_type not in MEDIA_ENTITY_TYPES:
+        raise HTTPException(status_code=400, detail="Tipo de entidad no soportado")
+
+    now = datetime.now(timezone.utc).isoformat()
+    link_doc = {
+        "entity_type": request.entity_type,
+        "entity_id": request.entity_id,
+        "confidence": max(0, min(float(request.confidence or 0), 1)),
+        "reason": request.reason,
+        "linked_at": now,
+        "linked_by": current_user["user_id"],
+    }
+    result = await db.media_assets.update_one(
+        {**media_tenant_query(current_user), "id": media_id},
+        {
+            "$pull": {"linked_entities": {"entity_type": request.entity_type, "entity_id": request.entity_id}},
+        },
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    await db.media_assets.update_one(
+        {**media_tenant_query(current_user), "id": media_id},
+        {"$push": {"linked_entities": link_doc}, "$set": {"status": "mapped", "updated_at": now}},
+    )
+    return {"message": "Archivo vinculado", "link": link_doc}
+
+
+@api_router.patch("/media/{media_id}/status", response_model=dict)
+async def update_media_asset_status(
+    media_id: str,
+    request: MediaHubStatusRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    if request.status not in MEDIA_STATUSES:
+        raise HTTPException(status_code=400, detail="Status no soportado")
+    result = await db.media_assets.update_one(
+        {**media_tenant_query(current_user), "id": media_id},
+        {"$set": {"status": request.status, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    return {"message": "Status actualizado", "status": request.status}
+
+
+@api_router.delete("/media/{media_id}", response_model=dict)
+async def archive_media_asset(media_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.media_assets.update_one(
+        {**media_tenant_query(current_user), "id": media_id},
+        {"$set": {"status": "archived", "archived_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    return {"message": "Archivo archivado"}
+
+
+@api_router.get("/media/{media_id}/preview")
+async def preview_media_asset(media_id: str, current_user: dict = Depends(get_current_user)):
+    asset = await db.media_assets.find_one({**media_tenant_query(current_user), "id": media_id}, {"_id": 0})
+    if not asset:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    if asset.get("storage_provider") != "local":
+        raise HTTPException(status_code=501, detail="Preview directo solo esta disponible para storage local por ahora")
+
+    relative_path = asset.get("storage_ref", {}).get("path")
+    if not relative_path:
+        raise HTTPException(status_code=404, detail="Archivo sin ruta local")
+    file_path = (UPLOADS_DIR / relative_path).resolve()
+    if not str(file_path).startswith(str(UPLOADS_DIR.resolve())) or not file_path.exists():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en storage")
+    return FileResponse(file_path, media_type=asset.get("mime_type"), filename=asset.get("filename"))
 
 # ==================== PRODUCTS/SERVICES ====================
 
