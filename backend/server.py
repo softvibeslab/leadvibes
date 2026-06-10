@@ -5963,9 +5963,20 @@ async def ensure_device_link_agent_studio_profiles(user: dict, active_workspace:
             continue
         existing = await db.agent_studio_profiles.find_one(
             {"tenant_id": tenant_id, "role_scope": default["role_scope"]},
-            {"_id": 0, "id": 1},
+            {"_id": 0, "id": 1, "default_profile_version": 1},
         )
         if existing:
+            if int(existing.get("default_profile_version") or 0) < AGENT_STUDIO_DEFAULT_PROFILE_VERSION:
+                await db.agent_studio_profiles.update_one(
+                    {"id": existing["id"]},
+                    {"$set": {
+                        **default,
+                        "default_profile_version": AGENT_STUDIO_DEFAULT_PROFILE_VERSION,
+                        "sync_status": "pending",
+                        "updated_by": user["id"],
+                        "updated_at": now,
+                    }},
+                )
             continue
         doc = {
             "id": f"agent-studio-profile-{uuid.uuid4()}",
