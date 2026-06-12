@@ -115,7 +115,7 @@ from dashboard_enhancements import (
 )
 from duplicate_detection import find_potential_duplicates, get_duplicate_suggestions
 from import_optimization import execute_import_optimized, execute_import_with_advanced_duplicates
-from agent_control import AgentRunRequest, SKILL_CATALOG, call_model, create_agent_control_router, extract_text_from_upload, run_agent_turn
+from agent_control import AgentRunRequest, SKILL_CATALOG, call_model, create_agent_control_router, extract_text_from_upload, register_agent_action_executor, run_agent_turn
 from agent_media_pipeline import build_agent_interpretation_job_doc, extract_public_urls
 from marketplace import create_marketplace_router
 from rovi_internal import create_rovi_internal_router
@@ -7140,6 +7140,11 @@ async def execute_pending_telegram_action(action: dict) -> dict:
     return result
 
 
+# Las herramientas CRM del agente (agent_control) ejecutan escrituras con el
+# mismo ejecutor y audit que el flujo de confirmación de Telegram.
+register_agent_action_executor(execute_pending_telegram_action)
+
+
 def build_interpretation_autopilot_text(job: dict) -> str:
     raw_text = (job.get("raw_text_preview") or "").strip()
     urls = " ".join(job.get("urls") or [])
@@ -8506,6 +8511,7 @@ async def handle_rovi_telegram_agent_message(*, text: str, chat_id: str, telegra
         source="telegram",
         forced_role_scope=role_scope,
         config_override=agent_config,
+        channel_context={"chat_id": chat_id, "link_id": link.get("id")},
     )
     response_text = result.get("response") or result.get("content") or "Listo."
     delivery = await send_telegram_message_with_token(get_rovi_telegram_bot_token(), chat_id, response_text)
@@ -9356,6 +9362,7 @@ async def process_telegram_agent_profile_message_background(
             runtime_user,
             source="telegram",
             forced_role_scope=link["role_scope"],
+            channel_context={"chat_id": chat_id, "link_id": link.get("id")},
         )
     except Exception as exc:
         typing_task.cancel()

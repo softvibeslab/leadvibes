@@ -832,6 +832,469 @@ async def find_relevant_knowledge(
     return [item[1] for item in ranked[:limit]]
 
 
+# ---------------------------------------------------------------------------
+# Herramientas CRM ejecutables (skills operativas / superpoderes)
+# ---------------------------------------------------------------------------
+
+AGENT_KNOWLEDGE_DIR = Path(__file__).parent / "agent_knowledge"
+AUTOPILOT_SKILL_ID = "crm_remote_control"
+MAX_TOOL_ROUNDS = 4
+MAX_TOOL_CALLS_PER_TURN = 6
+
+# Roles que ven todo el tenant; el resto queda acotado a sus propios registros.
+TENANT_WIDE_ROLE_SCOPES = {
+    "agency_admin",
+    "rentals",
+    "growth_partner",
+    "manager",
+    "property_manager",
+    "owner",
+    "admin",
+}
+
+# server.py inyecta execute_pending_telegram_action al arrancar para que las
+# escrituras de herramientas usen el mismo ejecutor y audit que el flujo de
+# confirmación de Telegram (sin import circular).
+_ACTION_EXECUTOR = None
+
+
+def register_agent_action_executor(executor) -> None:
+    global _ACTION_EXECUTOR
+    _ACTION_EXECUTOR = executor
+
+
+_ROLE_POLICY_CACHE: dict[str, dict] = {}
+
+
+def load_agent_role_policy(role_scope: str) -> dict:
+    if role_scope in _ROLE_POLICY_CACHE:
+        return _ROLE_POLICY_CACHE[role_scope]
+    policy: dict = {}
+    path = AGENT_KNOWLEDGE_DIR / f"{role_scope}.json"
+    if path.exists():
+        try:
+            policy = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            policy = {}
+    _ROLE_POLICY_CACHE[role_scope] = policy
+    return policy
+
+
+def role_policy_allows(policy: dict, entity: str, verb: str) -> bool:
+    allowed = (policy.get("allowed_crud") or {}).get(entity)
+    if not allowed:
+        return False
+    return any(str(item).startswith(verb) for item in allowed)
+
+
+AGENT_TOOL_SPECS: list[dict] = [
+    {
+        "name": "buscar_leads",
+        "kind": "read",
+        "entity": "leads",
+        "verb": "read",
+        "description": "Busca leads del CRM por nombre, teléfono, email o estado. Úsala antes de crear o actualizar para evitar duplicados.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Nombre, teléfono o email a buscar"},
+                "status": {"type": "string", "description": "Estado del pipeline: nuevo, contactado, calificacion, presentacion, apartado, venta, perdido"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+        },
+    },
+    {
+        "name": "crear_lead",
+        "kind": "write",
+        "entity": "leads",
+        "verb": "create",
+        "action_type": "create_lead",
+        "description": "Crea un lead nuevo en el CRM. El teléfono es obligatorio.",
+        "parameters": {
+            "type": "object",
+            "required": ["name", "phone"],
+            "properties": {
+                "name": {"type": "string"},
+                "phone": {"type": "string"},
+                "email": {"type": "string"},
+                "budget_mxn": {"type": "number"},
+                "property_interest": {"type": "string"},
+                "notes": {"type": "string"},
+                "status": {"type": "string", "description": "Default: nuevo"},
+                "priority": {"type": "string", "description": "baja, media, alta o urgente"},
+                "source": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "actualizar_lead",
+        "kind": "write",
+        "entity": "leads",
+        "verb": "update",
+        "action_type": "update_lead",
+        "description": "Actualiza un lead existente (estado, prioridad, notas, presupuesto o siguiente acción). Identifica el lead por nombre o teléfono.",
+        "parameters": {
+            "type": "object",
+            "required": ["lead_query"],
+            "properties": {
+                "lead_query": {"type": "string", "description": "Nombre o teléfono del lead a actualizar"},
+                "status": {"type": "string"},
+                "priority": {"type": "string"},
+                "notes": {"type": "string"},
+                "budget_mxn": {"type": "number"},
+                "property_interest": {"type": "string"},
+                "next_action": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "crear_tarea",
+        "kind": "write",
+        "entity": "tasks",
+        "verb": "create",
+        "action_type": "create_tasks",
+        "description": "Crea una tarea de seguimiento en el CRM.",
+        "parameters": {
+            "type": "object",
+            "required": ["title"],
+            "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "due_date": {"type": "string", "description": "Fecha límite en formato ISO (YYYY-MM-DD)"},
+                "priority": {"type": "string", "description": "baja, media, alta o urgente"},
+            },
+        },
+    },
+    {
+        "name": "buscar_tareas",
+        "kind": "read",
+        "entity": "tasks",
+        "verb": "read",
+        "description": "Lista tareas del CRM, opcionalmente filtradas por estado.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "pendiente, en_progreso, completada"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+        },
+    },
+    {
+        "name": "crear_evento",
+        "kind": "write",
+        "entity": "events",
+        "verb": "create",
+        "action_type": "create_event",
+        "description": "Agenda un evento o cita en el calendario del CRM.",
+        "parameters": {
+            "type": "object",
+            "required": ["title", "start_time"],
+            "properties": {
+                "title": {"type": "string"},
+                "start_time": {"type": "string", "description": "Inicio en formato ISO (YYYY-MM-DDTHH:MM)"},
+                "description": {"type": "string"},
+                "event_type": {"type": "string", "description": "seguimiento, visita, llamada, reunion"},
+            },
+        },
+    },
+    {
+        "name": "buscar_eventos",
+        "kind": "read",
+        "entity": "events",
+        "verb": "read",
+        "description": "Lista los próximos eventos del calendario del usuario.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+        },
+    },
+    {
+        "name": "buscar_propiedades",
+        "kind": "read",
+        "entity": "properties",
+        "verb": "read",
+        "description": "Busca propiedades disponibles en el inventario por texto o precio máximo.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Texto a buscar en título o keywords"},
+                "max_price_mxn": {"type": "number"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+        },
+    },
+]
+
+
+def available_agent_tools(role_scope: str, config: dict) -> list[dict]:
+    """Filtra el catálogo de herramientas: política del rol (allowed_crud del
+    JSON de agent_knowledge) ∩ tools del perfil de Agent Studio."""
+    policy = load_agent_role_policy(role_scope)
+    if not policy:
+        return []
+    profile_tools = config.get("tools") or {}
+    specs = []
+    for spec in AGENT_TOOL_SPECS:
+        if not role_policy_allows(policy, spec["entity"], spec["verb"]):
+            continue
+        if profile_tools.get(spec["entity"]) is False:
+            continue
+        specs.append(spec)
+    return specs
+
+
+def agent_tools_payload(specs: list[dict]) -> list[dict]:
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": spec["name"],
+                "description": spec["description"],
+                "parameters": spec["parameters"],
+            },
+        }
+        for spec in specs
+    ]
+
+
+def agent_autopilot_enabled(config: dict) -> bool:
+    """Superpoder: con la skill crm_remote_control activa, las escrituras
+    seguras (crear/actualizar) se ejecutan sin pedir confirmación."""
+    return AUTOPILOT_SKILL_ID in (config.get("enabled_skills") or [])
+
+
+def scoped_entity_query(entity: str, current_user: dict, role_scope: str) -> dict:
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    user_id = current_user.get("user_id")
+    query: dict[str, Any] = {"tenant_id": tenant_id}
+    if role_scope.startswith("rovi_") or role_scope in TENANT_WIDE_ROLE_SCOPES:
+        return query
+    if entity == "leads":
+        query["$or"] = [{"created_by": user_id}, {"assigned_broker_id": user_id}]
+    elif entity == "tasks":
+        query["$or"] = [{"created_by": user_id}, {"assigned_to": user_id}]
+    elif entity == "events":
+        query["user_id"] = user_id
+    # properties: inventario visible para todo el tenant (read_available)
+    return query
+
+
+def _text_regex(value: str) -> dict:
+    return {"$regex": re.escape(str(value).strip()), "$options": "i"}
+
+
+async def _queue_or_execute_write(
+    db: AsyncIOMotorDatabase,
+    *,
+    action_type: str,
+    payload: dict,
+    preview: str,
+    current_user: dict,
+    role_scope: str,
+    config: dict,
+    channel_context: Optional[dict],
+    requested_text: str,
+) -> dict:
+    autopilot = agent_autopilot_enabled(config) and _ACTION_EXECUTOR is not None
+    now = datetime.now(timezone.utc).isoformat()
+    action_doc = {
+        "id": f"telegram-action-{uuid.uuid4()}",
+        "tenant_id": current_user.get("active_tenant_id") or current_user.get("tenant_id"),
+        "user_id": current_user.get("user_id"),
+        "link_id": (channel_context or {}).get("link_id"),
+        "chat_id": (channel_context or {}).get("chat_id"),
+        "role_scope": role_scope,
+        "type": action_type,
+        "status": "ready_to_execute" if autopilot else "pending_confirmation",
+        "payload": payload,
+        "requested_text": requested_text[:500],
+        "source": "agent_tool",
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.telegram_agent_pending_actions.insert_one(action_doc)
+    if autopilot:
+        result = await _ACTION_EXECUTOR(action_doc)
+        return {
+            "ok": bool(result.get("executed")),
+            "executed": bool(result.get("executed")),
+            "message": result.get("message"),
+            "record_ids": result.get("record_ids") or [],
+        }
+    return {
+        "ok": True,
+        "executed": False,
+        "status": "pending_confirmation",
+        "action_id": action_doc["id"],
+        "message": (
+            f"Acción preparada y pendiente de confirmación: {preview}. "
+            "Pide al usuario que responda 'sí' o 'confirmo' para ejecutarla."
+        ),
+    }
+
+
+async def execute_agent_tool(
+    db: AsyncIOMotorDatabase,
+    *,
+    name: str,
+    arguments: dict,
+    current_user: dict,
+    role_scope: str,
+    config: dict,
+    channel_context: Optional[dict] = None,
+    requested_text: str = "",
+) -> dict:
+    args = arguments or {}
+    limit = max(1, min(int(args.get("limit") or 8), 20))
+
+    if name == "buscar_leads":
+        query = scoped_entity_query("leads", current_user, role_scope)
+        if args.get("status"):
+            query["status"] = args["status"]
+        if args.get("query"):
+            query["$and"] = [{"$or": [
+                {"name": _text_regex(args["query"])},
+                {"phone": _text_regex(args["query"])},
+                {"email": _text_regex(args["query"])},
+            ]}]
+        projection = {"_id": 0, "id": 1, "name": 1, "phone": 1, "email": 1, "status": 1, "priority": 1, "budget_mxn": 1, "property_interest": 1, "next_action": 1, "updated_at": 1}
+        leads = await db.leads.find(query, projection).sort("updated_at", -1).limit(limit).to_list(limit)
+        return {"ok": True, "count": len(leads), "leads": serialize_docs(leads)}
+
+    if name == "buscar_tareas":
+        query = scoped_entity_query("tasks", current_user, role_scope)
+        query["deleted"] = {"$ne": True}
+        if args.get("status"):
+            query["status"] = args["status"]
+        projection = {"_id": 0, "id": 1, "title": 1, "status": 1, "priority": 1, "due_date": 1, "lead_id": 1}
+        tasks = await db.tasks.find(query, projection).sort("due_date", 1).limit(limit).to_list(limit)
+        return {"ok": True, "count": len(tasks), "tasks": serialize_docs(tasks)}
+
+    if name == "buscar_eventos":
+        query = scoped_entity_query("events", current_user, role_scope)
+        projection = {"_id": 0, "id": 1, "title": 1, "event_type": 1, "start_time": 1, "lead_id": 1, "completed": 1}
+        events = await db.calendar_events.find(query, projection).sort("start_time", -1).limit(limit).to_list(limit)
+        return {"ok": True, "count": len(events), "events": serialize_docs(events)}
+
+    if name == "buscar_propiedades":
+        query = scoped_entity_query("properties", current_user, role_scope)
+        query["is_active"] = {"$ne": False}
+        if args.get("query"):
+            query["$or"] = [
+                {"title": _text_regex(args["query"])},
+                {"keywords": _text_regex(args["query"])},
+                {"niche": _text_regex(args["query"])},
+            ]
+        if args.get("max_price_mxn"):
+            query["price_mxn"] = {"$lte": float(args["max_price_mxn"])}
+        projection = {"_id": 0, "id": 1, "title": 1, "price_mxn": 1, "operation_type": 1, "niche": 1, "sku": 1}
+        properties = await db.products.find(query, projection).sort("updated_at", -1).limit(limit).to_list(limit)
+        return {"ok": True, "count": len(properties), "properties": serialize_docs(properties)}
+
+    if name == "crear_lead":
+        if not str(args.get("phone") or "").strip():
+            return {"ok": False, "error": "El teléfono es obligatorio para crear un lead."}
+        lead_payload = {
+            "name": args.get("name"),
+            "phone": args.get("phone"),
+            "email": args.get("email"),
+            "status": args.get("status") or "nuevo",
+            "priority": args.get("priority") or "media",
+            "source": args.get("source") or "telegram_agent",
+            "budget_mxn": args.get("budget_mxn") or 0,
+            "property_interest": args.get("property_interest"),
+            "notes": args.get("notes"),
+        }
+        return await _queue_or_execute_write(
+            db,
+            action_type="create_lead",
+            payload={"lead": lead_payload},
+            preview=f"crear lead '{lead_payload['name']}' ({lead_payload['phone']})",
+            current_user=current_user,
+            role_scope=role_scope,
+            config=config,
+            channel_context=channel_context,
+            requested_text=requested_text,
+        )
+
+    if name == "actualizar_lead":
+        lead_query = str(args.get("lead_query") or "").strip()
+        if not lead_query:
+            return {"ok": False, "error": "Indica el nombre o teléfono del lead a actualizar."}
+        query = scoped_entity_query("leads", current_user, role_scope)
+        query["$and"] = [{"$or": [{"name": _text_regex(lead_query)}, {"phone": _text_regex(lead_query)}]}]
+        candidates = await db.leads.find(query, {"_id": 0, "id": 1, "name": 1, "phone": 1, "status": 1}).limit(5).to_list(5)
+        if not candidates:
+            return {"ok": False, "error": f"No encontré ningún lead que coincida con '{lead_query}' en tu alcance."}
+        if len(candidates) > 1:
+            return {
+                "ok": False,
+                "error": "Hay varios leads que coinciden; pide al usuario precisar cuál.",
+                "candidates": serialize_docs(candidates),
+            }
+        update_fields = {
+            key: args[key]
+            for key in ("status", "priority", "notes", "budget_mxn", "property_interest", "next_action")
+            if args.get(key) is not None
+        }
+        if not update_fields:
+            return {"ok": False, "error": "No hay campos válidos para actualizar."}
+        lead = candidates[0]
+        return await _queue_or_execute_write(
+            db,
+            action_type="update_lead",
+            payload={"lead_id": lead["id"], "update": update_fields},
+            preview=f"actualizar lead '{lead.get('name')}' con {update_fields}",
+            current_user=current_user,
+            role_scope=role_scope,
+            config=config,
+            channel_context=channel_context,
+            requested_text=requested_text,
+        )
+
+    if name == "crear_tarea":
+        task_payload = {
+            "title": args.get("title"),
+            "description": args.get("description") or "",
+            "due_date": args.get("due_date"),
+            "priority": args.get("priority") or "media",
+        }
+        return await _queue_or_execute_write(
+            db,
+            action_type="create_tasks",
+            payload={"tasks": [task_payload]},
+            preview=f"crear tarea '{task_payload['title']}'",
+            current_user=current_user,
+            role_scope=role_scope,
+            config=config,
+            channel_context=channel_context,
+            requested_text=requested_text,
+        )
+
+    if name == "crear_evento":
+        event_payload = {
+            "title": args.get("title"),
+            "description": args.get("description"),
+            "start_time": args.get("start_time"),
+            "event_type": args.get("event_type") or "seguimiento",
+        }
+        return await _queue_or_execute_write(
+            db,
+            action_type="create_event",
+            payload={"event": event_payload},
+            preview=f"agendar '{event_payload['title']}' el {event_payload['start_time']}",
+            current_user=current_user,
+            role_scope=role_scope,
+            config=config,
+            channel_context=channel_context,
+            requested_text=requested_text,
+        )
+
+    return {"ok": False, "error": f"Herramienta desconocida: {name}"}
+
+
 def build_agent_messages(config: dict, user_message: str, db_context: dict, knowledge_chunks: list[dict]) -> list[dict]:
     context_block = ""
     if db_context:
@@ -868,7 +1331,7 @@ Reglas de seguridad:
     ]
 
 
-async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
+async def call_openai_compatible(messages: list[dict], config: dict, tools: list[dict] | None = None) -> dict:
     provider = (config.get("provider") or DEFAULT_AI_PROVIDER).lower()
     api_key_env = config.get("api_key_env") or DEFAULT_AI_KEY_ENV
     api_key = os.environ.get(api_key_env)
@@ -889,6 +1352,9 @@ async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
         "temperature": float(config.get("temperature", 0.25)),
         "max_tokens": int(config.get("max_output_tokens", 900)),
     }
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -903,10 +1369,12 @@ async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
         response.raise_for_status()
         data = response.json()
 
-    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    message = data.get("choices", [{}])[0].get("message", {}) or {}
+    content = message.get("content", "")
+    tool_calls = message.get("tool_calls") or []
     usage = data.get("usage") or {}
-    return {
-        "content": content or "El proveedor no devolvio contenido.",
+    result = {
+        "content": content or ("" if tool_calls else "El proveedor no devolvio contenido."),
         "usage": {
             "input_tokens": usage.get("prompt_tokens"),
             "output_tokens": usage.get("completion_tokens"),
@@ -914,6 +1382,14 @@ async def call_openai_compatible(messages: list[dict], config: dict) -> dict:
         },
         "raw_provider": provider or "openai_compatible",
     }
+    if tool_calls:
+        result["tool_calls"] = tool_calls
+        result["assistant_message"] = {
+            "role": "assistant",
+            "content": message.get("content"),
+            "tool_calls": tool_calls,
+        }
+    return result
 
 
 async def call_direct_openai_fallback(messages: list[dict], config: dict | None = None) -> dict:
@@ -1016,7 +1492,7 @@ async def call_emergent_model(messages: list[dict], session_id: str, config: dic
     return {"content": content, "usage": {}, "raw_provider": "emergentintegrations"}
 
 
-async def call_model(messages: list[dict], config: dict, session_id: str) -> dict:
+async def call_model(messages: list[dict], config: dict, session_id: str, tools: list[dict] | None = None) -> dict:
     provider = (config.get("provider") or DEFAULT_AI_PROVIDER).lower()
     if provider in {"emergent", "emergentintegrations"}:
         try:
@@ -1025,7 +1501,7 @@ async def call_model(messages: list[dict], config: dict, session_id: str) -> dic
             return build_local_agent_response(messages, config, exc)
 
     try:
-        return await call_openai_compatible(messages, config)
+        return await call_openai_compatible(messages, config, tools=tools)
     except Exception as primary_error:
         if os.environ.get(FALLBACK_AI_KEY_ENV) or os.environ.get(FALLBACK_OPENAI_KEY_ENV):
             try:
@@ -1086,6 +1562,7 @@ async def run_agent_turn(
     forced_role_scope: Optional[str] = None,
     source: str = "runtime",
     config_override: Optional[dict] = None,
+    channel_context: Optional[dict] = None,
 ) -> dict:
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="El mensaje es obligatorio.")
@@ -1110,6 +1587,15 @@ async def run_agent_turn(
         else []
     )
     messages = build_agent_messages(config, request.message, db_context, knowledge_chunks)
+    tool_specs = available_agent_tools(role_scope, config)
+    tool_defs = agent_tools_payload(tool_specs) if tool_specs else None
+    if tool_defs:
+        messages[0]["content"] += (
+            "\n\nHerramientas CRM: tienes funciones reales para consultar y operar el CRM. "
+            "Úsalas en lugar de inventar datos y busca antes de crear para evitar duplicados. "
+            "Después de ejecutar herramientas, responde al usuario con el resultado concreto."
+        )
+    executed_tools: list[dict] = []
     session_id = f"agent-{role_scope}-{current_user.get('user_id')}"
     run_id = f"agent-run-{uuid.uuid4()}"
     started = time.perf_counter()
@@ -1117,8 +1603,59 @@ async def run_agent_turn(
     error = None
 
     try:
-        model_response = await call_model(messages, config, session_id)
+        tool_rounds = 0
+        while True:
+            model_response = await call_model(messages, config, session_id, tools=tool_defs)
+            tool_calls = model_response.get("tool_calls") or []
+            if (
+                not tool_defs
+                or not tool_calls
+                or tool_rounds >= MAX_TOOL_ROUNDS
+                or len(executed_tools) >= MAX_TOOL_CALLS_PER_TURN
+            ):
+                break
+            messages.append(
+                model_response.get("assistant_message")
+                or {"role": "assistant", "content": "", "tool_calls": tool_calls}
+            )
+            for call in tool_calls:
+                if len(executed_tools) >= MAX_TOOL_CALLS_PER_TURN:
+                    tool_result = {"ok": False, "error": "Límite de herramientas por turno alcanzado."}
+                else:
+                    function = call.get("function") or {}
+                    tool_name = function.get("name") or ""
+                    try:
+                        tool_args = json.loads(function.get("arguments") or "{}")
+                    except Exception:
+                        tool_args = {}
+                    try:
+                        tool_result = await execute_agent_tool(
+                            db,
+                            name=tool_name,
+                            arguments=tool_args,
+                            current_user=current_user,
+                            role_scope=role_scope,
+                            config=config,
+                            channel_context=channel_context,
+                            requested_text=request.message,
+                        )
+                    except Exception as tool_exc:
+                        tool_result = {"ok": False, "error": str(tool_exc)[:300]}
+                    executed_tools.append({
+                        "tool": tool_name,
+                        "ok": bool(tool_result.get("ok")),
+                        "executed": tool_result.get("executed"),
+                        "record_ids": tool_result.get("record_ids") or [],
+                    })
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": call.get("id") or f"call-{len(executed_tools)}",
+                    "content": json.dumps(tool_result, ensure_ascii=False, default=str)[:4000],
+                })
+            tool_rounds += 1
         content = model_response.get("content", "")
+        if not content and executed_tools:
+            content = "Acciones procesadas: " + ", ".join(item["tool"] for item in executed_tools)
         provider_usage = model_response.get("usage") or {}
     except Exception as exc:  # keep the control tower useful even while provider credentials are being wired.
         success = False
@@ -1163,6 +1700,8 @@ async def run_agent_turn(
             "tools_enabled": [key for key, enabled in tools.items() if enabled],
             "include_context": request.include_context,
             "agent_studio_profile_id": config.get("agent_studio_profile_id"),
+            "crm_tools_available": [spec["name"] for spec in tool_specs],
+            "tools_executed": executed_tools,
         },
         "success": success,
         "error": error,
@@ -1190,6 +1729,7 @@ async def run_agent_turn(
         "response": content,
         "usage": serialize_doc(usage_event),
         "config": public_config(config),
+        "tools_executed": executed_tools,
         "knowledge_sources": [
             {
                 "file_id": chunk.get("file_id"),
