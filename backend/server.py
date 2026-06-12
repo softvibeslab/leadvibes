@@ -5913,6 +5913,7 @@ async def upload_agent_studio_knowledge(
                     "id": f"agent-studio-kb-chunk-{uuid.uuid4()}",
                     "tenant_id": current_user["tenant_id"],
                     "profile_id": profile["id"],
+                    "role_scope": profile.get("role_scope"),
                     "file_id": file_id,
                     "filename": filename,
                     "chunk_index": index,

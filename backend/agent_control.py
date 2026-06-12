@@ -570,6 +570,88 @@ async def resolve_agent_config(
     return config
 
 
+# Proveedores LLM reales que un perfil de Agent Studio puede imponer; "rovi_crm"
+# es un placeholder histórico del Studio y no debe pisar la plomería del proveedor.
+STUDIO_OVERRIDABLE_PROVIDERS = {
+    "openai",
+    "openai_compatible",
+    "chat.z",
+    "chatz",
+    "z.ai",
+    "zai",
+    "anthropic",
+    "ollama",
+    "ollama_local",
+    "local_ollama",
+}
+
+
+async def resolve_agent_runtime_config(
+    db: AsyncIOMotorDatabase,
+    role_scope: str,
+    current_user: dict,
+) -> dict:
+    """Config unificada del agente en runtime.
+
+    Capas (de base a override): agent_configs (plomería del proveedor) →
+    perfil de Agent Studio del tenant (prompt, tono, skills, tools, temperatura)
+    → agent_user_settings del usuario (skills/tools personales). Los env
+    ROVI_AI_* se aplican después vía apply_runtime_ai_overrides, como siempre.
+    """
+    config = dict(await resolve_agent_config(db, role_scope))
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    user_id = current_user.get("user_id")
+
+    settings = None
+    if tenant_id and user_id:
+        settings = await db.agent_user_settings.find_one(
+            {"tenant_id": tenant_id, "user_id": user_id, "role_scope": role_scope},
+            {"_id": 0},
+        )
+
+    profile = None
+    settings_profile_id = (settings or {}).get("profile_id")
+    if settings_profile_id:
+        profile = await db.agent_studio_profiles.find_one(
+            {"id": settings_profile_id, "is_active": True},
+            {"_id": 0},
+        )
+    if not profile and tenant_id:
+        profile = await db.agent_studio_profiles.find_one(
+            {"tenant_id": tenant_id, "role_scope": role_scope, "is_active": True},
+            {"_id": 0},
+        )
+
+    if profile:
+        for field in ("name", "system_prompt", "customer_prompt", "tone_instructions", "enabled_skills"):
+            value = profile.get(field)
+            if value:
+                config[field] = value
+        if isinstance(profile.get("temperature"), (int, float)):
+            config["temperature"] = profile["temperature"]
+        profile_tools = profile.get("tools")
+        if isinstance(profile_tools, dict) and profile_tools:
+            config["tools"] = {**(config.get("tools") or {}), **profile_tools}
+        if (profile.get("provider") or "").lower() in STUDIO_OVERRIDABLE_PROVIDERS:
+            config["provider"] = profile["provider"]
+            if profile.get("model"):
+                config["model"] = profile["model"]
+            if profile.get("base_url"):
+                config["base_url"] = profile["base_url"]
+            if profile.get("api_key_env"):
+                config["api_key_env"] = profile["api_key_env"]
+        config["agent_studio_profile_id"] = profile.get("id")
+
+    if settings and settings.get("is_active", True):
+        if settings.get("enabled_skills"):
+            config["enabled_skills"] = settings["enabled_skills"]
+        settings_tools = settings.get("tools")
+        if isinstance(settings_tools, dict) and settings_tools:
+            config["tools"] = {**(config.get("tools") or {}), **settings_tools}
+
+    return config
+
+
 def build_lead_query(current_user: dict) -> dict:
     tenant_id = current_user.get("tenant_id")
     query: dict[str, Any] = {"tenant_id": tenant_id}
@@ -704,7 +786,16 @@ async def find_relevant_knowledge(
     role_scope: str,
     message: str,
     limit: int = 5,
+    *,
+    tenant_id: str | None = None,
+    studio_profile_id: str | None = None,
 ) -> list[dict]:
+    """Busca conocimiento relevante en las dos fuentes unificadas:
+
+    - agent_knowledge_chunks (Control Tower, global o por rol)
+    - agent_studio_knowledge_chunks (subidas de Agent Studio, por tenant +
+      perfil/rol) — antes solo las veía el chat de prueba del Studio.
+    """
     query_terms = normalize_terms(message)
     scope_filter = ["global", role_scope]
     if role_scope.startswith("rovi_"):
@@ -716,6 +807,19 @@ async def find_relevant_knowledge(
         },
         {"_id": 0},
     ).sort("created_at", -1).limit(250).to_list(250)
+
+    if tenant_id:
+        studio_or: list[dict] = [{"role_scope": role_scope}]
+        if studio_profile_id:
+            studio_or.append({"profile_id": studio_profile_id})
+        studio_chunks = await db.agent_studio_knowledge_chunks.find(
+            {"tenant_id": tenant_id, "$or": studio_or},
+            {"_id": 0},
+        ).sort("created_at", -1).limit(250).to_list(250)
+        for chunk in studio_chunks:
+            if not chunk.get("title"):
+                chunk["title"] = chunk.get("filename")
+        chunks.extend(studio_chunks)
 
     ranked = []
     for chunk in chunks:
@@ -990,12 +1094,18 @@ async def run_agent_turn(
     if role_scope not in ROLE_SCOPES:
         raise HTTPException(status_code=422, detail="Rol de agente invalido.")
 
-    base_config = config_override or await resolve_agent_config(db, role_scope)
+    base_config = config_override or await resolve_agent_runtime_config(db, role_scope, current_user)
     config = apply_runtime_ai_overrides(base_config)
     tools = config.get("tools") or {}
     db_context = await build_database_context(db, current_user, role_scope, tools) if request.include_context else {}
     knowledge_chunks = (
-        await find_relevant_knowledge(db, role_scope, request.message)
+        await find_relevant_knowledge(
+            db,
+            role_scope,
+            request.message,
+            tenant_id=current_user.get("active_tenant_id") or current_user.get("tenant_id"),
+            studio_profile_id=config.get("agent_studio_profile_id"),
+        )
         if config.get("knowledge_enabled", True)
         else []
     )
@@ -1052,6 +1162,7 @@ async def run_agent_turn(
             "knowledge_chunks": len(knowledge_chunks),
             "tools_enabled": [key for key, enabled in tools.items() if enabled],
             "include_context": request.include_context,
+            "agent_studio_profile_id": config.get("agent_studio_profile_id"),
         },
         "success": success,
         "error": error,
