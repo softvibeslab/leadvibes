@@ -8601,15 +8601,20 @@ async def create_telegram_qr_session(
     # equipo multi_role del tenant (mismo QR/pantalla, distinto bot destino).
     team_profile = None
     if device_link_routes_to_team_bot(role_scope):
+        team_query = {
+            "multi_role": True,
+            "is_active": True,
+            "telegram_bot_token": {"$nin": [None, ""]},
+        }
         team_profile = await db.telegram_agent_profiles.find_one(
-            {
-                "tenant_id": tenant_id,
-                "multi_role": True,
-                "is_active": True,
-                "telegram_bot_token": {"$nin": [None, ""]},
-            },
+            {**team_query, "tenant_id": tenant_id},
             {"_id": 0},
         )
+        if not team_profile and os.environ.get("ROVI_TEAM_BOT_FALLBACK_GLOBAL", "").strip().lower() in {"1", "true", "yes"}:
+            # Operación de un solo equipo: cualquier workspace usa el bot de
+            # equipo global. El vínculo conserva el tenant del usuario, así que
+            # cada quien sigue operando solo sobre sus datos.
+            team_profile = await db.telegram_agent_profiles.find_one(team_query, {"_id": 0})
         if not team_profile:
             raise HTTPException(
                 status_code=422,
