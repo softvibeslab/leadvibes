@@ -137,6 +137,7 @@ from hermes_bridge import (
     send_telegram_confirmation,
     write_hermes_profile_files,
 )
+from telegram_polling import TelegramPollingManager
 
 # === HERMES EXTENSION: Imports para CRUD completo ===
 try:
@@ -8791,17 +8792,17 @@ async def hermes_telegram_contact(payload: HermesTelegramContactRequest, request
     }
 
 
-@api_router.post("/telegram/rovi-agent/webhook/{secret}", response_model=dict)
-async def rovi_telegram_agent_webhook(secret: str, request: Request, background_tasks: BackgroundTasks):
-    expected_secret = get_rovi_telegram_webhook_secret()
-    if not expected_secret:
-        raise HTTPException(status_code=503, detail="Falta configurar el secreto del webhook Telegram")
-    if not hmac.compare_digest(secret, expected_secret):
-        raise HTTPException(status_code=401, detail="Webhook Telegram no autorizado")
-    if not get_rovi_telegram_bot_token():
-        raise HTTPException(status_code=503, detail="Falta configurar el token de Telegram")
+def schedule_background_with_asyncio(func, **kwargs) -> None:
+    """Scheduler para updates que llegan por polling (equivalente a BackgroundTasks)."""
+    asyncio.create_task(func(**kwargs))
 
-    update = await request.json()
+
+async def route_rovi_telegram_agent_update(update: dict, schedule) -> dict:
+    """Procesa un update del bot principal ROVI, venga por webhook o por polling.
+
+    `schedule(func, **kwargs)` agenda el procesamiento pesado en background:
+    BackgroundTasks.add_task en webhooks, asyncio.create_task en polling.
+    """
     message = update.get("message") or update.get("edited_message") or {}
     chat = message.get("chat") or {}
     telegram_user = message.get("from") or {}
@@ -8853,7 +8854,7 @@ async def rovi_telegram_agent_webhook(secret: str, request: Request, background_
         "updated_at": now,
     })
     if attachment:
-        background_tasks.add_task(
+        schedule(
             process_rovi_telegram_agent_media_background,
             update_id=update_id,
             message=message,
@@ -8862,7 +8863,7 @@ async def rovi_telegram_agent_webhook(secret: str, request: Request, background_
             telegram_user=telegram_user,
         )
     else:
-        background_tasks.add_task(
+        schedule(
             process_rovi_telegram_agent_message_background,
             update_id=update_id,
             text=text,
@@ -8870,6 +8871,20 @@ async def rovi_telegram_agent_webhook(secret: str, request: Request, background_
             telegram_user=telegram_user,
         )
     return {"ok": True, "status": "queued", "update_id": update_id}
+
+
+@api_router.post("/telegram/rovi-agent/webhook/{secret}", response_model=dict)
+async def rovi_telegram_agent_webhook(secret: str, request: Request, background_tasks: BackgroundTasks):
+    expected_secret = get_rovi_telegram_webhook_secret()
+    if not expected_secret:
+        raise HTTPException(status_code=503, detail="Falta configurar el secreto del webhook Telegram")
+    if not hmac.compare_digest(secret, expected_secret):
+        raise HTTPException(status_code=401, detail="Webhook Telegram no autorizado")
+    if not get_rovi_telegram_bot_token():
+        raise HTTPException(status_code=503, detail="Falta configurar el token de Telegram")
+
+    update = await request.json()
+    return await route_rovi_telegram_agent_update(update, schedule=background_tasks.add_task)
 
 
 async def process_rovi_telegram_agent_media_background(
@@ -9217,66 +9232,83 @@ async def send_telegram_agent_test_message(
     return {"message": "Mensaje enviado", "delivery": result}
 
 
-@api_router.post("/telegram/webhook/{profile_id}/{secret}", response_model=dict)
-async def telegram_agent_webhook(profile_id: str, secret: str, request: Request):
-    profile = await db.telegram_agent_profiles.find_one(
-        {"id": profile_id, "telegram_webhook_secret": secret, "is_active": True},
+async def handle_telegram_agent_profile_start(
+    *,
+    profile: dict,
+    code: str,
+    chat_id: str,
+    telegram_user: dict,
+) -> dict:
+    profile_id = profile["id"]
+    now = datetime.now(timezone.utc).isoformat()
+    link = await db.telegram_agent_links.find_one(
+        {"profile_id": profile_id, "code": code, "status": "pending"},
         {"_id": 0},
     )
-    if not profile:
-        raise HTTPException(status_code=404, detail="Agente Telegram no encontrado")
-
-    update = await request.json()
-    message = update.get("message") or update.get("edited_message") or {}
-    chat = message.get("chat") or {}
-    telegram_user = message.get("from") or {}
-    text = (message.get("text") or "").strip()
-    chat_id = str(chat.get("id") or "")
-    if not chat_id or not text:
-        return {"ok": True, "ignored": True}
-
-    now = datetime.now(timezone.utc).isoformat()
-    if text.startswith("/start"):
-        parts = text.split(maxsplit=1)
-        code = normalize_link_code(parts[1] if len(parts) > 1 else "")
-        link = await db.telegram_agent_links.find_one(
-            {"profile_id": profile_id, "code": code, "status": "pending"},
-            {"_id": 0},
-        )
-        if not link:
-            delivery = await send_telegram_message_with_token(
-                profile.get("telegram_bot_token"),
-                chat_id,
-                "No encontré un vínculo pendiente para este código. Genera uno nuevo desde ROVI.",
-            )
-            return {"ok": True, "status": "link_not_found", "delivery": delivery}
-        if parse_iso_datetime(link.get("expires_at")) and parse_iso_datetime(link.get("expires_at")) < datetime.now(timezone.utc):
-            await db.telegram_agent_links.update_one({"id": link["id"]}, {"$set": {"status": "expired", "updated_at": now}})
-            delivery = await send_telegram_message_with_token(
-                profile.get("telegram_bot_token"),
-                chat_id,
-                "Este vínculo expiró. Genera uno nuevo desde ROVI.",
-            )
-            return {"ok": True, "status": "expired", "delivery": delivery}
-
-        telegram_payload = {
-            "chat_id": chat_id,
-            "user_id": str(telegram_user.get("id") or ""),
-            "username": telegram_user.get("username"),
-            "first_name": telegram_user.get("first_name"),
-            "last_name": telegram_user.get("last_name"),
-            "linked_at": now,
-        }
-        await db.telegram_agent_links.update_one(
-            {"id": link["id"]},
-            {"$set": {"status": "active", "telegram": telegram_payload, "activated_at": now, "updated_at": now}},
-        )
+    if not link:
         delivery = await send_telegram_message_with_token(
             profile.get("telegram_bot_token"),
             chat_id,
-            f"{profile.get('name', 'Agente ROVI')} vinculado correctamente. Ya puedes escribirme para consultar ROVI.",
+            "No encontré un vínculo pendiente para este código. Genera uno nuevo desde ROVI.",
         )
-        return {"ok": True, "status": "active", "delivery": delivery}
+        return {"ok": True, "status": "link_not_found", "delivery": delivery}
+    if parse_iso_datetime(link.get("expires_at")) and parse_iso_datetime(link.get("expires_at")) < datetime.now(timezone.utc):
+        await db.telegram_agent_links.update_one({"id": link["id"]}, {"$set": {"status": "expired", "updated_at": now}})
+        delivery = await send_telegram_message_with_token(
+            profile.get("telegram_bot_token"),
+            chat_id,
+            "Este vínculo expiró. Genera uno nuevo desde ROVI.",
+        )
+        return {"ok": True, "status": "expired", "delivery": delivery}
+
+    telegram_payload = {
+        "chat_id": chat_id,
+        "user_id": str(telegram_user.get("id") or ""),
+        "username": telegram_user.get("username"),
+        "first_name": telegram_user.get("first_name"),
+        "last_name": telegram_user.get("last_name"),
+        "linked_at": now,
+    }
+    await db.telegram_agent_links.update_one(
+        {"id": link["id"]},
+        {"$set": {"status": "active", "telegram": telegram_payload, "activated_at": now, "updated_at": now}},
+    )
+    delivery = await send_telegram_message_with_token(
+        profile.get("telegram_bot_token"),
+        chat_id,
+        f"{profile.get('name', 'Agente ROVI')} vinculado correctamente. Ya puedes escribirme para consultar ROVI.",
+    )
+    return {"ok": True, "status": "active", "delivery": delivery}
+
+
+async def process_telegram_agent_profile_message_background(
+    *,
+    profile_id: str,
+    update_id: str,
+    text: str,
+    chat_id: str,
+    telegram_user: dict,
+) -> None:
+    channel = f"telegram-agent:{profile_id}"
+
+    async def mark_update(status: str, **extra) -> None:
+        stamp = datetime.now(timezone.utc).isoformat()
+        await db.telegram_webhook_updates.update_one(
+            {"id": update_id, "channel": channel},
+            {"$set": {"status": status, "updated_at": stamp, **extra}},
+        )
+
+    await mark_update("processing", started_at=datetime.now(timezone.utc).isoformat())
+    # Releer el perfil al procesar: el token o el system_prompt pueden haber
+    # cambiado entre el encolado y la ejecución.
+    profile = await db.telegram_agent_profiles.find_one(
+        {"id": profile_id, "is_active": True},
+        {"_id": 0},
+    )
+    if not profile:
+        await mark_update("failed", error="profile_not_found_or_inactive")
+        return
+    bot_token = profile.get("telegram_bot_token")
 
     link = await db.telegram_agent_links.find_one(
         {"profile_id": profile_id, "telegram.chat_id": chat_id, "status": "active"},
@@ -9284,21 +9316,19 @@ async def telegram_agent_webhook(profile_id: str, secret: str, request: Request)
         sort=[("activated_at", -1)],
     )
     if not link:
-        delivery = await send_telegram_message_with_token(
-            profile.get("telegram_bot_token"),
+        await send_telegram_message_with_token(
+            bot_token,
             chat_id,
             "Este chat todavía no está vinculado a ROVI. Genera un link desde Configuración > Agentes Telegram.",
         )
-        return {"ok": True, "status": "link_required", "delivery": delivery}
+        await mark_update("processed", result_status="link_required")
+        return
 
     user = await db.users.find_one({"id": link["user_id"]}, {"_id": 0, "password_hash": 0})
     if not user or not user.get("is_active", True):
-        delivery = await send_telegram_message_with_token(
-            profile.get("telegram_bot_token"),
-            chat_id,
-            "La cuenta ROVI vinculada no está activa.",
-        )
-        return {"ok": True, "status": "inactive_user", "delivery": delivery}
+        await send_telegram_message_with_token(bot_token, chat_id, "La cuenta ROVI vinculada no está activa.")
+        await mark_update("processed", result_status="inactive_user")
+        return
 
     runtime_user = {
         "user_id": user["id"],
@@ -9315,15 +9345,39 @@ async def telegram_agent_webhook(profile_id: str, secret: str, request: Request)
         f"Instrucciones del perfil: {profile.get('system_prompt')}\n\n"
         f"Mensaje del usuario en Telegram: {text}"
     )
-    result = await run_agent_turn(
-        db,
-        AgentRunRequest(message=agent_message, include_context=True, role_scope=link["role_scope"]),
-        runtime_user,
-        source="telegram",
-        forced_role_scope=link["role_scope"],
+    typing_task = asyncio.create_task(
+        keep_telegram_typing_indicator(token=bot_token, chat_id=chat_id)
     )
+    try:
+        result = await run_agent_turn(
+            db,
+            AgentRunRequest(message=agent_message, include_context=True, role_scope=link["role_scope"]),
+            runtime_user,
+            source="telegram",
+            forced_role_scope=link["role_scope"],
+        )
+    except Exception as exc:
+        typing_task.cancel()
+        try:
+            await typing_task
+        except asyncio.CancelledError:
+            pass
+        logger.exception("Error processing Telegram agent update %s (profile %s)", update_id, profile_id)
+        await mark_update("failed", error=str(exc)[:600], failed_at=datetime.now(timezone.utc).isoformat())
+        await send_telegram_message_with_token(
+            bot_token,
+            chat_id,
+            "Tu mensaje llegó a ROVI, pero tuve un problema procesándolo. Intenta de nuevo en un momento.",
+        )
+        return
+    typing_task.cancel()
+    try:
+        await typing_task
+    except asyncio.CancelledError:
+        pass
+
     response_text = result.get("response") or result.get("content") or "Listo."
-    delivery = await send_telegram_message_with_token(profile.get("telegram_bot_token"), chat_id, response_text)
+    delivery = await send_telegram_message_with_token(bot_token, chat_id, response_text)
     await db.telegram_agent_messages.insert_one({
         "id": f"telegram-agent-message-{uuid.uuid4()}",
         "profile_id": profile_id,
@@ -9337,9 +9391,81 @@ async def telegram_agent_webhook(profile_id: str, secret: str, request: Request)
         "response": response_text,
         "delivery": delivery,
         "agent_run_id": result.get("run_id"),
-        "created_at": now,
+        "created_at": datetime.now(timezone.utc).isoformat(),
     })
-    return {"ok": True, "status": "responded", "delivery": delivery}
+    await mark_update("processed", result_status="responded", finished_at=datetime.now(timezone.utc).isoformat())
+
+
+async def route_telegram_agent_profile_update(profile: dict, update: dict, schedule) -> dict:
+    """Procesa un update de un bot de perfil, venga por webhook o por polling.
+
+    El /start (vinculación) se resuelve inline porque es rápido; los mensajes
+    normales se encolan y el turno del agente corre en background para que ni
+    Telegram (webhook) ni el loop de polling esperen al LLM.
+    """
+    profile_id = profile["id"]
+    message = update.get("message") or update.get("edited_message") or {}
+    chat = message.get("chat") or {}
+    telegram_user = message.get("from") or {}
+    text = (message.get("text") or "").strip()
+    chat_id = str(chat.get("id") or "")
+    if not chat_id or not text:
+        return {"ok": True, "ignored": True}
+
+    if text.startswith("/start"):
+        parts = text.split(maxsplit=1)
+        code = normalize_link_code(parts[1] if len(parts) > 1 else "")
+        return await handle_telegram_agent_profile_start(
+            profile=profile,
+            code=code,
+            chat_id=chat_id,
+            telegram_user=telegram_user,
+        )
+
+    update_id = str(update.get("update_id") or uuid.uuid4())
+    channel = f"telegram-agent:{profile_id}"
+    now = datetime.now(timezone.utc).isoformat()
+    existing_update = await db.telegram_webhook_updates.find_one(
+        {"id": update_id, "channel": channel},
+        {"_id": 0, "status": 1},
+    )
+    if existing_update:
+        return {"ok": True, "status": "duplicate_accepted", "update_id": update_id}
+
+    await db.telegram_webhook_updates.insert_one({
+        "id": update_id,
+        "channel": channel,
+        "profile_id": profile_id,
+        "status": "queued",
+        "chat_id": chat_id,
+        "telegram_user_id": str(telegram_user.get("id") or ""),
+        "message_preview": text[:280],
+        "has_media": False,
+        "created_at": now,
+        "updated_at": now,
+    })
+    schedule(
+        process_telegram_agent_profile_message_background,
+        profile_id=profile_id,
+        update_id=update_id,
+        text=text,
+        chat_id=chat_id,
+        telegram_user=telegram_user,
+    )
+    return {"ok": True, "status": "queued", "update_id": update_id}
+
+
+@api_router.post("/telegram/webhook/{profile_id}/{secret}", response_model=dict)
+async def telegram_agent_webhook(profile_id: str, secret: str, request: Request, background_tasks: BackgroundTasks):
+    profile = await db.telegram_agent_profiles.find_one(
+        {"id": profile_id, "telegram_webhook_secret": secret, "is_active": True},
+        {"_id": 0},
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Agente Telegram no encontrado")
+
+    update = await request.json()
+    return await route_telegram_agent_profile_update(profile, update, schedule=background_tasks.add_task)
 
 
 # ==================== COPIM MODULE ROUTES ====================
@@ -21526,6 +21652,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+async def dispatch_rovi_agent_polled_update(update: dict) -> dict:
+    if not get_rovi_telegram_bot_token():
+        return {"ok": False, "reason": "missing_bot_token"}
+    return await route_rovi_telegram_agent_update(update, schedule=schedule_background_with_asyncio)
+
+
+async def dispatch_telegram_agent_profile_polled_update(profile_id: str, update: dict) -> dict:
+    profile = await db.telegram_agent_profiles.find_one(
+        {"id": profile_id, "is_active": True},
+        {"_id": 0},
+    )
+    if not profile:
+        return {"ok": False, "reason": "profile_not_found"}
+    return await route_telegram_agent_profile_update(profile, update, schedule=schedule_background_with_asyncio)
+
+
+telegram_polling_manager = TelegramPollingManager(
+    db,
+    rovi_token_getter=get_rovi_telegram_bot_token,
+    rovi_dispatch=dispatch_rovi_agent_polled_update,
+    profile_dispatch=dispatch_telegram_agent_profile_polled_update,
+)
+
+
+@app.on_event("startup")
+async def start_telegram_polling():
+    await telegram_polling_manager.start()
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    await telegram_polling_manager.stop()
     client.close()
