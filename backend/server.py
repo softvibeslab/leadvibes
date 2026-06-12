@@ -6096,18 +6096,25 @@ def resolve_telegram_agent_role_scope(current_user: dict) -> str:
 
 
 def filter_primary_bot_role_scopes(scopes: list[str]) -> list[str]:
-    """Restringe los roles que pueden vincularse al bot principal ROVI.
+    """Decide qué roles se vinculan al bot principal ROVI.
 
     Con ROVI_PRIMARY_BOT_ALLOWED_ROLE_SCOPES (lista separada por comas, p. ej.
     "rovi_orchestrator,growth_partner") el bot principal queda reservado a esos
-    roles; el resto del equipo se vincula por los bots de operación
-    (telegram_agent_profiles). Sin la variable, no cambia nada.
+    roles; el resto del equipo se enruta automáticamente al bot de equipo
+    (perfil multi_role de telegram_agent_profiles) al generar su QR en la misma
+    pantalla. Sin la variable, todos van al bot principal como siempre.
     """
     raw = (os.environ.get("ROVI_PRIMARY_BOT_ALLOWED_ROLE_SCOPES") or "").strip()
     if not raw:
         return scopes
     allowed_env = {item.strip() for item in raw.split(",") if item.strip()}
     return [scope for scope in scopes if scope in allowed_env]
+
+
+def device_link_routes_to_team_bot(role_scope: str) -> bool:
+    """True cuando el rol NO está permitido en el bot principal y debe usar el
+    bot de equipo (multi_role)."""
+    return not filter_primary_bot_role_scopes([role_scope])
 
 
 def allowed_device_link_role_scopes(user: dict, active_workspace: dict | None) -> list[str]:
@@ -6134,12 +6141,14 @@ def allowed_device_link_role_scopes(user: dict, active_workspace: dict | None) -
         scopes = ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
     else:
         scopes = ["broker"]
-    return filter_primary_bot_role_scopes(scopes)
+    # No se filtra por bot principal: el rol decide A QUÉ BOT se enruta el QR
+    # (ver device_link_routes_to_team_bot), no si puede vincularse.
+    return scopes
 
 
 def default_device_link_role_scope(user: dict, active_workspace: dict | None) -> str:
     special_scope = resolve_special_agent_role_scope_for_email(user.get("email"))
-    if special_scope and filter_primary_bot_role_scopes([special_scope]):
+    if special_scope:
         return special_scope
     allowed = allowed_device_link_role_scopes(user, active_workspace)
     return allowed[0] if allowed else "broker"
@@ -8576,12 +8585,6 @@ async def create_telegram_qr_session(
     current_user: dict = Depends(get_current_user),
 ):
     user, active_workspace, _ = await current_user_doc_and_workspace(current_user)
-    expected_phone = user.get("phone") or payload.destination
-    if not normalize_phone_for_match(expected_phone):
-        raise HTTPException(
-            status_code=422,
-            detail="Para vincular Telegram necesitas un telefono guardado en ROVI o capturarlo antes de generar el QR.",
-        )
     now = datetime.now(timezone.utc)
     ttl_minutes = min(max(payload.ttl_minutes or 10, 1), 60)
     code = uuid.uuid4().hex[:8].upper()
@@ -8592,17 +8595,51 @@ async def create_telegram_qr_session(
         requested_profile_id=payload.agent_studio_profile_id,
     )
     role_scope = agent_profile.get("role_scope") or default_device_link_role_scope(user, active_workspace)
+    tenant_id = active_workspace["tenant_id"] if active_workspace else current_user["tenant_id"]
+
+    # Enrutamiento por rol: entrenadores → bot principal; el resto → bot de
+    # equipo multi_role del tenant (mismo QR/pantalla, distinto bot destino).
+    team_profile = None
+    if device_link_routes_to_team_bot(role_scope):
+        team_profile = await db.telegram_agent_profiles.find_one(
+            {
+                "tenant_id": tenant_id,
+                "multi_role": True,
+                "is_active": True,
+                "telegram_bot_token": {"$nin": [None, ""]},
+            },
+            {"_id": 0},
+        )
+        if not team_profile:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Tu rol se vincula por el bot de equipo, pero este workspace todavía no tiene "
+                    "uno configurado. Pide al administrador crear el perfil multi-rol en Agentes Telegram."
+                ),
+            )
+
+    expected_phone = user.get("phone") or payload.destination
+    if team_profile is None and not normalize_phone_for_match(expected_phone):
+        raise HTTPException(
+            status_code=422,
+            detail="Para vincular Telegram necesitas un telefono guardado en ROVI o capturarlo antes de generar el QR.",
+        )
     profile_name = (
         payload.hermes_profile_name.strip()
         if payload.hermes_profile_name.strip()
         else agent_profile.get("hermes_profile_name")
         or safe_profile_slug(user, role_scope)
     )
-    deep_link = build_telegram_deep_link(code)
+    deep_link = (
+        build_agent_telegram_link(team_profile, code)
+        if team_profile
+        else build_telegram_deep_link(code)
+    )
     link_doc = {
         "id": f"device-link-{uuid.uuid4()}",
         "user_id": user["id"],
-        "tenant_id": active_workspace["tenant_id"] if active_workspace else current_user["tenant_id"],
+        "tenant_id": tenant_id,
         "membership_id": active_workspace.get("membership_id") if active_workspace else None,
         "role": active_workspace["role"] if active_workspace else user.get("role", "broker"),
         "role_scope": role_scope,
@@ -8622,13 +8659,34 @@ async def create_telegram_qr_session(
         "qr_url": build_qr_url(deep_link),
         "status": "pending",
         "hermes_profile_name": profile_name,
-        "phone_required": True,
-        "phone_match_required": True,
+        "bot_target": "team" if team_profile else "primary",
+        "team_profile_id": team_profile.get("id") if team_profile else None,
+        "bot_username": team_profile.get("bot_username") if team_profile else None,
+        "phone_required": team_profile is None,
+        "phone_match_required": team_profile is None,
         "expires_at": (now + timedelta(minutes=ttl_minutes)).isoformat(),
         "created_at": now.isoformat(),
         "updated_at": now.isoformat(),
     }
     await db.user_device_links.insert_one(link_doc)
+    if team_profile:
+        # El /start del bot de equipo activa este telegram_agent_link y, vía
+        # device_link_id, marca el device link como activo para la UI.
+        await db.telegram_agent_links.insert_one({
+            "id": f"telegram-agent-link-{uuid.uuid4()}",
+            "profile_id": team_profile["id"],
+            "tenant_id": tenant_id,
+            "role_scope": role_scope,
+            "user_id": user["id"],
+            "code": code,
+            "status": "pending",
+            "device_link_id": link_doc["id"],
+            "telegram_deep_link": deep_link,
+            "qr_url": link_doc["qr_url"],
+            "expires_at": link_doc["expires_at"],
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        })
     return build_device_link_public(link_doc)
 
 
@@ -9329,6 +9387,18 @@ async def handle_telegram_agent_profile_start(
         {"id": link["id"]},
         {"$set": {"status": "active", "telegram": telegram_payload, "activated_at": now, "updated_at": now}},
     )
+    if link.get("device_link_id"):
+        # QR generado desde /ai-agents: reflejar la activación en el device
+        # link para que la UI muestre "Conectado".
+        await db.user_device_links.update_one(
+            {"id": link["device_link_id"]},
+            {"$set": {
+                "status": "active",
+                "telegram": telegram_payload,
+                "activated_at": now,
+                "updated_at": now,
+            }},
+        )
     delivery = await send_telegram_message_with_token(
         profile.get("telegram_bot_token"),
         chat_id,
