@@ -356,7 +356,7 @@ const SortableLeadCard = ({ lead, onClick }) => {
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {/* Drag Handle */}
             <div
               {...attributes}
@@ -370,11 +370,11 @@ const SortableLeadCard = ({ lead, onClick }) => {
                 {lead.name?.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div onClick={() => onClick(lead)} className="cursor-pointer">
-              <h4 className="font-medium text-sm group-hover:text-primary transition-colors">
+            <div onClick={() => onClick(lead)} className="cursor-pointer min-w-0">
+              <h4 className="font-medium text-sm group-hover:text-primary transition-colors truncate">
                 {lead.name}
               </h4>
-              <p className="text-xs text-muted-foreground">{lead.phone}</p>
+              <p className="text-xs text-muted-foreground truncate">{lead.phone}</p>
             </div>
           </div>
           <div className={`w-2 h-2 rounded-full ${priority.color}`} title={priority.label} />
@@ -456,7 +456,7 @@ const DroppableColumn = ({ status, leads, onLeadClick, children }) => {
   const config = statusConfig[status];
   
   return (
-    <div className="flex flex-col h-full min-w-[280px]">
+    <div className="flex flex-col h-full w-[280px] sm:w-[300px] shrink-0">
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full ${config.color}`} />
