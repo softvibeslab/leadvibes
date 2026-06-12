@@ -30,6 +30,15 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
 logger = logging.getLogger(__name__)
+# En producción el root logger queda en WARNING (otro módulo llama basicConfig
+# antes que server.py), lo que ocultaba las líneas INFO de este módulo. Handler
+# propio para que el ciclo de vida del polling siempre sea visible en docker logs.
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    logger.addHandler(_handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
 TELEGRAM_API_BASE = "https://api.telegram.org"
 
