@@ -165,15 +165,21 @@ class TelegramPollingManager:
         except Exception:
             logger.exception("No pude leer telegram_agent_profiles para polling")
             profiles = []
+        seen_tokens = {rovi_token} if rovi_token else set()
         for profile in profiles:
             profile_id = profile.get("id")
             token = (profile.get("telegram_bot_token") or "").strip()
             if not profile_id or not token:
                 continue
-            if token == rovi_token:
-                # El bot principal ya tiene loop propio; dos consumidores del
-                # mismo token provocarían 409 en Telegram.
+            if token in seen_tokens:
+                # Un solo consumidor por bot token: dos loops getUpdates con el
+                # mismo token provocarían 409 en Telegram. Gana el primero.
+                logger.warning(
+                    "Perfil %s comparte bot token con otro consumidor; se omite su loop de polling.",
+                    profile_id,
+                )
                 continue
+            seen_tokens.add(token)
             dispatch = self._make_profile_dispatch(profile_id)
             desired[f"profile:{profile_id}"] = {"token": token, "dispatch": dispatch}
         return desired

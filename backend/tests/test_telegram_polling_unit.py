@@ -256,3 +256,22 @@ def test_stop_cancela_supervisor_y_loops(monkeypatch):
         assert manager._loops == {}
 
     asyncio.run(scenario())
+
+
+def test_perfiles_con_token_duplicado_solo_un_loop(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_UPDATE_MODE", "polling")
+    telegram = ScriptedTelegram()
+    db = FakeDB(
+        profiles=[
+            {"id": "p1", "telegram_bot_token": "tok-compartido", "name": "A"},
+            {"id": "p2", "telegram_bot_token": "tok-compartido", "name": "B"},
+        ]
+    )
+
+    async def scenario():
+        manager = make_manager(db, telegram)
+        desired = await manager._discover_bots()
+        # rovi-agent + solo UN perfil del token compartido (gana el primero)
+        assert set(desired.keys()) == {"rovi-agent", "profile:p1"}
+
+    asyncio.run(scenario())

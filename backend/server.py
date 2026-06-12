@@ -6095,34 +6095,51 @@ def resolve_telegram_agent_role_scope(current_user: dict) -> str:
     return "broker"
 
 
+def filter_primary_bot_role_scopes(scopes: list[str]) -> list[str]:
+    """Restringe los roles que pueden vincularse al bot principal ROVI.
+
+    Con ROVI_PRIMARY_BOT_ALLOWED_ROLE_SCOPES (lista separada por comas, p. ej.
+    "rovi_orchestrator,growth_partner") el bot principal queda reservado a esos
+    roles; el resto del equipo se vincula por los bots de operación
+    (telegram_agent_profiles). Sin la variable, no cambia nada.
+    """
+    raw = (os.environ.get("ROVI_PRIMARY_BOT_ALLOWED_ROLE_SCOPES") or "").strip()
+    if not raw:
+        return scopes
+    allowed_env = {item.strip() for item in raw.split(",") if item.strip()}
+    return [scope for scope in scopes if scope in allowed_env]
+
+
 def allowed_device_link_role_scopes(user: dict, active_workspace: dict | None) -> list[str]:
     active_role = ((active_workspace or {}).get("role") or user.get("role", "broker") or "broker").lower()
     account_type = user.get("account_type") or "individual"
     tenant_type = (active_workspace or {}).get("tenant_type")
     special_scope = resolve_special_agent_role_scope_for_email(user.get("email"))
     if special_scope == "rovi_orchestrator":
-        return ["rovi_orchestrator", "agency_admin", "broker", "rentals", "growth_partner"]
-    if special_scope == "growth_partner":
-        return ["growth_partner", "agency_admin", "broker", "rentals", "rovi_orchestrator"]
-    if active_role == "broker":
-        return ["broker", "rentals"]
-    if active_role == "property_manager":
-        return ["rentals", "agency_admin"]
-    if active_role in {"owner", "admin", "manager"} and tenant_type == "agency":
+        scopes = ["rovi_orchestrator", "agency_admin", "broker", "rentals", "growth_partner"]
+    elif special_scope == "growth_partner":
+        scopes = ["growth_partner", "agency_admin", "broker", "rentals", "rovi_orchestrator"]
+    elif active_role == "broker":
+        scopes = ["broker", "rentals"]
+    elif active_role == "property_manager":
+        scopes = ["rentals", "agency_admin"]
+    elif active_role in {"owner", "admin", "manager"} and tenant_type == "agency":
         scopes = ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
         if active_role == "owner":
             scopes.insert(0, "growth_partner")
-        return list(dict.fromkeys(scopes))
-    if user.get("role") == "broker":
-        return ["broker", "rentals"]
-    if account_type == "agency":
-        return ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
-    return ["broker"]
+        scopes = list(dict.fromkeys(scopes))
+    elif user.get("role") == "broker":
+        scopes = ["broker", "rentals"]
+    elif account_type == "agency":
+        scopes = ["agency_admin", "broker", "rentals", "rovi_orchestrator"]
+    else:
+        scopes = ["broker"]
+    return filter_primary_bot_role_scopes(scopes)
 
 
 def default_device_link_role_scope(user: dict, active_workspace: dict | None) -> str:
     special_scope = resolve_special_agent_role_scope_for_email(user.get("email"))
-    if special_scope:
+    if special_scope and filter_primary_bot_role_scopes([special_scope]):
         return special_scope
     allowed = allowed_device_link_role_scopes(user, active_workspace)
     return allowed[0] if allowed else "broker"
@@ -7588,10 +7605,12 @@ async def get_owned_telegram_agent_profile(profile_id: str, current_user: dict) 
     tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
     role_scope = resolve_telegram_agent_role_scope(current_user)
     profile = await db.telegram_agent_profiles.find_one(
-        {"id": profile_id, "tenant_id": tenant_id, "role_scope": role_scope},
+        {"id": profile_id, "tenant_id": tenant_id},
         {"_id": 0},
     )
-    if not profile:
+    # Los perfiles multi_role (bot de operación compartido) son accesibles para
+    # cualquier miembro del tenant; el rol real se resuelve al generar el link.
+    if not profile or (not profile.get("multi_role") and profile.get("role_scope") != role_scope):
         raise HTTPException(status_code=404, detail="Perfil de agente Telegram no encontrado")
     return profile
 
@@ -9082,12 +9101,33 @@ async def list_telegram_agent_profiles(current_user: dict = Depends(get_current_
     tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
     role_scope = resolve_telegram_agent_role_scope(current_user)
     profiles = await db.telegram_agent_profiles.find(
-        {"tenant_id": tenant_id, "role_scope": role_scope},
+        {"tenant_id": tenant_id, "$or": [{"role_scope": role_scope}, {"multi_role": True}]},
         {"_id": 0},
     ).sort("created_at", 1).to_list(20)
     if not profiles:
         profiles = [profile]
     return {"profiles": [await public_telegram_agent_profile(item) for item in profiles]}
+
+
+async def ensure_unique_telegram_bot_token(token: str, exclude_profile_id: str | None = None) -> None:
+    """Evita dos consumidores del mismo bot token (Telegram responde 409)."""
+    token = (token or "").strip()
+    if not token or "•" in token:
+        return
+    if token == get_rovi_telegram_bot_token():
+        raise HTTPException(
+            status_code=422,
+            detail="Ese token es el del bot principal ROVI; usa un bot distinto para evitar conflictos 409 en Telegram.",
+        )
+    query: dict = {"telegram_bot_token": token, "is_active": True}
+    if exclude_profile_id:
+        query["id"] = {"$ne": exclude_profile_id}
+    existing = await db.telegram_agent_profiles.find_one(query, {"_id": 0, "id": 1, "name": 1})
+    if existing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Ese token ya está en uso por el perfil '{existing.get('name')}'.",
+        )
 
 
 @api_router.post("/telegram-agents/profiles", response_model=dict)
@@ -9099,6 +9139,7 @@ async def create_telegram_agent_profile(
     allowed_role_scope = resolve_telegram_agent_role_scope(current_user)
     if payload.role_scope != allowed_role_scope or payload.role_scope not in TELEGRAM_AGENT_ALLOWED_ROLE_SCOPES:
         raise HTTPException(status_code=403, detail="No puedes crear perfiles para este rol desde tu cuenta")
+    await ensure_unique_telegram_bot_token(payload.telegram_bot_token)
     now = datetime.now(timezone.utc).isoformat()
     defaults = DEFAULT_TELEGRAM_AGENT_PROFILES[payload.role_scope]
     profile = {
@@ -9138,6 +9179,7 @@ async def update_telegram_agent_profile(
     }
     token = payload.telegram_bot_token.strip()
     if token and "•" not in token:
+        await ensure_unique_telegram_bot_token(token, exclude_profile_id=profile_id)
         update_payload["telegram_bot_token"] = token
     await db.telegram_agent_profiles.update_one({"id": profile_id}, {"$set": update_payload})
     updated = await db.telegram_agent_profiles.find_one({"id": profile_id}, {"_id": 0})
@@ -9154,11 +9196,18 @@ async def create_telegram_agent_link_code(
     now = datetime.now(timezone.utc)
     ttl_minutes = min(max(payload.ttl_minutes or 30, 1), 240)
     code = uuid.uuid4().hex[:10].upper()
+    # En perfiles multi_role el rol del vínculo sale del usuario que lo genera
+    # (admin de agencia → agency_admin, broker → broker), no del perfil.
+    link_role_scope = (
+        resolve_telegram_agent_role_scope(current_user)
+        if profile.get("multi_role")
+        else profile["role_scope"]
+    )
     link_doc = {
         "id": f"telegram-agent-link-{uuid.uuid4()}",
         "profile_id": profile["id"],
         "tenant_id": profile["tenant_id"],
-        "role_scope": profile["role_scope"],
+        "role_scope": link_role_scope,
         "user_id": current_user["user_id"],
         "code": code,
         "status": "pending",
