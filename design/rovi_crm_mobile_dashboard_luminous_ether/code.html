@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Riviera Maya CRM - Mobile Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00D9FF",
+                        "on-primary": "#003640",
+                        "primary-container": "#E0F7FF",
+                        "on-primary-container": "#001F26",
+                        surface: "#F8FAFC",
+                        "on-surface": "#0F172A",
+                        "on-surface-variant": "#64748B",
+                        outline: "#CBD5E1",
+                        headline: "#0F172A",
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background: radial-gradient(circle at top right, rgba(0, 217, 255, 0.08), transparent 400px),
+                        radial-gradient(circle at bottom left, rgba(0, 217, 255, 0.05), transparent 400px),
+                        #F8FAFC;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 217, 255, 0.05);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-surface antialiased overflow-x-hidden min-h-screen">
+<!-- Mobile Top Navigation Bar -->
+<header class="sticky top-0 z-50 glass-card px-6 py-4 flex items-center justify-between">
+<div class="flex flex-col">
+<h1 class="text-xl font-extrabold tracking-tighter text-headline">Riviera Maya CRM</h1>
+<span class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Luxury Real Estate</span>
+</div>
+<div class="flex items-center gap-3">
+<button class="relative p-2 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<div class="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A professional headshot of a luxury real estate consultant in a sharp charcoal suit. The background is a blurred, high-end office with soft cyan lighting accents. The overall image has a bright, airy feel with high-key lighting to match a premium light-mode UI aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDukvQmjQZe4dQAb1Wg2hVdrA1vCyrohtnRYpO4vNsyuho7loYD1SdXdNJjOW9oQ-jo_BlZ4b5nFfrzX7FD4pksUGgXc7MHifK6TUJ50E78w0eEFeSAD5ZRtRK0xI9NQ15JcI16F18h2HvGKwFfpswEkfn44qHcMpdBSO2WulQSxGvJGxghAQPVc4E7znA-ONi4UQxD29j5J0co2SQNLWITXioaSscfN4TDqq4PaDmCsiCUP0BTBsqIC6ykfygoQR2uCz4KeoJutanF"/>
+</div>
+</div>
+</header>
+<main class="px-6 py-6 pb-28 flex flex-col gap-6">
+<!-- Welcome Message -->
+<section>
+<h2 class="text-2xl font-bold text-headline">Dashboard</h2>
+<p class="text-on-surface-variant text-sm">Welcome back, Broker.</p>
+</section>
+<!-- High-Level Metric Cards (Glass Widgets) -->
+<div class="grid grid-cols-2 gap-4">
+<div class="glass-card rounded-2xl p-4 flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">payments</span>
+<span class="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">+12%</span>
+</div>
+<div>
+<p class="text-[11px] text-on-surface-variant font-medium">Total Valuation</p>
+<p class="text-lg font-bold text-headline">$4.2M</p>
+</div>
+</div>
+<div class="glass-card rounded-2xl p-4 flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">person_search</span>
+<span class="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
+</div>
+<div>
+<p class="text-[11px] text-on-surface-variant font-medium">Active Leads</p>
+<p class="text-lg font-bold text-headline">84</p>
+</div>
+</div>
+</div>
+<!-- Featured Luxury Property (Bento Element) -->
+<div class="glass-card rounded-2xl overflow-hidden relative min-h-[180px] group">
+<img alt="Featured Property" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="A stunning modern luxury villa in Riviera Maya with white architectural lines, a turquoise infinity pool, and lush tropical greenery under a bright sunny sky. The atmosphere is serene and high-end, featuring bright whites and deep blues. The image is captured with professional architectural photography techniques, emphasizing space and clarity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5txp2on9t6DnpzsfdMTvzj8asm_yvjuMn0COSLNJJhJxCBpnIvO4ELVKCi5yj3_Frd0_jEVEgwAZNkTl2-l4IY9wE6Kiv980WBtYnd4dRgpe8q1tCOWanu0aPSVO8g6hXMp_CPDYh_mSoDspDsrrp9kQItbmEA33uvcAFpTjPtalt67jA6X3jAfVbbjJ5tQudIUG8Juo8DdRNjLg23HnPlfpdKsN3Ey0D86-JzsQHrv94giLVh_d1VN_j6L7Dt0GLoC9pDpwnRfam"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-4 flex flex-col justify-end">
+<span class="text-[10px] font-bold bg-primary text-on-primary-container px-2 py-0.5 rounded-full w-fit mb-2">HOT LISTING</span>
+<h3 class="text-white font-bold">Casa del Sol - Playa del Carmen</h3>
+<p class="text-white/80 text-xs">$2,450,000 USD</p>
+</div>
+</div>
+<!-- Pipeline Summary -->
+<section class="glass-card rounded-2xl p-5">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-bold text-headline flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">account_tree</span>
+                    Pipeline
+                </h3>
+<button class="text-xs font-bold text-primary">View All</button>
+</div>
+<div class="space-y-4">
+<!-- Pipeline Item -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between text-xs font-medium">
+<span class="text-on-surface">Prospects</span>
+<span class="text-on-surface-variant">14 (40%)</span>
+</div>
+<div class="h-2 w-full bg-primary/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-1000" style="width: 40%;"></div>
+</div>
+</div>
+<!-- Pipeline Item -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between text-xs font-medium">
+<span class="text-on-surface">Negotiation</span>
+<span class="text-on-surface-variant">6 (20%)</span>
+</div>
+<div class="h-2 w-full bg-primary/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-1000" style="width: 20%;"></div>
+</div>
+</div>
+<!-- Pipeline Item -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between text-xs font-medium">
+<span class="text-on-surface">Closed Deals</span>
+<span class="text-on-surface-variant">3 (10%)</span>
+</div>
+<div class="h-2 w-full bg-primary/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-1000" style="width: 10%;"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Activity Feed -->
+<section class="flex flex-col gap-4">
+<h3 class="font-bold text-headline flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">history</span>
+                Recent Activity
+            </h3>
+<div class="space-y-3">
+<!-- Activity Card -->
+<div class="glass-card rounded-xl p-4 flex gap-4 items-start active:scale-[0.98] transition-transform">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary">mail</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<p class="text-sm font-bold text-headline">Email sent to Carlos Slim</p>
+<p class="text-xs text-on-surface-variant leading-tight">Follow-up on Tulum Villa inquiry. Sent 2 hours ago.</p>
+</div>
+</div>
+<!-- Activity Card -->
+<div class="glass-card rounded-xl p-4 flex gap-4 items-start active:scale-[0.98] transition-transform">
+<div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-emerald-600">call</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<p class="text-sm font-bold text-headline">Call with Sofia Rodriguez</p>
+<p class="text-xs text-on-surface-variant leading-tight">Scheduled for tomorrow at 10:00 AM. Marketing lead.</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary text-on-primary-container rounded-2xl shadow-[0_8px_24px_rgba(0,217,255,0.4)] flex items-center justify-center active:scale-90 transition-transform z-40">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'wght' 600;">add</span>
+</button>
+<!-- Bottom Navigation Bar (Mobile Destination Rule) -->
+<nav class="fixed bottom-0 left-0 right-0 h-20 bg-surface/80 backdrop-blur-3xl border-t border-white/20 flex items-center justify-around px-2 z-50">
+<a class="flex flex-col items-center gap-1 transition-all text-primary" href="#">
+<span class="material-symbols-outlined active-nav-icon">dashboard</span>
+<span class="text-[10px] font-bold">Dashboard</span>
+</a>
+<a class="flex flex-col items-center gap-1 transition-all text-on-surface-variant hover:text-primary" href="#">
+<span class="material-symbols-outlined">location_city</span>
+<span class="text-[10px] font-medium">Properties</span>
+</a>
+<a class="flex flex-col items-center gap-1 transition-all text-on-surface-variant hover:text-primary" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="text-[10px] font-medium">Leads</span>
+</a>
+<a class="flex flex-col items-center gap-1 transition-all text-on-surface-variant hover:text-primary" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="text-[10px] font-medium">Calendar</span>
+</a>
+<a class="flex flex-col items-center gap-1 transition-all text-on-surface-variant hover:text-primary" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">Settings</span>
+</a>
+</nav>
+<!-- Background Atmospheric Effect -->
+<div class="fixed inset-0 pointer-events-none -z-10 opacity-30">
+<div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-[10%] right-[-5%] w-[40%] h-[40%] bg-blue-400/10 blur-[100px] rounded-full"></div>
+</div>
+<script>
+        // Simple touch interaction for cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.transform = 'scale(0.98)';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body></html>

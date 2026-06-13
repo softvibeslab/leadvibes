@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Riviera Maya CRM - Pipeline Mobile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00D9FF",
+                        "on-primary": "#003640",
+                        "primary-container": "#D1F8FF",
+                        "on-primary-container": "#001F26",
+                        surface: "#F8FAFC",
+                        "on-surface": "#0F172A",
+                        "on-surface-variant": "#475569",
+                        outline: "#CBD5E1",
+                        "surface-container-highest": "#E2E8F0"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .pipeline-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .pipeline-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            background-color: #F8FAFC;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(0, 217, 255, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body text-on-surface antialiased min-h-screen pb-24 overflow-x-hidden">
+<!-- Top Navigation Bar (Mobile Optimized) -->
+<header class="sticky top-0 z-50 bg-surface/30 backdrop-blur-[40px] border-b border-white/20 px-4 py-4 flex flex-col gap-4 shadow-[0_8px_32px_rgba(0,217,255,0.05)]">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined font-bold">account_tree</span>
+</div>
+<div>
+<h1 class="text-lg font-bold tracking-tight text-on-surface leading-tight">Pipeline de Leads</h1>
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-mono">Riviera Maya CRM</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-primary-container/30 transition-all">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-primary-container/30 transition-all">
+<span class="material-symbols-outlined text-on-surface-variant">tune</span>
+</button>
+<img alt="User Profile" class="w-10 h-10 rounded-full border-2 border-white shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_5bHWSYQqcc22BFpIbfY-liSyrYiTlLmZOybFNCwKMaZQ9ivyUOVEvxUVT6nHJb5CvnWDq8hnvewkt8FvutV5j8e59qv2HMzIiR4ZXDTf_3SS62M-iRiZP1_4lr7VBEeUNX-CQ8-TJVTdjID4oJgFUPMGXpiSFTmpRUuDk-GFXZPWgLKg_n-vU0so5hEiPgYsVjDrbuPQwI7zSOdmXMMZxe3uF3Tx5aIPQEhoP5rcpT1UXxJCU-5m2Up6uChXrAsDk66n9aYLWALl"/>
+</div>
+</div>
+<!-- Quick Status Filter (Horizontal Scroll) -->
+<div class="flex gap-2 overflow-x-auto pipeline-scroll pb-1">
+<button class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-primary text-on-primary shadow-lg shadow-primary/20">Todos</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white/50 text-on-surface-variant border border-white/40">Nuevo</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white/50 text-on-surface-variant border border-white/40">Urgente</button>
+<button class="px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white/50 text-on-surface-variant border border-white/40">Inversionistas</button>
+</div>
+</header>
+<!-- Main Content: Kanban Stage (Current Stage Focus) -->
+<main class="px-4 pt-6 flex flex-col gap-8">
+<!-- Stage: Nuevo -->
+<section>
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+<h2 class="text-sm font-bold text-on-surface uppercase tracking-wider">Nuevo</h2>
+<span class="text-[10px] font-mono bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">24</span>
+</div>
+<button class="text-xs font-bold text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">add</span> Add
+                </button>
+</div>
+<!-- Horizontal Kanban Cards -->
+<div class="flex gap-4 overflow-x-auto pipeline-scroll py-2 snap-x snap-mandatory">
+<!-- Card 1 -->
+<div class="min-w-[280px] snap-center glass-card rounded-2xl p-4 shadow-xl shadow-slate-200/50">
+<div class="flex justify-between items-start mb-4">
+<div class="flex flex-col">
+<span class="text-[10px] font-mono text-on-surface-variant/60 mb-0.5">#LEAD-8842</span>
+<h3 class="text-base font-bold text-on-surface">Alejandro Villarreal</h3>
+</div>
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-on-surface-variant">more_vert</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-4">
+<div>
+<p class="text-[10px] text-on-surface-variant/60 uppercase font-bold">Presupuesto</p>
+<p class="text-sm font-bold text-primary">$450,000 USD</p>
+</div>
+<div>
+<p class="text-[10px] text-on-surface-variant/60 uppercase font-bold">Interés</p>
+<p class="text-sm font-bold text-on-surface">Tulum Ph 2</p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-4 border-t border-white/20">
+<div class="flex -space-x-2">
+<img alt="Agent" class="w-6 h-6 rounded-full ring-2 ring-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAioF4gNqoyJk41cWhP0GEUpw4RTQSXdo80ctZY05dnLOD7yLGfkumsg_rPlLUG-qrzk2_06uT-gW94RAnOOazNZ5L6kCzbnd44uA5kH2o9Has67w3uOLdP-gCWG5bTT9IXgQwgabaheFhFxrIwFzlzizmEvAqhdkdPlGj1_kCaWYCbAd-rr8hHE6nZP4FmX_LWU0zDZ89vl69Ufn-j8gWPb9eq_na0UhJaNrvqLV0hYIVGOTkpikMl2eOmfI1W_9r0KWFBf___1M3f"/>
+</div>
+<span class="px-2 py-1 bg-blue-100 text-[10px] font-bold text-blue-600 rounded-md uppercase">Contactar</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="min-w-[280px] snap-center glass-card rounded-2xl p-4 shadow-xl shadow-slate-200/50 opacity-80 scale-95 origin-left">
+<div class="flex justify-between items-start mb-4">
+<div class="flex flex-col">
+<span class="text-[10px] font-mono text-on-surface-variant/60 mb-0.5">#LEAD-7731</span>
+<h3 class="text-base font-bold text-on-surface">Sofia Lorenza</h3>
+</div>
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-on-surface-variant">more_vert</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-4">
+<div>
+<p class="text-[10px] text-on-surface-variant/60 uppercase font-bold">Presupuesto</p>
+<p class="text-sm font-bold text-primary">$1,200,000 USD</p>
+</div>
+<div>
+<p class="text-[10px] text-on-surface-variant/60 uppercase font-bold">Interés</p>
+<p class="text-sm font-bold text-on-surface">Villa Akumal</p>
+</div>
+</div>
+<div class="flex items-center justify-between pt-4 border-t border-white/20">
+<div class="flex -space-x-2">
+<img alt="Agent" class="w-6 h-6 rounded-full ring-2 ring-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_pflXjtSyMHIJch38XZt4nlJYIEP9DZxDaFCryyUjsYuzXL1S1_6GBFO8SNQc1MMPfQyEFYp9abxr-Xon78KobVoVq7a4iWpajQJwViJw-0BnkDIjWA2JggcOLVzE6AohgW_aTZHSoNyhYGL4AJ2KOJLqVwvUnsFe64gHDN713M4LX3hB0Hse_t6YHWGU13P55wPPZS0I6pKKIi7pIr0hu-MkVukZ2UHBdl2opD-4OD7BIkb7dPI_4EomagKc7aNRLT6XX3r-cVYE"/>
+</div>
+<span class="px-2 py-1 bg-amber-100 text-[10px] font-bold text-amber-600 rounded-md uppercase">Prioridad</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Stage: Calificación -->
+<section>
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-amber-500"></div>
+<h2 class="text-sm font-bold text-on-surface uppercase tracking-wider">Calificación</h2>
+<span class="text-[10px] font-mono bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">12</span>
+</div>
+<button class="text-xs font-bold text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">add</span> Add
+                </button>
+</div>
+<!-- Vertical List for secondary stages to save space -->
+<div class="flex flex-col gap-3">
+<div class="glass-card rounded-xl p-4 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">MC</div>
+<div>
+<h4 class="text-sm font-bold">Mateo Corvera</h4>
+<p class="text-xs text-on-surface-variant">$280k • Playa del Carmen</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-[10px] font-mono text-on-surface-variant/60">2d ago</span>
+<span class="material-symbols-outlined text-amber-500 text-lg">star</span>
+</div>
+</div>
+<div class="glass-card rounded-xl p-4 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xs">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<h4 class="text-sm font-bold">Elena Rodriguez</h4>
+<p class="text-xs text-on-surface-variant">$550k • Tulum Jungle</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-[10px] font-mono text-on-surface-variant/60">Just now</span>
+<span class="material-symbols-outlined text-on-surface-variant/30 text-lg">star</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Dynamic Visualization (Floating Bento Card) -->
+<section class="glass-card rounded-3xl p-6 relative overflow-hidden">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-primary/20 blur-3xl rounded-full"></div>
+<h3 class="text-lg font-bold mb-4">Métricas Semanales</h3>
+<div class="grid grid-cols-2 gap-4 relative z-10">
+<div class="bg-white/40 p-3 rounded-2xl border border-white/60">
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">Cierre Estimado</p>
+<p class="text-xl font-black text-on-surface">$2.4M</p>
+</div>
+<div class="bg-white/40 p-3 rounded-2xl border border-white/60">
+<p class="text-[10px] text-on-surface-variant font-bold uppercase">Nuevos Leads</p>
+<p class="text-xl font-black text-on-surface">+18</p>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
+<span class="text-xs text-on-surface-variant">Eficiencia de Embudo</span>
+<span class="text-xs font-bold text-green-500 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_up</span> 14%
+                </span>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Fixed) -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 px-6 py-4">
+<div class="bg-on-surface/90 backdrop-blur-xl rounded-2xl flex items-center justify-between px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant/40" href="#">
+<span class="material-symbols-outlined text-2xl">dashboard</span>
+<span class="text-[8px] font-bold uppercase tracking-widest">Dash</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<span class="text-[8px] font-bold uppercase tracking-widest">Pipe</span>
+</a>
+<div class="relative -top-8">
+<button class="w-14 h-14 bg-primary rounded-2xl rotate-45 flex items-center justify-center shadow-xl shadow-primary/30 active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-white -rotate-45 text-3xl">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant/40" href="#">
+<span class="material-symbols-outlined text-2xl">group</span>
+<span class="text-[8px] font-bold uppercase tracking-widest">Leads</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant/40" href="#">
+<span class="material-symbols-outlined text-2xl">settings</span>
+<span class="text-[8px] font-bold uppercase tracking-widest">Config</span>
+</a>
+</div>
+</nav>
+<!-- Micro-interaction Scripts -->
+<script>
+        // Subtle parallax effect on cards when scrolling
+        const cards = document.querySelectorAll('.snap-center');
+        const observerOptions = {
+            threshold: 0.5
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.remove('opacity-80', 'scale-95');
+                    entry.target.classList.add('opacity-100', 'scale-100');
+                } else {
+                    entry.target.classList.add('opacity-80', 'scale-95');
+                    entry.target.classList.remove('opacity-100', 'scale-100');
+                }
+            });
+        }, observerOptions);
+
+        cards.forEach(card => observer.observe(card));
+    </script>
+</body></html>

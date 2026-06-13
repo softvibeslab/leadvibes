@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Riviera Maya CRM - Properties</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00d9ff",
+                        "on-primary": "#003640",
+                        "primary-container": "#004e5b",
+                        "on-primary-container": "#b1f0ff",
+                        surface: "#f8fafc",
+                        "on-surface": "#0f172a",
+                        "on-surface-variant": "#64748b",
+                        "surface-container": "#ffffff",
+                        outline: "#cbd5e1",
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .luminous-ether {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+        }
+
+        body {
+            background-color: #f0f4f8;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(189,100%,90%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(210,100%,95%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(189,100%,90%,1) 0, transparent 50%);
+            font-family: 'Public Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased text-on-surface">
+<!-- Mobile Container (iPhone Aspect Ratio for Preview) -->
+<div class="relative mx-auto max-w-[430px] min-h-screen bg-surface/20 shadow-2xl overflow-hidden flex flex-col">
+<!-- Header / Top Bar -->
+<header class="sticky top-0 z-50 bg-surface/30 backdrop-blur-[40px] px-6 py-4 flex justify-between items-center border-b border-white/20 shadow-[0_8px_32px_rgba(0,217,255,0.05)]">
+<div class="flex flex-col">
+<span class="font-display-lg text-xl font-bold tracking-tighter text-primary">Luxury CRM</span>
+<span class="text-[10px] font-mono uppercase tracking-widest text-on-surface-variant/70">Riviera Maya</span>
+</div>
+<div class="flex gap-3">
+<button class="p-2 rounded-full hover:bg-primary-container/20 transition-all">
+<span class="material-symbols-outlined text-primary" data-icon="notifications">notifications</span>
+</button>
+<div class="w-10 h-10 rounded-full border-2 border-primary/30 overflow-hidden shadow-lg">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional headshot of a real estate broker in a crisp navy blue suit, set against a blurred modern office background with soft bokeh. The lighting is warm and natural, creating an approachable yet authoritative presence suitable for a luxury CRM profile." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpi9DQxreuszwdpVikzl6xjGMovSdrk-sX45Mznkv_4z8pduQ_rPvQIfvc0y9ybxTVDbcuZ2yQf2aus54UlJTYnAwHfsF4wF4Wme6XZWb-Ocuf4QHbn9ALE_H_iGPiRgPZ2Fg3qExaFbLCZgl8Avcn57pgrqL3MTI6sXkiGsMaOS-hTC5PM-yC4_EDze1BFp5X3Jg8x0_Ls9jlFOcfNS3JrEKs3_YqVnUzuWE88SU2vWcYJDxg1wM6gDBtB3bXXW7rS9Pc4OMlyqBJ"/>
+</div>
+</div>
+</header>
+<!-- Main Content (Scrollable Feed) -->
+<main class="flex-1 overflow-y-auto px-5 pt-6 pb-24 space-y-6 hide-scrollbar luminous-ether">
+<!-- Contextual Title & Search -->
+<section class="space-y-4">
+<div class="flex justify-between items-end">
+<div>
+<h1 class="text-2xl font-bold text-on-surface tracking-tight">Properties</h1>
+<p class="text-sm text-on-surface-variant">42 Active Listings</p>
+</div>
+<button class="flex items-center gap-2 bg-white/40 backdrop-blur-md border border-white/30 px-4 py-2 rounded-full text-xs font-bold text-on-surface-variant shadow-sm transition-transform active:scale-95">
+<span class="material-symbols-outlined text-sm" data-icon="tune">tune</span>
+                        Filtros
+                    </button>
+</div>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 group-focus-within:text-primary transition-colors" data-icon="search">search</span>
+<input class="w-full bg-white/40 backdrop-blur-md border border-white/30 rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all placeholder:text-on-surface-variant/40" placeholder="Search by SKU, title, or keywords" type="text"/>
+</div>
+</section>
+<!-- Property Feed -->
+<div class="space-y-6">
+<!-- Card 1 -->
+<article class="glass-card rounded-2xl overflow-hidden shadow-xl transition-all active:scale-[0.98] duration-200">
+<div class="relative h-64 overflow-hidden">
+<img alt="Luxury Villa" class="w-full h-full object-cover" data-alt="A stunning ultra-modern luxury villa at dusk with a glowing infinity pool and geometric glass architecture. The sky is a deep twilight indigo and purple, reflecting in the water and large floor-to-ceiling windows. Lush tropical palms surround the sleek white concrete structure, creating a serene and opulent atmosphere for a high-end property listing." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC5Xinaqsz7mx-_GhxbnE3UKAK1bkUwmspFdXDtp_EC9WXUa-5yCpHdre0-d35Jk8435OGRq6NoV56Lj5_IAJxnnb254v8nncnlJE5s2u4xoLhGyYJ2b6f8sMHS_hg1Nbnrg0O6P6altl4xLy_eiafPKPoO0IR9po1F3xfdJPUbOhIK1VkhZceP13s2K-U0iF_FOHbQfDALBNvgJtRAc1v-Ak9iMaTEWx33MNrrHGt4z1itcHBTC5JuIqPA-XE_nc-anbXwH2WaX7V"/>
+<div class="absolute top-4 right-4 bg-primary/90 text-white text-[10px] font-bold px-3 py-1 rounded-full backdrop-blur-md uppercase tracking-wider">
+                            Exclusive
+                        </div>
+<div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-4 left-4 text-white">
+<span class="text-xs font-mono bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">SKU: RM-772</span>
+</div>
+</div>
+<div class="p-5 space-y-3">
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<h3 class="font-bold text-lg leading-tight text-on-surface">Villa Azure Infinity</h3>
+<div class="flex items-center gap-1 text-on-surface-variant text-xs">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+                                    Aldea Zama, Tulum
+                                </div>
+</div>
+<div class="text-right">
+<div class="text-primary font-bold text-lg tracking-tight">$1,450,000</div>
+<div class="text-[10px] text-on-surface-variant uppercase font-mono">USD</div>
+</div>
+</div>
+<div class="flex items-center gap-4 pt-2 border-t border-white/20">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bed">bed</span>
+<span class="text-xs font-semibold">4 Beds</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bathtub">bathtub</span>
+<span class="text-xs font-semibold">5 Baths</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="straighten">straighten</span>
+<span class="text-xs font-semibold">3,200 ft²</span>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 2 -->
+<article class="glass-card rounded-2xl overflow-hidden shadow-xl transition-all active:scale-[0.98] duration-200">
+<div class="relative h-64 overflow-hidden">
+<img alt="Penthouse" class="w-full h-full object-cover" data-alt="A sophisticated penthouse apartment with a sprawling terrace overlooking the Caribbean coastline during a golden hour sunset. The architecture features clean lines, natural wood accents, and high-end outdoor furniture. The lighting is warm and ethereal, casting a soft orange glow across the stone tiles and luxurious decor, embodying the ultimate coastal living experience." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTltEmKECvCe2M01cfNw-lI8WAGooFoevJNHFgfwJq9owets-Pf3ue2bfAd3iWFoTtFaXwWocCxWTLbLM14CnC3bkbIXPSH2RpeG0jKUmsJhRR5rUkfAiK8SpkmxhF8jigLwAWQYsee_YlbnmwYnpk1TPqeOaT1I0Yx5f75M4QpZGc7XDkrzzgsaR6c-dt8iuLJRLe6WlJOKLKud3DNbK9Q1a_45UCUv0-7pTcpvwQaTEDy5NpVuJNtBujo-FaJ5szOmQEA3sAZmya"/>
+<div class="absolute top-4 right-4 bg-white/80 text-on-surface text-[10px] font-bold px-3 py-1 rounded-full backdrop-blur-md uppercase tracking-wider">
+                            New Listing
+                        </div>
+<div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-4 left-4 text-white">
+<span class="text-xs font-mono bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">SKU: RM-104</span>
+</div>
+</div>
+<div class="p-5 space-y-3">
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<h3 class="font-bold text-lg leading-tight text-on-surface">The Reserve Penthouse</h3>
+<div class="flex items-center gap-1 text-on-surface-variant text-xs">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+                                    Playacar Phase II
+                                </div>
+</div>
+<div class="text-right">
+<div class="text-primary font-bold text-lg tracking-tight">$875,000</div>
+<div class="text-[10px] text-on-surface-variant uppercase font-mono">USD</div>
+</div>
+</div>
+<div class="flex items-center gap-4 pt-2 border-t border-white/20">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bed">bed</span>
+<span class="text-xs font-semibold">3 Beds</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bathtub">bathtub</span>
+<span class="text-xs font-semibold">3 Baths</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="straighten">straighten</span>
+<span class="text-xs font-semibold">2,150 ft²</span>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 3 -->
+<article class="glass-card rounded-2xl overflow-hidden shadow-xl transition-all active:scale-[0.98] duration-200">
+<div class="relative h-64 overflow-hidden">
+<img alt="Modern Estate" class="w-full h-full object-cover" data-alt="An expansive tropical estate nestled within a dense jungle canopy, featuring organic materials like bamboo and local stone integrated into a contemporary pavilion design. Sunlight filters through the tropical leaves, creating dapples of light on the wooden deck and private cenote-style pool. The mood is tranquil, private, and deeply connected to nature in a high-luxury setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCzS0LDshLgoQRs7S6cVvN9tbwOVC3HmG6Ec55eiK3s9mForXRGzeOnHCEy71BTLueu2KgEnZDguiQJZB0WTPOoECnPwhFaA3KeHf14vogs1o_lYhfwmIcHLrYL9z9GzSEdZFvCsgGu1EB0fSAb1XWyE7-DcN6SlTOWkntSG-1X1eYbIZJjKnPsUpFqOZJpLuPvvifBBQckBWPoOwmyLKNgG58CM3ttK-U7pXcvptrvzQX41_ZfweF2a0bkqzY2xxbZxOVzRivC7Jw7"/>
+<div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-4 left-4 text-white">
+<span class="text-xs font-mono bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">SKU: RM-990</span>
+</div>
+</div>
+<div class="p-5 space-y-3">
+<div class="flex justify-between items-start">
+<div class="space-y-1">
+<h3 class="font-bold text-lg leading-tight text-on-surface">Jungle Pavillion Estate</h3>
+<div class="flex items-center gap-1 text-on-surface-variant text-xs">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+                                    Selva Zama, Tulum
+                                </div>
+</div>
+<div class="text-right">
+<div class="text-primary font-bold text-lg tracking-tight">$2,100,000</div>
+<div class="text-[10px] text-on-surface-variant uppercase font-mono">USD</div>
+</div>
+</div>
+<div class="flex items-center gap-4 pt-2 border-t border-white/20">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bed">bed</span>
+<span class="text-xs font-semibold">5 Beds</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="bathtub">bathtub</span>
+<span class="text-xs font-semibold">6 Baths</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="straighten">straighten</span>
+<span class="text-xs font-semibold">5,400 ft²</span>
+</div>
+</div>
+</div>
+</article>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 right-8 z-50 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-[0_12px_24px_rgba(0,217,255,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-90 active:rotate-12 group">
+<span class="material-symbols-outlined text-2xl group-hover:rotate-90 transition-transform duration-300" data-icon="add">add</span>
+</button>
+<!-- Bottom Navigation Shell -->
+<nav class="fixed bottom-0 left-0 right-0 mx-auto max-w-[430px] z-50 bg-surface/40 backdrop-blur-[20px] px-4 py-3 flex justify-between items-center border-t border-white/20">
+<a class="flex flex-col items-center gap-1 p-2 transition-all active:scale-95 text-on-surface-variant/80" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Dash</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 transition-all active:scale-95 text-on-surface-variant/80" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="account_tree">account_tree</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Pipe</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-3 transition-all active:scale-95 bg-primary-container/20 text-primary border-t-2 border-primary" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="location_city" style="font-variation-settings: 'FILL' 1;">location_city</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Props</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 transition-all active:scale-95 text-on-surface-variant/80" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="person_search">person_search</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Leads</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 transition-all active:scale-95 text-on-surface-variant/80" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="calendar_today">calendar_today</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Date</span>
+</a>
+</nav>
+<!-- Subtle Background Glow -->
+<div class="fixed top-1/4 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-[120px] -z-10"></div>
+<div class="fixed bottom-1/4 -right-20 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -z-10"></div>
+</div>
+<script>
+        // Simple parallax or micro-interaction logic
+        document.querySelectorAll('article').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.querySelector('img').style.transform = 'scale(1.05)';
+                card.querySelector('img').style.transition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.querySelector('img').style.transform = 'scale(1)';
+            });
+        });
+
+        // Pull-to-refresh simulation effect
+        let startY = 0;
+        const main = document.querySelector('main');
+        main.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].pageY;
+        });
+        main.addEventListener('touchmove', (e) => {
+            if (main.scrollTop === 0 && e.touches[0].pageY > startY) {
+                // Potential for pull-to-refresh animation logic here
+            }
+        });
+    </script>
+</body></html>

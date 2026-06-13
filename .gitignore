@@ -103,3 +103,6 @@ docs/copim_users/.DS_Store
 # Environment files
 *.env
 *.env.*
+
+# MiniApp design verification screenshots
+frontend/public/miniapp/.screenshots/
