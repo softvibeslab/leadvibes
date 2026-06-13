@@ -2,146 +2,39 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>ROVI MiniApp Broker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#F8FAFC" />
+    <title>ROVI MiniApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400..600,0..1,0&display=block"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
-    <main class="app">
-      <section class="hero">
-        <div>
-          <p class="eyebrow">ROVI Broker Copilot</p>
-          <h1>MiniApp para capturar leads, priorizar seguimiento y preparar mensajes.</h1>
-          <p class="subtitle">Funciona en modo seguro: captura local, borradores y conexión CRM solo vía backend/bridge.</p>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand"><span class="brand-dot" aria-hidden="true"></span>ROVI</div>
+        <div class="topbar-user" id="topbarUser"></div>
+      </header>
+      <main id="view" class="view" role="main" aria-live="polite">
+        <div class="boot-loading">
+          <div class="skeleton sk-card"></div>
+          <div class="skeleton sk-line"></div>
+          <div class="skeleton sk-line short"></div>
         </div>
-        <div class="badge" id="tgStatus">Telegram</div>
-      </section>
-
-      <section class="grid metrics" aria-label="Resumen operativo">
-        <article class="metric"><span id="mInbox">0</span><small>Inbox</small></article>
-        <article class="metric"><span id="mLeads">0</span><small>Leads</small></article>
-        <article class="metric"><span id="mHot">0</span><small>Calientes</small></article>
-        <article class="metric"><span id="mTasks">0</span><small>Pendientes</small></article>
-      </section>
-
-      <section class="card action-card">
-        <div>
-          <h2>Qué hago ahora</h2>
-          <p class="muted" id="nextBestAction">Captura un mensaje o revisa los demos para ver prioridades.</p>
-        </div>
-        <button id="whatNowBtn" class="primary compact">Priorizar</button>
-      </section>
-
-      <section class="card connector">
-        <div>
-          <h2>Conexión ROVI CRM</h2>
-          <p id="crmStatus" class="muted">Validando endpoint seguro...</p>
-        </div>
-        <button id="syncBtn" class="secondary">Preparar sync</button>
-      </section>
-
-      <section class="card">
-        <div class="section-title">
-          <h2>Captura rápida</h2>
-          <span class="pill">Borrador seguro</span>
-        </div>
-        <label for="telegramText">Pega texto de Telegram/WhatsApp, descripción de archivo o nota comercial</label>
-        <textarea id="telegramText" rows="5" placeholder="Ej. Cliente Ana busca renta en Polanco, 2 recámaras, presupuesto 45k, entrada en junio, quiere visita esta semana..."></textarea>
-        <div class="row">
-          <button id="captureBtn" class="primary">Clasificar y guardar</button>
-          <button id="clearBtn" class="ghost">Limpiar</button>
-        </div>
-      </section>
-
-      <section class="tabs" role="tablist" aria-label="Módulos ROVI">
-        <button class="tab active" data-tab="inbox">Inbox</button>
-        <button class="tab" data-tab="leads">Pipeline</button>
-        <button class="tab" data-tab="messages">Mensajes</button>
-        <button class="tab" data-tab="properties">Match</button>
-        <button class="tab" data-tab="tasks">Tareas</button>
-        <button class="tab" data-tab="crm">CRM</button>
-      </section>
-
-      <section id="panelInbox" class="card panel active">
-        <div class="section-title">
-          <h2>Inbox de capturas</h2>
-          <input id="searchInbox" class="search" placeholder="Buscar..." />
-        </div>
-        <div id="inboxList" class="list"></div>
-      </section>
-
-      <section id="panelLeads" class="card panel">
-        <div class="section-title">
-          <h2>Pipeline rápido</h2>
-          <select id="stageFilter" class="search">
-            <option value="">Todos</option>
-            <option value="nuevo">Nuevo</option>
-            <option value="caliente">Caliente</option>
-            <option value="seguimiento">Seguimiento</option>
-            <option value="inventario">Inventario/Broker</option>
-            <option value="descartado">Descartado</option>
-          </select>
-        </div>
-        <div id="leadList" class="list"></div>
-      </section>
-
-      <section id="panelMessages" class="card panel">
-        <div class="section-title">
-          <h2>Generador de mensajes</h2>
-          <select id="messageType" class="search">
-            <option value="primer_contacto">Primer contacto</option>
-            <option value="seguimiento">Seguimiento</option>
-            <option value="visita">Confirmar visita</option>
-            <option value="reactivacion">Reactivación</option>
-            <option value="post_visita">Post-visita</option>
-          </select>
-        </div>
-        <label for="messageContext">Contexto del prospecto</label>
-        <textarea id="messageContext" rows="4" placeholder="Ej. Ana busca renta 2 recámaras en Polanco, presupuesto 45k..."></textarea>
-        <div class="row">
-          <button id="generateMessageBtn" class="primary">Generar mensaje</button>
-          <button id="copyMessageBtn" class="secondary">Copiar</button>
-        </div>
-        <div id="messageOutput" class="draft-box">Aquí aparecerá el mensaje listo para WhatsApp/Telegram.</div>
-      </section>
-
-      <section id="panelProperties" class="card panel">
-        <div class="section-title">
-          <h2>Match lead ↔ propiedad</h2>
-          <span class="pill">Demo local</span>
-        </div>
-        <p class="muted">Hasta conectar CRM real, este módulo usa inventario demo y no confirma disponibilidad ni precios reales.</p>
-        <div class="row">
-          <input id="matchQuery" class="search grow" placeholder="Ej. renta Polanco 2 recámaras 45k" />
-          <button id="matchBtn" class="secondary">Buscar match</button>
-        </div>
-        <div id="matchResults" class="list"></div>
-      </section>
-
-      <section id="panelTasks" class="card panel">
-        <div class="section-title">
-          <h2>Seguimientos inteligentes</h2>
-          <button id="addTaskBtn" class="secondary">Crear tarea demo</button>
-        </div>
-        <div id="taskList" class="list"></div>
-      </section>
-
-      <section id="panelCrm" class="card panel">
-        <h2>Consulta ROVI CRM</h2>
-        <p class="muted">Lectura segura vía proxy server-side. Si no existe `/crm-bridge`, la MiniApp trabaja en local.</p>
-        <div class="row">
-          <input id="crmQuery" class="search grow" placeholder="Nombre, teléfono, zona o etapa" />
-          <button id="crmSearchBtn" class="secondary">Buscar</button>
-        </div>
-        <div id="crmResults" class="list"></div>
-      </section>
-    </main>
-
-    <template id="emptyTemplate">
-      <div class="empty">Sin registros todavía.</div>
-    </template>
-
-    <script src="./app.js"></script>
+      </main>
+      <nav id="tabbar" class="tabbar" role="tablist" aria-label="Navegación ROVI"></nav>
+    </div>
+    <div id="sheetRoot"></div>
+    <div id="toastRoot" aria-live="assertive"></div>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
