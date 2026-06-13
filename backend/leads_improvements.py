@@ -10,11 +10,16 @@ Tasks:
 5. DELETE endpoint
 """
 
-from fastapi import HTTPException, Depends, Query
+from fastapi import HTTPException, Depends, Query, status
 from typing import List, Optional
 from datetime import datetime, timezone
 from models import LeadCreate, LeadUpdate, LeadStatus, LeadPriority
 from auth import get_current_user
+from lead_scope import (
+    lead_matches_ownership,
+    merge_ownership_filter,
+    resolve_lead_scope_conditions,
+)
 
 
 async def validate_lead_unique_fields(db, lead_data: dict, tenant_id: str, exclude_lead_id: str = None):
@@ -78,9 +83,13 @@ async def get_leads_advanced_filters(
     Get leads con filtros avanzados y búsqueda en tiempo real
     Incluye debounce logic (implementado en frontend)
     """
+    # Scope por rol (broker en tenant agencia → solo propios/asignados).
+    # Se resuelve fuera del try para no enmascarar errores de scope como 500.
+    scope_conditions = await resolve_lead_scope_conditions(db, current_user)
+
     try:
-        # Build query
-        query = {"tenant_id": tenant_id}
+        # Build query (excluye soft-deleted: fix F4 de MINIAPP_SPEC)
+        query = {"tenant_id": tenant_id, "deleted": {"$ne": True}}
 
         # Filtros de status (múltiples)
         if status:
@@ -123,6 +132,9 @@ async def get_leads_advanced_filters(
             }
             query.update(search_query)
 
+        # Aplicar ownership al final para no pisar el $or de búsqueda
+        query = merge_ownership_filter(query, scope_conditions)
+
         # Count total
         total = await db.leads.count_documents(query)
 
@@ -146,8 +158,10 @@ async def get_leads_advanced_filters(
         }
 
     except Exception as e:
+        # Nota: no usar status.HTTP_* aquí; el parámetro `status` de la
+        # función sombrea el módulo fastapi.status.
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail=f"Error al obtener leads: {str(e)}"
         )
 
@@ -157,6 +171,8 @@ async def delete_lead(db, lead_id: str, current_user: dict):
     Soft delete de un lead (marca como deleted)
     Previene pérdida de datos accidental
     """
+    scope_conditions = await resolve_lead_scope_conditions(db, current_user)
+
     try:
         # Verificar que el lead existe y pertenece al tenant
         lead = await db.leads.find_one({
@@ -164,7 +180,9 @@ async def delete_lead(db, lead_id: str, current_user: dict):
             "tenant_id": current_user["tenant_id"]
         })
 
-        if not lead:
+        # Broker en tenant agencia: leads ajenos son invisibles (404, misma
+        # semántica own_or_assigned_only de las rutas de agente).
+        if not lead or not lead_matches_ownership(lead, scope_conditions):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Lead no encontrado"
@@ -202,25 +220,32 @@ async def bulk_update_leads_status(
     """
     Bulk update: actualizar status de múltiples leads
     """
+    # Broker en tenant agencia: solo puede afectar leads propios/asignados.
+    # Los ids ajenos cuentan como "no existen" (mismo patrón 400 del endpoint).
+    scope_conditions = await resolve_lead_scope_conditions(db, current_user)
+
     try:
-        # Verificar que todos los leads pertenecen al tenant
-        leads = await db.leads.find({
+        scoped_query = merge_ownership_filter({
             "id": {"$in": lead_ids},
             "tenant_id": current_user["tenant_id"]
-        }).to_list(None)
+        }, scope_conditions)
+
+        # Verificar que todos los leads pertenecen al tenant y son visibles
+        leads = await db.leads.find(scoped_query).to_list(None)
 
         if len(leads) != len(lead_ids):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Algunos leads no existen. Encontrados: {len(leads)}, Solicitados: {len(lead_ids)}"
+                detail=(
+                    f"Algunos leads no existen. Encontrados: {len(leads)}, "
+                    f"Solicitados: {len(lead_ids)}"
+                ),
             )
 
-        # Actualizar todos
+        # Actualizar todos (la query con scope garantiza que el count refleje
+        # solo los leads realmente visibles para el usuario)
         result = await db.leads.update_many(
-            {
-                "id": {"$in": lead_ids},
-                "tenant_id": current_user["tenant_id"]
-            },
+            scoped_query,
             {
                 "$set": {
                     "status": new_status.value,
@@ -248,25 +273,30 @@ async def bulk_delete_leads(db, lead_ids: List[str], current_user: dict):
     """
     Bulk delete: soft delete de múltiples leads
     """
+    # Broker en tenant agencia: solo puede borrar leads propios/asignados.
+    scope_conditions = await resolve_lead_scope_conditions(db, current_user)
+
     try:
-        # Verificar que todos los leads pertenecen al tenant
-        leads = await db.leads.find({
+        scoped_query = merge_ownership_filter({
             "id": {"$in": lead_ids},
             "tenant_id": current_user["tenant_id"]
-        }).to_list(None)
+        }, scope_conditions)
+
+        # Verificar que todos los leads pertenecen al tenant y son visibles
+        leads = await db.leads.find(scoped_query).to_list(None)
 
         if len(leads) != len(lead_ids):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Algunos leads no existen. Encontrados: {len(leads)}, Solicitados: {len(lead_ids)}"
+                detail=(
+                    f"Algunos leads no existen. Encontrados: {len(leads)}, "
+                    f"Solicitados: {len(lead_ids)}"
+                ),
             )
 
-        # Soft delete todos
+        # Soft delete todos (query con scope: count solo de los visibles)
         result = await db.leads.update_many(
-            {
-                "id": {"$in": lead_ids},
-                "tenant_id": current_user["tenant_id"]
-            },
+            scoped_query,
             {
                 "$set": {
                     "deleted": True,

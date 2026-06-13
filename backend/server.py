@@ -75,6 +75,12 @@ from leads_improvements import (
     validate_lead_unique_fields, get_leads_advanced_filters, delete_lead,
     bulk_update_leads_status, bulk_delete_leads
 )
+from lead_scope import (
+    lead_matches_ownership,
+    resolve_lead_scope_conditions,
+    role_requires_lead_ownership,
+    tenant_is_agency,
+)
 from ai_service import (
     get_ai_response,
     analyze_lead,
@@ -7166,6 +7172,51 @@ async def execute_pending_telegram_action(action: dict) -> dict:
     return result
 
 
+async def claim_pending_telegram_action(
+    action_id: str, *, via: str, confirmed_by: str | None = None
+) -> dict | None:
+    """Transición atómica pending_confirmation → executing.
+
+    Evita la doble ejecución cuando dos confirmaciones llegan en paralelo
+    (MiniApp + MiniApp, o MiniApp + "sí" en el bot): solo una gana el claim;
+    la otra recibe None. Devuelve el documento PRE-claim (el ejecutor no
+    depende del campo status).
+    """
+    update_fields: dict = {
+        "status": "executing",
+        "executing_started_at": datetime.now(timezone.utc),
+        "confirmed_via": via,
+    }
+    if confirmed_by:
+        update_fields["confirmed_by"] = confirmed_by
+    return await db.telegram_agent_pending_actions.find_one_and_update(
+        {"id": action_id, "status": "pending_confirmation"},
+        {"$set": update_fields},
+    )
+
+
+async def release_pending_telegram_action_claim(action_id: str) -> None:
+    """Falla suave sin escritura (p. ej. falta teléfono): la acción vuelve a
+    pending_confirmation para que el usuario pueda corregir y reintentar
+    (paridad con el comportamiento histórico del bot)."""
+    await db.telegram_agent_pending_actions.update_one(
+        {"id": action_id, "status": "executing"},
+        {"$set": {"status": "pending_confirmation"}},
+    )
+
+
+async def mark_pending_telegram_action_failed(action_id: str, message: str) -> None:
+    """Excepción del ejecutor: la acción queda failed (no re-confirmable)."""
+    await db.telegram_agent_pending_actions.update_one(
+        {"id": action_id, "status": "executing"},
+        {"$set": {
+            "status": "failed",
+            "failed_at": datetime.now(timezone.utc),
+            "failure_message": (message or "")[:500],
+        }},
+    )
+
+
 # Las herramientas CRM del agente (agent_control) ejecutan escrituras con el
 # mismo ejecutor y audit que el flujo de confirmación de Telegram.
 register_agent_action_executor(execute_pending_telegram_action)
@@ -7677,13 +7728,71 @@ def device_link_is_expired(link: dict) -> bool:
     return bool(expires_at and expires_at < datetime.now(timezone.utc))
 
 
-def validate_telegram_webapp_init_data(init_data: str) -> dict:
-    bot_token = (
-        os.environ.get("ROVI_TELEGRAM_BOT_TOKEN")
-        or os.environ.get("HERMES_TELEGRAM_BOT_TOKEN")
-        or os.environ.get("TELEGRAM_BOT_TOKEN")
-    )
-    if not bot_token:
+def _telegram_webapp_hash_is_valid(parsed: dict, received_hash: str, bot_token: str) -> bool:
+    """Valida el hash del initData de la MiniApp contra un token de bot."""
+    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(parsed.items()))
+    secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
+    calculated_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(calculated_hash, received_hash)
+
+
+def collect_telegram_webapp_env_bot_tokens() -> list[dict]:
+    """Tokens de bot configurados por entorno, en orden estable (primario primero).
+
+    Cubre el bot primario (ROVI_TELEGRAM_BOT_TOKEN y aliases legacy) y
+    cualquier variable per-role/equipo que termine en _TELEGRAM_BOT_TOKEN
+    (p. ej. ROVI_BROKER_TELEGRAM_BOT_TOKEN si la operación la define).
+    """
+    tokens: list[dict] = []
+    seen: set[str] = set()
+
+    def add(label: str, value: str | None) -> None:
+        token = (value or "").strip()
+        if token and token not in seen:
+            seen.add(token)
+            tokens.append({"label": label, "token": token})
+
+    add("env:ROVI_TELEGRAM_BOT_TOKEN", os.environ.get("ROVI_TELEGRAM_BOT_TOKEN"))
+    add("env:HERMES_TELEGRAM_BOT_TOKEN", os.environ.get("HERMES_TELEGRAM_BOT_TOKEN"))
+    add("env:TELEGRAM_BOT_TOKEN", os.environ.get("TELEGRAM_BOT_TOKEN"))
+    for key in sorted(os.environ):
+        if key.endswith("_TELEGRAM_BOT_TOKEN"):
+            add(f"env:{key}", os.environ.get(key))
+    return tokens
+
+
+async def collect_telegram_agent_profile_bot_tokens() -> list[dict]:
+    """Tokens de los bots de equipo/rol guardados en telegram_agent_profiles."""
+    tokens: list[dict] = []
+    try:
+        profiles = await db.telegram_agent_profiles.find(
+            {"is_active": True, "telegram_bot_token": {"$nin": [None, ""]}},
+            {"_id": 0, "id": 1, "role_scope": 1, "multi_role": 1, "telegram_bot_token": 1},
+        ).to_list(200)
+    except Exception:
+        # Una falla de Mongo no debe tumbar el login por el bot primario.
+        logger.exception("No pude leer telegram_agent_profiles para validar initData")
+        return tokens
+    for profile in profiles:
+        token = (profile.get("telegram_bot_token") or "").strip()
+        if token:
+            tokens.append({
+                "label": f"profile:{profile.get('id')}",
+                "token": token,
+                "role_scope": profile.get("role_scope"),
+                "multi_role": profile.get("multi_role", False),
+            })
+    return tokens
+
+
+def validate_telegram_webapp_init_data(init_data: str, bot_tokens: list[dict] | None = None) -> dict:
+    """Valida initData probando el HMAC contra todos los bots configurados.
+
+    Acepta si CUALQUIER token valida y devuelve en `validated_bot` qué bot
+    firmó (sin exponer el token), útil para logging/auditoría.
+    """
+    candidates = list(bot_tokens) if bot_tokens is not None else collect_telegram_webapp_env_bot_tokens()
+    if not candidates:
         raise HTTPException(status_code=503, detail="Falta configurar token de Telegram en el backend")
     if not init_data:
         raise HTTPException(status_code=400, detail="initData de Telegram es obligatorio")
@@ -7693,10 +7802,12 @@ def validate_telegram_webapp_init_data(init_data: str) -> dict:
     if not received_hash:
         raise HTTPException(status_code=400, detail="initData de Telegram no contiene hash")
 
-    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(parsed.items()))
-    secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
-    calculated_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(calculated_hash, received_hash):
+    validated_bot = None
+    for candidate in candidates:
+        if _telegram_webapp_hash_is_valid(parsed, received_hash, candidate.get("token") or ""):
+            validated_bot = {key: value for key, value in candidate.items() if key != "token"}
+            break
+    if not validated_bot:
         raise HTTPException(status_code=401, detail="initData de Telegram invalido")
 
     auth_date = int(parsed.get("auth_date") or 0)
@@ -7707,7 +7818,23 @@ def validate_telegram_webapp_init_data(init_data: str) -> dict:
         telegram_user = json.loads(parsed.get("user") or "{}")
     except json.JSONDecodeError:
         telegram_user = {}
-    return {"raw": parsed, "user": telegram_user}
+    return {"raw": parsed, "user": telegram_user, "validated_bot": validated_bot}
+
+
+async def validate_telegram_webapp_init_data_any_bot(init_data: str) -> dict:
+    """Versión multi-bot: env (primario + per-role) + perfiles de Agent Studio.
+
+    La MiniApp puede abrirse desde el bot primario o desde bots de equipo
+    (device links con bot_target="team"); cada bot firma initData con su
+    propio token, así que se prueban todos (hallazgo F10 de MINIAPP_SPEC).
+    """
+    candidates = collect_telegram_webapp_env_bot_tokens()
+    seen = {candidate["token"] for candidate in candidates}
+    for profile_candidate in await collect_telegram_agent_profile_bot_tokens():
+        if profile_candidate["token"] not in seen:
+            seen.add(profile_candidate["token"])
+            candidates.append(profile_candidate)
+    return validate_telegram_webapp_init_data(init_data, candidates)
 
 
 async def activate_hermes_device_link(link: dict, user: dict, active_workspace: dict | None) -> dict:
@@ -9095,11 +9222,17 @@ async def process_rovi_telegram_agent_message_background(
 
 @api_router.post("/telegram-miniapp/session", response_model=dict)
 async def create_telegram_miniapp_session(payload: TelegramMiniAppSessionRequest):
-    telegram_data = validate_telegram_webapp_init_data(payload.init_data)
+    telegram_data = await validate_telegram_webapp_init_data_any_bot(payload.init_data)
     telegram_user = telegram_data.get("user") or {}
     telegram_user_id = str(telegram_user.get("id") or "")
+    validated_bot = telegram_data.get("validated_bot") or {}
     if not telegram_user_id:
         raise HTTPException(status_code=400, detail="No se pudo identificar el usuario de Telegram")
+    logger.info(
+        "MiniApp initData validado por bot %s para telegram_user_id=%s",
+        validated_bot.get("label") or "desconocido",
+        telegram_user_id,
+    )
 
     active_link = await db.user_device_links.find_one(
         {"telegram.user_id": telegram_user_id, "status": "active"},
@@ -9112,6 +9245,7 @@ async def create_telegram_miniapp_session(payload: TelegramMiniAppSessionRequest
             "telegram_user": telegram_user,
             "start_code": normalize_link_code(payload.start_param),
             "message": "Este Telegram todavia no esta vinculado a una cuenta ROVI activa.",
+            "validated_bot": validated_bot,
         }
 
     user = await db.users.find_one({"id": active_link["user_id"]}, {"_id": 0, "password_hash": 0})
@@ -9155,7 +9289,161 @@ async def create_telegram_miniapp_session(payload: TelegramMiniAppSessionRequest
         "active_workspace": active_workspace,
         "available_workspaces": workspaces,
         "device_link": build_device_link_public(active_link),
+        "validated_bot": validated_bot,
     }
+
+
+# ==================== MINIAPP: ACCIONES PENDIENTES DEL AGENTE ====================
+# La MiniApp comparte la cola telegram_agent_pending_actions con el bot:
+# aquí solo se lista/aprueba/cancela; TODA ejecución pasa por
+# execute_pending_telegram_action (mismo ejecutor y agent_action_audit que el
+# flujo de confirmación por texto en Telegram). Ver docs/MINIAPP_SPEC.md §5.2.
+
+
+def _pending_telegram_action_is_expired(action: dict) -> bool:
+    expires_at = action.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = parse_iso_datetime(expires_at)
+    if not isinstance(expires_at, datetime):
+        return False
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at < datetime.now(timezone.utc)
+
+
+def build_miniapp_agent_action_public(action: dict) -> dict:
+    """Shape público de una acción pendiente (contrato MINIAPP_SPEC §5.2)."""
+    public = serialize_doc({
+        "id": action.get("id"),
+        "type": action.get("type"),
+        "status": action.get("status"),
+        "payload": action.get("payload") or {},
+        "requested_text": action.get("requested_text"),
+        "created_at": action.get("created_at"),
+        "expires_at": action.get("expires_at"),
+    })
+    public["preview"] = format_pending_telegram_action_preview(action)
+    return public
+
+
+async def _load_miniapp_agent_action_for_user(action_id: str, current_user: dict) -> dict:
+    """Carga la acción validando dueño + tenant (404 inexistente, 403 ajena)."""
+    action = await db.telegram_agent_pending_actions.find_one({"id": action_id}, {"_id": 0})
+    if not action:
+        raise HTTPException(status_code=404, detail="Acción no encontrada")
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    if action.get("user_id") != current_user["user_id"] or (
+        action.get("tenant_id") and tenant_id and action.get("tenant_id") != tenant_id
+    ):
+        raise HTTPException(status_code=403, detail="Esta acción pertenece a otro usuario")
+    return action
+
+
+@api_router.get("/telegram-miniapp/agent-actions", response_model=dict)
+async def list_telegram_miniapp_agent_actions(
+    action_status: str = Query("pending_confirmation", alias="status"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Lista acciones del agente del usuario actual (misma cola que el bot)."""
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    query: dict = {"tenant_id": tenant_id, "user_id": current_user["user_id"]}
+    if action_status == "pending_confirmation":
+        query["status"] = "pending_confirmation"
+        query["expires_at"] = {"$gt": datetime.now(timezone.utc)}
+    elif action_status:
+        query["status"] = action_status
+    actions = await db.telegram_agent_pending_actions.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return {"actions": [build_miniapp_agent_action_public(action) for action in actions]}
+
+
+@api_router.post("/telegram-miniapp/agent-actions/{action_id}/confirm", response_model=dict)
+async def confirm_telegram_miniapp_agent_action(
+    action_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Aprueba una acción pendiente y la ejecuta vía execute_pending_telegram_action.
+
+    Nunca ejecuta inline: el ejecutor compartido es quien marca executed y
+    escribe agent_action_audit (paridad con responder "sí" en el bot).
+    """
+    action = await _load_miniapp_agent_action_for_user(action_id, current_user)
+    if action.get("status") != "pending_confirmation":
+        raise HTTPException(
+            status_code=409,
+            detail=f"La acción ya no es confirmable (status: {action.get('status')})",
+        )
+    if _pending_telegram_action_is_expired(action):
+        raise HTTPException(status_code=409, detail="El preview expiró. Vuelve a pedirlo al agente.")
+
+    # Claim atómico pending_confirmation → executing: una confirmación
+    # concurrente (otra pestaña, o "sí" en el bot) pierde la carrera y
+    # recibe 409, sin doble escritura.
+    claimed = await claim_pending_telegram_action(
+        action_id, via="miniapp", confirmed_by=current_user["user_id"]
+    )
+    if claimed is None:
+        raise HTTPException(status_code=409, detail="La acción ya fue procesada por otra confirmación")
+
+    try:
+        execution = await execute_pending_telegram_action(claimed)
+    except Exception:
+        await mark_pending_telegram_action_failed(action_id, "Error interno al ejecutar la acción")
+        raise
+    if not execution.get("executed"):
+        # Falla suave sin escritura: liberar el claim para permitir reintento.
+        await release_pending_telegram_action_claim(action_id)
+    return {
+        "ok": bool(execution.get("executed")),
+        "executed": bool(execution.get("executed")),
+        "message": execution.get("message") or "",
+        "record_ids": execution.get("record_ids") or [],
+    }
+
+
+@api_router.post("/telegram-miniapp/agent-actions/{action_id}/cancel", response_model=dict)
+async def cancel_telegram_miniapp_agent_action(
+    action_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Rechaza una acción pendiente con auditoría (paridad con responder "no")."""
+    action = await _load_miniapp_agent_action_for_user(action_id, current_user)
+    if action.get("status") != "pending_confirmation":
+        raise HTTPException(
+            status_code=409,
+            detail=f"La acción ya no es cancelable (status: {action.get('status')})",
+        )
+    if _pending_telegram_action_is_expired(action):
+        raise HTTPException(status_code=409, detail="La acción ya expiró")
+
+    cancelled_at = datetime.now(timezone.utc)
+    await db.telegram_agent_pending_actions.update_one(
+        {"id": action["id"]},
+        {"$set": {
+            "status": "cancelled",
+            "cancelled_at": cancelled_at,
+            "cancelled_via": "miniapp",
+            "cancelled_by": current_user["user_id"],
+        }},
+    )
+    await db.agent_action_audit.insert_one({
+        "id": f"agent-action-audit-{uuid.uuid4()}",
+        "tenant_id": action.get("tenant_id"),
+        "user_id": action.get("user_id"),
+        "link_id": action.get("link_id"),
+        "chat_id": action.get("chat_id"),
+        "role_scope": action.get("role_scope"),
+        "action_id": action.get("id"),
+        "action_type": action.get("type"),
+        "status": "cancelled",
+        "requested_text": action.get("requested_text"),
+        "payload": serialize_doc(action.get("payload") or {}),
+        "source": "miniapp",
+        "cancelled_by": current_user["user_id"],
+        "created_at": cancelled_at.isoformat(),
+    })
+    return {"ok": True, "status": "cancelled"}
 
 
 @api_router.get("/telegram-agents/profiles", response_model=dict)
@@ -12348,9 +12636,28 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     return await build_dashboard_stats_for_user(current_user)
 
 
+async def require_agency_dashboard_admin(current_user: dict) -> None:
+    """Gate de rol para dashboards gerenciales (cierra F8 de MINIAPP_SPEC).
+
+    Un broker dentro de un tenant tipo agencia NO puede ver métricas del
+    equipo completo; agency_admin/admin/manager/owner y tenants individuales
+    (donde el usuario es todo el tenant) siguen igual.
+    """
+    role = current_user.get("active_role") or current_user.get("role")
+    if not role_requires_lead_ownership(role):
+        return
+    tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id")
+    if await tenant_is_agency(db, tenant_id, current_user):
+        raise HTTPException(
+            status_code=403,
+            detail="Solo administradores de la agencia pueden ver este panel",
+        )
+
+
 @api_router.get("/dashboard/agency-executive", response_model=dict)
 async def get_agency_executive_dashboard(current_user: dict = Depends(get_current_user)):
     """Executive conversion, team, ROI and timeline dashboard for agency workspaces."""
+    await require_agency_dashboard_admin(current_user)
     tenant_id = current_user.get("active_tenant_id") or current_user.get("tenant_id") or await get_or_create_tenant(current_user["user_id"])
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -12754,8 +13061,19 @@ async def get_kpi_detail(kpi_type: str, current_user: dict = Depends(get_current
 
 @api_router.get("/dashboard/leaderboard", response_model=List[BrokerStats])
 async def get_leaderboard(current_user: dict = Depends(get_current_user)):
-    """Get monthly leaderboard"""
-    tenant_id = await get_or_create_tenant(current_user["user_id"])
+    """Get monthly leaderboard.
+
+    Decisión de producto: el leaderboard SÍ es visible para todos los
+    miembros del tenant (la gamificación pierde sentido si los brokers no
+    ven el ranking); el gate de rol aplica solo a agency-executive (F8).
+    Fix F9: usa el active_tenant_id del JWT en vez de get_or_create_tenant
+    para respetar el workspace conmutado.
+    """
+    tenant_id = (
+        current_user.get("active_tenant_id")
+        or current_user.get("tenant_id")
+        or await get_or_create_tenant(current_user["user_id"])
+    )
     
     # Get all brokers
     brokers = await db.users.find(
@@ -13070,7 +13388,10 @@ async def get_lead(lead_id: str, current_user: dict = Depends(get_current_user))
         {"id": lead_id, "tenant_id": current_user["tenant_id"]},
         {"_id": 0}
     )
-    if not lead:
+    # Broker en tenant agencia: solo leads propios/asignados (paridad con
+    # el scope own_or_assigned_only de las rutas de agente).
+    lead_scope_conditions = await resolve_lead_scope_conditions(db, current_user)
+    if not lead or not lead_matches_ownership(lead, lead_scope_conditions):
         raise HTTPException(status_code=404, detail="Lead no encontrado")
     
     # Get activities
@@ -13169,8 +13490,11 @@ async def update_lead(lead_id: str, lead_data: LeadUpdate, current_user: dict = 
         "id": lead_id,
         "tenant_id": current_user["tenant_id"]
     })
-    
-    if not existing:
+
+    # Broker en tenant agencia: solo puede editar leads propios/asignados
+    # (misma semántica own_or_assigned_only de las rutas de agente).
+    lead_scope_conditions = await resolve_lead_scope_conditions(db, current_user)
+    if not existing or not lead_matches_ownership(existing, lead_scope_conditions):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Lead no encontrado"
