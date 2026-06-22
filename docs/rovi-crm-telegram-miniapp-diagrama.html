@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rovi CRM + Telegram Agents + MiniApp</title>
+  <style>
+    :root {
+      --navy: #06154a;
+      --blue: #0f5fc4;
+      --blue-2: #0b78d0;
+      --teal: #08979e;
+      --teal-2: #0f766e;
+      --green: #4b9f2f;
+      --green-2: #237a22;
+      --gray: #53606d;
+      --ink: #0b1732;
+      --muted: #43536a;
+      --line: #bfd2ea;
+      --soft-blue: #eff6ff;
+      --soft-teal: #edfafa;
+      --soft-green: #f2faed;
+      --soft-gray: #f4f6f8;
+      --panel: #ffffff;
+      --shadow: 0 14px 30px rgba(15, 45, 95, 0.08);
+      --radius: 18px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #ffffff;
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .canvas {
+      width: 1792px;
+      height: 1024px;
+      padding: 16px 38px 16px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(15, 95, 196, 0.08), transparent 24%),
+        radial-gradient(circle at 80% 12%, rgba(75, 159, 47, 0.08), transparent 22%),
+        linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .title {
+      text-align: center;
+      margin: 0;
+      color: var(--navy);
+      font-size: 47px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 6px 0 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 23px;
+      line-height: 1.15;
+      font-weight: 500;
+    }
+
+    .approval-strip {
+      height: 102px;
+      display: grid;
+      grid-template-columns: 275px 1fr;
+      align-items: center;
+      gap: 18px;
+      margin: 0 2px 14px;
+      padding: 10px 22px;
+      border: 1.6px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: var(--shadow);
+    }
+
+    .approval-left {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .team-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, var(--blue), #0d3ca8);
+      box-shadow: inset 0 -8px 16px rgba(0, 0, 0, 0.18);
+    }
+
+    .approval-left strong {
+      display: block;
+      color: #0a2d86;
+      font-size: 20px;
+      line-height: 1.12;
+      margin-bottom: 4px;
+    }
+
+    .approval-left span {
+      display: block;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .checkpoint-line {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+      padding: 0 42px;
+    }
+
+    .checkpoint-line::before {
+      content: "";
+      position: absolute;
+      left: 68px;
+      right: 68px;
+      top: 26px;
+      border-top: 3px dotted #1959bd;
+    }
+
+    .checkpoint {
+      position: relative;
+      z-index: 1;
+      width: 156px;
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+    }
+
+    .avatars {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .avatar {
+      width: 31px;
+      height: 31px;
+      margin-left: -5px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #f8fafc, #dbeafe);
+      color: var(--navy);
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 3px 8px rgba(14, 35, 65, 0.14);
+    }
+
+    .avatar:first-child {
+      margin-left: 0;
+    }
+
+    .check {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #63bd53, #2d9142);
+      box-shadow: 0 4px 12px rgba(35, 122, 34, 0.26);
+    }
+
+    .check svg,
+    .team-icon svg,
+    .stage-icon svg,
+    .layer-icon svg,
+    .benefit-icon svg {
+      display: block;
+    }
+
+    .flow {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 22px;
+      margin-bottom: 14px;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 342px;
+      padding: 13px 15px 12px;
+      border: 1.8px solid var(--blue);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: var(--shadow);
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      right: -34px;
+      top: 150px;
+      width: 44px;
+      height: 36px;
+      background: var(--blue);
+      clip-path: polygon(0 22%, 60% 22%, 60% 0, 100% 50%, 60% 100%, 60% 78%, 0 78%);
+      filter: drop-shadow(0 5px 7px rgba(15, 95, 196, 0.18));
+      z-index: 2;
+    }
+
+    .stage:last-child::after {
+      display: none;
+    }
+
+    .stage.blue {
+      border-color: #2f78d9;
+      background: linear-gradient(180deg, #ffffff 0%, var(--soft-blue) 100%);
+    }
+
+    .stage.teal {
+      border-color: #18a7ad;
+      background: linear-gradient(180deg, #ffffff 0%, var(--soft-teal) 100%);
+    }
+
+    .stage.green {
+      border-color: #62ad42;
+      background: linear-gradient(180deg, #ffffff 0%, var(--soft-green) 100%);
+    }
+
+    .stage.gray {
+      border-color: #a8b0b9;
+      background: linear-gradient(180deg, #ffffff 0%, var(--soft-gray) 100%);
+    }
+
+    .stage.teal::after {
+      background: var(--teal);
+    }
+
+    .stage.green::after {
+      background: var(--green);
+    }
+
+    .badge {
+      width: fit-content;
+      min-width: 86px;
+      height: 32px;
+      margin: 0 auto 7px;
+      padding: 4px 14px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, var(--blue), #0c3fa7);
+      font-size: 23px;
+      line-height: 1;
+      font-weight: 900;
+      box-shadow: inset 0 -6px 12px rgba(0, 0, 0, 0.14);
+    }
+
+    .teal .badge {
+      background: linear-gradient(145deg, #15b5bd, #087d86);
+    }
+
+    .green .badge {
+      background: linear-gradient(145deg, #69bb3a, #2f8726);
+    }
+
+    .gray .badge {
+      background: linear-gradient(145deg, #657380, #3d4852);
+    }
+
+    .stage-title {
+      min-height: 43px;
+      margin: 0 0 8px;
+      text-align: center;
+      color: #0a2d86;
+      font-size: 18px;
+      line-height: 1.12;
+      font-weight: 850;
+    }
+
+    .teal .stage-title {
+      color: #05747c;
+    }
+
+    .green .stage-title {
+      color: #24751f;
+    }
+
+    .gray .stage-title {
+      color: #2f3b47;
+    }
+
+    .stage-icon {
+      width: 104px;
+      height: 104px;
+      margin: 0 auto 11px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 35%, #ffffff 0%, #eef6ff 72%);
+      border: 1px solid rgba(15, 95, 196, 0.08);
+      box-shadow: inset 0 -12px 28px rgba(16, 64, 120, 0.05), 0 12px 22px rgba(15, 45, 95, 0.06);
+    }
+
+    .stage-text {
+      min-height: 72px;
+      margin: 0 0 8px;
+      color: #172540;
+      text-align: center;
+      font-size: 14.2px;
+      line-height: 1.28;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .chip {
+      padding: 5px 8px;
+      border-radius: 8px;
+      color: #0a2d86;
+      background: #dcecff;
+      font-size: 11.6px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .teal .chip {
+      color: #05656f;
+      background: #d8f4f5;
+    }
+
+    .green .chip {
+      color: #236b1c;
+      background: #e0f4d4;
+    }
+
+    .gray .chip {
+      color: #35424d;
+      background: #e4e8ec;
+    }
+
+    .benefits {
+      height: 108px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      margin: 0 0 14px;
+      padding: 13px 20px;
+      border: 1.6px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: var(--shadow);
+    }
+
+    .benefit {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 13px;
+      align-items: center;
+      padding: 0 18px;
+      border-right: 1px solid #c8d6e8;
+    }
+
+    .benefit:first-child {
+      padding-left: 0;
+    }
+
+    .benefit:last-child {
+      border-right: 0;
+      padding-right: 0;
+    }
+
+    .benefit-icon {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, var(--blue), #0d3fa7);
+      box-shadow: inset 0 -8px 16px rgba(0, 0, 0, 0.18), 0 9px 16px rgba(15, 95, 196, 0.12);
+    }
+
+    .benefit:nth-child(2) .benefit-icon {
+      background: linear-gradient(145deg, #15b5bd, #087d86);
+    }
+
+    .benefit:nth-child(3) .benefit-icon,
+    .benefit:nth-child(4) .benefit-icon {
+      background: linear-gradient(145deg, #69bb3a, #2f8726);
+    }
+
+    .benefit strong {
+      display: block;
+      color: #0b3c9c;
+      font-size: 21px;
+      line-height: 1.05;
+      margin-bottom: 5px;
+    }
+
+    .benefit:nth-child(2) strong {
+      color: #05747c;
+    }
+
+    .benefit:nth-child(3) strong,
+    .benefit:nth-child(4) strong {
+      color: #24751f;
+    }
+
+    .benefit span {
+      display: block;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.28;
+    }
+
+    .layers {
+      height: 112px;
+      display: grid;
+      grid-template-columns: 220px repeat(5, minmax(0, 1fr));
+      gap: 0;
+      padding: 10px 18px;
+      border: 1.6px solid #7aa4df;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: var(--shadow);
+    }
+
+    .layers-title {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      align-items: center;
+      gap: 14px;
+      padding-right: 20px;
+      border-right: 1px solid #c8d6e8;
+    }
+
+    .layers-title strong {
+      color: #0a2d86;
+      font-size: 20px;
+      line-height: 1.08;
+    }
+
+    .layer {
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 0 18px;
+      border-right: 1px solid #c8d6e8;
+    }
+
+    .layer:last-child {
+      border-right: 0;
+    }
+
+    .layer-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--blue);
+      font-weight: 900;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .layer:nth-child(4) .layer-num,
+    .layer:nth-child(5) .layer-num {
+      background: var(--teal);
+    }
+
+    .layer:nth-child(6) .layer-num,
+    .layer:nth-child(7) .layer-num {
+      background: var(--green);
+    }
+
+    .layer strong {
+      display: block;
+      color: #0b3c9c;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .layer ul {
+      margin: 0;
+      padding-left: 16px;
+      color: #172540;
+      font-size: 11.6px;
+      line-height: 1.32;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 82px;
+      align-items: center;
+      height: 34px;
+      color: #172540;
+      font-size: 15px;
+    }
+
+    .routes {
+      height: 62px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border: 1.4px solid #b7cce7;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 8px 20px rgba(15, 45, 95, 0.06);
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 9px;
+      align-items: center;
+      min-width: 0;
+      padding: 0 10px;
+      border-right: 1px solid #d1deef;
+    }
+
+    .route:last-child {
+      border-right: 0;
+    }
+
+    .route-mark {
+      width: 31px;
+      height: 31px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, var(--blue), #0c3fa7);
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .route:nth-child(3) .route-mark,
+    .route:nth-child(4) .route-mark {
+      background: linear-gradient(145deg, #15b5bd, #087d86);
+    }
+
+    .route:nth-child(5) .route-mark {
+      background: linear-gradient(145deg, #69bb3a, #2f8726);
+    }
+
+    .route strong {
+      display: block;
+      color: #0a2d86;
+      font-size: 13px;
+      line-height: 1.05;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .route span {
+      display: block;
+      color: var(--muted);
+      font-size: 11.3px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      white-space: nowrap;
+    }
+
+    .swatch {
+      width: 36px;
+      height: 22px;
+      border-radius: 6px;
+      box-shadow: inset 0 -4px 9px rgba(0, 0, 0, 0.14);
+    }
+
+    .swatch.blue {
+      background: linear-gradient(145deg, var(--blue), #0c3fa7);
+    }
+
+    .swatch.teal {
+      background: linear-gradient(145deg, #15b5bd, #087d86);
+    }
+
+    .swatch.green {
+      background: linear-gradient(145deg, #69bb3a, #2f8726);
+    }
+
+    .swatch.gray {
+      background: linear-gradient(145deg, #657380, #3d4852);
+    }
+
+    .svg-blue {
+      stroke: var(--blue);
+      fill: none;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .svg-teal {
+      stroke: var(--teal);
+      fill: none;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .svg-green {
+      stroke: var(--green-2);
+      fill: none;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .svg-gray {
+      stroke: var(--gray);
+      fill: none;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .fill-blue {
+      fill: var(--blue);
+    }
+
+    .fill-teal {
+      fill: var(--teal);
+    }
+
+    .fill-green {
+      fill: var(--green);
+    }
+
+    .fill-gray {
+      fill: var(--gray);
+    }
+
+    @media (max-width: 1200px) {
+      body {
+        place-items: start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="canvas">
+    <h1 class="title">Rovi CRM + Telegram + MiniApp: de conversación a cierre</h1>
+    <p class="subtitle">Ecosistema guiado por IA para capturar leads, operar el CRM, coordinar brokers y mantener trazabilidad comercial.</p>
+
+    <section class="approval-strip">
+      <div class="approval-left">
+        <div class="team-icon">
+          <svg width="48" height="48" viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="21" cy="24" r="8" stroke="#fff" stroke-width="5" fill="none"/>
+            <circle cx="43" cy="24" r="8" stroke="#fff" stroke-width="5" fill="none"/>
+            <path d="M10 51c1.5-10 7-16 16-16s14.5 6 16 16" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M30 51c1.3-8 6-13 14-13 7.5 0 12.5 5 14 13" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <strong>Control del equipo</strong>
+          <span>Broker, manager y agente comparten la misma memoria comercial.</span>
+        </div>
+      </div>
+      <div class="checkpoint-line">
+        <div class="checkpoint">
+          <div class="avatars"><span class="avatar">BR</span><span class="avatar">IA</span><span class="avatar">MG</span></div>
+          <div class="check">
+            <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M7 16.5l6 6L25 9" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="checkpoint">
+          <div class="avatars"><span class="avatar">BR</span><span class="avatar">TL</span><span class="avatar">IA</span></div>
+          <div class="check">
+            <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M7 16.5l6 6L25 9" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="checkpoint">
+          <div class="avatars"><span class="avatar">MG</span><span class="avatar">BR</span><span class="avatar">IA</span></div>
+          <div class="check">
+            <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M7 16.5l6 6L25 9" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="checkpoint">
+          <div class="avatars"><span class="avatar">BR</span><span class="avatar">CL</span><span class="avatar">IA</span></div>
+          <div class="check">
+            <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M7 16.5l6 6L25 9" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="checkpoint">
+          <div class="avatars"><span class="avatar">MG</span><span class="avatar">BR</span><span class="avatar">CRM</span></div>
+          <div class="check">
+            <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M7 16.5l6 6L25 9" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="flow">
+      <article class="stage blue">
+        <div class="badge">R0</div>
+        <h2 class="stage-title">Entrada omnicanal</h2>
+        <div class="stage-icon">
+          <svg width="80" height="80" viewBox="0 0 96 96" aria-hidden="true">
+            <path class="svg-blue" d="M18 30h60v42H18z"/>
+            <path class="svg-blue" d="M18 30l30 23 30-23"/>
+            <path class="svg-blue" d="M30 18h36"/>
+            <path class="svg-blue" d="M48 18v-8"/>
+          </svg>
+        </div>
+        <p class="stage-text">Lead entra por CRM web, Telegram, MiniApp, importación CSV/XLSX o campañas.</p>
+        <div class="chips"><span class="chip">CRM Web</span><span class="chip">Telegram</span><span class="chip">MiniApp</span><span class="chip">Imports</span></div>
+      </article>
+
+      <article class="stage blue">
+        <div class="badge">R1</div>
+        <h2 class="stage-title">Identidad y vinculación</h2>
+        <div class="stage-icon">
+          <svg width="82" height="82" viewBox="0 0 96 96" aria-hidden="true">
+            <circle class="svg-blue" cx="48" cy="32" r="15"/>
+            <path class="svg-blue" d="M20 78c3-18 13-27 28-27s25 9 28 27"/>
+            <path class="svg-blue" d="M18 18h18M18 18v18M78 18H60M78 18v18M18 78V60M18 78h18M78 78H60M78 78V60"/>
+          </svg>
+        </div>
+        <p class="stage-text">Rovi resuelve usuario, tenant, rol activo y chat vinculado con device link.</p>
+        <div class="chips"><span class="chip">JWT</span><span class="chip">tenant_id</span><span class="chip">chat_id</span><span class="chip">QR/link</span></div>
+      </article>
+
+      <article class="stage teal">
+        <div class="badge">R2</div>
+        <h2 class="stage-title">Hermes interpreta contexto</h2>
+        <div class="stage-icon">
+          <svg width="82" height="82" viewBox="0 0 96 96" aria-hidden="true">
+            <circle class="svg-teal" cx="48" cy="48" r="28"/>
+            <path class="svg-teal" d="M30 46h8M58 46h8M38 61c6 6 14 6 20 0"/>
+            <path class="svg-teal" d="M48 16V7M48 89v-9M16 48H7M89 48h-9"/>
+          </svg>
+        </div>
+        <p class="stage-text">El agente detecta intención, entidad y prioridad; audio, imagen y archivos pasan por media pipeline.</p>
+        <div class="chips"><span class="chip">LLM</span><span class="chip">STT/OCR</span><span class="chip">role_scope</span><span class="chip">intent</span></div>
+      </article>
+
+      <article class="stage teal">
+        <div class="badge">R2.5</div>
+        <h2 class="stage-title">Permisos y confirmación</h2>
+        <div class="stage-icon">
+          <svg width="82" height="82" viewBox="0 0 96 96" aria-hidden="true">
+            <path class="svg-teal" d="M48 10l30 12v21c0 21-12 34-30 43-18-9-30-22-30-43V22z"/>
+            <path class="svg-teal" d="M34 48l10 10 20-23"/>
+          </svg>
+        </div>
+        <p class="stage-text">Acciones sensibles quedan en cola hasta que broker o manager aprueben.</p>
+        <div class="chips"><span class="chip">pending</span><span class="chip">scope</span><span class="chip">approval</span><span class="chip">audit</span></div>
+      </article>
+
+      <article class="stage green">
+        <div class="badge">R3</div>
+        <h2 class="stage-title">Acciones en CRM</h2>
+        <div class="stage-icon">
+          <svg width="82" height="82" viewBox="0 0 96 96" aria-hidden="true">
+            <rect class="svg-green" x="20" y="16" width="56" height="66" rx="8"/>
+            <path class="svg-green" d="M34 34h28M34 48h28M34 62h18"/>
+            <path class="svg-green" d="M25 20l6-10h34l6 10"/>
+          </svg>
+        </div>
+        <p class="stage-text">Se crean o actualizan leads, propiedades, tareas, eventos, notas y campañas.</p>
+        <div class="chips"><span class="chip">Leads</span><span class="chip">Tasks</span><span class="chip">Events</span><span class="chip">Campaigns</span></div>
+      </article>
+
+      <article class="stage green">
+        <div class="badge">R4</div>
+        <h2 class="stage-title">MiniApp broker cockpit</h2>
+        <div class="stage-icon">
+          <svg width="82" height="82" viewBox="0 0 96 96" aria-hidden="true">
+            <rect class="svg-green" x="28" y="8" width="40" height="80" rx="9"/>
+            <path class="svg-green" d="M38 24h20M38 38h20M38 52h12"/>
+            <circle class="fill-green" cx="48" cy="72" r="4"/>
+          </svg>
+        </div>
+        <p class="stage-text">El broker opera desde Telegram: hoy, leads, agenda, propiedades y chat con agente.</p>
+        <div class="chips"><span class="chip">/miniapp</span><span class="chip">Today</span><span class="chip">Agenda</span><span class="chip">Chat</span></div>
+      </article>
+
+      <article class="stage gray">
+        <div class="badge">R5</div>
+        <h2 class="stage-title">Manager, memoria y cierre</h2>
+        <div class="stage-icon">
+          <svg width="82" height="82" viewBox="0 0 96 96" aria-hidden="true">
+            <path class="svg-gray" d="M18 72h60M24 72V46M48 72V28M72 72V38"/>
+            <path class="svg-gray" d="M20 28l20 14 18-22 18 12"/>
+            <path class="svg-gray" d="M65 18h14v14"/>
+          </svg>
+        </div>
+        <p class="stage-text">Dashboard, forecast, coaching, historial y aprendizaje alimentan el siguiente ciclo.</p>
+        <div class="chips"><span class="chip">Pipeline</span><span class="chip">Forecast</span><span class="chip">Insights</span><span class="chip">Memory</span></div>
+      </article>
+    </section>
+
+    <section class="benefits">
+      <div class="benefit">
+        <div class="benefit-icon">
+          <svg width="42" height="42" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M10 50h44M16 50V34M32 50V22M48 50V12" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <path d="M15 22l11 7 13-16 10 7" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div><strong>Menos captura manual</strong><span>Conversaciones y archivos se convierten en datos CRM accionables.</span></div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">
+          <svg width="42" height="42" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M22 42l20-20M23 25l-8 8a10 10 0 0014 14l8-8M41 39l8-8a10 10 0 00-14-14l-8 8" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div><strong>Trazabilidad total</strong><span>Cada lead, acción, aprobación y cambio queda visible por tenant y rol.</span></div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">
+          <svg width="42" height="42" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M32 6l23 10v17c0 15-9 24-23 31C18 57 9 48 9 33V16z" stroke="#fff" stroke-width="6" fill="none" stroke-linejoin="round"/>
+            <path d="M21 33l8 8 16-19" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div><strong>Gobierno seguro</strong><span>Acciones críticas usan confirmación, scope de rol y auditoría.</span></div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">
+          <svg width="42" height="42" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M16 18l16-9 16 9v18l-16 9-16-9z" stroke="#fff" stroke-width="6" fill="none" stroke-linejoin="round"/>
+            <path d="M16 36v10l16 9 16-9V36M32 27v18" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div><strong>Aprendizaje reusable</strong><span>Prompts, perfiles, reglas y casos exitosos mejoran el ecosistema.</span></div>
+      </div>
+    </section>
+
+    <section class="layers">
+      <div class="layers-title">
+        <svg width="66" height="66" viewBox="0 0 80 80" aria-hidden="true">
+          <path class="svg-blue" d="M40 8l30 16-30 16L10 24z"/>
+          <path class="svg-blue" d="M10 40l30 16 30-16"/>
+          <path class="svg-blue" d="M10 56l30 16 30-16"/>
+        </svg>
+        <strong>Capas del ecosistema</strong>
+      </div>
+      <div class="layer">
+        <div>
+          <div class="layer-num">1</div>
+          <svg class="layer-icon" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true"><path class="svg-blue" d="M10 18h44v30H10zM22 56h20M32 48v8"/></svg>
+        </div>
+        <div><strong>Canales</strong><ul><li>CRM Web</li><li>Telegram Bot</li><li>MiniApp /miniapp</li><li>Importaciones y campañas</li></ul></div>
+      </div>
+      <div class="layer">
+        <div>
+          <div class="layer-num">2</div>
+          <svg class="layer-icon" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true"><path class="svg-blue" d="M32 8v48M16 18h32M16 46h32M16 18l-8 14 8 14M48 18l8 14-8 14"/></svg>
+        </div>
+        <div><strong>Orquestación</strong><ul><li>FastAPI /api</li><li>Webhooks o polling</li><li>Device links</li><li>Colas background</li></ul></div>
+      </div>
+      <div class="layer">
+        <div>
+          <div class="layer-num">3</div>
+          <svg class="layer-icon" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true"><circle class="svg-teal" cx="32" cy="32" r="22"/><path class="svg-teal" d="M22 32h20M32 22v20"/></svg>
+        </div>
+        <div><strong>Inteligencia</strong><ul><li>Hermes profiles</li><li>Context builder</li><li>Agent knowledge</li><li>Media pipeline</li></ul></div>
+      </div>
+      <div class="layer">
+        <div>
+          <div class="layer-num">4</div>
+          <svg class="layer-icon" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true"><ellipse class="svg-teal" cx="32" cy="15" rx="22" ry="8"/><path class="svg-teal" d="M10 15v34c0 4 10 8 22 8s22-4 22-8V15M10 32c0 4 10 8 22 8s22-4 22-8"/></svg>
+        </div>
+        <div><strong>Datos CRM</strong><ul><li>MongoDB Motor</li><li>Leads y propiedades</li><li>Tareas y eventos</li><li>Media assets</li></ul></div>
+      </div>
+      <div class="layer">
+        <div>
+          <div class="layer-num">5</div>
+          <svg class="layer-icon" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true"><path class="svg-green" d="M14 48h36M20 48V32M32 48V20M44 48V28"/></svg>
+        </div>
+        <div><strong>Experiencia</strong><ul><li>Broker cockpit</li><li>Manager dashboard</li><li>Gamificación</li><li>Alertas y forecast</li></ul></div>
+      </div>
+    </section>
+
+    <section class="routes">
+      <div class="route"><div class="route-mark">T</div><div><strong>Telegram webhook</strong><span>/api/telegram/.../webhook/{secret}</span></div></div>
+      <div class="route"><div class="route-mark">P</div><div><strong>Telegram polling</strong><span>TELEGRAM_UPDATE_MODE=polling</span></div></div>
+      <div class="route"><div class="route-mark">L</div><div><strong>Device links</strong><span>/api/device-links/* vincula usuario y chat</span></div></div>
+      <div class="route"><div class="route-mark">S</div><div><strong>MiniApp session</strong><span>/api/telegram-miniapp/session</span></div></div>
+      <div class="route"><div class="route-mark">M</div><div><strong>MiniApp estática</strong><span>/miniapp/ servida por frontend nginx</span></div></div>
+    </section>
+
+    <section class="legend">
+      <div class="legend-item"><span class="swatch blue"></span><span>Azul = entrada y orquestación</span></div>
+      <div class="legend-item"><span class="swatch teal"></span><span>Turquesa = IA, contexto y permisos</span></div>
+      <div class="legend-item"><span class="swatch green"></span><span>Verde = operación CRM y MiniApp</span></div>
+      <div class="legend-item"><span class="swatch gray"></span><span>Gris = management, memoria y cierre</span></div>
+    </section>
+  </main>
+</body>
+</html>

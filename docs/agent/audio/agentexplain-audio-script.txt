@@ -1,0 +1,35 @@
+Hola Roger. Nota rapida antes de empezar: el archivo docs/agent/agentexplain.md esta vacio en este momento, asi que no hay texto del documento para analizar directamente. Aun asi, te dejo una explicacion hablada basada en la arquitectura real que revisamos en el codigo: Hermes, Agent Studio, roles de ROVI, perfiles y conexion con el CRM.
+
+La idea central es esta: ROVI CRM es la fuente de verdad. Ahi viven los usuarios, tenants, workspaces, roles, leads, tareas, eventos, propiedades, memoria, auditoria y configuracion. Agent Studio es el panel donde se define como debe comportarse cada agente. Hermes es la capa de vinculacion externa: perfiles, canales, Telegram, workspace de agente y archivos de entorno. Y el backend de ROVI es el guardian que mezcla todo y decide que se puede ejecutar realmente.
+
+Primero, hablemos de los roles. Un usuario puede ser broker, admin de inmobiliaria, manager, owner, rentals, growth partner, orquestador de ROVI, o algun rol especial. ROVI convierte ese rol en un role scope. Ese role scope es muy importante porque determina el marco de permisos del agente. Por ejemplo, un broker normalmente debe ver y modificar solo leads propios o asignados. Un admin de inmobiliaria puede operar a nivel tenant. Un perfil de rentas se enfoca en operaciones de renta. Un growth partner puede ayudar a entrenar agentes, prompts, skills y comunicacion.
+
+Despues entra Agent Studio. En Agent Studio se configuran perfiles. Cada perfil tiene un nombre, un role scope, un nombre de perfil Hermes, system prompt, customer prompt, instrucciones de tono, skills activas y tools habilitadas. Esto no es solo cosmetico. Cuando el agente corre, ROVI toma esa configuracion y la convierte en el mensaje de sistema que recibe el modelo. Es decir, esos campos realmente afectan la mente del agente.
+
+El system prompt define la identidad profunda: quien es el agente, cual es su mision, que reglas sigue, que responsabilidades tiene, y que tipo de decisiones debe tomar. Si ahi dices que el agente es un director comercial aumentado, el agente va a pensar como director comercial. Si dices que es un coach personal para brokers, va a priorizar foco, seguimiento y mensajes listos para enviar.
+
+El customer prompt define el contexto del usuario y del negocio. Ahi se explica que espera ese tipo de usuario, que permisos operativos se esperan, como debe trabajar, y que cosas debe priorizar. Por ejemplo, para una inmobiliaria puede decir: diagnostica pipeline, detecta leads atorados, sugiere delegacion y automatizacion. Para broker puede decir: ayuda a priorizar a quien contactar hoy, prepara mensajes y crea tareas.
+
+Las instrucciones de tono controlan como habla. No cambian por si solas los permisos, pero si cambian la experiencia. Puedes hacer que suene ejecutivo, calido, directo, operativo, creativo, comercial o tipo coach. Es el estilo de respuesta.
+
+Pero aqui viene la regla mas importante: el prompt no salta permisos. Aunque el prompt diga que puede borrar todo, el backend debe validar rol, tenant, allowed crud y tools antes de tocar datos reales. La capacidad final del agente se calcula como una interseccion: rol de ROVI, tenant activo, allowed crud del perfil de conocimiento, skills activas, tools habilitadas y settings personales del usuario.
+
+Las tools son las manos del agente. El modelo puede hablar muy bonito, pero para consultar o modificar CRM necesita herramientas reales. Hay tools para buscar leads, crear leads, actualizar leads, crear tareas, buscar tareas, crear eventos, buscar eventos, buscar propiedades y recordar datos de memoria personal. Si el rol no permite esa entidad o accion, la tool no debe estar disponible. Si la tool esta desactivada en Agent Studio, tampoco aparece.
+
+Las skills son capacidades de comportamiento. Por ejemplo, crm remote control habilita autopilot para escrituras seguras. Personal memory builder permite recordar preferencias del usuario. Otras skills orientan lectura de archivos, OCR, audio, video, WhatsApp intelligence, Drive links, property matching y lead triage. En la practica, las skills le dicen al agente que patrones de trabajo puede usar.
+
+Hermes entra como capa de vinculacion. Cuando un usuario vincula Telegram o un canal, ROVI genera un profile spec con user id, tenant id, role scope, profile name, chat id, link code y base URL del CRM. Tambien puede escribir archivos como .env.rovi y rovi_user_profile.json. Eso permite que Hermes sepa quien es el usuario y como conectarse al CRM. Pero la seguridad real sigue en ROVI.
+
+Cuando llega un mensaje por Telegram, el flujo es asi: ROVI busca el device link activo, identifica al usuario, carga su tenant, role scope y perfil de Agent Studio. Luego revisa si hay una accion pendiente de confirmacion. Si no, intenta interpretar el texto o links. Si hay una accion segura y las tools lo permiten, puede ejecutarla. Si necesita razonamiento mas flexible, llama al runtime del agente.
+
+El runtime del agente mezcla varias capas. Primero resuelve la configuracion base. Luego aplica el perfil de Agent Studio. Despues aplica settings personales del usuario, memoria, preferencias y notas. Despues agrega contexto CRM seguro, knowledge chunks y tools disponibles. Con todo eso arma los mensajes para el modelo.
+
+La parte mas delicada es que el contexto CRM se construye con filtros. No se debe entregar todo el CRM al modelo. Se entrega contexto filtrado por tenant, usuario y rol. Eso reduce el riesgo de mezclar informacion entre brokers, tenants o workspaces.
+
+Cuando el modelo llama una tool, el backend vuelve a validar. Si la accion es leer, busca con filtros de scope. Si es escribir, puede ejecutarse o quedar en cola. En la politica actual, crear y actualizar pueden correr en autopilot si la tool y la skill lo permiten. Eliminar, borrado masivo, revocar accesos, pagos externos o acciones irreversibles requieren confirmacion humana.
+
+Entonces, la relacion completa queda asi: Hermes conecta canales y perfiles externos. Agent Studio define personalidad, prompts, tono, skills y tools. ROVI roles definen permisos reales. El CRM guarda y sirve los datos. El runtime junta todo. Y el backend valida antes de ejecutar.
+
+Para entenderlo en una frase: Agent Studio define como piensa y habla el agente; los roles de ROVI definen que puede tocar; Hermes conecta el agente con canales externos; y el backend de ROVI decide que accion se ejecuta realmente en el CRM.
+
+Si despues agregas contenido a agentexplain.md, puedo generar una segunda version del audio basada exactamente en ese documento.

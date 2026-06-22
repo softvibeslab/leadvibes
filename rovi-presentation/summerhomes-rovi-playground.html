@@ -1,0 +1,1527 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Summer Homes x Rovi | Broker Intelligence Playground</title>
+  <style>
+    :root {
+      --ink: #10131a;
+      --ink-2: #171b24;
+      --paper: #f8f5ef;
+      --paper-2: #ebe4d8;
+      --line: rgba(248, 245, 239, 0.14);
+      --line-dark: rgba(16, 19, 26, 0.12);
+      --teal: #0d9488;
+      --green: #4d7c0f;
+      --gold: #d97706;
+      --coral: #c2410c;
+      --blue: #1d4ed8;
+      --white: #ffffff;
+      --muted: #a7b0c0;
+      --shadow: 0 26px 70px rgba(0, 0, 0, 0.3);
+      --radius: 8px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font);
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+        linear-gradient(135deg, #10131a 0%, #151a22 46%, #0b1115 100%);
+      background-size: 56px 56px, 56px 56px, auto;
+    }
+
+    body.guide-collapsed .app {
+      grid-template-columns: minmax(0, 1fr) 0;
+    }
+
+    .stage {
+      position: relative;
+      min-width: 0;
+      height: 100vh;
+      padding: 22px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 16px;
+    }
+
+    .topbar,
+    .bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      z-index: 20;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.28), rgba(217, 119, 6, 0.2));
+      color: var(--paper);
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-copy strong,
+    .slide-kicker,
+    .micro-label {
+      letter-spacing: 0;
+    }
+
+    .brand-copy strong {
+      display: block;
+      font-size: 14px;
+      color: var(--paper);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-copy span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .tool-button,
+    .choice,
+    .nav-button {
+      min-height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--paper);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    .tool-button:hover,
+    .choice:hover,
+    .nav-button:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.13);
+      border-color: rgba(255, 255, 255, 0.26);
+    }
+
+    .deck {
+      position: relative;
+      min-height: 0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+        rgba(7, 10, 15, 0.74);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .deck::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, transparent 0 18%, rgba(13, 148, 136, 0.08) 18% 18.4%, transparent 18.4% 100%),
+        linear-gradient(70deg, transparent 0 72%, rgba(217, 119, 6, 0.12) 72% 72.45%, transparent 72.45% 100%);
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: clamp(34px, 5vw, 74px);
+      display: grid;
+      align-content: center;
+      opacity: 0;
+      transform: translateX(28px) scale(0.985);
+      pointer-events: none;
+      transition: opacity 260ms ease, transform 260ms ease;
+      z-index: 2;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .slide-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      align-items: center;
+      gap: clamp(28px, 5vw, 70px);
+    }
+
+    .slide-grid.compact {
+      grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+    }
+
+    .slide-kicker {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      gap: 10px;
+      margin: 0 0 18px;
+      padding: 8px 10px;
+      border: 1px solid rgba(13, 148, 136, 0.35);
+      background: rgba(13, 148, 136, 0.12);
+      color: #8ee8df;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .slide-kicker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      background: var(--gold);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin-bottom: 22px;
+      color: var(--paper);
+      font-size: clamp(42px, 5.2vw, 78px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 18px;
+      color: var(--paper);
+      font-size: clamp(32px, 4vw, 58px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      color: var(--paper);
+      font-size: 22px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin-bottom: 30px;
+      color: #c8d0dc;
+      font-size: clamp(18px, 1.8vw, 26px);
+      line-height: 1.38;
+    }
+
+    .small-copy {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .highlight {
+      color: #f7c56b;
+    }
+
+    .metric-strip,
+    .pill-row,
+    .source-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .metric-pill,
+    .pill,
+    .source-pill {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      color: #dfe5ec;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .metric-pill strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--paper);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .visual-panel,
+    .dark-panel,
+    .light-panel {
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 18px 52px rgba(0, 0, 0, 0.2);
+    }
+
+    .visual-panel {
+      min-height: 440px;
+      padding: 22px;
+      display: grid;
+      align-content: center;
+      gap: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .visual-panel.light {
+      color: var(--ink);
+      background: linear-gradient(180deg, #fffaf0, #e7e0d4);
+      border-color: rgba(16, 19, 26, 0.12);
+    }
+
+    .command-board {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .command-card,
+    .agent-card,
+    .timeline-item,
+    .check-item,
+    .mini-card,
+    .broker-step {
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      background: rgba(8, 11, 17, 0.52);
+      padding: 14px;
+    }
+
+    .visual-panel.light .command-card,
+    .visual-panel.light .agent-card,
+    .visual-panel.light .timeline-item,
+    .visual-panel.light .mini-card {
+      background: rgba(255, 255, 255, 0.72);
+      border-color: rgba(16, 19, 26, 0.1);
+    }
+
+    .command-card strong,
+    .agent-card strong,
+    .timeline-item strong,
+    .mini-card strong,
+    .broker-step strong {
+      display: block;
+      margin-bottom: 6px;
+      color: inherit;
+      font-size: 15px;
+    }
+
+    .command-card span,
+    .agent-card span,
+    .timeline-item span,
+    .mini-card span,
+    .broker-step span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .visual-panel.light .command-card span,
+    .visual-panel.light .agent-card span,
+    .visual-panel.light .timeline-item span,
+    .visual-panel.light .mini-card span {
+      color: #5c6470;
+    }
+
+    .big-number {
+      display: block;
+      color: #f7c56b;
+      font-size: clamp(64px, 10vw, 150px);
+      font-weight: 900;
+      line-height: 0.86;
+      letter-spacing: 0;
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .flow-step {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .flow-index {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      background: rgba(13, 148, 136, 0.24);
+      border: 1px solid rgba(13, 148, 136, 0.42);
+      color: #9ff4ed;
+      font-weight: 900;
+    }
+
+    .flow-step strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 15px;
+    }
+
+    .flow-step span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .agent-card {
+      min-height: 132px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .agent-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 5px;
+      height: 100%;
+      background: var(--teal);
+    }
+
+    .agent-card:nth-child(2)::before,
+    .agent-card:nth-child(5)::before {
+      background: var(--gold);
+    }
+
+    .agent-card:nth-child(3)::before,
+    .agent-card:nth-child(6)::before {
+      background: var(--green);
+    }
+
+    .persona-board {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .choice-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .choice {
+      text-align: left;
+    }
+
+    .choice.active {
+      border-color: rgba(247, 197, 107, 0.8);
+      background: rgba(217, 119, 6, 0.18);
+    }
+
+    .playground-output {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini-card {
+      color: var(--paper);
+    }
+
+    .mini-card .tag {
+      display: inline-flex;
+      width: fit-content;
+      margin-bottom: 8px;
+      padding: 4px 7px;
+      background: rgba(13, 148, 136, 0.18);
+      border: 1px solid rgba(13, 148, 136, 0.3);
+      color: #9ff4ed;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .manager-dashboard {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .dashboard-card {
+      min-height: 118px;
+      padding: 14px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(16, 19, 26, 0.1);
+      color: var(--ink);
+    }
+
+    .dashboard-card.wide {
+      grid-column: span 2;
+    }
+
+    .dashboard-card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .dashboard-card .value {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--teal);
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .bar {
+      height: 8px;
+      overflow: hidden;
+      background: rgba(16, 19, 26, 0.1);
+      border-radius: 999px;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--teal), var(--gold));
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .timeline-item {
+      min-height: 170px;
+    }
+
+    .timeline-item em {
+      display: inline-flex;
+      margin-bottom: 12px;
+      color: #f7c56b;
+      font-style: normal;
+      font-weight: 900;
+    }
+
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .check-item input {
+      width: 18px;
+      height: 18px;
+      margin-top: 1px;
+      accent-color: var(--teal);
+    }
+
+    .check-item label {
+      display: grid;
+      gap: 3px;
+      color: var(--paper);
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .check-item label span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .broker-day {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .broker-step {
+      min-height: 140px;
+    }
+
+    .broker-step b {
+      display: inline-flex;
+      margin-bottom: 10px;
+      color: #9ff4ed;
+      font-size: 12px;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress {
+      position: relative;
+      flex: 1;
+      min-width: 180px;
+      height: 8px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--teal), var(--gold), var(--coral));
+      transition: width 220ms ease;
+    }
+
+    .slide-counter {
+      min-width: 72px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .guide {
+      height: 100vh;
+      min-width: 0;
+      overflow: hidden;
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      background: #f6f0e6;
+      color: var(--ink);
+      transition: width 220ms ease, opacity 220ms ease;
+    }
+
+    body.guide-collapsed .guide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .guide-inner {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .guide-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .guide-header h2 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 22px;
+      line-height: 1.05;
+    }
+
+    .guide-header p {
+      margin: 6px 0 0;
+      color: #656b75;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .guide-time {
+      min-width: 86px;
+      padding: 8px 10px;
+      border: 1px solid var(--line-dark);
+      background: #fffaf1;
+      color: var(--ink);
+      text-align: center;
+      font-weight: 900;
+    }
+
+    .guide-card {
+      border: 1px solid var(--line-dark);
+      background: rgba(255, 255, 255, 0.62);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .guide-card h3 {
+      margin: 0 0 8px;
+      color: var(--ink);
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
+    .guide-card p,
+    .guide-card li {
+      color: #4d5662;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .guide-card p {
+      margin: 0;
+    }
+
+    .guide-card ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .guide-card li + li {
+      margin-top: 6px;
+    }
+
+    .guide-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .guide-actions .tool-button {
+      color: var(--ink);
+      border-color: var(--line-dark);
+      background: #fffaf1;
+    }
+
+    .source-row {
+      margin-top: 20px;
+    }
+
+    .source-pill {
+      color: #c8d0dc;
+    }
+
+    .source-pill a {
+      color: #9ff4ed;
+      text-decoration: none;
+    }
+
+    .source-pill a:hover {
+      text-decoration: underline;
+    }
+
+    .quote-box {
+      border-left: 5px solid var(--gold);
+      padding: 18px 20px;
+      background: rgba(255, 255, 255, 0.07);
+      color: #e8edf4;
+      font-size: clamp(22px, 2.4vw, 34px);
+      line-height: 1.22;
+    }
+
+    .two-column-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .callout {
+      width: fit-content;
+      max-width: 100%;
+      margin-top: 24px;
+      padding: 14px 16px;
+      border: 1px solid rgba(247, 197, 107, 0.3);
+      background: rgba(217, 119, 6, 0.12);
+      color: #ffe3a8;
+      border-radius: var(--radius);
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    kbd {
+      display: inline-flex;
+      min-width: 24px;
+      justify-content: center;
+      padding: 2px 6px;
+      border: 1px solid var(--line-dark);
+      background: #fff;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    @media (max-width: 1180px) {
+      .app {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .guide {
+        position: fixed;
+        right: 16px;
+        top: 76px;
+        bottom: 76px;
+        width: min(390px, calc(100vw - 32px));
+        height: auto;
+        z-index: 40;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(16, 19, 26, 0.16);
+      }
+
+      body.guide-collapsed .guide {
+        display: none;
+      }
+
+      .slide-grid,
+      .slide-grid.compact {
+        grid-template-columns: 1fr;
+      }
+
+      .visual-panel {
+        min-height: 300px;
+      }
+
+      .timeline,
+      .broker-day {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        overflow: auto;
+      }
+
+      .app,
+      body.guide-collapsed .app {
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        height: auto;
+        min-height: 100vh;
+        padding: 12px;
+      }
+
+      .deck {
+        min-height: 760px;
+      }
+
+      .slide {
+        padding: 28px;
+      }
+
+      h1 {
+        font-size: 48px;
+      }
+
+      h2 {
+        font-size: 36px;
+      }
+
+      .lead {
+        font-size: 18px;
+      }
+
+      .topbar,
+      .bottombar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .toolbar,
+      .nav {
+        width: 100%;
+      }
+
+      .progress {
+        width: 100%;
+      }
+
+      .metric-strip,
+      .agent-grid,
+      .manager-dashboard,
+      .checklist,
+      .persona-board,
+      .two-column-list,
+      .broker-day,
+      .timeline {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        overflow: visible;
+        background: white;
+      }
+
+      .app {
+        display: block;
+        background: white;
+      }
+
+      .topbar,
+      .bottombar,
+      .guide {
+        display: none;
+      }
+
+      .stage {
+        height: auto;
+        padding: 0;
+      }
+
+      .deck {
+        border: 0;
+        box-shadow: none;
+        overflow: visible;
+      }
+
+      .slide {
+        position: relative;
+        min-height: 100vh;
+        page-break-after: always;
+        opacity: 1;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="stage">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <div class="brand-mark">R</div>
+          <div class="brand-copy">
+            <strong>Summer Homes x Rovi</strong>
+            <span>Broker Intelligence Playground</span>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="tool-button" id="toggleGuide" type="button">Guia</button>
+          <button class="tool-button" id="resetTimer" type="button">Reiniciar timer</button>
+          <button class="tool-button" id="fullscreen" type="button">Pantalla completa</button>
+        </div>
+      </header>
+
+      <div class="deck" aria-live="polite">
+        <section class="slide active" data-title="Apertura" data-time="00:00">
+          <div class="slide-grid">
+            <div>
+              <div class="slide-kicker">Presentacion ejecutiva</div>
+              <h1>10 brokers. 1 manager. Un ecosistema con memoria.</h1>
+              <p class="lead">Una dinamica guiada para que David vea control operativo y los brokers sientan superpoderes practicos desde el primer lead.</p>
+              <div class="metric-strip">
+                <div class="metric-pill"><strong>90 min</strong>Sesion viva</div>
+                <div class="metric-pill"><strong>7 dias</strong>Piloto medible</div>
+                <div class="metric-pill"><strong>6 agentes</strong>Activados en demo</div>
+              </div>
+            </div>
+            <div class="visual-panel">
+              <span class="big-number">ROVI</span>
+              <div class="quote-box">No es otro CRM. Es la capa que convierte conversaciones, seguimiento y criterio comercial en inteligencia accionable.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Lo Que Necesitas" data-time="07:00">
+          <div class="slide-grid compact">
+            <div>
+              <div class="slide-kicker">Pre-flight</div>
+              <h2>Lo necesario para que la dinamica salga limpia.</h2>
+              <p class="lead">La sesion funciona cuando hay datos, canal, roles y un siguiente paso claro. El objetivo es reducir friccion antes de hablar de tecnologia.</p>
+              <div class="callout">Decision clave antes de empezar: piloto de 7 dias, canal principal y metrica de exito.</div>
+            </div>
+            <div class="visual-panel">
+              <div class="checklist">
+                <div class="check-item">
+                  <input type="checkbox" id="prep1">
+                  <label for="prep1">Grupo privado<span>WhatsApp o Telegram con David y 10 brokers.</span></label>
+                </div>
+                <div class="check-item">
+                  <input type="checkbox" id="prep2">
+                  <label for="prep2">CRM listo<span>Usuarios, roles y pipeline demo.</span></label>
+                </div>
+                <div class="check-item">
+                  <input type="checkbox" id="prep3">
+                  <label for="prep3">10 leads<span>Reales, ficticios o anonimizados.</span></label>
+                </div>
+                <div class="check-item">
+                  <input type="checkbox" id="prep4">
+                  <label for="prep4">5 propiedades<span>Representativas por mercado y ticket.</span></label>
+                </div>
+                <div class="check-item">
+                  <input type="checkbox" id="prep5">
+                  <label for="prep5">Caso dificil<span>Comprador internacional con objeciones.</span></label>
+                </div>
+                <div class="check-item">
+                  <input type="checkbox" id="prep6">
+                  <label for="prep6">Dashboard David<span>Vista manager preparada.</span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Contexto Summer Homes" data-time="15:00">
+          <div class="slide-grid">
+            <div>
+              <div class="slide-kicker">Por que encaja</div>
+              <h2>Summer Homes ya vende una experiencia internacional. Rovi organiza el motor comercial.</h2>
+              <p class="lead">La propuesta conecta con su realidad: propiedades en Turquia, Dubai y Norte de Chipre, operacion multilingue, oficinas internacionales y servicios pre/post venta.</p>
+              <div class="source-row">
+                <span class="source-pill"><a href="https://www.summerhomes.com/en/about-us" target="_blank" rel="noreferrer">About Us</a></span>
+                <span class="source-pill"><a href="https://www.summerhomes.com/en/services" target="_blank" rel="noreferrer">Services</a></span>
+                <span class="source-pill"><a href="https://www.summerhomes.com/en/our-team" target="_blank" rel="noreferrer">Team</a></span>
+              </div>
+            </div>
+            <div class="visual-panel light">
+              <div class="command-board">
+                <div class="command-card"><strong>15+ anos</strong><span>Experiencia inmobiliaria y confianza acumulada.</span></div>
+                <div class="command-card"><strong>10+ idiomas</strong><span>Atencion internacional con alta exigencia cultural.</span></div>
+                <div class="command-card"><strong>7+ oficinas</strong><span>Operacion distribuida que necesita visibilidad.</span></div>
+                <div class="command-card"><strong>Pre y post venta</strong><span>Residencia, titulo, banca, tours, traduccion y after-sales.</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Promesa Para David" data-time="24:00">
+          <div class="slide-grid">
+            <div>
+              <div class="slide-kicker">Manager view</div>
+              <h2>David no persigue informacion. La operacion le habla.</h2>
+              <p class="lead">Rovi convierte actividad diaria en senales: quien necesita coaching, que lead esta en riesgo y donde esta la siguiente venta probable.</p>
+              <div class="pill-row">
+                <span class="pill">Forecast por etapa</span>
+                <span class="pill">Leads sin seguimiento</span>
+                <span class="pill">Calidad de datos</span>
+                <span class="pill">Actividad por broker</span>
+              </div>
+            </div>
+            <div class="visual-panel light">
+              <div class="manager-dashboard">
+                <div class="dashboard-card">
+                  <strong>Pipeline activo</strong>
+                  <span class="value">1.8M</span>
+                  <div class="bar"><span style="width: 74%"></span></div>
+                </div>
+                <div class="dashboard-card">
+                  <strong>Riesgo 48h</strong>
+                  <span class="value">12</span>
+                  <div class="bar"><span style="width: 42%"></span></div>
+                </div>
+                <div class="dashboard-card">
+                  <strong>Hot leads</strong>
+                  <span class="value">23</span>
+                  <div class="bar"><span style="width: 66%"></span></div>
+                </div>
+                <div class="dashboard-card wide">
+                  <strong>Recomendacion Rovi</strong>
+                  <p class="small-copy">Broker 4 tiene alta actividad, baja conversion. Activar Sales Coach con 3 llamadas grabadas y revisar objecion de financiamiento.</p>
+                </div>
+                <div class="dashboard-card">
+                  <strong>Adopcion</strong>
+                  <span class="value">82%</span>
+                  <div class="bar"><span style="width: 82%"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Promesa Para Brokers" data-time="34:00">
+          <div class="slide-grid">
+            <div>
+              <div class="slide-kicker">Broker superpowers</div>
+              <h2>El broker mantiene su estilo. Rovi le da memoria, velocidad y siguiente accion.</h2>
+              <p class="lead">La adopcion empieza cuando el broker siente que trabaja menos en administracion y mejor en relacion, criterio y cierre.</p>
+            </div>
+            <div class="visual-panel">
+              <div class="flow">
+                <div class="flow-step"><div class="flow-index">1</div><div><strong>Captura contexto</strong><span>Del chat, llamada, nota o formulario.</span></div></div>
+                <div class="flow-step"><div class="flow-index">2</div><div><strong>Resume intencion</strong><span>Motivacion, presupuesto, idioma, urgencia y objeciones.</span></div></div>
+                <div class="flow-step"><div class="flow-index">3</div><div><strong>Sugiere propiedad</strong><span>Match por necesidad, mercado y perfil de inversion.</span></div></div>
+                <div class="flow-step"><div class="flow-index">4</div><div><strong>Crea proxima accion</strong><span>Mensaje, tarea, etapa CRM y alerta si hay riesgo.</span></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Ecosistema De Agentes" data-time="43:00">
+          <div>
+            <div class="slide-kicker">Agentes iniciales</div>
+            <h2>Seis especialistas para demostrar valor sin abrumar.</h2>
+            <p class="lead">Empieza con una seleccion pequena, muy conectada al trabajo real de Summer Homes.</p>
+            <div class="agent-grid">
+              <div class="agent-card"><strong>Sales Coach</strong><span>Prepara llamadas, objeciones, cierres y follow-ups.</span></div>
+              <div class="agent-card"><strong>Pipeline Analyst</strong><span>Detecta leads calientes, gaps y oportunidades dormidas.</span></div>
+              <div class="agent-card"><strong>Property Matcher</strong><span>Recomienda inventario por presupuesto, pais, estilo de vida y etapa.</span></div>
+              <div class="agent-card"><strong>Multilingual Concierge</strong><span>Adapta mensajes por idioma, tono y cultura del comprador.</span></div>
+              <div class="agent-card"><strong>Investment Analyst</strong><span>Traduce propiedades a argumentos de retorno, renta y valor futuro.</span></div>
+              <div class="agent-card"><strong>After-Sales Assistant</strong><span>Coordina titulo, servicios, mobiliario, renta y postventa.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Lead Playground" data-time="53:00">
+          <div class="slide-grid compact">
+            <div>
+              <div class="slide-kicker">Demo viva</div>
+              <h2>Elige un comprador y deja que Rovi arme la jugada.</h2>
+              <p class="lead">Usa esta parte para pedir participacion. Un broker contesta como lo haria hoy; luego comparas con la version amplificada por agentes.</p>
+              <div class="choice-list" role="tablist" aria-label="Perfiles de comprador">
+                <button class="choice active" type="button" data-persona="investor">Inversionista aleman comparando Alanya vs Dubai</button>
+                <button class="choice" type="button" data-persona="family">Familia buscando segunda residencia en costa</button>
+                <button class="choice" type="button" data-persona="citizenship">Comprador interesado en residencia o ciudadania</button>
+              </div>
+            </div>
+            <div class="visual-panel">
+              <div class="playground-output">
+                <div class="mini-card">
+                  <span class="tag">Lead score</span>
+                  <strong id="personaScore">Prioridad alta: 86/100</strong>
+                  <span id="personaWhy">Tiene presupuesto, urgencia comparativa y pide claridad financiera.</span>
+                </div>
+                <div class="mini-card">
+                  <span class="tag">Agentes activados</span>
+                  <strong id="personaAgents">Property Matcher, Investment Analyst, Multilingual Concierge</strong>
+                  <span id="personaAgentWhy">Necesita match de inventario, argumento de ROI y mensaje culturalmente preciso.</span>
+                </div>
+                <div class="mini-card">
+                  <span class="tag">Accion CRM</span>
+                  <strong id="personaCrm">Etapa: Calificacion avanzada</strong>
+                  <span id="personaAction">Crear tarea de llamada en 2 horas, enviar comparativo Alanya vs Dubai y alertar a David si no responde en 24h.</span>
+                </div>
+                <div class="mini-card">
+                  <span class="tag">Mensaje sugerido</span>
+                  <span id="personaMessage">Tengo dos rutas claras para usted: una orientada a retorno y otra a estilo de vida. Si le parece, hoy le envio una comparativa breve con costos, renta estimada y pasos legales.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Flujo CRM" data-time="65:00">
+          <div class="slide-grid">
+            <div>
+              <div class="slide-kicker">Integracion</div>
+              <h2>La magia solo importa si termina dentro del CRM.</h2>
+              <p class="lead">Cada interaccion debe dejar rastro: contacto, etapa, tarea, propiedad sugerida, proxima accion y senal para management.</p>
+            </div>
+            <div class="visual-panel">
+              <div class="flow">
+                <div class="flow-step"><div class="flow-index">A</div><div><strong>Canal</strong><span>Web, WhatsApp, Telegram, llamada, formulario o broker.</span></div></div>
+                <div class="flow-step"><div class="flow-index">B</div><div><strong>Agente</strong><span>Clasifica idioma, urgencia, presupuesto, motivacion y objecion.</span></div></div>
+                <div class="flow-step"><div class="flow-index">C</div><div><strong>CRM</strong><span>Actualiza lead, etapa, tarea, propiedad, owner y deadline.</span></div></div>
+                <div class="flow-step"><div class="flow-index">D</div><div><strong>Manager</strong><span>Dashboard de riesgo, forecast, calidad de datos y coaching.</span></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Dia Del Broker" data-time="74:00">
+          <div>
+            <div class="slide-kicker">Operacion diaria</div>
+            <h2>Un dia de broker con Rovi.</h2>
+            <p class="lead">Este slide aterriza la promesa en comportamiento cotidiano. Menos captura manual, mas proxima accion.</p>
+            <div class="broker-day">
+              <div class="broker-step"><b>09:00</b><strong>Prioridades</strong><span>Rovi muestra 3 leads que no pueden esperar.</span></div>
+              <div class="broker-step"><b>10:30</b><strong>Preparacion</strong><span>Sales Coach arma guion para llamada de alto valor.</span></div>
+              <div class="broker-step"><b>12:00</b><strong>Match</strong><span>Property Matcher sugiere 2 opciones y 1 alternativa.</span></div>
+              <div class="broker-step"><b>15:00</b><strong>Follow-up</strong><span>Concierge adapta mensaje al idioma del cliente.</span></div>
+              <div class="broker-step"><b>18:00</b><strong>Cierre del dia</strong><span>CRM queda actualizado y David ve senales reales.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Reto 7 Dias" data-time="82:00">
+          <div>
+            <div class="slide-kicker">Pilot challenge</div>
+            <h2>El piloto no mide entusiasmo. Mide comportamiento.</h2>
+            <p class="lead">Durante 7 dias, cada broker completa acciones simples. David recibe evidencia para decidir si escala.</p>
+            <div class="timeline">
+              <div class="timeline-item"><em>Dia 1</em><strong>Activacion</strong><span>Usuarios, grupo, primer lead y primer mensaje asistido.</span></div>
+              <div class="timeline-item"><em>Dia 2-3</em><strong>Data</strong><span>10 leads por broker, pipeline limpio y tareas creadas.</span></div>
+              <div class="timeline-item"><em>Dia 4-6</em><strong>Uso real</strong><span>3 agentes usados, follow-ups y oportunidades recuperadas.</span></div>
+              <div class="timeline-item"><em>Dia 7</em><strong>Decision</strong><span>Dashboard, ranking de adopcion y propuesta de escala.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Cierre" data-time="90:00">
+          <div class="slide-grid">
+            <div>
+              <div class="slide-kicker">Siguiente paso</div>
+              <h2>Summer Homes ya tiene la experiencia. Rovi aporta la memoria operativa.</h2>
+              <p class="lead">La propuesta concreta: activar un piloto de 7 dias con David como manager, 10 brokers, un canal y una metrica principal.</p>
+              <div class="pill-row">
+                <span class="pill">10 brokers activos</span>
+                <span class="pill">100 leads cargados</span>
+                <span class="pill">Dashboard manager</span>
+                <span class="pill">Decision de escala</span>
+              </div>
+            </div>
+            <div class="visual-panel">
+              <span class="big-number">7D</span>
+              <div class="quote-box">Si en una semana Rovi no produce mas claridad, mejor seguimiento y mejores conversaciones, no hay razon para escalar. Si lo produce, el siguiente paso se vuelve obvio.</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="bottombar">
+        <div class="nav">
+          <button class="nav-button" id="prev" type="button">Anterior</button>
+          <button class="nav-button" id="next" type="button">Siguiente</button>
+          <div class="progress" aria-label="Progreso de presentacion"><span id="progressBar"></span></div>
+          <div class="slide-counter" id="slideCounter">1 / 10</div>
+        </div>
+        <div class="small-copy">Atajos: flechas, espacio, G guia, F pantalla completa, R timer.</div>
+      </footer>
+    </main>
+
+    <aside class="guide" aria-label="Guia del presentador">
+      <div class="guide-inner">
+        <div class="guide-header">
+          <div>
+            <h2 id="guideTitle">Apertura</h2>
+            <p id="guideSubtitle">Guion para conducir la sesion.</p>
+          </div>
+          <div class="guide-time" id="timer">00:00</div>
+        </div>
+
+        <div class="guide-card">
+          <h3>Objetivo del slide</h3>
+          <p id="guideObjective"></p>
+        </div>
+
+        <div class="guide-card">
+          <h3>Di esto</h3>
+          <p id="guideScript"></p>
+        </div>
+
+        <div class="guide-card">
+          <h3>Accion en sala</h3>
+          <ul id="guideActions"></ul>
+        </div>
+
+        <div class="guide-card">
+          <h3>Atajos</h3>
+          <div class="shortcut-grid">
+            <span><kbd>G</kbd> Guia</span>
+            <span><kbd>F</kbd> Fullscreen</span>
+            <span><kbd>R</kbd> Timer</span>
+            <span><kbd>1-9</kbd> Ir a slide</span>
+          </div>
+        </div>
+
+        <div class="guide-actions">
+          <button class="tool-button" id="jumpPlayground" type="button">Ir al Lead Playground</button>
+          <button class="tool-button" id="jumpClose" type="button">Ir al cierre</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const progressBar = document.getElementById("progressBar");
+    const slideCounter = document.getElementById("slideCounter");
+    const guideTitle = document.getElementById("guideTitle");
+    const guideSubtitle = document.getElementById("guideSubtitle");
+    const guideObjective = document.getElementById("guideObjective");
+    const guideScript = document.getElementById("guideScript");
+    const guideActions = document.getElementById("guideActions");
+    const timerEl = document.getElementById("timer");
+
+    const notes = [
+      {
+        objective: "Abrir con una promesa clara: no vamos a ensenar software, vamos a ensenar una forma mas inteligente de operar ventas internacionales.",
+        script: "David, hoy quiero que veas dos cosas: como tus brokers ganan superpoderes practicos y como tu ganas visibilidad sin perseguir reportes.",
+        actions: ["Menciona que la sesion dura 90 minutos.", "Avisa que habra una demo viva con un lead dificil.", "No abras el CRM todavia. Primero vende la narrativa."]
+      },
+      {
+        objective: "Alinear logistica y reducir ansiedad. Mostrar que esto ya tiene estructura operativa.",
+        script: "Para que esto funcione no necesitamos perfeccion. Necesitamos un canal, algunos leads, propiedades representativas y una decision de piloto.",
+        actions: ["Marca en vivo los checks que ya tengas.", "Si falta algo, nombralo como pendiente para el piloto.", "Pide confirmacion de canal: WhatsApp o Telegram."]
+      },
+      {
+        objective: "Demostrar que entendemos la realidad de Summer Homes y que la propuesta no es generica.",
+        script: "Summer Homes no vende solo metros cuadrados. Vende confianza internacional, idioma, proceso legal, inversion y postventa. Rovi conecta esas piezas en el CRM.",
+        actions: ["Nombra Turquia, Dubai y Norte de Chipre.", "Menciona servicio multilingue y pre/post venta.", "Haz una pausa para que David valide si esta lectura es correcta."]
+      },
+      {
+        objective: "Traducir Rovi al lenguaje de management: control, coaching, forecast y riesgo.",
+        script: "El valor para David no es ver mas pantallas. Es ver lo que hoy esta escondido: leads sin seguimiento, brokers que necesitan apoyo y oportunidades que pueden cerrar.",
+        actions: ["Señala cada tarjeta del dashboard.", "Pregunta: que dato te gustaria ver cada lunes?", "Guarda esa respuesta para configurar el piloto."]
+      },
+      {
+        objective: "Hacer que los brokers no sientan amenaza, sino alivio operativo.",
+        script: "Rovi no les pide convertirse en administradores. Rovi captura contexto, resume intencion y propone la siguiente accion para que ustedes vendan mejor.",
+        actions: ["Mira a los brokers, no solo a David.", "Pregunta cual es la tarea repetitiva que mas les roba tiempo.", "Conecta sus respuestas con los agentes."]
+      },
+      {
+        objective: "Presentar pocos agentes, memorables y conectados a dolores reales.",
+        script: "No vamos a activar cincuenta cosas hoy. Empezamos con seis especialistas que cubren el ciclo completo: lead, conversacion, propiedad, idioma, inversion y postventa.",
+        actions: ["Lee solo los nombres y beneficios, no todos los detalles.", "Pide a cada broker elegir cual agente usaria primero.", "Anota los agentes mas votados."]
+      },
+      {
+        objective: "Crear el momento wow con interaccion. Comparar respuesta humana sin apoyo vs respuesta amplificada.",
+        script: "Vamos a jugar con un lead realista. Primero contestamos como hoy. Luego Rovi lo convierte en score, agentes, accion CRM y mensaje listo para enviar.",
+        actions: ["Pide a un broker responder en voz alta.", "Elige una persona con los botones.", "Lee el resultado y pregunta: que faltaba en la primera respuesta?"]
+      },
+      {
+        objective: "Cerrar el circulo: cada superpoder debe alimentar CRM y management.",
+        script: "Si esto no termina en el CRM, solo fue una buena conversacion. El punto es que cada chat deje una proxima accion, un owner y una senal para David.",
+        actions: ["Abre el CRM en otra pestana si ya esta listo.", "Muestra donde viviria la tarea o etapa.", "Refuerza que el broker no llena por llenar."]
+      },
+      {
+        objective: "Mostrar una rutina concreta y facil de imaginar.",
+        script: "El cambio no ocurre en una capacitacion. Ocurre cuando cada manana Rovi ayuda a decidir a quien llamar, que decir y que no dejar caer.",
+        actions: ["Pregunta a que hora revisan leads normalmente.", "Ajusta verbalmente el horario a su realidad.", "Conecta con recordatorios y follow-up."]
+      },
+      {
+        objective: "Convertir entusiasmo en compromiso medible de una semana.",
+        script: "No les pido fe. Les propongo medir comportamiento durante siete dias: leads cargados, agentes usados, follow-ups y claridad para David.",
+        actions: ["Pide aprobacion explicita del piloto.", "Define responsable de grupo.", "Elige metrica principal."]
+      },
+      {
+        objective: "Cerrar con una decision simple y ejecutiva.",
+        script: "Si Rovi produce claridad, seguimiento y mejores conversaciones en siete dias, escalamos. Si no lo produce, aprendemos rapido y ajustamos.",
+        actions: ["Confirma fecha de inicio.", "Confirma canal.", "Confirma quien invita a los 10 brokers."]
+      }
+    ];
+
+    const personaData = {
+      investor: {
+        score: "Prioridad alta: 86/100",
+        why: "Tiene presupuesto, urgencia comparativa y pide claridad financiera.",
+        agents: "Property Matcher, Investment Analyst, Multilingual Concierge",
+        agentWhy: "Necesita match de inventario, argumento de ROI y mensaje culturalmente preciso.",
+        crm: "Etapa: Calificacion avanzada",
+        action: "Crear tarea de llamada en 2 horas, enviar comparativo Alanya vs Dubai y alertar a David si no responde en 24h.",
+        message: "Tengo dos rutas claras para usted: una orientada a retorno y otra a estilo de vida. Si le parece, hoy le envio una comparativa breve con costos, renta estimada y pasos legales."
+      },
+      family: {
+        score: "Prioridad media-alta: 78/100",
+        why: "Busca confianza, zona segura, experiencia de visita y claridad postventa.",
+        agents: "Property Matcher, Multilingual Concierge, After-Sales Assistant",
+        agentWhy: "La decision depende de estilo de vida, acompanamiento y tranquilidad despues de comprar.",
+        crm: "Etapa: Presentacion",
+        action: "Enviar 3 propiedades costeras, agendar videollamada familiar y crear checklist de servicios posteriores a la compra.",
+        message: "Puedo preparar una seleccion corta pensando en comodidad, seguridad y vida diaria. Tambien le comparto como Summer Homes acompana despues de la compra para que la mudanza sea mas simple."
+      },
+      citizenship: {
+        score: "Prioridad alta: 91/100",
+        why: "Tiene motivacion regulatoria, necesita confianza y probablemente comparara tiempos y documentos.",
+        agents: "Sales Coach, Investment Analyst, After-Sales Assistant",
+        agentWhy: "Requiere precision en proceso, requisitos, pasos legales y gestion posterior.",
+        crm: "Etapa: Negociacion consultiva",
+        action: "Asignar llamada senior, adjuntar guia de proceso, crear tarea legal y alerta de seguimiento en 12h.",
+        message: "Para avanzar con seguridad, le propongo revisar tres puntos: propiedad elegible, proceso documental y tiempos estimados. Asi sabra desde el inicio que camino tiene sentido para usted."
+      }
+    };
+
+    let current = 0;
+    let timerStart = Date.now();
+    let timerInterval;
+
+    function formatSeconds(totalSeconds) {
+      const mins = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+      const secs = String(totalSeconds % 60).padStart(2, "0");
+      return `${mins}:${secs}`;
+    }
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+      timerEl.textContent = formatSeconds(elapsed);
+    }
+
+    function resetTimer() {
+      timerStart = Date.now();
+      updateTimer();
+    }
+
+    function showSlide(index) {
+      current = Math.max(0, Math.min(slides.length - 1, index));
+      slides.forEach((slide, slideIndex) => {
+        slide.classList.toggle("active", slideIndex === current);
+      });
+
+      const slide = slides[current];
+      const note = notes[current];
+      const progress = ((current + 1) / slides.length) * 100;
+      progressBar.style.width = `${progress}%`;
+      slideCounter.textContent = `${current + 1} / ${slides.length}`;
+      guideTitle.textContent = slide.dataset.title;
+      guideSubtitle.textContent = `Tiempo sugerido: ${slide.dataset.time}`;
+      guideObjective.textContent = note.objective;
+      guideScript.textContent = note.script;
+      guideActions.innerHTML = "";
+      note.actions.forEach((action) => {
+        const li = document.createElement("li");
+        li.textContent = action;
+        guideActions.appendChild(li);
+      });
+    }
+
+    function nextSlide() {
+      showSlide(current + 1);
+    }
+
+    function prevSlide() {
+      showSlide(current - 1);
+    }
+
+    function toggleGuide() {
+      document.body.classList.toggle("guide-collapsed");
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.();
+      } else {
+        document.exitFullscreen?.();
+      }
+    }
+
+    function setPersona(persona) {
+      const data = personaData[persona];
+      document.querySelectorAll(".choice").forEach((button) => {
+        button.classList.toggle("active", button.dataset.persona === persona);
+      });
+      document.getElementById("personaScore").textContent = data.score;
+      document.getElementById("personaWhy").textContent = data.why;
+      document.getElementById("personaAgents").textContent = data.agents;
+      document.getElementById("personaAgentWhy").textContent = data.agentWhy;
+      document.getElementById("personaCrm").textContent = data.crm;
+      document.getElementById("personaAction").textContent = data.action;
+      document.getElementById("personaMessage").textContent = data.message;
+    }
+
+    document.getElementById("next").addEventListener("click", nextSlide);
+    document.getElementById("prev").addEventListener("click", prevSlide);
+    document.getElementById("toggleGuide").addEventListener("click", toggleGuide);
+    document.getElementById("fullscreen").addEventListener("click", toggleFullscreen);
+    document.getElementById("resetTimer").addEventListener("click", resetTimer);
+    document.getElementById("jumpPlayground").addEventListener("click", () => showSlide(6));
+    document.getElementById("jumpClose").addEventListener("click", () => showSlide(slides.length - 1));
+
+    document.querySelectorAll(".choice").forEach((button) => {
+      button.addEventListener("click", () => setPersona(button.dataset.persona));
+    });
+
+    document.querySelectorAll(".check-item input").forEach((checkbox) => {
+      const key = `summerhomes-rovi-${checkbox.id}`;
+      checkbox.checked = localStorage.getItem(key) === "true";
+      checkbox.addEventListener("change", () => {
+        localStorage.setItem(key, checkbox.checked ? "true" : "false");
+      });
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      if (["arrowright", "pagedown", " "].includes(key)) {
+        event.preventDefault();
+        nextSlide();
+      }
+      if (["arrowleft", "pageup", "backspace"].includes(key)) {
+        event.preventDefault();
+        prevSlide();
+      }
+      if (key === "g") {
+        toggleGuide();
+      }
+      if (key === "f") {
+        toggleFullscreen();
+      }
+      if (key === "r") {
+        resetTimer();
+      }
+      if (/^[1-9]$/.test(key)) {
+        showSlide(Number(key) - 1);
+      }
+      if (key === "0") {
+        showSlide(9);
+      }
+    });
+
+    timerInterval = setInterval(updateTimer, 1000);
+    showSlide(0);
+  </script>
+</body>
+</html>

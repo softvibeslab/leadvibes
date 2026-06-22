@@ -1,0 +1,935 @@
+{
+  "base": "https://www.chatwoot.com/hc/user-guide/en",
+  "count": 133,
+  "records": [
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1772103052-troubleshooting-why-am-i-not-receiving-notifications",
+      "title": "Troubleshooting: Why am I not receiving notifications?",
+      "error": "The read operation timed out"
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677141565-chatwoot-glossary",
+      "title": "Chatwoot Glossary",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/001-chatwoot-glossary.md",
+      "words": 3312,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1673260810-getting-started-chatwoot-101",
+      "title": "Getting Started with Chatwoot",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/002-getting-started-with-chatwoot.md",
+      "words": 1202,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677229173-lesson-1-your-first-chatwoot-conversation",
+      "title": "Lesson 1: Your first Chatwoot conversation",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/003-lesson-1-your-first-chatwoot-conversation.md",
+      "words": 2227,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677231493-lesson-2-dashboard-basics",
+      "title": "Lesson 2: Dashboard Basics",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/004-lesson-2-dashboard-basics.md",
+      "words": 2115,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677235281-lesson-3-a-mastering-core-features",
+      "title": "Lesson 3 (a): Mastering core features",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/005-lesson-3-a-mastering-core-features.md",
+      "words": 2515,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677237449-lesson-3-b-mastering-core-features",
+      "title": "Lesson 3 (b): Working with Customer Context",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/006-lesson-3-b-working-with-customer-context.md",
+      "words": 2482,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677238266-lesson-4-complete-your-customer-engagement-suite",
+      "title": "Lesson 4: Automation and Routing",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/007-lesson-4-automation-and-routing.md",
+      "words": 2722,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1777328078-lesson-5-ai-actions",
+      "title": "Lesson 5: AI Actions",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/008-lesson-5-ai-actions.md",
+      "words": 2794,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1777328138-lesson-6-reports-and-metrics",
+      "title": "Lesson 6: Reports and Metrics",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/009-lesson-6-reports-and-metrics.md",
+      "words": 2318,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677242820-create-your-chatwoot-account",
+      "title": "Creating a Chatwoot Account",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/010-creating-a-chatwoot-account.md",
+      "words": 1485,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677477447-customizing-your-personal-profile",
+      "title": "Customizing your personal profile",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/011-customizing-your-personal-profile.md",
+      "words": 1584,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1731478912-setting-up-notifications",
+      "title": "Setting up notifications",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/012-setting-up-notifications.md",
+      "words": 1521,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677480617-customizing-your-general-settings",
+      "title": "Updating your Account settings",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/013-updating-your-account-settings.md",
+      "words": 1343,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677482414-adding-agents",
+      "title": "How to invite agents and manage your support team?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/014-how-to-invite-agents-and-manage-your-support-team.md",
+      "words": 2422,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677492191-adding-inboxes",
+      "title": "What is a channel? What is an inbox?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/015-what-is-a-channel-what-is-an-inbox.md",
+      "words": 2007,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677492970-adding-teams",
+      "title": "A complete guide to teams in Chatwoot",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/016-a-complete-guide-to-teams-in-chatwoot.md",
+      "words": 2524,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677580558-website-live-chat-settings-explained",
+      "title": "Website live chat settings explained",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/017-website-live-chat-settings-explained.md",
+      "words": 2024,
+      "cached": true
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677588225-how-to-install-live-chat-using-google-tag-manager",
+      "title": "How to install live chat using Google Tag Manager?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/018-how-to-install-live-chat-using-google-tag-manager.md",
+      "words": 1165,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677669621-how-to-install-live-chat-on-a-docusaurus-website",
+      "title": "How to install live chat on a Docusaurus website?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/019-how-to-install-live-chat-on-a-docusaurus-website.md",
+      "words": 1059,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677671793-how-to-install-live-chat-on-a-webflow-website",
+      "title": "How to install live chat on a Webflow website?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/020-how-to-install-live-chat-on-a-webflow-website.md",
+      "words": 1057,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677671443-how-to-install-live-chat-on-a-gatsby-website",
+      "title": "How to install live chat on a Gatsby website?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/021-how-to-install-live-chat-on-a-gatsby-website.md",
+      "words": 1087,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677669989-how-to-install-live-chat-on-a-word_press-website",
+      "title": "How to install live chat on a WordPress website?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/022-how-to-install-live-chat-on-a-wordpress-website.md",
+      "words": 1345,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677672686-how-to-install-live_chat-on-a-react-native-app",
+      "title": "How to install live-chat on a React Native app?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/023-how-to-install-live-chat-on-a-react-native-app.md",
+      "words": 1229,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677676986-how-to-install-live_chat-on-a-next-js-app",
+      "title": "How to install live-chat on a Next.js app?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/024-how-to-install-live-chat-on-a-next-js-app.md",
+      "words": 1173,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677677232-how-to-install-live_chat-on-a-vue-js-app",
+      "title": "How to install live-chat on a Vue.js app?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/025-how-to-install-live-chat-on-a-vue-js-app.md",
+      "words": 1210,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677587234-how-to-send-additional-user-information-to-chatwoot-using-sdk",
+      "title": "How to send additional user information to Chatwoot using SDK?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/026-how-to-send-additional-user-information-to-chatwoot-using-sdk.md",
+      "words": 2016,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677587761-how-to-continue-conversations-through-email",
+      "title": "How to continue conversations through email?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/027-how-to-continue-conversations-through-email.md",
+      "words": 1217,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677587479-how-to-enable-identity-validation-in-chatwoot",
+      "title": "How to enable identity validation in Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/028-how-to-enable-identity-validation-in-chatwoot.md",
+      "words": 1132,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677587636-how-to-enable-dark-mode-on-live_chat-widget",
+      "title": "How to enable dark mode on live-chat widget?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/029-how-to-enable-dark-mode-on-live-chat-widget.md",
+      "words": 1048,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677778588-how-to-setup-a-facebook-channel",
+      "title": "How to setup a Facebook channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/030-how-to-setup-a-facebook-channel.md",
+      "words": 1385,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677829420-how-to-setup-an-instagram-channel",
+      "title": "How to setup an Instagram channel (via Facebook login)?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/031-how-to-setup-an-instagram-channel-via-facebook-login.md",
+      "words": 1217,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677831888-how-to-setup-a-twitter-channel",
+      "title": "How to setup a Twitter channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/032-how-to-setup-a-twitter-channel.md",
+      "words": 1328,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677832735-how-to-setup-a-whats_app-channel",
+      "title": "How to setup a WhatsApp channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/033-how-to-setup-a-whatsapp-channel.md",
+      "words": 1216,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677846958-how-to-setup-an-sms-channel",
+      "title": "How to setup an SMS channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/034-how-to-setup-an-sms-channel.md",
+      "words": 1153,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677843043-how-to-setup-an-email-channel",
+      "title": "How to setup an Email channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/035-how-to-setup-an-email-channel.md",
+      "words": 1976,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677838569-how-to-setup-a-telegram-channel",
+      "title": "How to setup a Telegram channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/036-how-to-setup-a-telegram-channel.md",
+      "words": 1186,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677838977-how-to-setup-a-line-channel",
+      "title": "How to setup a Line channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/037-how-to-setup-a-line-channel.md",
+      "words": 1058,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677839703-how-to-create-an-api-channel-inbox",
+      "title": "How to create an API channel inbox?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/038-how-to-create-an-api-channel-inbox.md",
+      "words": 1901,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1742910590-how-to-set-up-a-whats_app-channel-with-twilio",
+      "title": "How to Set Up a WhatsApp Channel with Twilio?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/039-how-to-set-up-a-whatsapp-channel-with-twilio.md",
+      "words": 1370,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1744361165-how-to-setup-an-instagram-channel-via-instagram-login",
+      "title": "How to setup an Instagram channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/040-how-to-setup-an-instagram-channel.md",
+      "words": 1073,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1752129193-how-to-use-whatsapp-embedded-signup",
+      "title": "How to setup a WhatsApp channel (Embedded signup)",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/041-how-to-setup-a-whatsapp-channel-embedded-signup.md",
+      "words": 1121,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1756799850-how-to-setup-a-whats_app-channel-manual-flow",
+      "title": "How to setup a WhatsApp channel (Manual flow)?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/042-how-to-setup-a-whatsapp-channel-manual-flow.md",
+      "words": 1688,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1769595702-how-to-setup-a-tik_tok-channel",
+      "title": "How to setup a TikTok channel?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/043-how-to-setup-a-tiktok-channel.md",
+      "words": 1312,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1779863425-voice-calling-in-chatwoot",
+      "title": "Voice Calling in Chatwoot",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/044-voice-calling-in-chatwoot.md",
+      "words": 2193,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1779871614-connecting-twilio-voice-channel",
+      "title": "Connecting Twilio voice channel",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/045-connecting-twilio-voice-channel.md",
+      "words": 1171,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1779871708-connecting-whats_app-voice-channel",
+      "title": "Connecting WhatsApp voice channel",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/046-connecting-whatsapp-voice-channel.md",
+      "words": 1200,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677496066-how-to-add-labels",
+      "title": "How to add labels?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/047-how-to-add-labels.md",
+      "words": 1309,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677497472-how-to-use-agent-bots",
+      "title": "How to use Agent bots?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/048-how-to-use-agent-bots.md",
+      "words": 1576,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677498364-understanding-contacts",
+      "title": "Understanding Contacts",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/049-understanding-contacts.md",
+      "words": 1694,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677501325-how-to-create-saved-reply-templates-with-canned-responses",
+      "title": "How to create saved reply templates with Canned Responses?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/050-how-to-create-saved-reply-templates-with-canned-responses.md",
+      "words": 1562,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677502327-how-to-create-and-use-custom-attributes",
+      "title": "How to create and use custom attributes?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/051-how-to-create-and-use-custom-attributes.md",
+      "words": 1574,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677503828-how-to-enable-csat-surveys",
+      "title": "How to enable CSAT surveys?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/052-how-to-enable-csat-surveys.md",
+      "words": 1258,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1682679737-how-to-assign-a-priority",
+      "title": "How to assign a priority",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/053-how-to-assign-a-priority.md",
+      "words": 1289,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1695209306-how-to-use-the-omnichannel-message-signature",
+      "title": "How to use omnichannel message signature?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/054-how-to-use-omnichannel-message-signature.md",
+      "words": 1242,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1732243644-preventing-agent-collision",
+      "title": "Preventing Agent Collision",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/055-preventing-agent-collision.md",
+      "words": 1113,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1741923706-manage-team-access-control-with-flexible-role_based-permissions",
+      "title": "Manage team access control with flexible role-based permissions",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/056-manage-team-access-control-with-flexible-role-based-permissions.md",
+      "words": 1232,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1768303449-whats_app-csat-surveys-in-chatwoot",
+      "title": "WhatsApp CSAT Surveys using Templates",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/057-whatsapp-csat-surveys-using-templates.md",
+      "words": 1437,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1768536939-review-notes-for-csat",
+      "title": "Review Notes for CSAT",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/058-review-notes-for-csat.md",
+      "words": 1341,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1777421876-business-hours-and-auto_responder",
+      "title": "Business Hours and Auto-Responder",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/059-business-hours-and-auto-responder.md",
+      "words": 1565,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677688192-how-to-use-conversation-filters",
+      "title": "How to use Conversation Filters?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/060-how-to-use-conversation-filters.md",
+      "words": 1134,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677688647-how-to-use-pre_chat-forms",
+      "title": "How to use pre-chat forms?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/061-how-to-use-pre-chat-forms.md",
+      "words": 1184,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677738682-how-to-use-campaigns",
+      "title": "How to use Campaigns?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/062-how-to-use-campaigns.md",
+      "words": 1393,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677689344-how-to-use-interactive-messages",
+      "title": "How to create interactive messages?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/063-how-to-create-interactive-messages.md",
+      "words": 1149,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677689800-how-to-use-automation",
+      "title": "How to use Automation?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/064-how-to-use-automation.md",
+      "words": 1462,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677691027-how-to-setup-a-web_socket-connection",
+      "title": "How to setup a WebSocket connection?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/065-how-to-setup-a-websocket-connection.md",
+      "words": 2521,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1679579699-template-variables",
+      "title": "How to use template variables?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/066-how-to-use-template-variables.md",
+      "words": 1177,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1679978392-how-to-use-macros",
+      "title": "How to use Macros?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/067-how-to-use-macros.md",
+      "words": 1419,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1692251809-how-to-use-audit-logs",
+      "title": "How to use Audit Logs?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/068-how-to-use-audit-logs.md",
+      "words": 1316,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1712785075-wildcard-url-support-in-website-live_chat-campaigns",
+      "title": "Wildcard URL support in website live-chat campaigns",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/069-wildcard-url-support-in-website-live-chat-campaigns.md",
+      "words": 1187,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1713167310-service-level-agreemtns",
+      "title": "Service Level Agreements",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/070-service-level-agreements.md",
+      "words": 1270,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1740546374-how-does-sorting-work",
+      "title": "How does sorting work?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/071-how-does-sorting-work.md",
+      "words": 1206,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1741998212-agent-capacity",
+      "title": "Setting per-agent conversation caps with Agent Capacity Policies",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/072-setting-per-agent-conversation-caps-with-agent-capacity-policies.md",
+      "words": 1827,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1745225158-what-is-human-agent-tag-in-instagram-messenger-channel",
+      "title": "What is Human Agent tag in Instagram/Messenger channel",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/073-what-is-human-agent-tag-in-instagram-messenger-channel.md",
+      "words": 1043,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1754940076-whatsapp-templates",
+      "title": "Whatsapp templates",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/074-whatsapp-templates.md",
+      "words": 2312,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1756195741-twilio-content-templates",
+      "title": "Twilio content templates",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/075-twilio-content-templates.md",
+      "words": 1698,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1758635327-setting-up-saml",
+      "title": "Setting up SAML Authentication",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/076-setting-up-saml-authentication.md",
+      "words": 1379,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1768986869-common-whats_app-issues-and-how-to-fix-them",
+      "title": "Common WhatsApp issues and how to fix them",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/077-common-whatsapp-issues-and-how-to-fix-them.md",
+      "words": 1499,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1769161760-required-conversation-attributes",
+      "title": "Required Conversation Attributes",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/078-required-conversation-attributes.md",
+      "words": 1303,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1763978164-chatwoot-assignment-v2",
+      "title": "Advanced Assignment Policies",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/079-advanced-assignment-policies.md",
+      "words": 1356,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677743452-how-to-integrate-your-dialogflow-chatbot-with-chatwoot",
+      "title": "How to bring your Dialogflow chatbot to Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/080-how-to-bring-your-dialogflow-chatbot-to-chatwoot.md",
+      "words": 1727,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677693021-how-to-use-webhooks",
+      "title": "How to use webhooks?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/081-how-to-use-webhooks.md",
+      "words": 2199,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677774874-how-to-answer-conversations-from-slack",
+      "title": "How to answer conversations from Slack?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/082-how-to-answer-conversations-from-slack.md",
+      "words": 1435,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677691702-how-to-use-dashboard-apps",
+      "title": "How to use Dashboard Apps?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/083-how-to-use-dashboard-apps.md",
+      "words": 1460,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1679928145-how-to-enable-video-calls-with-dyte-integration",
+      "title": "How to enable video calls with Dyte integration?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/084-how-to-enable-video-calls-with-dyte-integration.md",
+      "words": 1205,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1679916448-how-to-translate-your-messages-with-google-translate",
+      "title": "How to translate messages with Google Translate?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/085-how-to-translate-messages-with-google-translate.md",
+      "words": 1326,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1683707349-openai",
+      "title": "How to enhance conversations with OpenAI integration?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/086-how-to-enhance-conversations-with-openai-integration.md",
+      "words": 1627,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1739949089-how-to-track-issues-and-features-with-linear-integration",
+      "title": "How to track Issues and Features with Linear Integration?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/087-how-to-track-issues-and-features-with-linear-integration.md",
+      "words": 1150,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677693459-how-to-read-overview-reports-realtime",
+      "title": "How to read Overview Reports (realtime)?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/088-how-to-read-overview-reports-realtime.md",
+      "words": 1082,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677693868-how-to-read-csat-reports",
+      "title": "How to read CSAT Reports?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/089-how-to-read-csat-reports.md",
+      "words": 1210,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1724140319-how-to-read-conversations-report",
+      "title": "How to read Conversations Reports?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/090-how-to-read-conversations-reports.md",
+      "words": 1423,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1724141456-how-to-read-the-bot-reports",
+      "title": "How to read Bot Reports?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/091-how-to-read-bot-reports.md",
+      "words": 1128,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1724145182-how-to-read-sla-reports",
+      "title": "How to read SLA Reports?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/092-how-to-read-sla-reports.md",
+      "words": 1179,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677694691-reading-conversations-agents-labels-inbox-and-team-reports",
+      "title": "Reading Conversations, Agents, Labels, Inbox, and Team Reports.",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/093-reading-conversations-agents-labels-inbox-and-team-reports.md",
+      "words": 1878,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1713170964-how-to-read-the-sla-reports",
+      "title": "How to read the SLA Reports",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/094-how-to-read-the-sla-reports.md",
+      "words": 1113,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677861202-how-to-setup-a-help-center",
+      "title": "How to set up a Help Center?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/095-how-to-set-up-a-help-center.md",
+      "words": 1256,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677855950-generate-ssl-certificate",
+      "title": "How to setup an SSL certificate for your Help Center's custom domain?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/096-how-to-setup-an-ssl-certificate-for-your-help-center-s-custom-domain.md",
+      "words": 1635,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1748419710-embedding-videos-in-help-center",
+      "title": "Embedding videos in Help Center",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/097-embedding-videos-in-help-center.md",
+      "words": 1163,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677696868-assigning-conversations-in-a-round_robin-fashion",
+      "title": "Assigning conversations in a round-robin fashion.",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/098-assigning-conversations-in-a-round-robin-fashion.md",
+      "words": 1060,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677697180-working-with-command-bar",
+      "title": "Working with command bar",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/099-working-with-command-bar.md",
+      "words": 1218,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677698168-working-with-keyboard-shortcuts",
+      "title": "Working with keyboard shortcuts",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/100-working-with-keyboard-shortcuts.md",
+      "words": 979,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677748953-group-your-contacts-using-filters-and-save-them-as-custom-segments",
+      "title": "Group your contacts into custom segments.",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/101-group-your-contacts-into-custom-segments.md",
+      "words": 1151,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677698771-group-chats-with-filters-save-as-folders",
+      "title": "Group chats with filters, save as folders",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/102-group-chats-with-filters-save-as-folders.md",
+      "words": 1104,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1738101283-captain-_-introduction",
+      "title": "Introduction to Captain",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/103-introduction-to-captain.md",
+      "words": 1099,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1738101547-creating-an-assistant-with-captain",
+      "title": "Creating an assistant with Captain",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/104-creating-an-assistant-with-captain.md",
+      "words": 1441,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1738104411-creating-a-document-in-captain",
+      "title": "Creating a document in Captain",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/105-creating-a-document-in-captain.md",
+      "words": 1417,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1738101609-creating-an-faq-with-captain",
+      "title": "Creating an FAQ with Captain",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/106-creating-an-faq-with-captain.md",
+      "words": 1282,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1738101691-how-to-use-captain-memories",
+      "title": "How to use Captain Memories?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/107-how-to-use-captain-memories.md",
+      "words": 1142,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1738110272-how-to-use-captain-copilot",
+      "title": "How to use Captain Copilot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/108-how-to-use-captain-copilot.md",
+      "words": 1272,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1755284287-how-to-enable-captain-on-self_hosted-installations",
+      "title": "How to enable Captain on self-hosted installations?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/109-how-to-enable-captain-on-self-hosted-installations.md",
+      "words": 1282,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1765223602-how-ai-credits-work-in-captain",
+      "title": "How AI Credits work in Captain?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/110-how-ai-credits-work-in-captain.md",
+      "words": 1377,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1765224466-updating-robots-txt-to-allow-chatwoot-assistant-to-crawl-your-website",
+      "title": "Updating robots.txt to Allow Chatwoot Assistant to Crawl Your Website",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/111-updating-robots-txt-to-allow-chatwoot-assistant-to-crawl-your-website.md",
+      "words": 1122,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1775045339-v2-_-how-to-set-up-custom-tools-for-captain",
+      "title": "How to Set Up Custom Tools for Captain?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/112-how-to-set-up-custom-tools-for-captain.md",
+      "words": 1935,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1696162098-how-to-migrate-from-intercom-to-chatwoot",
+      "title": "How to migrate from Intercom to Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/113-how-to-migrate-from-intercom-to-chatwoot.md",
+      "words": 1281,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1696163019-how-to-migrate-from-front-to-chatwoot",
+      "title": "How to migrate from Front to Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/114-how-to-migrate-from-front-to-chatwoot.md",
+      "words": 1275,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1696159781-how-to-migrate-from-freshdesk-to-chatwoot",
+      "title": "How to migrate from Freshdesk to Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/115-how-to-migrate-from-freshdesk-to-chatwoot.md",
+      "words": 1306,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1696162432-how-to-migrate-from-zendesk-to-chatwoot",
+      "title": "How to migrate from Zendesk to Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/116-how-to-migrate-from-zendesk-to-chatwoot.md",
+      "words": 1275,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677778232-which-cookies-are-used-by-chatwoot",
+      "title": "Which cookies are used by Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/117-which-cookies-are-used-by-chatwoot.md",
+      "words": 999,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677777866-mobile-app-for-android",
+      "title": "Mobile app for Android",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/118-mobile-app-for-android.md",
+      "words": 1087,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677776959-mobile-app-for-i_os",
+      "title": "Mobile app for iOS",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/119-mobile-app-for-ios.md",
+      "words": 1068,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677776492-enterprise-edition",
+      "title": "Enterprise Edition",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/120-enterprise-edition.md",
+      "words": 1168,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1677695546-languages-supported-in-chatwoot",
+      "title": "Languages supported in Chatwoot",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/121-languages-supported-in-chatwoot.md",
+      "words": 1225,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1699010044-what-we-don-t-cover-in",
+      "title": "What we don't cover in Chatwoot Free Trial",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/122-what-we-don-t-cover-in-chatwoot-free-trial.md",
+      "words": 1327,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1731484809-how-to-enable-push-notifications-in-your-browser",
+      "title": "How to enable push notifications in your browser",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/123-how-to-enable-push-notifications-in-your-browser.md",
+      "words": 1198,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1742879613-how-to-hard_reload-on-most-browsers",
+      "title": "How to hard-reload on most browsers",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/124-how-to-hard-reload-on-most-browsers.md",
+      "words": 1080,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1744047690-how-to-apply-your-coupon-code-inside-chatwoot",
+      "title": "How to Use Your Coupon Code on Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/125-how-to-use-your-coupon-code-on-chatwoot.md",
+      "words": 1038,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1758697086-inconsistencies-for-whats_app-numbers-in-brazil-mexico-and-argentina",
+      "title": "Inconsistencies for WhatsApp Numbers in Brazil and Argentina",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/126-inconsistencies-for-whatsapp-numbers-in-brazil-and-argentina.md",
+      "words": 1258,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1750735898-purchasing-a-paid-self_hosted-chatwoot-license-a-step_by_step-guide",
+      "title": "Purchasing a Paid Self-Hosted Chatwoot License: A Step-by-Step Guide",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/128-purchasing-a-paid-self-hosted-chatwoot-license-a-step-by-step-guide.md",
+      "words": 1260,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1757445004-how-to-find-your-personal-access-token-in-chatwoot",
+      "title": "How to Find Your Personal Access Token in Chatwoot",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/129-how-to-find-your-personal-access-token-in-chatwoot.md",
+      "words": 1123,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1757446321-how-to-embed-your-help-center-articles-in-the-live-chat-widget",
+      "title": "How to Embed Your Help Center Articles in the Live Chat Widget",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/130-how-to-embed-your-help-center-articles-in-the-live-chat-widget.md",
+      "words": 1263,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1757447973-how-to-change-your-email-address-in-chatwoot",
+      "title": "How to Change Your Email Address in Chatwoot",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/131-how-to-change-your-email-address-in-chatwoot.md",
+      "words": 1174,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1757451305-how-to-remove-the-free-usage-limit-exceeded-message-in-chatwoot",
+      "title": "How to Remove the Free Usage Limit Exceeded Message in Chatwoot",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/132-how-to-remove-the-free-usage-limit-exceeded-message-in-chatwoot.md",
+      "words": 1410,
+      "cached": false
+    },
+    {
+      "url": "https://www.chatwoot.com/hc/user-guide/articles/1775764014-how-to",
+      "title": "How to Segment Contacts in Chatwoot?",
+      "file": "docs/knowledge/chatwoot_user_guide/raw/133-how-to-segment-contacts-in-chatwoot.md",
+      "words": 1244,
+      "cached": false
+    }
+  ]
+}
