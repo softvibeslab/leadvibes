@@ -123,6 +123,7 @@ from vibe_lab import create_vibe_lab_router
 from rentals import create_rentals_router
 from tasks import create_tasks_router
 from copim_member_import import create_copim_member_import_router
+from gremial import create_gremial_router
 from openwa_integration import create_openwa_router
 from hermes_bridge import (
     build_hermes_profile_spec,
@@ -245,6 +246,10 @@ def resolve_account_tenant_type(account_type: str) -> str:
         return "property_management"
     if account_type == "copim":
         return "copim"
+    if account_type in {"gremial", "chamber"}:
+        return "gremial"
+    if account_type == "member_company":
+        return "member_company"
     if account_type == "rovi_internal":
         return "rovi_internal"
     return "individual"
@@ -253,6 +258,11 @@ def resolve_account_tenant_type(account_type: str) -> str:
 def resolve_user_role(account_type: str, requested_role: str | None) -> str:
     requested_role = requested_role or "broker"
     copim_roles = {"copim_admin", "copim_operator", "copim_member"}
+    gremial_roles = {
+        "gremial_national_admin", "gremial_delegation_admin", "gremial_membership_manager",
+        "gremial_finance", "gremial_training_manager", "gremial_communications",
+        "gremial_member_admin", "gremial_member_user",
+    }
     rovi_internal_roles = {"rovi_admin", "rovi_sales", "rovi_marketing", "rovi_customer_success", "rovi_ops"}
 
     if account_type == "copim":
@@ -261,10 +271,16 @@ def resolve_user_role(account_type: str, requested_role: str | None) -> str:
     if account_type == "copim_member":
         return "copim_member"
 
+    if account_type in {"gremial", "chamber"}:
+        return requested_role if requested_role in gremial_roles else "gremial_national_admin"
+
+    if account_type == "member_company":
+        return requested_role if requested_role in {"gremial_member_admin", "gremial_member_user"} else "gremial_member_admin"
+
     if account_type == "property_management":
         return "property_manager"
 
-    if requested_role in copim_roles:
+    if requested_role in copim_roles or requested_role in gremial_roles:
         return "broker"
 
     if requested_role in rovi_internal_roles and account_type != "rovi_internal":
@@ -274,7 +290,7 @@ def resolve_user_role(account_type: str, requested_role: str | None) -> str:
 
 
 def uses_personal_workspace(account_type: str) -> bool:
-    return account_type not in {"individual", "copim_member", "rovi_internal"}
+    return account_type not in {"individual", "copim_member", "member_company", "rovi_internal"}
 
 
 def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -> str:
@@ -291,6 +307,10 @@ def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -
         return f"{base_name} Consejo"
     if tenant_type == "copim":
         return f"{base_name} COPIM"
+    if tenant_type in {"gremial", "chamber"}:
+        return f"{base_name} Gremial"
+    if tenant_type == "member_company":
+        return f"{base_name} Afiliado"
     if tenant_type == "rovi_internal":
         return "ROVI Internal"
     return f"{base_name} Workspace"
@@ -397,12 +417,12 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
         await ensure_membership_doc(
             personal_tenant_id,
             membership_role="owner",
-            is_default=account_type not in {"agency", "copim", "property_management"},
+            is_default=account_type not in {"agency", "copim", "property_management", "gremial", "chamber"},
         )
         await ensure_membership_doc(
             current_tenant_id,
             membership_role="owner" if account_type == "agency" and role == "broker" else role,
-            is_default=account_type in {"agency", "copim", "property_management"},
+            is_default=account_type in {"agency", "copim", "property_management", "gremial", "chamber"},
         )
 
     return user
@@ -469,6 +489,11 @@ def build_user_response_payload(user: dict, ai_profile: dict | None = None) -> d
         "personal_tenant_id": user.get("personal_tenant_id"),
         "account_type": user.get("account_type", "individual"),
         "linked_copim_association_id": user.get("linked_copim_association_id"),
+        "linked_copim_member_id": user.get("linked_copim_member_id"),
+        "linked_copim_tenant_id": user.get("linked_copim_tenant_id"),
+        "linked_gremial_delegation_id": user.get("linked_gremial_delegation_id"),
+        "linked_gremial_member_id": user.get("linked_gremial_member_id"),
+        "linked_gremial_tenant_id": user.get("linked_gremial_tenant_id"),
         "ai_profile": serialize_doc(ai_profile) if ai_profile else None,
     }
 
@@ -484,6 +509,12 @@ def build_access_token_payload(user: dict, active_workspace: dict | None) -> dic
         "role": user.get("role", "broker"),
         "active_role": active_role,
         "account_type": user.get("account_type", "individual"),
+        "linked_copim_association_id": user.get("linked_copim_association_id"),
+        "linked_copim_member_id": user.get("linked_copim_member_id"),
+        "linked_copim_tenant_id": user.get("linked_copim_tenant_id"),
+        "linked_gremial_delegation_id": user.get("linked_gremial_delegation_id"),
+        "linked_gremial_member_id": user.get("linked_gremial_member_id"),
+        "linked_gremial_tenant_id": user.get("linked_gremial_tenant_id"),
         "email": user["email"],
         "name": user["name"],
     }
@@ -21498,6 +21529,7 @@ async def receive_external_lead_webhook(
 
 # Include the router in the main app
 api_router.include_router(create_marketplace_router(db, analyze_lead))
+api_router.include_router(create_gremial_router(db))
 api_router.include_router(create_rovi_internal_router(db))
 api_router.include_router(create_agent_control_router(db))
 api_router.include_router(create_vibe_lab_router(db))

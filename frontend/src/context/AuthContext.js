@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { canAccessCopim, isCopimAccount, resolveAppModeForUser } from '../lib/copimAccess';
+import { isGremialAccount, isGremialMemberUser } from '../lib/gremialAccess';
 
 // Use relative path in production (nginx proxy) or fallback to env var
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
@@ -252,6 +253,8 @@ export const AuthProvider = ({ children }) => {
   const isAgency = user?.account_type === 'agency';
   const hasCopimAccess = canAccessCopim(user);
   const isCopimUser = isCopimAccount(user);
+  const hasGremialAccess = isGremialAccount(user);
+  const isGremialMemberAccount = isGremialMemberUser(user);
   const isCopimMode = appMode === 'copim';
 
   const value = {
@@ -270,6 +273,9 @@ export const AuthProvider = ({ children }) => {
     isAgency,
     hasCopimAccess,
     isCopimAccount: isCopimUser,
+    hasGremialAccess,
+    isGremialAccount: hasGremialAccess,
+    isGremialMemberAccount,
     appMode,
     setAppMode,
     isCopimMode,

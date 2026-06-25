@@ -1,3 +1,5 @@
+import { getGremialHome, getGremialRoleLabel, getGremialWorkspaceTypeLabel, isGremialAccount, isGremialMemberUser } from './gremialAccess';
+
 const COPIM_TENANT_TYPES = new Set(['copim', 'council', 'association']);
 const COPIM_ASSOCIATION_ROLES = new Set(['copim_admin', 'copim_operator']);
 const COPIM_NATIONAL_ROLES = new Set(['copim_admin']);
@@ -74,6 +76,10 @@ export const resolveAuthenticatedHome = (user, preferredMode = 'rovi') => {
     return '/rentals';
   }
 
+  if (isGremialAccount(user) || isGremialMemberUser(user)) {
+    return getGremialHome(user);
+  }
+
   if (isCopimMemberUser(user)) {
     return '/copim/member';
   }
@@ -96,6 +102,12 @@ export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
   if (accountType === 'property_management') {
     return 'Rentas';
   }
+  if (['gremial', 'chamber'].includes(accountType)) {
+    return 'Gremial';
+  }
+  if (accountType === 'member_company') {
+    return 'Portal del afiliado';
+  }
   if (accountType === 'copim_member') {
     return 'Portal del asociado';
   }
@@ -115,6 +127,9 @@ export const getWorkspaceTypeLabel = (tenantType) => {
   if (tenantType === 'property_management') {
     return 'Rentas';
   }
+  if (['gremial', 'chamber', 'delegation', 'member_company'].includes(tenantType)) {
+    return getGremialWorkspaceTypeLabel(tenantType);
+  }
   if (tenantType === 'copim') {
     return 'COPIM';
   }
@@ -133,6 +148,10 @@ export const getWorkspaceTypeLabel = (tenantType) => {
 export const getRoleLabel = (role) => {
   if (!role) {
     return 'broker';
+  }
+
+  if (typeof role === 'string' && role.startsWith('gremial_')) {
+    return getGremialRoleLabel(role);
   }
 
   const labels = {

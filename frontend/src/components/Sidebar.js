@@ -16,6 +16,13 @@ import {
   resolveAuthenticatedHome,
 } from '../lib/copimAccess';
 import {
+  getGremialHome,
+  isGremialAccount,
+  isGremialDelegationUser,
+  isGremialMemberUser,
+  isGremialNationalUser,
+} from '../lib/gremialAccess';
+import {
   LayoutDashboard,
   Users,
   UserCircle,
@@ -168,8 +175,50 @@ const copimMemberNavItems = [
   { to: '/copim/member/directory', icon: FolderKanban, label: 'Directorio' },
 ];
 
+const gremialNationalNavItems = [
+  { to: '/gremial/dashboard', icon: LayoutDashboard, label: 'Resumen' },
+  { to: '/gremial/delegations', icon: Building2, label: 'Delegaciones' },
+  { to: '/gremial/members', icon: Users, label: 'Afiliados' },
+  { to: '/gremial/memberships', icon: WalletCards, label: 'Renovaciones' },
+  { to: '/gremial/affiliation', icon: FolderKanban, label: 'Afiliacion' },
+  { to: '/gremial/services', icon: Store, label: 'Servicios' },
+  { to: '/gremial/opportunities', icon: BriefcaseBusiness, label: 'Oportunidades' },
+  { to: '/gremial/tenders', icon: FileText, label: 'Licitaciones' },
+  { to: '/gremial/courses', icon: Trophy, label: 'Capacitacion' },
+  { to: '/gremial/events', icon: CalendarDays, label: 'Eventos' },
+  { to: '/gremial/analytics', icon: BarChart3, label: 'Analitica' },
+  { to: '/gremial/ai-control', icon: Bot, label: 'AI Control' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const gremialDelegationNavItems = [
+  { to: '/gremial/dashboard', icon: LayoutDashboard, label: 'Resumen local' },
+  { to: '/gremial/members', icon: Users, label: 'Afiliados' },
+  { to: '/gremial/memberships', icon: WalletCards, label: 'Renovaciones' },
+  { to: '/gremial/affiliation', icon: FolderKanban, label: 'Prospectos' },
+  { to: '/gremial/services', icon: Store, label: 'Servicios' },
+  { to: '/gremial/opportunities', icon: BriefcaseBusiness, label: 'Oportunidades' },
+  { to: '/gremial/tenders', icon: FileText, label: 'Licitaciones' },
+  { to: '/gremial/courses', icon: Trophy, label: 'Cursos' },
+  { to: '/gremial/events', icon: CalendarDays, label: 'Eventos' },
+  { to: '/gremial/ai-control', icon: Bot, label: 'AI Control' },
+  { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const gremialMemberNavItems = [
+  { to: '/gremial/member', icon: LayoutDashboard, label: 'Mi portal' },
+  { to: '/gremial/member/profile', icon: UserCircle, label: 'Mi empresa' },
+  { to: '/gremial/member/membership', icon: WalletCards, label: 'Mi afiliacion' },
+  { to: '/gremial/member/payments', icon: CreditCard, label: 'Pagos' },
+  { to: '/gremial/member/documents', icon: IdCard, label: 'Expediente' },
+  { to: '/gremial/member/opportunities', icon: BriefcaseBusiness, label: 'Oportunidades' },
+  { to: '/gremial/member/tenders', icon: FileText, label: 'Licitaciones' },
+  { to: '/gremial/member/courses', icon: Trophy, label: 'Cursos' },
+  { to: '/gremial/member/events', icon: CalendarDays, label: 'Eventos' },
+];
+
 export const Sidebar = ({ onClose }) => {
-  const { user, logout, isIndividual, switchWorkspace, appMode, setAppMode, hasCopimAccess } = useAuth();
+  const { user, logout, isIndividual, switchWorkspace, appMode, setAppMode, hasCopimAccess, hasGremialAccess } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -189,6 +238,10 @@ export const Sidebar = ({ onClose }) => {
   const isRoviInternalWorkspace = isRoviInternalUser(user);
   const isControlTowerOwner = isRoviControlTowerOwner(user);
   const isPropertyManagerWorkspace = isPropertyManagerUser(user);
+  const isGremialWorkspace = isGremialAccount(user);
+  const isGremialMemberPortal = isGremialMemberUser(user);
+  const isGremialDelegationWorkspace = isGremialDelegationUser(user);
+  const isGremialNationalWorkspace = isGremialNationalUser(user);
 
   const handleWorkspaceChange = async (tenantId) => {
     if (!tenantId || tenantId === activeWorkspace?.tenant_id) return;
@@ -201,6 +254,8 @@ export const Sidebar = ({ onClose }) => {
         ? '/rovi/dashboard'
         : targetWorkspace?.tenant_type === 'property_management' || targetRole === 'property_manager'
         ? '/rentals'
+        : ['gremial', 'chamber', 'delegation', 'member_company'].includes(targetWorkspace?.tenant_type) || String(targetRole).startsWith('gremial_')
+        ? getGremialHome({ ...user, active_workspace: targetWorkspace, role: targetRole })
         : targetRole === 'copim_member'
         ? '/copim/member'
         : targetRole === 'copim_operator'
@@ -215,6 +270,10 @@ export const Sidebar = ({ onClose }) => {
   };
 
   const handleAppModeChange = (mode) => {
+    if (mode === 'gremial') {
+      navigate(getGremialHome(user));
+      return;
+    }
     const requestedMode = mode === 'copim' ? 'copim' : 'rovi';
     setAppMode(requestedMode);
     const nextMode = requestedMode === 'copim' && hasCopimAccess ? 'copim' : 'rovi';
@@ -222,11 +281,17 @@ export const Sidebar = ({ onClose }) => {
   };
 
   // Choose nav items based on account type
-  const currentModeValue = location.pathname.startsWith('/copim') ? 'copim' : appMode;
+  const currentModeValue = location.pathname.startsWith('/gremial')
+    ? 'gremial'
+    : location.pathname.startsWith('/copim')
+      ? 'copim'
+      : appMode;
   const baseNavItems = isRoviInternalWorkspace || location.pathname.startsWith('/rovi')
     ? roviInternalNavItems.filter((item) => item.to !== '/rovi/ai-control' || isControlTowerOwner)
     : isPropertyManagerWorkspace || location.pathname.startsWith('/rentals')
     ? propertyManagerNavItems
+    : currentModeValue === 'gremial' || isGremialWorkspace
+    ? (isGremialMemberPortal ? gremialMemberNavItems : (isGremialDelegationWorkspace ? gremialDelegationNavItems : gremialNationalNavItems))
     : currentModeValue === 'copim'
     ? (isMemberPortal ? copimMemberNavItems : (isLocalAssociationWorkspace ? copimLocalAssociationNavItems : copimNationalNavItems))
     : isIndividual
@@ -267,7 +332,7 @@ export const Sidebar = ({ onClose }) => {
       
       <Separator />
 
-      {hasCopimAccess && !isMemberPortal && (
+      {(hasCopimAccess || hasGremialAccess) && !isMemberPortal && !isGremialMemberPortal && (
         <div className="px-4 pt-4">
         <div className="rovi-card rounded-2xl p-3">
           <p className="rovi-label mb-2">
@@ -279,15 +344,22 @@ export const Sidebar = ({ onClose }) => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="rovi">ROVI CRM</SelectItem>
-              <SelectItem value="copim">COPIM Institucional</SelectItem>
+              {hasCopimAccess && <SelectItem value="copim">COPIM Institucional</SelectItem>}
+              {hasGremialAccess && <SelectItem value="gremial">Gremial OS</SelectItem>}
             </SelectContent>
           </Select>
           <p className="mt-2 text-xs text-muted-foreground">
-            {currentModeValue === 'copim'
-              ? (isLocalAssociationWorkspace
-                ? 'Workspace operativo del capitulo para padrón, cobranza, agenda y activación.'
-                : 'Vista institucional nacional para asociaciones, socios y membresias.')
-              : 'Vista comercial para brokers e inmobiliarias.'}
+            {currentModeValue === 'gremial'
+              ? (isGremialDelegationWorkspace
+                ? 'Operación local de afiliados, renovaciones, servicios y oportunidades.'
+                : isGremialNationalWorkspace
+                  ? 'Vista nacional para delegaciones, afiliados, servicios e inteligencia.'
+                  : 'Plataforma gremial de gestión nacional y local.')
+              : currentModeValue === 'copim'
+                ? (isLocalAssociationWorkspace
+                  ? 'Workspace operativo del capitulo para padrón, cobranza, agenda y activación.'
+                  : 'Vista institucional nacional para asociaciones, socios y membresias.')
+                : 'Vista comercial para brokers e inmobiliarias.'}
           </p>
         </div>
         </div>
@@ -302,6 +374,18 @@ export const Sidebar = ({ onClose }) => {
             <p className="text-sm font-medium text-foreground">Asociado COPIM</p>
             <p className="mt-2 text-xs text-muted-foreground">
               Vista ligera de autoservicio para membresía, pagos, eventos y credencial.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isGremialMemberPortal && (
+        <div className="px-4 pt-4">
+          <div className="rovi-card rounded-2xl p-3">
+            <p className="rovi-label mb-2">Portal Activo</p>
+            <p className="text-sm font-medium text-foreground">Empresa afiliada</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Autoservicio de afiliación, expediente, pagos, oportunidades y licitaciones.
             </p>
           </div>
         </div>
@@ -333,7 +417,7 @@ export const Sidebar = ({ onClose }) => {
       
       {/* Footer */}
       <div className="p-4 border-t border-border">
-        {workspaces.length > 1 && !isMemberPortal && (
+        {workspaces.length > 1 && !isMemberPortal && !isGremialMemberPortal && (
           <div className="rovi-card mb-3 rounded-xl p-3">
             <p className="rovi-label mb-1">
               Workspace Activo

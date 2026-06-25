@@ -69,6 +69,29 @@ import { CopimMemberModulesPage } from './pages/CopimMemberModulesPage';
 import { CopimMemberDirectoryPage } from './pages/CopimMemberDirectoryPage';
 import { NegotiationStrategiesPage } from './pages/NegotiationStrategiesPage';
 import {
+  GremialDashboardPage,
+  GremialDelegationsPage,
+  GremialMembersPage,
+  GremialMembershipsPage,
+  GremialAffiliationPipelinePage,
+  GremialServicesPage,
+  GremialOpportunitiesPage,
+  GremialTendersPage,
+  GremialCoursesPage,
+  GremialEventsPage,
+  GremialAnalyticsPage,
+  GremialAIControlTowerPage,
+  GremialMemberHomePage,
+  GremialMemberProfilePage,
+  GremialMemberMembershipPage,
+  GremialMemberPaymentsPage,
+  GremialMemberDocumentsPage,
+  GremialMemberOpportunitiesPage,
+  GremialMemberTendersPage,
+  GremialMemberCoursesPage,
+  GremialMemberEventsPage,
+} from './pages/GremialPages';
+import {
   canManageCopimWorkspace,
   isCopimLocalAssociationUser,
   isCopimMemberUser,
@@ -78,6 +101,14 @@ import {
   isRoviInternalUser,
   resolveAuthenticatedHome,
 } from './lib/copimAccess';
+import {
+  canManageGremialWorkspace,
+  getGremialHome,
+  isGremialAccount,
+  isGremialDelegationUser,
+  isGremialMemberUser,
+  isGremialNationalUser,
+} from './lib/gremialAccess';
 import './App.css';
 
 // Protected Route component
@@ -283,6 +314,70 @@ const CopimHomeRedirect = () => {
   return <Navigate to="/copim-demo" replace />;
 };
 
+const GremialModuleRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to={`/login?next=${encodeURIComponent(window.location.pathname)}`} replace />;
+  }
+
+  if (user && !user.onboarding_completed) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (!isGremialAccount(user)) {
+    return <Navigate to={resolveAuthenticatedHome(user)} replace />;
+  }
+
+  return children;
+};
+
+const GremialAdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (isGremialMemberUser(user)) {
+    return <Navigate to="/gremial/member" replace />;
+  }
+  if (!canManageGremialWorkspace(user)) {
+    return <Navigate to={getGremialHome(user)} replace />;
+  }
+  return children;
+};
+
+const GremialNationalRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (isGremialMemberUser(user)) {
+    return <Navigate to="/gremial/member" replace />;
+  }
+  if (isGremialDelegationUser(user)) {
+    return <Navigate to="/gremial/dashboard" replace />;
+  }
+  if (!isGremialNationalUser(user)) {
+    return <Navigate to={getGremialHome(user)} replace />;
+  }
+  return children;
+};
+
+const GremialMemberRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!isGremialMemberUser(user)) {
+    return <Navigate to="/gremial/dashboard" replace />;
+  }
+  return children;
+};
+
+const GremialHomeRedirect = () => {
+  const { user } = useAuth();
+  return <Navigate to={getGremialHome(user)} replace />;
+};
+
 function AppRoutes() {
   return (
     <Routes>
@@ -466,6 +561,145 @@ function AppRoutes() {
             </RoviInternalRoute>
           }
         />
+        <Route path="/gremial" element={<GremialHomeRedirect />} />
+        <Route
+          path="/gremial/dashboard"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialDashboardPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/delegations"
+          element={
+            <GremialModuleRoute>
+              <GremialNationalRoute>
+                <GremialDelegationsPage />
+              </GremialNationalRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/members"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialMembersPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/memberships"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialMembershipsPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/affiliation"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialAffiliationPipelinePage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/services"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialServicesPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/opportunities"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialOpportunitiesPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/tenders"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialTendersPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/courses"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialCoursesPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/events"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialEventsPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/analytics"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialAnalyticsPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/ai-control"
+          element={
+            <GremialModuleRoute>
+              <GremialAdminRoute>
+                <GremialAIControlTowerPage />
+              </GremialAdminRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route
+          path="/gremial/member"
+          element={
+            <GremialModuleRoute>
+              <GremialMemberRoute>
+                <GremialMemberHomePage />
+              </GremialMemberRoute>
+            </GremialModuleRoute>
+          }
+        />
+        <Route path="/gremial/member/profile" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberProfilePage /></GremialMemberRoute></GremialModuleRoute>} />
+        <Route path="/gremial/member/membership" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberMembershipPage /></GremialMemberRoute></GremialModuleRoute>} />
+        <Route path="/gremial/member/payments" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberPaymentsPage /></GremialMemberRoute></GremialModuleRoute>} />
+        <Route path="/gremial/member/documents" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberDocumentsPage /></GremialMemberRoute></GremialModuleRoute>} />
+        <Route path="/gremial/member/opportunities" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberOpportunitiesPage /></GremialMemberRoute></GremialModuleRoute>} />
+        <Route path="/gremial/member/tenders" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberTendersPage /></GremialMemberRoute></GremialModuleRoute>} />
+        <Route path="/gremial/member/courses" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberCoursesPage /></GremialMemberRoute></GremialModuleRoute>} />
+        <Route path="/gremial/member/events" element={<GremialModuleRoute><GremialMemberRoute><GremialMemberEventsPage /></GremialMemberRoute></GremialModuleRoute>} />
         <Route path="/copim" element={<CopimHomeRedirect />} />
         <Route
           path="/copim/dashboard"

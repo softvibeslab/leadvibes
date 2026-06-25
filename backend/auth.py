@@ -102,6 +102,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         "role": payload.get("active_role") or payload.get("role", "broker"),
         "active_role": payload.get("active_role") or payload.get("role", "broker"),
         "account_type": payload.get("account_type", "individual"),
+        "linked_copim_association_id": payload.get("linked_copim_association_id"),
+        "linked_copim_member_id": payload.get("linked_copim_member_id"),
+        "linked_copim_tenant_id": payload.get("linked_copim_tenant_id"),
+        "linked_gremial_delegation_id": payload.get("linked_gremial_delegation_id"),
+        "linked_gremial_member_id": payload.get("linked_gremial_member_id"),
+        "linked_gremial_tenant_id": payload.get("linked_gremial_tenant_id"),
         "name": payload.get("name", "")
     }
 
@@ -125,6 +131,12 @@ async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = 
                     "role": payload.get("active_role") or payload.get("role", "broker"),
                     "active_role": payload.get("active_role") or payload.get("role", "broker"),
                     "account_type": payload.get("account_type", "individual"),
+                    "linked_copim_association_id": payload.get("linked_copim_association_id"),
+                    "linked_copim_member_id": payload.get("linked_copim_member_id"),
+                    "linked_copim_tenant_id": payload.get("linked_copim_tenant_id"),
+                    "linked_gremial_delegation_id": payload.get("linked_gremial_delegation_id"),
+                    "linked_gremial_member_id": payload.get("linked_gremial_member_id"),
+                    "linked_gremial_tenant_id": payload.get("linked_gremial_tenant_id"),
                     "name": payload.get("name", "")
                 }
     except Exception:
