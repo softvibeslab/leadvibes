@@ -151,6 +151,32 @@ async def main():
     tenders = [{"id": f"gtender-cmic-{idx:03d}", "tenant_id": TENANT_ID, "delegation_id": DELEGATIONS[idx % len(DELEGATIONS)]["id"], "title": f"Licitación pública demo {idx}", "opportunity_type": "public_tender", "dependency": ["SCT", "SEDATU", "Gobierno Estatal", "Municipio"][idx % 4], "tender_number": f"CMIC-DEMO-{idx:04d}", "description": "Licitación pública para seguimiento gremial.", "state": DELEGATIONS[idx % len(DELEGATIONS)]["state"], "sector": "Infraestructura", "specialties": [SPECIALTIES[idx % len(SPECIALTIES)]], "budget": 1000000 * idx, "status": "published", "published_at": days_from_now(-idx), "closes_at": days_from_now(15 + idx), "created_at": now, "updated_at": now} for idx in range(1, 9)]
     await upsert_many(db, "gremial_tenders", tenders)
 
+    courses = [
+        {"id": "gcourse-cmic-licitaciones", "tenant_id": TENANT_ID, "delegation_id": "gdel-cmic-qroo", "title": "Cómo ganar licitaciones públicas sin improvisar", "category": "licitaciones", "description": "Ruta práctica para detectar convocatorias, preparar expediente, calcular propuesta y dar seguimiento desde Rovi Gremial OS.", "modality": "hibrido", "instructor": "ICIC / Comité de Infraestructura", "state": "Quintana Roo", "starts_at": days_from_now(9), "ends_at": days_from_now(10), "capacity": 60, "price": 0.0, "status": "published", "created_at": now, "updated_at": now},
+        {"id": "gcourse-cmic-nom031", "tenant_id": TENANT_ID, "delegation_id": "gdel-cmic-cdmx", "title": "NOM-031 y seguridad en obra para contratistas", "category": "seguridad", "description": "Capacitación ejecutiva para reducir riesgos operativos, multas y accidentes en obra.", "modality": "presencial", "instructor": "Especialista STPS Demo", "state": "Ciudad de México", "starts_at": days_from_now(16), "ends_at": days_from_now(16), "capacity": 45, "price": 1800.0, "status": "published", "created_at": now, "updated_at": now},
+        {"id": "gcourse-cmic-costos", "tenant_id": TENANT_ID, "delegation_id": "gdel-cmic-nl", "title": "Costos, precios unitarios y margen por proyecto", "category": "finanzas", "description": "Modelo para que afiliados calculen margen real y eviten obras no rentables.", "modality": "online", "instructor": "CEICO Demo", "state": "Nuevo León", "starts_at": days_from_now(24), "ends_at": days_from_now(25), "capacity": 120, "price": 950.0, "status": "open", "created_at": now, "updated_at": now},
+    ]
+    await upsert_many(db, "gremial_courses", courses)
+
+    events = [
+        {"id": "gevent-cmic-business-roundtable", "tenant_id": TENANT_ID, "delegation_id": "gdel-cmic-qroo", "title": "Rueda de negocio: infraestructura turística y vivienda", "event_type": "networking", "description": "Encuentro de afiliados, desarrolladores y compradores institucionales para generar oportunidades privadas.", "venue": "Cancún Center Demo", "state": "Quintana Roo", "starts_at": days_from_now(12), "ends_at": days_from_now(12), "capacity": 150, "price": 0.0, "status": "published", "created_at": now, "updated_at": now},
+        {"id": "gevent-cmic-national-forum", "tenant_id": TENANT_ID, "delegation_id": None, "title": "Foro nacional: nearshoring e infraestructura 2026", "event_type": "foro", "description": "Agenda nacional para mostrar cómo la cámara conecta demanda, afiliados, licitaciones y datos de mercado.", "venue": "Sede Nacional CMIC Demo", "state": "Nacional", "starts_at": days_from_now(30), "ends_at": days_from_now(31), "capacity": 500, "price": 0.0, "status": "published", "created_at": now, "updated_at": now},
+        {"id": "gevent-cmic-qroo-assembly", "tenant_id": TENANT_ID, "delegation_id": "gdel-cmic-qroo", "title": "Asamblea local CMIC Quintana Roo", "event_type": "asamblea", "description": "Sesión local con seguimiento de renovaciones, expediente, cartera y oportunidades del estado.", "venue": "Delegación Quintana Roo Demo", "state": "Quintana Roo", "starts_at": days_from_now(18), "ends_at": days_from_now(18), "capacity": 90, "price": 0.0, "status": "open", "created_at": now, "updated_at": now},
+    ]
+    await upsert_many(db, "gremial_events", events)
+
+    course_registrations = [
+        {"id": "gcreg-cmic-001", "tenant_id": TENANT_ID, "course_id": "gcourse-cmic-licitaciones", "member_id": "gmem-cmic-001", "delegation_id": "gdel-cmic-qroo", "status": "registered", "notes": "Registro demo de afiliado activo.", "registered_at": now, "updated_at": now},
+        {"id": "gcreg-cmic-002", "tenant_id": TENANT_ID, "course_id": "gcourse-cmic-nom031", "member_id": "gmem-cmic-002", "delegation_id": "gdel-cmic-qroo", "status": "reviewing", "notes": "Registro demo de afiliado en riesgo para seguimiento.", "registered_at": now, "updated_at": now},
+    ]
+    await upsert_many(db, "gremial_course_registrations", course_registrations)
+
+    event_registrations = [
+        {"id": "gereg-cmic-001", "tenant_id": TENANT_ID, "event_id": "gevent-cmic-business-roundtable", "member_id": "gmem-cmic-001", "delegation_id": "gdel-cmic-qroo", "status": "registered", "notes": "Registro demo para rueda de negocio.", "registered_at": now, "updated_at": now},
+        {"id": "gereg-cmic-002", "tenant_id": TENANT_ID, "event_id": "gevent-cmic-qroo-assembly", "member_id": "gmem-cmic-002", "delegation_id": "gdel-cmic-qroo", "status": "registered", "notes": "Invitación a afiliado en riesgo para reactivación.", "registered_at": now, "updated_at": now},
+    ]
+    await upsert_many(db, "gremial_event_registrations", event_registrations)
+
     documents = []
     for member in members[:12]:
         documents.append({"id": f"gdoc-{member['id']}-rfc", "tenant_id": TENANT_ID, "member_id": member["id"], "document_type": "constancia_fiscal", "file_url": "https://example.com/demo.pdf", "status": "approved" if member["id"] != "gmem-cmic-002" else "submitted", "created_at": now, "updated_at": now})

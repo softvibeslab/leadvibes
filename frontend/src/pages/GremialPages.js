@@ -225,6 +225,33 @@ const tenderFields = [
   { name: 'published_at', label: 'Publicada', type: 'date' },
 ];
 
+const courseFields = [
+  { name: 'title', label: 'Curso / certificación' },
+  { name: 'category', label: 'Categoría', type: 'select', options: ['capacitacion', 'certificacion', 'seguridad', 'normatividad', 'finanzas', 'licitaciones'] },
+  { name: 'modality', label: 'Modalidad', type: 'select', options: ['online', 'presencial', 'hibrido'] },
+  { name: 'instructor', label: 'Instructor / aliado' },
+  { name: 'state', label: 'Estado' },
+  { name: 'starts_at', label: 'Inicia', type: 'date' },
+  { name: 'ends_at', label: 'Termina', type: 'date' },
+  { name: 'capacity', label: 'Cupo', type: 'number' },
+  { name: 'price', label: 'Precio', type: 'number' },
+  { name: 'status', label: 'Estatus', type: 'select', options: ['draft', 'published', 'open', 'closed', 'archived'] },
+  { name: 'description', label: 'Descripción', type: 'textarea' },
+];
+
+const eventFields = [
+  { name: 'title', label: 'Evento' },
+  { name: 'event_type', label: 'Tipo', type: 'select', options: ['networking', 'asamblea', 'expo', 'webinar', 'foro', 'comite'] },
+  { name: 'venue', label: 'Sede' },
+  { name: 'state', label: 'Estado' },
+  { name: 'starts_at', label: 'Inicia', type: 'date' },
+  { name: 'ends_at', label: 'Termina', type: 'date' },
+  { name: 'capacity', label: 'Cupo', type: 'number' },
+  { name: 'price', label: 'Precio', type: 'number' },
+  { name: 'status', label: 'Estatus', type: 'select', options: ['draft', 'published', 'open', 'closed', 'archived'] },
+  { name: 'description', label: 'Descripción', type: 'textarea' },
+];
+
 const isMemberPortalUser = (user) => user?.account_type === 'member_company' || String(user?.role || user?.active_role || '').startsWith('gremial_member');
 
 const withDatePayload = (values, dateFields = []) => {
@@ -286,13 +313,23 @@ const SummaryStrip = ({ items }) => (
 
 const DemoReadyBanner = () => (
   <div className="rounded-3xl border bg-gradient-to-r from-red-50 to-background p-5">
-    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-red-500">Demo comercial lista</p>
-        <h2 className="text-xl font-bold">CMIC / Cámara / Asociación en una sola operación</h2>
-        <p className="text-sm text-muted-foreground">Afiliación, expedientes, renovaciones, beneficios, oportunidades, licitaciones y AI Control Tower conectados de punta a punta.</p>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-red-500">Demo ejecutiva CMIC lista</p>
+          <h2 className="text-xl font-bold">Un sistema operativo para retener afiliados, generar ingresos y activar oportunidades</h2>
+          <p className="text-sm text-muted-foreground">Afiliación, expedientes, renovaciones, cartera, capacitación, eventos, servicios, oportunidades, licitaciones y AI Control Tower conectados de punta a punta.</p>
+        </div>
+        <Badge>E2E listo para comité</Badge>
       </div>
-      <Badge>Fase 2 cerrada</Badge>
+      <div className="grid gap-3 md:grid-cols-4">
+        {[
+          ['Retención', 'Detecta afiliados en riesgo y vencimientos antes de perder cuotas.'],
+          ['Ingresos', 'Convierte renovaciones, cursos, eventos y servicios en cartera accionable.'],
+          ['Valor al afiliado', 'Centraliza licitaciones, oportunidades y beneficios visibles para cada empresa.'],
+          ['Gobernanza', 'Nacional, delegaciones y afiliados trabajan con permisos y datos trazables.'],
+        ].map(([title, body]) => <div key={title} className="rounded-2xl border bg-background/70 p-3"><p className="font-semibold">{title}</p><p className="text-xs text-muted-foreground">{body}</p></div>)}
+      </div>
     </div>
   </div>
 );
@@ -308,7 +345,7 @@ export const GremialDashboardPage = () => {
       <div className="grid gap-4 md:grid-cols-4">
         {[
           ['Afiliados', kpis.member_count || 0], ['Activos', kpis.active_members || 0], ['Prospectos abiertos', kpis.leads_open || 0], ['Cartera por cobrar', money(kpis.revenue_due || 0)],
-          ['Renovaciones pendientes', kpis.memberships_due || 0], ['Oportunidades', kpis.opportunities || 0], ['Licitaciones', kpis.tenders || 0], ['Delegaciones', data?.delegations?.length || 0],
+          ['Renovaciones pendientes', kpis.memberships_due || 0], ['Oportunidades', kpis.opportunities || 0], ['Licitaciones', kpis.tenders || 0], ['Cursos', kpis.courses || 0], ['Eventos', kpis.events || 0], ['Delegaciones', data?.delegations?.length || 0],
         ].map(([label, value]) => <Card key={label}><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{label}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{value}</div></CardContent></Card>)}
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -595,8 +632,80 @@ export const GremialTendersPage = () => {
 };
 export const GremialAnalyticsPage = () => <GremialDashboardPage />;
 export const GremialAIControlTowerPage = () => <SimpleListPage title="AI Control Tower" subtitle="Recomendaciones accionables de riesgo, renovación, expediente y oportunidades." endpoint="/gremial/ai/recommendations" emptyTitle="Sin recomendaciones" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent><Badge variant={item.priority === 'high' ? 'destructive' : 'secondary'}>{item.priority}</Badge><p className="mt-3 text-sm text-muted-foreground">{item.explanation}</p><p className="mt-2 text-sm font-medium">{item.suggested_action}</p></CardContent></Card>} />;
-export const GremialCoursesPage = () => <PageShell title="Capacitación" subtitle="Cursos, certificaciones y programas formativos gremiales."><EmptyCard title="Módulo conectado en siguiente iteración">La base gremial está lista; se puede conectar al motor de cursos COPIM o a `/api/gremial/courses`.</EmptyCard></PageShell>;
-export const GremialEventsPage = () => <PageShell title="Eventos" subtitle="Eventos nacionales/locales, registro, check-in y networking."><EmptyCard title="Módulo conectado en siguiente iteración">La base gremial está lista; se puede conectar al motor de eventos COPIM o a `/api/gremial/events`.</EmptyCard></PageShell>;
+
+export const GremialCoursesPage = () => {
+  const { api, user } = useAuth();
+  const isMemberPortal = isMemberPortalUser(user);
+  const { data, loading, error, reload } = useGremialApi('/gremial/courses', []);
+  const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'category', 'modality', 'instructor', 'state', 'status', 'description'])), [data, query]);
+  const editInitial = editing ? { ...editing, starts_at: dateOnly(editing.starts_at), ends_at: dateOnly(editing.ends_at) } : null;
+  const register = async (item) => {
+    setMessage('');
+    try {
+      await api.post(`/gremial/courses/${item.id}/register`, { notes: 'Registro enviado desde portal gremial' });
+      setMessage(`Registro confirmado: ${item.title}`);
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'No se pudo registrar al curso');
+    }
+  };
+  const save = async (values) => {
+    const payload = withDatePayload(values, ['starts_at', 'ends_at']);
+    if (editing?.id) await api.put(`/gremial/courses/${editing.id}`, payload); else await api.post('/gremial/courses', payload);
+    await reload();
+  };
+  const setCourseStatus = async (item, status) => { await api.post(`/gremial/courses/${item.id}/status`, { status }); await reload(); };
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  return <PageShell title="Capacitación y certificaciones" subtitle="Cursos ICIC/demo, certificaciones, normatividad y formación con trazabilidad de afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', category: 'capacitacion', modality: 'online', price: 0 })}>Nuevo curso</Button>}>
+    {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
+    <SummaryStrip items={[["Total", data?.length || 0], ["Publicados", countBy(data, 'status', 'published')], ["Abiertos", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
+    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar curso por título, categoría, modalidad, instructor o estado..." />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.modality}</Badge><Badge>{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.instructor || 'Instructor por asignar'} · {item.state || 'Nacional'}</p><p>Inicia: {dateOnly(item.starts_at) || 'Por definir'} · Cupo: {item.capacity || 'Abierto'}</p><p>Precio: {money(item.price)}</p><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => register(item)}>Registrarme</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setCourseStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setCourseStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setCourseStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
+    {!filtered.length && <EmptyCard title="Sin cursos">No hay resultados con ese filtro.</EmptyCard>}
+    {!isMemberPortal && <RequestReviewPanel title="Registros a cursos" endpoint="/gremial/course-registrations" statusEndpoint="/gremial/course-registrations" />}
+    <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar curso' : 'Nuevo curso'} fields={courseFields} initialValues={editInitial || { status: 'draft', category: 'capacitacion', modality: 'online', price: 0 }} onSubmit={save} />
+  </PageShell>;
+};
+
+export const GremialEventsPage = () => {
+  const { api, user } = useAuth();
+  const isMemberPortal = isMemberPortalUser(user);
+  const { data, loading, error, reload } = useGremialApi('/gremial/events', []);
+  const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'event_type', 'venue', 'state', 'status', 'description'])), [data, query]);
+  const editInitial = editing ? { ...editing, starts_at: dateOnly(editing.starts_at), ends_at: dateOnly(editing.ends_at) } : null;
+  const register = async (item) => {
+    setMessage('');
+    try {
+      await api.post(`/gremial/events/${item.id}/register`, { notes: 'Registro enviado desde portal gremial' });
+      setMessage(`Registro confirmado: ${item.title}`);
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'No se pudo registrar al evento');
+    }
+  };
+  const save = async (values) => {
+    const payload = withDatePayload(values, ['starts_at', 'ends_at']);
+    if (editing?.id) await api.put(`/gremial/events/${editing.id}`, payload); else await api.post('/gremial/events', payload);
+    await reload();
+  };
+  const setEventStatus = async (item, status) => { await api.post(`/gremial/events/${item.id}/status`, { status }); await reload(); };
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  return <PageShell title="Eventos gremiales" subtitle="Asambleas, networking, foros, expos y comités con registro y seguimiento por afiliado." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', event_type: 'networking', price: 0 })}>Nuevo evento</Button>}>
+    {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
+    <SummaryStrip items={[["Total", data?.length || 0], ["Publicados", countBy(data, 'status', 'published')], ["Abiertos", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
+    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar evento por título, tipo, sede, estado o estatus..." />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.event_type}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.venue || 'Sede por confirmar'} · {item.state || 'Nacional'}</p><p>Fecha: {dateOnly(item.starts_at) || 'Por definir'} · Cupo: {item.capacity || 'Abierto'}</p><p>Precio: {money(item.price)}</p><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => register(item)}>Registrarme</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setEventStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setEventStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setEventStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
+    {!filtered.length && <EmptyCard title="Sin eventos">No hay resultados con ese filtro.</EmptyCard>}
+    {!isMemberPortal && <RequestReviewPanel title="Registros a eventos" endpoint="/gremial/event-registrations" statusEndpoint="/gremial/event-registrations" />}
+    <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar evento' : 'Nuevo evento'} fields={eventFields} initialValues={editInitial || { status: 'draft', event_type: 'networking', price: 0 }} onSubmit={save} />
+  </PageShell>;
+};
 
 export const GremialMemberHomePage = () => {
   const { data, loading, error } = useGremialApi('/gremial/dashboard', {});
