@@ -192,6 +192,13 @@ const membershipFields = [
   { name: 'benefits_summary', label: 'Beneficios / notas', type: 'textarea' },
 ];
 
+const documentFields = [
+  { name: 'document_type', label: 'Tipo de documento', type: 'select', options: ['constancia_fiscal', 'acta_constitutiva', 'identificacion', 'comprobante_domicilio', 'certificacion', 'otro'] },
+  { name: 'file_url', label: 'URL del archivo' },
+  { name: 'expires_at', label: 'Vence', type: 'date' },
+  { name: 'notes', label: 'Notas', type: 'textarea' },
+];
+
 export const GremialDashboardPage = () => {
   const { data, loading, error, reload } = useGremialApi('/gremial/dashboard', {});
   if (loading) return <LoadingState />;
@@ -231,10 +238,86 @@ export const GremialDelegationsPage = () => {
   </PageShell>;
 };
 
+const DocumentManager = ({ memberId, memberName, onClose }) => {
+  const { api } = useAuth();
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!memberId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get(`/gremial/members/${memberId}`);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'No se pudo cargar el expediente');
+    } finally {
+      setLoading(false);
+    }
+  }, [api, memberId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const createDocument = async (values) => {
+    const payload = cleanPayload({ ...values, expires_at: dateToApi(values.expires_at), status: 'submitted' });
+    await api.post(`/gremial/members/${memberId}/documents`, payload);
+    await load();
+  };
+  const approve = async (doc) => { await api.post(`/gremial/documents/${doc.id}/approve`); await load(); };
+  const reject = async (doc) => { await api.post(`/gremial/documents/${doc.id}/reject`, { status: 'rejected', notes: 'Rechazado desde revisión de expediente' }); await load(); };
+
+  return (
+    <Dialog open={!!memberId} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Expediente de {memberName || detail?.member?.company_name || 'afiliado'}</DialogTitle>
+          <DialogDescription>Documentos, estatus y revisión administrativa.</DialogDescription>
+        </DialogHeader>
+        {loading && <LoadingState />}
+        {error && <ErrorState error={error} />}
+        {!loading && !error && (
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Expediente</p><p className="text-2xl font-bold">{detail?.member?.profile_completion || 0}%</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Membresía</p><p className="font-semibold">{detail?.membership?.payment_status || 'Sin membresía'}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Documentos</p><p className="text-2xl font-bold">{detail?.documents?.length || 0}</p></CardContent></Card>
+            </div>
+            <div className="flex justify-end"><Button onClick={() => setAdding(true)}>Agregar documento</Button></div>
+            <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+              {(detail?.documents || []).map((doc) => (
+                <div key={doc.id} className="rounded-xl border p-3">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-medium">{doc.document_type}</p>
+                      <p className="text-sm text-muted-foreground break-all">{doc.file_url}</p>
+                      {doc.review_notes && <p className="text-sm text-red-500">{doc.review_notes}</p>}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={doc.status === 'rejected' ? 'destructive' : 'secondary'}>{doc.status}</Badge>
+                      {doc.status !== 'approved' && <Button size="sm" onClick={() => approve(doc)}>Aprobar</Button>}
+                      {doc.status !== 'rejected' && <Button size="sm" variant="outline" onClick={() => reject(doc)}>Rechazar</Button>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {!detail?.documents?.length && <EmptyCard title="Sin documentos">Agrega documentos del expediente para habilitar revisión.</EmptyCard>}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+      <FormDialog open={adding} onOpenChange={setAdding} title="Agregar documento" fields={documentFields} initialValues={{ document_type: 'constancia_fiscal' }} onSubmit={createDocument} />
+    </Dialog>
+  );
+};
+
 export const GremialMembersPage = () => {
   const { api } = useAuth();
   const { data, loading, error, reload } = useGremialApi('/gremial/members', []);
   const [editing, setEditing] = useState(null);
+  const [reviewing, setReviewing] = useState(null);
   const save = async (values) => {
     const payload = cleanPayload(values);
     if (editing?.id) await api.put(`/gremial/members/${editing.id}`, payload); else await api.post('/gremial/members', payload);
@@ -243,9 +326,10 @@ export const GremialMembersPage = () => {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Afiliados" subtitle="Padrón nacional/local de empresas afiliadas, score y expediente." action={<Button onClick={() => setEditing({ member_status: 'pending', membership_tier: 'base' })}>Nuevo afiliado</Button>}>
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.company_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{item.city}, {item.state}</p><div className="flex gap-2"><Badge>{item.member_status}</Badge><Badge variant="secondary">{item.membership_tier}</Badge></div><p className="text-sm">Expediente: {item.profile_completion || 0}% · Engagement: {item.engagement_score || 0}</p><Button className="w-full" variant="outline" onClick={() => setEditing(item)}>Editar</Button></CardContent></Card>)}</div>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.company_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{item.city}, {item.state}</p><div className="flex gap-2"><Badge>{item.member_status}</Badge><Badge variant="secondary">{item.membership_tier}</Badge></div><p className="text-sm">Expediente: {item.profile_completion || 0}% · Engagement: {item.engagement_score || 0}</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setReviewing(item)}>Expediente</Button></div></CardContent></Card>)}</div>
     {!data?.length && <EmptyCard title="Sin afiliados">Cuando existan datos aparecerán aquí.</EmptyCard>}
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar afiliado' : 'Nuevo afiliado'} fields={memberFields} initialValues={editing || { member_status: 'pending', membership_tier: 'base' }} onSubmit={save} />
+    {reviewing && <DocumentManager memberId={reviewing.id} memberName={reviewing.company_name} onClose={() => { setReviewing(null); reload(); }} />}
   </PageShell>;
 };
 
@@ -297,9 +381,71 @@ const SimpleListPage = ({ title, subtitle, endpoint, renderItem, emptyTitle }) =
   return <PageShell title={title} subtitle={subtitle} action={<Button onClick={reload}>Actualizar</Button>}><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map(renderItem)}</div>{!data?.length && <EmptyCard title={emptyTitle}>Cuando existan datos aparecerán aquí.</EmptyCard>}</PageShell>;
 };
 
-export const GremialServicesPage = () => <SimpleListPage title="Servicios y beneficios" subtitle="Catálogo medible de servicios de valor para afiliados." endpoint="/gremial/services" emptyTitle="Sin servicios" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent><Badge>{item.category}</Badge><p className="mt-3 text-sm text-muted-foreground">{item.description}</p></CardContent></Card>} />;
-export const GremialOpportunitiesPage = () => <SimpleListPage title="Oportunidades privadas" subtitle="Marketplace interno de oportunidades comerciales para afiliados." endpoint="/gremial/opportunities" emptyTitle="Sin oportunidades" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p className="mt-2">Presupuesto: {money(item.budget)}</p><Badge className="mt-3">{item.status}</Badge></CardContent></Card>} />;
-export const GremialTendersPage = () => <SimpleListPage title="Licitaciones" subtitle="Seguimiento de licitaciones públicas por estado, dependencia y especialidad." endpoint="/gremial/tenders" emptyTitle="Sin licitaciones" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p className="mt-2">Monto estimado: {money(item.budget)}</p><Badge className="mt-3">{item.status}</Badge></CardContent></Card>} />;
+export const GremialServicesPage = () => {
+  const { api } = useAuth();
+  const { data, loading, error, reload } = useGremialApi('/gremial/services', []);
+  const [message, setMessage] = useState('');
+  const requestService = async (item) => {
+    setMessage('');
+    try {
+      await api.post(`/gremial/services/${item.id}/request`, { notes: 'Solicitud enviada desde portal gremial' });
+      setMessage(`Solicitud enviada: ${item.title}`);
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'No se pudo enviar la solicitud');
+    }
+  };
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  return <PageShell title="Servicios y beneficios" subtitle="Catálogo medible de servicios de valor para afiliados." action={<Button onClick={reload}>Actualizar</Button>}>
+    {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><Badge>{item.category}</Badge><p className="text-sm text-muted-foreground">{item.description}</p><Button className="w-full" variant="outline" onClick={() => requestService(item)}>Solicitar servicio</Button></CardContent></Card>)}</div>
+    {!data?.length && <EmptyCard title="Sin servicios">Cuando existan datos aparecerán aquí.</EmptyCard>}
+  </PageShell>;
+};
+
+export const GremialOpportunitiesPage = () => {
+  const { api } = useAuth();
+  const { data, loading, error, reload } = useGremialApi('/gremial/opportunities', []);
+  const [message, setMessage] = useState('');
+  const apply = async (item) => {
+    setMessage('');
+    try {
+      await api.post(`/gremial/opportunities/${item.id}/apply`, { notes: 'Postulación enviada desde Rovi Gremial OS' });
+      setMessage(`Postulación enviada: ${item.title}`);
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'No se pudo postular');
+    }
+  };
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  return <PageShell title="Oportunidades privadas" subtitle="Marketplace interno de oportunidades comerciales para afiliados." action={<Button onClick={reload}>Actualizar</Button>}>
+    {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p>Presupuesto: {money(item.budget)}</p><Badge>{item.status}</Badge><Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular</Button></CardContent></Card>)}</div>
+    {!data?.length && <EmptyCard title="Sin oportunidades">Cuando existan datos aparecerán aquí.</EmptyCard>}
+  </PageShell>;
+};
+
+export const GremialTendersPage = () => {
+  const { api } = useAuth();
+  const { data, loading, error, reload } = useGremialApi('/gremial/tenders', []);
+  const [message, setMessage] = useState('');
+  const apply = async (item) => {
+    setMessage('');
+    try {
+      await api.post(`/gremial/tenders/${item.id}/apply`, { notes: 'Postulación a licitación enviada desde Rovi Gremial OS' });
+      setMessage(`Postulación enviada: ${item.title}`);
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'No se pudo postular');
+    }
+  };
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  return <PageShell title="Licitaciones" subtitle="Seguimiento de licitaciones públicas por estado, dependencia y especialidad." action={<Button onClick={reload}>Actualizar</Button>}>
+    {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p>Monto estimado: {money(item.budget)}</p><Badge>{item.status}</Badge><Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular a licitación</Button></CardContent></Card>)}</div>
+    {!data?.length && <EmptyCard title="Sin licitaciones">Cuando existan datos aparecerán aquí.</EmptyCard>}
+  </PageShell>;
+};
 export const GremialAnalyticsPage = () => <GremialDashboardPage />;
 export const GremialAIControlTowerPage = () => <SimpleListPage title="AI Control Tower" subtitle="Recomendaciones accionables de riesgo, renovación, expediente y oportunidades." endpoint="/gremial/ai/recommendations" emptyTitle="Sin recomendaciones" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent><Badge variant={item.priority === 'high' ? 'destructive' : 'secondary'}>{item.priority}</Badge><p className="mt-3 text-sm text-muted-foreground">{item.explanation}</p><p className="mt-2 text-sm font-medium">{item.suggested_action}</p></CardContent></Card>} />;
 export const GremialCoursesPage = () => <PageShell title="Capacitación" subtitle="Cursos, certificaciones y programas formativos gremiales."><EmptyCard title="Módulo conectado en siguiente iteración">La base gremial está lista; se puede conectar al motor de cursos COPIM o a `/api/gremial/courses`.</EmptyCard></PageShell>;
@@ -316,7 +462,25 @@ export const GremialMemberHomePage = () => {
 export const GremialMemberProfilePage = () => <GremialMemberHomePage />;
 export const GremialMemberMembershipPage = () => <GremialMemberHomePage />;
 export const GremialMemberPaymentsPage = () => <SimpleListPage title="Mis pagos" subtitle="Facturas y cuotas pendientes." endpoint="/gremial/memberships" emptyTitle="Sin pagos pendientes" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.plan_name}</CardTitle></CardHeader><CardContent><p>{money(item.balance_due)}</p><Badge>{item.payment_status}</Badge></CardContent></Card>} />;
-export const GremialMemberDocumentsPage = () => <SimpleListPage title="Mi expediente" subtitle="Documentos fiscales, legales y técnicos." endpoint="/gremial/documents" emptyTitle="Sin documentos" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.document_type}</CardTitle></CardHeader><CardContent><Badge>{item.status}</Badge><p className="mt-2 text-sm text-muted-foreground">{item.file_url}</p></CardContent></Card>} />;
+export const GremialMemberDocumentsPage = () => {
+  const { api } = useAuth();
+  const { data: dashboard, loading: dashLoading, error: dashError } = useGremialApi('/gremial/dashboard', {});
+  const { data, loading, error, reload } = useGremialApi('/gremial/documents', []);
+  const [adding, setAdding] = useState(false);
+  const memberId = dashboard?.member?.id;
+  const upload = async (values) => {
+    const payload = cleanPayload({ ...values, expires_at: dateToApi(values.expires_at), status: 'submitted' });
+    await api.post(`/gremial/members/${memberId}/documents`, payload);
+    await reload();
+  };
+  if (loading || dashLoading) return <LoadingState />;
+  if (error || dashError) return <ErrorState error={error || dashError} />;
+  return <PageShell title="Mi expediente" subtitle="Documentos fiscales, legales y técnicos." action={<Button onClick={() => setAdding(true)} disabled={!memberId}>Subir documento</Button>}>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.document_type}</CardTitle></CardHeader><CardContent className="space-y-2"><Badge variant={item.status === 'rejected' ? 'destructive' : 'secondary'}>{item.status}</Badge><p className="text-sm text-muted-foreground break-all">{item.file_url}</p>{item.review_notes && <p className="text-sm text-red-500">{item.review_notes}</p>}</CardContent></Card>)}</div>
+    {!data?.length && <EmptyCard title="Sin documentos">Sube documentos para completar el expediente.</EmptyCard>}
+    <FormDialog open={adding} onOpenChange={setAdding} title="Subir documento" fields={documentFields} initialValues={{ document_type: 'constancia_fiscal' }} onSubmit={upload} />
+  </PageShell>;
+};
 export const GremialMemberOpportunitiesPage = GremialOpportunitiesPage;
 export const GremialMemberTendersPage = GremialTendersPage;
 export const GremialMemberCoursesPage = GremialCoursesPage;
