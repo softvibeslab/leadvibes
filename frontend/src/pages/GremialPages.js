@@ -654,17 +654,42 @@ export const GremialMembersPage = () => {
 
 export const GremialMembershipsPage = () => {
   const { api } = useAuth();
-  const { data, loading, error, reload } = useGremialApi('/gremial/memberships', []);
-  const items = getItems(data);
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('all');
+  const [period, setPeriod] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(60);
+  const params = { page, page_size: pageSize, q: query || undefined, status, period };
+  const { data, loading, error, reload } = useGremialPagedApi('/gremial/memberships', params);
+  const items = getItems(data);
   const editInitial = editing ? { ...editing, renewal_date: dateOnly(editing.renewal_date) } : null;
   const save = async (values) => { const payload = cleanPayload({ ...values, renewal_date: dateToApi(values.renewal_date) }); await api.put(`/gremial/memberships/${editing.id}`, payload); await reload(); };
   const markPaid = async (item) => { await api.post(`/gremial/memberships/${item.id}/mark-paid`); await reload(); };
+  useEffect(() => { setPage(1); }, [query, status, period, pageSize]);
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Renovaciones y membresías" subtitle="Cuotas, vencimientos, cartera por cobrar y recomendaciones de cobranza." action={<Button onClick={reload}>Actualizar</Button>}>
-    <CatalogExplorer items={items} searchFields={['plan_name', 'member_id', 'payment_status', 'benefits_summary', 'notes']} filters={[{ field: 'payment_status', label: 'Pago', options: uniqueOptions(items, 'payment_status') }, { field: 'billing_period', label: 'Periodo', options: uniqueOptions(items, 'billing_period') }]} placeholder="Buscar por afiliado, plan, pago o beneficios..." emptyTitle="Sin membresías" summary={(ex) => [["Total", items.length], ["Pendientes", items.filter((i) => ['due','overdue'].includes(i.payment_status)).length], ["Cartera", money(items.reduce((s, i) => s + Number(i.balance_due || 0), 0))], ["Vista", ex.filtered.length]]} renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.plan_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">Afiliado: {item.member_id}</p><p>Vence: {dateOnly(item.renewal_date) || 'Sin fecha'}</p><p>Saldo: <strong>{money(item.balance_due)}</strong></p><Badge variant={item.payment_status === 'overdue' ? 'destructive' : 'secondary'}>{item.payment_status}</Badge><div className="grid grid-cols-3 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button onClick={() => markPaid(item)} disabled={item.payment_status === 'paid'}>Pagado</Button></div></CardContent></Card>} />
+    <SummaryStrip items={[["Total indexado", data?.total || 0], ["Pendientes", data?.summary?.pending || 0], ["Cartera", money(data?.summary?.balance_due || 0)], ["Página", `${data?.page || page}/${data?.pages || 1}`]]} />
+    <ExplorerToolbar
+      query={query}
+      onQueryChange={setQuery}
+      placeholder="Buscar por afiliado, plan, pago o beneficios..."
+      total={data?.total || 0}
+      visible={items.length}
+      pageSize={pageSize}
+      onPageSizeChange={setPageSize}
+      filterValues={{ status, period }}
+      onFilterChange={(field, value) => ({ status: setStatus, period: setPeriod }[field](value))}
+      filters={[
+        { field: 'status', label: 'Pago', options: ['active', 'due', 'overdue', 'paid'] },
+        { field: 'period', label: 'Periodo', options: ['monthly', 'quarterly', 'annual'] },
+      ]}
+    />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.plan_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">Afiliado: {item.member_id}</p><p>Vence: {dateOnly(item.renewal_date) || 'Sin fecha'}</p><p>Saldo: <strong>{money(item.balance_due)}</strong></p><Badge variant={item.payment_status === 'overdue' ? 'destructive' : 'secondary'}>{item.payment_status}</Badge><div className="grid grid-cols-3 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button onClick={() => markPaid(item)} disabled={item.payment_status === 'paid'}>Pagado</Button></div></CardContent></Card>)}</div>
+    {!items.length && <EmptyCard title="Sin membresías">No hay resultados con esos filtros.</EmptyCard>}
+    <PaginationControls page={data?.page || page} pages={data?.pages || 1} onPage={setPage} />
     <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} type="membership" item={selected} title={selected?.plan_name || 'Membresía'} subtitle={`Afiliado ${selected?.member_id || ''}`} fields={selected ? [["Afiliado", selected.member_id], ["Delegación", selected.delegation_id], ["Renovación", dateOnly(selected.renewal_date)], ["Pago", selected.payment_status], ["Saldo", money(selected.balance_due)], ["Beneficios", selected.benefits_summary], ["Notas", selected.notes]] : []} actions={selected && <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar membresía</Button><Button variant="outline" onClick={() => markPaid(selected)} disabled={selected.payment_status === 'paid'}>Marcar pagado</Button></>} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title="Editar membresía" fields={membershipFields} initialValues={editInitial || {}} onSubmit={save} />
   </PageShell>;

@@ -601,9 +601,34 @@ def create_gremial_router(db) -> APIRouter:
         await db.gremial_members.update_one(scope, {"$set": update})
         return serialize(await db.gremial_members.find_one(scope, {"_id": 0}))
 
-    @router.get("/memberships", response_model=list[dict])
-    async def list_memberships(current_user: dict = Depends(require_gremial_user)):
+    @router.get("/memberships", response_model=Any)
+    async def list_memberships(
+        current_user: dict = Depends(require_gremial_user),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(60, ge=12, le=100),
+        q: Optional[str] = None,
+        status: Optional[str] = None,
+        period: Optional[str] = None,
+        paginated: bool = False,
+    ):
         scope = build_gremial_query_scope(current_user, member_field="member_id")
+        _add_text_search(scope, q, ["plan_name", "member_id", "payment_status", "billing_period", "benefits_summary", "notes"])
+        _add_exact_filter(scope, "payment_status", status)
+        _add_exact_filter(scope, "billing_period", period)
+        if paginated:
+            response = await _paginated_response(db.gremial_memberships, scope, page=page, page_size=page_size, sort=[("renewal_date", 1)])
+            summary_scope = dict(scope)
+            if summary_scope.get("payment_status") in ["due", "overdue"]:
+                pending_scope = dict(summary_scope)
+            elif summary_scope.get("payment_status"):
+                pending_scope = {**summary_scope, "payment_status": "__none__"}
+            else:
+                pending_scope = {**summary_scope, "payment_status": {"$in": ["due", "overdue"]}}
+            response["summary"] = {
+                "pending": await db.gremial_memberships.count_documents(pending_scope),
+                "balance_due": sum((row.get("balance_due") or 0) for row in await db.gremial_memberships.find(summary_scope, {"_id": 0, "balance_due": 1}).to_list(10000)),
+            }
+            return response
         return serialize_list(await db.gremial_memberships.find(scope, {"_id": 0}).sort("renewal_date", 1).to_list(1000))
 
     @router.post("/memberships", response_model=dict)
