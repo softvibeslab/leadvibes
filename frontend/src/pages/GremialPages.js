@@ -264,6 +264,39 @@ const RequestReviewPanel = ({ title, endpoint, statusEndpoint, itemIdField = 'id
   );
 };
 
+const normalizeText = (value) => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const matchesQuery = (item, query, fields) => {
+  const needle = normalizeText(query);
+  if (!needle) return true;
+  return fields.some((field) => normalizeText(item?.[field]).includes(needle));
+};
+const countBy = (items, field, value) => (items || []).filter((item) => item?.[field] === value).length;
+
+const SearchToolbar = ({ query, onQueryChange, placeholder = 'Buscar por nombre, estado, sector o estatus...' }) => (
+  <div className="rounded-2xl border bg-card p-3">
+    <Input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={placeholder} />
+  </div>
+);
+
+const SummaryStrip = ({ items }) => (
+  <div className="grid gap-3 md:grid-cols-4">
+    {items.map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p><p className="text-2xl font-bold">{value}</p></CardContent></Card>)}
+  </div>
+);
+
+const DemoReadyBanner = () => (
+  <div className="rounded-3xl border bg-gradient-to-r from-red-50 to-background p-5">
+    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-red-500">Demo comercial lista</p>
+        <h2 className="text-xl font-bold">CMIC / Cámara / Asociación en una sola operación</h2>
+        <p className="text-sm text-muted-foreground">Afiliación, expedientes, renovaciones, beneficios, oportunidades, licitaciones y AI Control Tower conectados de punta a punta.</p>
+      </div>
+      <Badge>Fase 2 cerrada</Badge>
+    </div>
+  </div>
+);
+
 export const GremialDashboardPage = () => {
   const { data, loading, error, reload } = useGremialApi('/gremial/dashboard', {});
   if (loading) return <LoadingState />;
@@ -271,6 +304,7 @@ export const GremialDashboardPage = () => {
   const kpis = data?.kpis || {};
   return (
     <PageShell title="Resumen nacional gremial" subtitle="Control operativo de afiliación, renovaciones, oportunidades, licitaciones y alertas por delegación." action={<Button onClick={reload}>Actualizar</Button>}>
+      <DemoReadyBanner />
       <div className="grid gap-4 md:grid-cols-4">
         {[
           ['Afiliados', kpis.member_count || 0], ['Activos', kpis.active_members || 0], ['Prospectos abiertos', kpis.leads_open || 0], ['Cartera por cobrar', money(kpis.revenue_due || 0)],
@@ -383,6 +417,8 @@ export const GremialMembersPage = () => {
   const { data, loading, error, reload } = useGremialApi('/gremial/members', []);
   const [editing, setEditing] = useState(null);
   const [reviewing, setReviewing] = useState(null);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['company_name', 'representative_name', 'state', 'city', 'sector', 'member_status', 'membership_tier'])), [data, query]);
   const save = async (values) => {
     const payload = cleanPayload(values);
     if (editing?.id) await api.put(`/gremial/members/${editing.id}`, payload); else await api.post('/gremial/members', payload);
@@ -391,8 +427,10 @@ export const GremialMembersPage = () => {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Afiliados" subtitle="Padrón nacional/local de empresas afiliadas, score y expediente." action={<Button onClick={() => setEditing({ member_status: 'pending', membership_tier: 'base' })}>Nuevo afiliado</Button>}>
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.company_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{item.city}, {item.state}</p><div className="flex gap-2"><Badge>{item.member_status}</Badge><Badge variant="secondary">{item.membership_tier}</Badge></div><p className="text-sm">Expediente: {item.profile_completion || 0}% · Engagement: {item.engagement_score || 0}</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setReviewing(item)}>Expediente</Button></div></CardContent></Card>)}</div>
-    {!data?.length && <EmptyCard title="Sin afiliados">Cuando existan datos aparecerán aquí.</EmptyCard>}
+    <SummaryStrip items={[["Total", data?.length || 0], ["Activos", countBy(data, 'member_status', 'active')], ["En riesgo", countBy(data, 'member_status', 'risk')], ["Vista", filtered.length]]} />
+    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar afiliado por empresa, representante, estado, sector o estatus..." />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.company_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{item.city}, {item.state}</p><div className="flex gap-2"><Badge>{item.member_status}</Badge><Badge variant="secondary">{item.membership_tier}</Badge></div><p className="text-sm">Expediente: {item.profile_completion || 0}% · Engagement: {item.engagement_score || 0}</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setReviewing(item)}>Expediente</Button></div></CardContent></Card>)}</div>
+    {!filtered.length && <EmptyCard title="Sin afiliados">No hay resultados con ese filtro.</EmptyCard>}
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar afiliado' : 'Nuevo afiliado'} fields={memberFields} initialValues={editing || { member_status: 'pending', membership_tier: 'base' }} onSubmit={save} />
     {reviewing && <DocumentManager memberId={reviewing.id} memberName={reviewing.company_name} onClose={() => { setReviewing(null); reload(); }} />}
   </PageShell>;
@@ -452,6 +490,8 @@ export const GremialServicesPage = () => {
   const { data, loading, error, reload } = useGremialApi('/gremial/services', []);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'category', 'status', 'scope', 'description'])), [data, query]);
   const requestService = async (item) => {
     setMessage('');
     try {
@@ -471,8 +511,10 @@ export const GremialServicesPage = () => {
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Servicios y beneficios" subtitle="Catálogo medible de servicios de valor para afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'active', scope: 'national', category: 'beneficio' })}>Nuevo servicio</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => requestService(item)}>Solicitar servicio</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setServiceStatus(item, item.status === 'active' ? 'paused' : 'active')}>{item.status === 'active' ? 'Pausar' : 'Activar'}</Button><Button className="col-span-2" variant="outline" onClick={() => setServiceStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!data?.length && <EmptyCard title="Sin servicios">Cuando existan datos aparecerán aquí.</EmptyCard>}
+    <SummaryStrip items={[["Total", data?.length || 0], ["Activos", countBy(data, 'status', 'active')], ["Pausados", countBy(data, 'status', 'paused')], ["Vista", filtered.length]]} />
+    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar servicio por nombre, categoría, estatus o descripción..." />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => requestService(item)}>Solicitar servicio</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setServiceStatus(item, item.status === 'active' ? 'paused' : 'active')}>{item.status === 'active' ? 'Pausar' : 'Activar'}</Button><Button className="col-span-2" variant="outline" onClick={() => setServiceStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
+    {!filtered.length && <EmptyCard title="Sin servicios">No hay resultados con ese filtro.</EmptyCard>}
     {!isMemberPortal && <RequestReviewPanel title="Solicitudes de servicios" endpoint="/gremial/service-requests" statusEndpoint="/gremial/service-requests" />}
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar servicio' : 'Nuevo servicio'} fields={serviceFields} initialValues={editing || { status: 'active', scope: 'national', category: 'beneficio' }} onSubmit={save} />
   </PageShell>;
@@ -484,6 +526,8 @@ export const GremialOpportunitiesPage = () => {
   const { data, loading, error, reload } = useGremialApi('/gremial/opportunities', []);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'opportunity_type', 'state', 'sector', 'status', 'description'])), [data, query]);
   const editInitial = editing ? { ...editing, closes_at: dateOnly(editing.closes_at) } : null;
   const apply = async (item) => {
     setMessage('');
@@ -504,8 +548,10 @@ export const GremialOpportunitiesPage = () => {
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Oportunidades privadas" subtitle="Marketplace interno de oportunidades comerciales para afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', opportunity_type: 'private' })}>Nueva oportunidad</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p>Presupuesto: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!data?.length && <EmptyCard title="Sin oportunidades">Cuando existan datos aparecerán aquí.</EmptyCard>}
+    <SummaryStrip items={[["Total", data?.length || 0], ["Publicadas", countBy(data, 'status', 'published')], ["Abiertas", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
+    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar oportunidad por título, estado, sector o estatus..." />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p>Presupuesto: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
+    {!filtered.length && <EmptyCard title="Sin oportunidades">No hay resultados con ese filtro.</EmptyCard>}
     {!isMemberPortal && <RequestReviewPanel title="Postulaciones a oportunidades" endpoint="/gremial/opportunity-applications" statusEndpoint="/gremial/opportunity-applications" />}
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar oportunidad' : 'Nueva oportunidad'} fields={opportunityFields} initialValues={editInitial || { status: 'draft', opportunity_type: 'private' }} onSubmit={save} />
   </PageShell>;
@@ -517,6 +563,8 @@ export const GremialTendersPage = () => {
   const { data, loading, error, reload } = useGremialApi('/gremial/tenders', []);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'dependency', 'state', 'sector', 'status', 'tender_number', 'description'])), [data, query]);
   const editInitial = editing ? { ...editing, closes_at: dateOnly(editing.closes_at), published_at: dateOnly(editing.published_at) } : null;
   const apply = async (item) => {
     setMessage('');
@@ -537,8 +585,10 @@ export const GremialTendersPage = () => {
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Licitaciones" subtitle="Seguimiento de licitaciones públicas por estado, dependencia y especialidad." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', opportunity_type: 'public' })}>Nueva licitación</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p>Monto estimado: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular a licitación</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!data?.length && <EmptyCard title="Sin licitaciones">Cuando existan datos aparecerán aquí.</EmptyCard>}
+    <SummaryStrip items={[["Total", data?.length || 0], ["Publicadas", countBy(data, 'status', 'published')], ["Abiertas", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
+    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar licitación por título, dependencia, estado, sector o número..." />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p>Monto estimado: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular a licitación</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
+    {!filtered.length && <EmptyCard title="Sin licitaciones">No hay resultados con ese filtro.</EmptyCard>}
     {!isMemberPortal && <RequestReviewPanel title="Postulaciones a licitaciones" endpoint="/gremial/tender-applications" statusEndpoint="/gremial/tender-applications" />}
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar licitación' : 'Nueva licitación'} fields={tenderFields} initialValues={editInitial || { status: 'draft', opportunity_type: 'public' }} onSubmit={save} />
   </PageShell>;
