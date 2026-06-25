@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, EmailStr, Field
 
 from auth import get_current_user
@@ -299,6 +299,35 @@ def serialize_list(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [serialize(item) for item in items]
 
 
+def _safe_regex(value: str) -> dict[str, str]:
+    escaped = "".join(f"\\{ch}" if ch in ".*+?^${}()|[]\\" else ch for ch in str(value or "").strip())
+    return {"$regex": escaped, "$options": "i"}
+
+
+def _add_text_search(query: dict[str, Any], q: Optional[str], fields: list[str]) -> None:
+    if q and q.strip():
+        query["$or"] = [{field: _safe_regex(q)} for field in fields]
+
+
+def _add_exact_filter(query: dict[str, Any], field: str, value: Optional[str]) -> None:
+    if value and value != "all":
+        query[field] = value
+
+
+async def _paginated_response(collection, query: dict[str, Any], *, page: int, page_size: int, sort: list[tuple[str, int]]):
+    safe_page = max(1, int(page or 1))
+    safe_size = min(100, max(12, int(page_size or 24)))
+    total = await collection.count_documents(query)
+    rows = await collection.find(query, {"_id": 0}).sort(sort).skip((safe_page - 1) * safe_size).limit(safe_size).to_list(safe_size)
+    return {
+        "items": serialize_list(rows),
+        "total": total,
+        "page": safe_page,
+        "page_size": safe_size,
+        "pages": max(1, (total + safe_size - 1) // safe_size),
+    }
+
+
 def require_gremial_user(current_user: dict = Depends(get_current_user)) -> dict:
     if not is_gremial_account(current_user):
         raise HTTPException(status_code=403, detail="Este módulo es solo para plataformas gremiales")
@@ -474,12 +503,25 @@ def create_gremial_router(db) -> APIRouter:
             "recommendations": recommendations,
         }
 
-    @router.get("/delegations", response_model=list[dict])
-    async def list_delegations(current_user: dict = Depends(require_gremial_admin)):
+    @router.get("/delegations", response_model=Any)
+    async def list_delegations(
+        current_user: dict = Depends(require_gremial_admin),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(60, ge=12, le=100),
+        q: Optional[str] = None,
+        status: Optional[str] = None,
+        state: Optional[str] = None,
+        paginated: bool = False,
+    ):
         tenant_id = get_gremial_tenant_id(current_user)
         query = {"tenant_id": tenant_id}
         if is_gremial_delegation_user(current_user):
             query["id"] = get_gremial_delegation_id(current_user)
+        _add_text_search(query, q, ["name", "state", "city", "president_name", "admin_email", "notes"])
+        _add_exact_filter(query, "status", status)
+        _add_exact_filter(query, "state", state)
+        if paginated:
+            return await _paginated_response(db.gremial_delegations, query, page=page, page_size=page_size, sort=[("name", 1)])
         return serialize_list(await db.gremial_delegations.find(query, {"_id": 0}).sort("name", 1).to_list(500))
 
     @router.post("/delegations", response_model=dict)
@@ -501,9 +543,24 @@ def create_gremial_router(db) -> APIRouter:
             raise HTTPException(status_code=404, detail="Delegación no encontrada")
         return serialize(await db.gremial_delegations.find_one({"tenant_id": tenant_id, "id": delegation_id}, {"_id": 0}))
 
-    @router.get("/members", response_model=list[dict])
-    async def list_members(current_user: dict = Depends(require_gremial_user)):
+    @router.get("/members", response_model=Any)
+    async def list_members(
+        current_user: dict = Depends(require_gremial_user),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(60, ge=12, le=100),
+        q: Optional[str] = None,
+        status: Optional[str] = None,
+        state: Optional[str] = None,
+        tier: Optional[str] = None,
+        paginated: bool = False,
+    ):
         scope = build_gremial_query_scope(current_user)
+        _add_text_search(scope, q, ["company_name", "legal_name", "representative_name", "email", "rfc", "state", "city", "sector", "member_status", "membership_tier"])
+        _add_exact_filter(scope, "member_status", status)
+        _add_exact_filter(scope, "state", state)
+        _add_exact_filter(scope, "membership_tier", tier)
+        if paginated:
+            return await _paginated_response(db.gremial_members, scope, page=page, page_size=page_size, sort=[("company_name", 1)])
         return serialize_list(await db.gremial_members.find(scope, {"_id": 0}).sort("company_name", 1).to_list(1000))
 
     @router.post("/members", response_model=dict)

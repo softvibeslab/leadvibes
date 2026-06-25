@@ -59,6 +59,33 @@ const useGremialApi = (endpoint, fallback = null) => {
   return { data, loading, error, reload: load };
 };
 
+const useGremialPagedApi = (endpoint, params = {}) => {
+  const { api } = useAuth();
+  const [data, setData] = useState({ items: [], total: 0, page: 1, page_size: 60, pages: 1 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const serialized = JSON.stringify(params);
+  const requestParams = useMemo(() => JSON.parse(serialized), [serialized]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get(endpoint, { params: { ...requestParams, paginated: true } });
+      const payload = response.data || {};
+      setData(Array.isArray(payload) ? { items: payload, total: payload.length, page: 1, page_size: payload.length || 60, pages: 1 } : payload);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'No se pudo cargar la información');
+    } finally {
+      setLoading(false);
+    }
+  }, [api, endpoint, requestParams]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { data, loading, error, reload: load };
+};
+
 const EmptyCard = ({ title = 'Sin registros', children }) => (
   <Card>
     <CardContent className="p-8 text-center text-muted-foreground">
@@ -311,6 +338,123 @@ const SummaryStrip = ({ items }) => (
   </div>
 );
 
+const getItems = (payload) => Array.isArray(payload) ? payload : (payload?.items || []);
+
+const uniqueOptions = (items, field) => Array.from(new Set((items || []).map((item) => item?.[field]).filter(Boolean))).sort();
+
+const useClientExplorer = (items, searchFields, filterConfig = []) => {
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
+  const filtered = useMemo(() => (items || []).filter((item) => {
+    const textMatch = matchesQuery(item, query, searchFields);
+    const filterMatch = filterConfig.every((filter) => !filters[filter.field] || filters[filter.field] === 'all' || item?.[filter.field] === filters[filter.field]);
+    return textMatch && filterMatch;
+  }), [items, query, filters, searchFields, filterConfig]);
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, pages);
+  const pageItems = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  useEffect(() => { setPage(1); }, [query, filters, pageSize]);
+  const setFilter = (field, value) => setFilters((prev) => ({ ...prev, [field]: value }));
+  return { query, setQuery, filters, setFilter, filterConfig, page: safePage, setPage, pageSize, setPageSize, filtered, pageItems, pages };
+};
+
+const ExplorerToolbar = ({ query, onQueryChange, placeholder, filters = [], filterValues = {}, onFilterChange, total, visible, pageSize, onPageSizeChange }) => (
+  <div className="rounded-2xl border bg-card p-3 space-y-3">
+    <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+      <Input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={placeholder} />
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span>{visible} de {total} registros</span>
+        <select className={nativeInputClass} value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
+          {[12, 24, 48, 60, 100].map((size) => <option key={size} value={size}>{size}/página</option>)}
+        </select>
+      </div>
+    </div>
+    {!!filters.length && <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-4">
+      {filters.map((filter) => (
+        <select key={filter.field} className={nativeInputClass} value={filterValues[filter.field] || 'all'} onChange={(event) => onFilterChange(filter.field, event.target.value)}>
+          <option value="all">{filter.label}: todos</option>
+          {(filter.options || []).map((option) => <option key={option} value={option}>{option}</option>)}
+        </select>
+      ))}
+    </div>}
+  </div>
+);
+
+const PaginationControls = ({ page, pages, onPage }) => (
+  <div className="flex flex-col gap-2 rounded-2xl border bg-card p-3 text-sm md:flex-row md:items-center md:justify-between">
+    <span className="text-muted-foreground">Página {page} de {pages}</span>
+    <div className="flex gap-2">
+      <Button variant="outline" disabled={page <= 1} onClick={() => onPage(1)}>Primera</Button>
+      <Button variant="outline" disabled={page <= 1} onClick={() => onPage(page - 1)}>Anterior</Button>
+      <Button variant="outline" disabled={page >= pages} onClick={() => onPage(page + 1)}>Siguiente</Button>
+      <Button variant="outline" disabled={page >= pages} onClick={() => onPage(pages)}>Última</Button>
+    </div>
+  </div>
+);
+
+const aiRecommendationsFor = (type, item = {}) => {
+  const status = item.member_status || item.payment_status || item.status || item.stage;
+  const recs = [];
+  if (type === 'member') {
+    if ((item.profile_completion || 0) < 80) recs.push('Solicitar expediente faltante antes de habilitar licitaciones o beneficios premium.');
+    if (item.member_status === 'risk' || (item.engagement_score || 0) < 55) recs.push('Activar campaña de retención con llamada de delegación y paquete de valor usado.');
+    recs.push(`Cruzar con oportunidades de ${item.sector || item.state || 'su sector'} y cursos próximos para aumentar engagement.`);
+  } else if (type === 'delegation') {
+    recs.push('Priorizar afiliación de empresas activas del estado y tablero semanal de renovaciones.');
+    recs.push('Asignar responsable de comités, convenios y cartera para convertir la base territorial en acciones.');
+  } else if (type === 'membership') {
+    recs.push(status === 'overdue' ? 'Escalar cobranza hoy con recordatorio WhatsApp/email y promesa de pago.' : 'Preparar renovación con beneficios, eventos y oportunidades utilizados por el afiliado.');
+  } else if (type === 'lead') {
+    recs.push('Siguiente mejor acción: llamada consultiva, envío de requisitos y asignación automática por delegación.');
+    recs.push('Si responde, convertir a afiliado y crear membresía anual con expediente inicial.');
+  } else {
+    recs.push('Medir interés por registros, postulaciones o solicitudes y promoverlo a afiliados compatibles.');
+    recs.push('Publicar/activar sólo cuando tenga descripción, vigencia, alcance y llamada a la acción clara.');
+  }
+  return recs;
+};
+
+const DetailCardDialog = ({ open, onOpenChange, title, subtitle, item, fields = [], type = 'general', actions }) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-3xl">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        {subtitle && <DialogDescription>{subtitle}</DialogDescription>}
+      </DialogHeader>
+      {item && <div className="space-y-4">
+        <div className="rounded-2xl border bg-gradient-to-r from-red-50 to-background p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-500">Detalle ejecutivo</p>
+          <h3 className="mt-1 text-xl font-bold">{title}</h3>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {fields.map(([label, value]) => <div key={label} className="rounded-xl border p-3"><p className="text-xs uppercase text-muted-foreground">{label}</p><p className="font-medium break-words">{value || 'Pendiente'}</p></div>)}
+        </div>
+        <Card>
+          <CardHeader><CardTitle>Recomendaciones IA</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {aiRecommendationsFor(type, item).map((rec) => <div key={rec} className="rounded-xl border bg-muted/30 p-3 text-sm">{rec}</div>)}
+          </CardContent>
+        </Card>
+        {actions && <div className="grid gap-2 md:grid-cols-2">{actions}</div>}
+      </div>}
+    </DialogContent>
+  </Dialog>
+);
+
+const CatalogExplorer = ({ items, searchFields, filters = [], placeholder, renderItem, emptyTitle, summary }) => {
+  const explorer = useClientExplorer(items, searchFields, filters);
+  return <>
+    {summary ? <SummaryStrip items={summary(explorer)} /> : <SummaryStrip items={[["Total", items.length], ["Vista", explorer.filtered.length], ["Página", `${explorer.page}/${explorer.pages}`], ["Por página", explorer.pageSize]]} />}
+    <ExplorerToolbar query={explorer.query} onQueryChange={explorer.setQuery} placeholder={placeholder} filters={explorer.filterConfig} filterValues={explorer.filters} onFilterChange={explorer.setFilter} total={items.length} visible={explorer.filtered.length} pageSize={explorer.pageSize} onPageSizeChange={explorer.setPageSize} />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{explorer.pageItems.map(renderItem)}</div>
+    {!explorer.filtered.length && <EmptyCard title={emptyTitle || 'Sin registros'}>No hay resultados con esos filtros.</EmptyCard>}
+    <PaginationControls page={explorer.page} pages={explorer.pages} onPage={explorer.setPage} />
+  </>;
+};
+
 const DemoReadyBanner = () => (
   <div className="rounded-3xl border bg-gradient-to-r from-red-50 to-background p-5">
     <div className="flex flex-col gap-4">
@@ -360,6 +504,12 @@ export const GremialDelegationsPage = () => {
   const { api } = useAuth();
   const { data, loading, error, reload } = useGremialApi('/gremial/delegations', []);
   const [editing, setEditing] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const items = getItems(data);
+  const explorer = useClientExplorer(items, ['name', 'state', 'city', 'president_name', 'admin_email', 'notes'], [
+    { field: 'status', label: 'Estatus', options: ['active', 'paused', 'inactive'] },
+    { field: 'state', label: 'Estado', options: uniqueOptions(items, 'state') },
+  ]);
   const save = async (values) => {
     const payload = cleanPayload(values);
     if (editing?.id) await api.put(`/gremial/delegations/${editing.id}`, payload); else await api.post('/gremial/delegations', payload);
@@ -367,9 +517,13 @@ export const GremialDelegationsPage = () => {
   };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Delegaciones" subtitle="Operación territorial, presidentes locales y cobertura estatal." action={<Button onClick={() => setEditing({ status: 'active' })}>Nueva delegación</Button>}>
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-muted-foreground">{item.city}, {item.state}</p><p className="text-sm">Presidencia: {item.president_name || 'Pendiente'}</p><Badge>{item.status || 'active'}</Badge><Button className="w-full" variant="outline" onClick={() => setEditing(item)}>Editar</Button></CardContent></Card>)}</div>
-    {!data?.length && <EmptyCard title="Sin delegaciones">Cuando existan datos aparecerán aquí.</EmptyCard>}
+  return <PageShell title="Delegaciones" subtitle="Operación territorial, presidentes locales, cobertura estatal e inteligencia por plaza." action={<Button onClick={() => setEditing({ status: 'active' })}>Nueva delegación</Button>}>
+    <SummaryStrip items={[["Total", items.length], ["Activas", countBy(items, 'status', 'active')], ["Vista", explorer.filtered.length], ["Página", `${explorer.page}/${explorer.pages}`]]} />
+    <ExplorerToolbar query={explorer.query} onQueryChange={explorer.setQuery} placeholder="Buscar delegación por nombre, estado, ciudad, presidencia o notas..." filters={explorer.filterConfig} filterValues={explorer.filters} onFilterChange={explorer.setFilter} total={items.length} visible={explorer.filtered.length} pageSize={explorer.pageSize} onPageSizeChange={explorer.setPageSize} />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{explorer.pageItems.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-muted-foreground">{item.city}, {item.state}</p><p className="text-sm">Presidencia: {item.president_name || 'Pendiente'}</p><div className="flex flex-wrap gap-2"><Badge>{item.status || 'active'}</Badge><Badge variant="outline">{item.phone || 'Sin teléfono'}</Badge></div><div className="grid grid-cols-2 gap-2"><Button className="w-full" variant="outline" onClick={() => setSelected(item)}>Detalle</Button><Button className="w-full" variant="outline" onClick={() => setEditing(item)}>Editar</Button></div></CardContent></Card>)}</div>
+    {!explorer.filtered.length && <EmptyCard title="Sin delegaciones">No hay resultados con esos filtros.</EmptyCard>}
+    <PaginationControls page={explorer.page} pages={explorer.pages} onPage={explorer.setPage} />
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} type="delegation" item={selected} title={selected?.name || 'Delegación'} subtitle={`${selected?.city || ''}, ${selected?.state || ''}`} fields={selected ? [["Presidencia", selected.president_name], ["Email administrativo", selected.admin_email], ["Teléfono", selected.phone], ["Website", selected.website], ["Estatus", selected.status], ["Notas", selected.notes]] : []} actions={selected && <Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar delegación</Button>} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar delegación' : 'Nueva delegación'} fields={delegationFields} initialValues={editing || { status: 'active' }} onSubmit={save} />
   </PageShell>;
 };
@@ -451,23 +605,48 @@ const DocumentManager = ({ memberId, memberName, onClose }) => {
 
 export const GremialMembersPage = () => {
   const { api } = useAuth();
-  const { data, loading, error, reload } = useGremialApi('/gremial/members', []);
   const [editing, setEditing] = useState(null);
   const [reviewing, setReviewing] = useState(null);
+  const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState('');
-  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['company_name', 'representative_name', 'state', 'city', 'sector', 'member_status', 'membership_tier'])), [data, query]);
+  const [status, setStatus] = useState('all');
+  const [state, setState] = useState('all');
+  const [tier, setTier] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(60);
+  const params = { page, page_size: pageSize, q: query || undefined, status, state, tier };
+  const { data, loading, error, reload } = useGremialPagedApi('/gremial/members', params);
+  const items = getItems(data);
   const save = async (values) => {
     const payload = cleanPayload(values);
     if (editing?.id) await api.put(`/gremial/members/${editing.id}`, payload); else await api.post('/gremial/members', payload);
     await reload();
   };
+  useEffect(() => { setPage(1); }, [query, status, state, tier, pageSize]);
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Afiliados" subtitle="Padrón nacional/local de empresas afiliadas, score y expediente." action={<Button onClick={() => setEditing({ member_status: 'pending', membership_tier: 'base' })}>Nuevo afiliado</Button>}>
-    <SummaryStrip items={[["Total", data?.length || 0], ["Activos", countBy(data, 'member_status', 'active')], ["En riesgo", countBy(data, 'member_status', 'risk')], ["Vista", filtered.length]]} />
-    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar afiliado por empresa, representante, estado, sector o estatus..." />
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.company_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{item.city}, {item.state}</p><div className="flex gap-2"><Badge>{item.member_status}</Badge><Badge variant="secondary">{item.membership_tier}</Badge></div><p className="text-sm">Expediente: {item.profile_completion || 0}% · Engagement: {item.engagement_score || 0}</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setReviewing(item)}>Expediente</Button></div></CardContent></Card>)}</div>
-    {!filtered.length && <EmptyCard title="Sin afiliados">No hay resultados con ese filtro.</EmptyCard>}
+  return <PageShell title="Afiliados" subtitle="Padrón nacional/local de empresas afiliadas, score, expediente e inteligencia accionable." action={<Button onClick={() => setEditing({ member_status: 'pending', membership_tier: 'base' })}>Nuevo afiliado</Button>}>
+    <SummaryStrip items={[["Total indexado", data?.total || 0], ["En esta página", items.length], ["Página", `${data?.page || page}/${data?.pages || 1}`], ["Búsqueda", query || 'Todas']]} />
+    <ExplorerToolbar
+      query={query}
+      onQueryChange={setQuery}
+      placeholder="Buscar por empresa, representante, RFC, estado, ciudad, sector, email o estatus..."
+      total={data?.total || 0}
+      visible={items.length}
+      pageSize={pageSize}
+      onPageSizeChange={setPageSize}
+      filterValues={{ status, state, tier }}
+      onFilterChange={(field, value) => ({ status: setStatus, state: setState, tier: setTier }[field](value))}
+      filters={[
+        { field: 'status', label: 'Estatus', options: ['active', 'risk', 'pending', 'inactive'] },
+        { field: 'state', label: 'Estado', options: uniqueOptions(items, 'state') },
+        { field: 'tier', label: 'Nivel', options: ['base', 'premium', 'strategic'] },
+      ]}
+    />
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map((item) => <Card key={item.id} className="hover:shadow-md transition-shadow"><CardHeader><CardTitle>{item.company_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">{item.city}, {item.state}</p><div className="flex flex-wrap gap-2"><Badge>{item.member_status}</Badge><Badge variant="secondary">{item.membership_tier}</Badge><Badge variant="outline">{item.sector || 'Sin sector'}</Badge></div><p className="text-sm">Expediente: {item.profile_completion || 0}% · Engagement: {item.engagement_score || 0}</p><div className="grid grid-cols-3 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setReviewing(item)}>Expediente</Button></div></CardContent></Card>)}</div>
+    {!items.length && <EmptyCard title="Sin afiliados">No hay resultados con esos filtros.</EmptyCard>}
+    <PaginationControls page={data?.page || page} pages={data?.pages || 1} onPage={setPage} />
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} type="member" item={selected} title={selected?.company_name || 'Afiliado'} subtitle={`${selected?.city || ''}, ${selected?.state || ''}`} fields={selected ? [["Representante", selected.representative_name], ["Email", selected.email], ["RFC", selected.rfc], ["Sector", selected.sector], ["Estatus", selected.member_status], ["Nivel", selected.membership_tier], ["Expediente", `${selected.profile_completion || 0}%`], ["Engagement", selected.engagement_score || 0], ["Notas", selected.notes]] : []} actions={selected && <><Button variant="outline" onClick={() => { setEditing(selected); setSelected(null); }}>Editar afiliado</Button><Button onClick={() => { setReviewing(selected); setSelected(null); }}>Abrir expediente</Button></>} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar afiliado' : 'Nuevo afiliado'} fields={memberFields} initialValues={editing || { member_status: 'pending', membership_tier: 'base' }} onSubmit={save} />
     {reviewing && <DocumentManager memberId={reviewing.id} memberName={reviewing.company_name} onClose={() => { setReviewing(null); reload(); }} />}
   </PageShell>;
@@ -476,19 +655,17 @@ export const GremialMembersPage = () => {
 export const GremialMembershipsPage = () => {
   const { api } = useAuth();
   const { data, loading, error, reload } = useGremialApi('/gremial/memberships', []);
+  const items = getItems(data);
   const [editing, setEditing] = useState(null);
+  const [selected, setSelected] = useState(null);
   const editInitial = editing ? { ...editing, renewal_date: dateOnly(editing.renewal_date) } : null;
-  const save = async (values) => {
-    const payload = cleanPayload({ ...values, renewal_date: dateToApi(values.renewal_date) });
-    await api.put(`/gremial/memberships/${editing.id}`, payload);
-    await reload();
-  };
+  const save = async (values) => { const payload = cleanPayload({ ...values, renewal_date: dateToApi(values.renewal_date) }); await api.put(`/gremial/memberships/${editing.id}`, payload); await reload(); };
   const markPaid = async (item) => { await api.post(`/gremial/memberships/${item.id}/mark-paid`); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Renovaciones y membresías" subtitle="Cuotas, vencimientos y cartera por cobrar." action={<Button onClick={reload}>Actualizar</Button>}>
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.plan_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">Afiliado: {item.member_id}</p><p>Vence: {dateOnly(item.renewal_date) || 'Sin fecha'}</p><p>Saldo: <strong>{money(item.balance_due)}</strong></p><Badge variant={item.payment_status === 'overdue' ? 'destructive' : 'secondary'}>{item.payment_status}</Badge><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button onClick={() => markPaid(item)} disabled={item.payment_status === 'paid'}>Marcar pagado</Button></div></CardContent></Card>)}</div>
-    {!data?.length && <EmptyCard title="Sin membresías">Cuando existan datos aparecerán aquí.</EmptyCard>}
+  return <PageShell title="Renovaciones y membresías" subtitle="Cuotas, vencimientos, cartera por cobrar y recomendaciones de cobranza." action={<Button onClick={reload}>Actualizar</Button>}>
+    <CatalogExplorer items={items} searchFields={['plan_name', 'member_id', 'payment_status', 'benefits_summary', 'notes']} filters={[{ field: 'payment_status', label: 'Pago', options: uniqueOptions(items, 'payment_status') }, { field: 'billing_period', label: 'Periodo', options: uniqueOptions(items, 'billing_period') }]} placeholder="Buscar por afiliado, plan, pago o beneficios..." emptyTitle="Sin membresías" summary={(ex) => [["Total", items.length], ["Pendientes", items.filter((i) => ['due','overdue'].includes(i.payment_status)).length], ["Cartera", money(items.reduce((s, i) => s + Number(i.balance_due || 0), 0))], ["Vista", ex.filtered.length]]} renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.plan_name}</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm text-muted-foreground">Afiliado: {item.member_id}</p><p>Vence: {dateOnly(item.renewal_date) || 'Sin fecha'}</p><p>Saldo: <strong>{money(item.balance_due)}</strong></p><Badge variant={item.payment_status === 'overdue' ? 'destructive' : 'secondary'}>{item.payment_status}</Badge><div className="grid grid-cols-3 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button onClick={() => markPaid(item)} disabled={item.payment_status === 'paid'}>Pagado</Button></div></CardContent></Card>} />
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} type="membership" item={selected} title={selected?.plan_name || 'Membresía'} subtitle={`Afiliado ${selected?.member_id || ''}`} fields={selected ? [["Afiliado", selected.member_id], ["Delegación", selected.delegation_id], ["Renovación", dateOnly(selected.renewal_date)], ["Pago", selected.payment_status], ["Saldo", money(selected.balance_due)], ["Beneficios", selected.benefits_summary], ["Notas", selected.notes]] : []} actions={selected && <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar membresía</Button><Button variant="outline" onClick={() => markPaid(selected)} disabled={selected.payment_status === 'paid'}>Marcar pagado</Button></>} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title="Editar membresía" fields={membershipFields} initialValues={editInitial || {}} onSubmit={save} />
   </PageShell>;
 };
@@ -496,63 +673,57 @@ export const GremialMembershipsPage = () => {
 export const GremialAffiliationPipelinePage = () => {
   const { api } = useAuth();
   const { data, loading, error, reload } = useGremialApi('/gremial/affiliation-leads', []);
+  const items = getItems(data);
   const [editing, setEditing] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [query, setQuery] = useState('');
   const stages = ['nuevo', 'contactado', 'requisitos_enviados', 'documentos_recibidos', 'convertido'];
-  const grouped = useMemo(() => (data || []).reduce((acc, item) => ({ ...acc, [item.stage || 'nuevo']: [...(acc[item.stage || 'nuevo'] || []), item] }), {}), [data]);
-  const save = async (values) => {
-    const payload = cleanPayload(values);
-    if (editing?.id) await api.put(`/gremial/affiliation-leads/${editing.id}`, payload); else await api.post('/gremial/affiliation-leads', payload);
-    await reload();
-  };
+  const filtered = useMemo(() => items.filter((item) => matchesQuery(item, query, ['company_name', 'contact_name', 'email', 'phone', 'state', 'city', 'interest', 'source', 'stage', 'notes'])), [items, query]);
+  const grouped = useMemo(() => filtered.reduce((acc, item) => ({ ...acc, [item.stage || 'nuevo']: [...(acc[item.stage || 'nuevo'] || []), item] }), {}), [filtered]);
+  const save = async (values) => { const payload = cleanPayload(values); if (editing?.id) await api.put(`/gremial/affiliation-leads/${editing.id}`, payload); else await api.post('/gremial/affiliation-leads', payload); await reload(); };
   const move = async (lead, stage) => { await api.patch(`/gremial/affiliation-leads/${lead.id}/stage`, { stage }); await reload(); };
   const convert = async (lead) => { await api.post(`/gremial/affiliation-leads/${lead.id}/convert`); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Pipeline de afiliación" subtitle="Prospectos, asignación a delegación y conversión a afiliado." action={<Button onClick={() => setEditing({ stage: 'nuevo', source: 'manual', interest: 'afiliacion' })}>Nuevo prospecto</Button>}>
-    <div className="grid gap-4 lg:grid-cols-5">{stages.map((stage, index) => <Card key={stage}><CardHeader><CardTitle className="text-base capitalize">{stage.replaceAll('_', ' ')}</CardTitle></CardHeader><CardContent className="space-y-3">{(grouped[stage] || []).map((lead) => <div key={lead.id} className="rounded-xl border p-3 space-y-2"><p className="font-medium">{lead.company_name}</p><p className="text-sm text-muted-foreground">{lead.contact_name}</p><p className="text-xs text-muted-foreground">{lead.interest}</p><div className="grid gap-2"><Button size="sm" variant="outline" onClick={() => setEditing(lead)}>Editar</Button>{index < stages.length - 1 && <Button size="sm" variant="outline" onClick={() => move(lead, stages[index + 1])}>Avanzar</Button>}{stage !== 'convertido' && <Button size="sm" onClick={() => convert(lead)}>Convertir</Button>}</div></div>)}</CardContent></Card>)}</div>
+  return <PageShell title="Pipeline de afiliación" subtitle="Prospectos, búsqueda, detalle ejecutivo y conversión a afiliado." action={<Button onClick={() => setEditing({ stage: 'nuevo', source: 'manual', interest: 'afiliacion' })}>Nuevo prospecto</Button>}>
+    <SummaryStrip items={[["Total", items.length], ["Vista", filtered.length], ["Nuevos", countBy(items, 'stage', 'nuevo')], ["Convertidos", countBy(items, 'stage', 'convertido')]]} />
+    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar prospecto por empresa, contacto, estado, fuente, etapa o notas..." />
+    <div className="grid gap-4 lg:grid-cols-5">{stages.map((stage, index) => <Card key={stage}><CardHeader><CardTitle className="text-base capitalize">{stage.replaceAll('_', ' ')} ({(grouped[stage] || []).length})</CardTitle></CardHeader><CardContent className="space-y-3 max-h-[70vh] overflow-y-auto">{(grouped[stage] || []).slice(0, 100).map((lead) => <div key={lead.id} className="rounded-xl border p-3 space-y-2"><p className="font-medium">{lead.company_name}</p><p className="text-sm text-muted-foreground">{lead.contact_name}</p><p className="text-xs text-muted-foreground">{lead.interest}</p><div className="grid gap-2"><Button size="sm" variant="outline" onClick={() => setSelected(lead)}>Detalle IA</Button><Button size="sm" variant="outline" onClick={() => setEditing(lead)}>Editar</Button>{index < stages.length - 1 && <Button size="sm" variant="outline" onClick={() => move(lead, stages[index + 1])}>Avanzar</Button>}{stage !== 'convertido' && <Button size="sm" onClick={() => convert(lead)}>Convertir</Button>}</div></div>)}</CardContent></Card>)}</div>
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} type="lead" item={selected} title={selected?.company_name || 'Prospecto'} subtitle={selected?.contact_name} fields={selected ? [["Contacto", selected.contact_name], ["Email", selected.email], ["Teléfono", selected.phone], ["Estado", selected.state], ["Interés", selected.interest], ["Fuente", selected.source], ["Etapa", selected.stage], ["Notas", selected.notes]] : []} actions={selected && <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar prospecto</Button><Button variant="outline" onClick={() => convert(selected)}>Convertir a afiliado</Button></>} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar prospecto' : 'Nuevo prospecto'} fields={leadFields} initialValues={editing || { stage: 'nuevo', source: 'manual', interest: 'afiliacion' }} onSubmit={save} />
   </PageShell>;
 };
 
 const SimpleListPage = ({ title, subtitle, endpoint, renderItem, emptyTitle }) => {
   const { data, loading, error, reload } = useGremialApi(endpoint, []);
+  const items = getItems(data);
+  const [selected, setSelected] = useState(null);
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title={title} subtitle={subtitle} action={<Button onClick={reload}>Actualizar</Button>}><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map(renderItem)}</div>{!data?.length && <EmptyCard title={emptyTitle}>Cuando existan datos aparecerán aquí.</EmptyCard>}</PageShell>;
+  return <PageShell title={title} subtitle={subtitle} action={<Button onClick={reload}>Actualizar</Button>}>
+    <CatalogExplorer items={items} searchFields={['title', 'category', 'priority', 'explanation', 'suggested_action', 'status']} placeholder="Buscar por título, categoría, prioridad o recomendación..." emptyTitle={emptyTitle} renderItem={(item) => <div key={item.id} onClick={() => setSelected(item)}>{renderItem(item)}</div>} />
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} type="general" item={selected} title={selected?.title || title} subtitle={selected?.explanation} fields={selected ? [["Prioridad", selected.priority], ["Categoría", selected.category], ["Estatus", selected.status], ["Acción sugerida", selected.suggested_action], ["Afiliado", selected.member_id], ["Delegación", selected.delegation_id]] : []} />
+  </PageShell>;
 };
 
 export const GremialServicesPage = () => {
   const { api, user } = useAuth();
   const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/services', []);
+  const items = getItems(data);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
-  const [query, setQuery] = useState('');
-  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'category', 'status', 'scope', 'description'])), [data, query]);
-  const requestService = async (item) => {
-    setMessage('');
-    try {
-      await api.post(`/gremial/services/${item.id}/request`, { notes: 'Solicitud enviada desde portal gremial' });
-      setMessage(`Solicitud enviada: ${item.title}`);
-    } catch (err) {
-      setMessage(err.response?.data?.detail || 'No se pudo enviar la solicitud');
-    }
-  };
-  const save = async (values) => {
-    const payload = cleanPayload(values);
-    if (editing?.id) await api.put(`/gremial/services/${editing.id}`, payload); else await api.post('/gremial/services', payload);
-    await reload();
-  };
+  const [selected, setSelected] = useState(null);
+  const requestService = async (item) => { setMessage(''); try { await api.post(`/gremial/services/${item.id}/request`, { notes: 'Solicitud enviada desde portal gremial' }); setMessage(`Solicitud enviada: ${item.title}`); } catch (err) { setMessage(err.response?.data?.detail || 'No se pudo enviar la solicitud'); } };
+  const save = async (values) => { const payload = cleanPayload(values); if (editing?.id) await api.put(`/gremial/services/${editing.id}`, payload); else await api.post('/gremial/services', payload); await reload(); };
   const setServiceStatus = async (item, status) => { await api.post(`/gremial/services/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Servicios y beneficios" subtitle="Catálogo medible de servicios de valor para afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'active', scope: 'national', category: 'beneficio' })}>Nuevo servicio</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <SummaryStrip items={[["Total", data?.length || 0], ["Activos", countBy(data, 'status', 'active')], ["Pausados", countBy(data, 'status', 'paused')], ["Vista", filtered.length]]} />
-    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar servicio por nombre, categoría, estatus o descripción..." />
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => requestService(item)}>Solicitar servicio</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setServiceStatus(item, item.status === 'active' ? 'paused' : 'active')}>{item.status === 'active' ? 'Pausar' : 'Activar'}</Button><Button className="col-span-2" variant="outline" onClick={() => setServiceStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!filtered.length && <EmptyCard title="Sin servicios">No hay resultados con ese filtro.</EmptyCard>}
+    <CatalogExplorer items={items} searchFields={['title', 'category', 'status', 'scope', 'description']} filters={[{ field: 'category', label: 'Categoría', options: uniqueOptions(items, 'category') }, { field: 'status', label: 'Estatus', options: uniqueOptions(items, 'status') }, { field: 'scope', label: 'Alcance', options: uniqueOptions(items, 'scope') }]} placeholder="Buscar servicio por nombre, categoría, estatus o descripción..." emptyTitle="Sin servicios" summary={(ex) => [["Total", items.length], ["Activos", countBy(items, 'status', 'active')], ["Vista", ex.filtered.length], ["Página", `${ex.page}/${ex.pages}`]]} renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground line-clamp-3">{item.description}</p>{isMemberPortal ? <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button><Button variant="outline" onClick={() => requestService(item)}>Solicitar</Button></div> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setServiceStatus(item, item.status === 'active' ? 'paused' : 'active')}>{item.status === 'active' ? 'Pausar' : 'Activar'}</Button><Button variant="outline" onClick={() => setServiceStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>} />
     {!isMemberPortal && <RequestReviewPanel title="Solicitudes de servicios" endpoint="/gremial/service-requests" statusEndpoint="/gremial/service-requests" />}
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} title={selected?.title || 'Servicio'} subtitle={selected?.description} fields={selected ? [["Categoría", selected.category], ["Estatus", selected.status], ["Alcance", selected.scope], ["Tiers incluidos", (selected.included_tiers || []).join(', ')], ["Descripción", selected.description]] : []} actions={selected && (isMemberPortal ? <Button onClick={() => requestService(selected)}>Solicitar servicio</Button> : <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar</Button><Button variant="outline" onClick={() => setServiceStatus(selected, selected.status === 'active' ? 'paused' : 'active')}>Cambiar estatus</Button></>)} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar servicio' : 'Nuevo servicio'} fields={serviceFields} initialValues={editing || { status: 'active', scope: 'national', category: 'beneficio' }} onSubmit={save} />
   </PageShell>;
 };
@@ -561,35 +732,21 @@ export const GremialOpportunitiesPage = () => {
   const { api, user } = useAuth();
   const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/opportunities', []);
+  const items = getItems(data);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
-  const [query, setQuery] = useState('');
-  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'opportunity_type', 'state', 'sector', 'status', 'description'])), [data, query]);
+  const [selected, setSelected] = useState(null);
   const editInitial = editing ? { ...editing, closes_at: dateOnly(editing.closes_at) } : null;
-  const apply = async (item) => {
-    setMessage('');
-    try {
-      await api.post(`/gremial/opportunities/${item.id}/apply`, { notes: 'Postulación enviada desde Rovi Gremial OS' });
-      setMessage(`Postulación enviada: ${item.title}`);
-    } catch (err) {
-      setMessage(err.response?.data?.detail || 'No se pudo postular');
-    }
-  };
-  const save = async (values) => {
-    const payload = withDatePayload(values, ['closes_at']);
-    if (editing?.id) await api.put(`/gremial/opportunities/${editing.id}`, payload); else await api.post('/gremial/opportunities', payload);
-    await reload();
-  };
+  const apply = async (item) => { setMessage(''); try { await api.post(`/gremial/opportunities/${item.id}/apply`, { notes: 'Postulación enviada desde Rovi Gremial OS' }); setMessage(`Postulación enviada: ${item.title}`); } catch (err) { setMessage(err.response?.data?.detail || 'No se pudo postular'); } };
+  const save = async (values) => { const payload = withDatePayload(values, ['closes_at']); if (editing?.id) await api.put(`/gremial/opportunities/${editing.id}`, payload); else await api.post('/gremial/opportunities', payload); await reload(); };
   const setOpportunityStatus = async (item, status) => { await api.post(`/gremial/opportunities/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Oportunidades privadas" subtitle="Marketplace interno de oportunidades comerciales para afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', opportunity_type: 'private' })}>Nueva oportunidad</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <SummaryStrip items={[["Total", data?.length || 0], ["Publicadas", countBy(data, 'status', 'published')], ["Abiertas", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
-    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar oportunidad por título, estado, sector o estatus..." />
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p>Presupuesto: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!filtered.length && <EmptyCard title="Sin oportunidades">No hay resultados con ese filtro.</EmptyCard>}
+    <CatalogExplorer items={items} searchFields={['title', 'opportunity_type', 'state', 'sector', 'status', 'description']} filters={[{ field: 'status', label: 'Estatus', options: uniqueOptions(items, 'status') }, { field: 'state', label: 'Estado', options: uniqueOptions(items, 'state') }, { field: 'sector', label: 'Sector', options: uniqueOptions(items, 'sector') }]} placeholder="Buscar oportunidad por título, estado, sector o estatus..." emptyTitle="Sin oportunidades" summary={(ex) => [["Total", items.length], ["Publicadas", countBy(items, 'status', 'published')], ["Vista", ex.filtered.length], ["Página", `${ex.page}/${ex.pages}`]]} renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p>Presupuesto: {money(item.budget)}</p><Badge>{item.status}</Badge><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button>{isMemberPortal ? <Button variant="outline" onClick={() => apply(item)}>Postular</Button> : <Button variant="outline" onClick={() => setEditing(item)}>Editar</Button>}</div></CardContent></Card>} />
     {!isMemberPortal && <RequestReviewPanel title="Postulaciones a oportunidades" endpoint="/gremial/opportunity-applications" statusEndpoint="/gremial/opportunity-applications" />}
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} title={selected?.title || 'Oportunidad'} subtitle={selected?.description} fields={selected ? [["Tipo", selected.opportunity_type], ["Estado", selected.state], ["Sector", selected.sector], ["Presupuesto", money(selected.budget)], ["Cierre", dateOnly(selected.closes_at)], ["Estatus", selected.status]] : []} actions={selected && (isMemberPortal ? <Button onClick={() => apply(selected)}>Postular</Button> : <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar</Button><Button variant="outline" onClick={() => setOpportunityStatus(selected, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setOpportunityStatus(selected, 'closed')}>Cerrar</Button></>)} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar oportunidad' : 'Nueva oportunidad'} fields={opportunityFields} initialValues={editInitial || { status: 'draft', opportunity_type: 'private' }} onSubmit={save} />
   </PageShell>;
 };
@@ -598,38 +755,25 @@ export const GremialTendersPage = () => {
   const { api, user } = useAuth();
   const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/tenders', []);
+  const items = getItems(data);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
-  const [query, setQuery] = useState('');
-  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'dependency', 'state', 'sector', 'status', 'tender_number', 'description'])), [data, query]);
+  const [selected, setSelected] = useState(null);
   const editInitial = editing ? { ...editing, closes_at: dateOnly(editing.closes_at), published_at: dateOnly(editing.published_at) } : null;
-  const apply = async (item) => {
-    setMessage('');
-    try {
-      await api.post(`/gremial/tenders/${item.id}/apply`, { notes: 'Postulación a licitación enviada desde Rovi Gremial OS' });
-      setMessage(`Postulación enviada: ${item.title}`);
-    } catch (err) {
-      setMessage(err.response?.data?.detail || 'No se pudo postular');
-    }
-  };
-  const save = async (values) => {
-    const payload = withDatePayload(values, ['closes_at', 'published_at']);
-    if (editing?.id) await api.put(`/gremial/tenders/${editing.id}`, payload); else await api.post('/gremial/tenders', payload);
-    await reload();
-  };
+  const apply = async (item) => { setMessage(''); try { await api.post(`/gremial/tenders/${item.id}/apply`, { notes: 'Postulación a licitación enviada desde Rovi Gremial OS' }); setMessage(`Postulación enviada: ${item.title}`); } catch (err) { setMessage(err.response?.data?.detail || 'No se pudo postular'); } };
+  const save = async (values) => { const payload = withDatePayload(values, ['closes_at', 'published_at']); if (editing?.id) await api.put(`/gremial/tenders/${editing.id}`, payload); else await api.post('/gremial/tenders', payload); await reload(); };
   const setTenderStatus = async (item, status) => { await api.post(`/gremial/tenders/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   return <PageShell title="Licitaciones" subtitle="Seguimiento de licitaciones públicas por estado, dependencia y especialidad." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', opportunity_type: 'public' })}>Nueva licitación</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <SummaryStrip items={[["Total", data?.length || 0], ["Publicadas", countBy(data, 'status', 'published')], ["Abiertas", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
-    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar licitación por título, dependencia, estado, sector o número..." />
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p>Monto estimado: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular a licitación</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!filtered.length && <EmptyCard title="Sin licitaciones">No hay resultados con ese filtro.</EmptyCard>}
+    <CatalogExplorer items={items} searchFields={['title', 'dependency', 'state', 'sector', 'status', 'tender_number', 'description']} filters={[{ field: 'status', label: 'Estatus', options: uniqueOptions(items, 'status') }, { field: 'state', label: 'Estado', options: uniqueOptions(items, 'state') }, { field: 'dependency', label: 'Dependencia', options: uniqueOptions(items, 'dependency') }]} placeholder="Buscar licitación por título, dependencia, estado, sector o número..." emptyTitle="Sin licitaciones" summary={(ex) => [["Total", items.length], ["Publicadas", countBy(items, 'status', 'published')], ["Vista", ex.filtered.length], ["Página", `${ex.page}/${ex.pages}`]]} renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p>Monto estimado: {money(item.budget)}</p><Badge>{item.status}</Badge><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button>{isMemberPortal ? <Button variant="outline" onClick={() => apply(item)}>Postular</Button> : <Button variant="outline" onClick={() => setEditing(item)}>Editar</Button>}</div></CardContent></Card>} />
     {!isMemberPortal && <RequestReviewPanel title="Postulaciones a licitaciones" endpoint="/gremial/tender-applications" statusEndpoint="/gremial/tender-applications" />}
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} title={selected?.title || 'Licitación'} subtitle={selected?.description} fields={selected ? [["Dependencia", selected.dependency], ["Número", selected.tender_number], ["Estado", selected.state], ["Sector", selected.sector], ["Monto", money(selected.budget)], ["Publicada", dateOnly(selected.published_at)], ["Cierre", dateOnly(selected.closes_at)], ["Estatus", selected.status]] : []} actions={selected && (isMemberPortal ? <Button onClick={() => apply(selected)}>Postular</Button> : <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar</Button><Button variant="outline" onClick={() => setTenderStatus(selected, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setTenderStatus(selected, 'closed')}>Cerrar</Button></>)} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar licitación' : 'Nueva licitación'} fields={tenderFields} initialValues={editInitial || { status: 'draft', opportunity_type: 'public' }} onSubmit={save} />
   </PageShell>;
 };
+
 export const GremialAnalyticsPage = () => <GremialDashboardPage />;
 export const GremialAIControlTowerPage = () => <SimpleListPage title="AI Control Tower" subtitle="Recomendaciones accionables de riesgo, renovación, expediente y oportunidades." endpoint="/gremial/ai/recommendations" emptyTitle="Sin recomendaciones" renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent><Badge variant={item.priority === 'high' ? 'destructive' : 'secondary'}>{item.priority}</Badge><p className="mt-3 text-sm text-muted-foreground">{item.explanation}</p><p className="mt-2 text-sm font-medium">{item.suggested_action}</p></CardContent></Card>} />;
 
@@ -637,35 +781,21 @@ export const GremialCoursesPage = () => {
   const { api, user } = useAuth();
   const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/courses', []);
+  const items = getItems(data);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
-  const [query, setQuery] = useState('');
-  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'category', 'modality', 'instructor', 'state', 'status', 'description'])), [data, query]);
+  const [selected, setSelected] = useState(null);
   const editInitial = editing ? { ...editing, starts_at: dateOnly(editing.starts_at), ends_at: dateOnly(editing.ends_at) } : null;
-  const register = async (item) => {
-    setMessage('');
-    try {
-      await api.post(`/gremial/courses/${item.id}/register`, { notes: 'Registro enviado desde portal gremial' });
-      setMessage(`Registro confirmado: ${item.title}`);
-    } catch (err) {
-      setMessage(err.response?.data?.detail || 'No se pudo registrar al curso');
-    }
-  };
-  const save = async (values) => {
-    const payload = withDatePayload(values, ['starts_at', 'ends_at']);
-    if (editing?.id) await api.put(`/gremial/courses/${editing.id}`, payload); else await api.post('/gremial/courses', payload);
-    await reload();
-  };
+  const register = async (item) => { setMessage(''); try { await api.post(`/gremial/courses/${item.id}/register`, { notes: 'Registro enviado desde portal gremial' }); setMessage(`Registro confirmado: ${item.title}`); } catch (err) { setMessage(err.response?.data?.detail || 'No se pudo registrar al curso'); } };
+  const save = async (values) => { const payload = withDatePayload(values, ['starts_at', 'ends_at']); if (editing?.id) await api.put(`/gremial/courses/${editing.id}`, payload); else await api.post('/gremial/courses', payload); await reload(); };
   const setCourseStatus = async (item, status) => { await api.post(`/gremial/courses/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Capacitación y certificaciones" subtitle="Cursos ICIC/demo, certificaciones, normatividad y formación con trazabilidad de afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', category: 'capacitacion', modality: 'online', price: 0 })}>Nuevo curso</Button>}>
+  return <PageShell title="Capacitación y certificaciones" subtitle="Cursos ICIC/demo, certificaciones, normatividad y formación con trazabilidad." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', category: 'capacitacion', modality: 'online', price: 0 })}>Nuevo curso</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <SummaryStrip items={[["Total", data?.length || 0], ["Publicados", countBy(data, 'status', 'published')], ["Abiertos", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
-    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar curso por título, categoría, modalidad, instructor o estado..." />
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.modality}</Badge><Badge>{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.instructor || 'Instructor por asignar'} · {item.state || 'Nacional'}</p><p>Inicia: {dateOnly(item.starts_at) || 'Por definir'} · Cupo: {item.capacity || 'Abierto'}</p><p>Precio: {money(item.price)}</p><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => register(item)}>Registrarme</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setCourseStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setCourseStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setCourseStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!filtered.length && <EmptyCard title="Sin cursos">No hay resultados con ese filtro.</EmptyCard>}
+    <CatalogExplorer items={items} searchFields={['title', 'category', 'modality', 'instructor', 'state', 'status', 'description']} filters={[{ field: 'status', label: 'Estatus', options: uniqueOptions(items, 'status') }, { field: 'category', label: 'Categoría', options: uniqueOptions(items, 'category') }, { field: 'modality', label: 'Modalidad', options: uniqueOptions(items, 'modality') }]} placeholder="Buscar curso por título, categoría, modalidad, instructor o estado..." emptyTitle="Sin cursos" summary={(ex) => [["Total", items.length], ["Publicados", countBy(items, 'status', 'published')], ["Vista", ex.filtered.length], ["Página", `${ex.page}/${ex.pages}`]]} renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.modality}</Badge><Badge>{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.instructor || 'Instructor por asignar'} · {item.state || 'Nacional'}</p><p>Inicia: {dateOnly(item.starts_at) || 'Por definir'} · Cupo: {item.capacity || 'Abierto'}</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button>{isMemberPortal ? <Button variant="outline" onClick={() => register(item)}>Registrarme</Button> : <Button variant="outline" onClick={() => setEditing(item)}>Editar</Button>}</div></CardContent></Card>} />
     {!isMemberPortal && <RequestReviewPanel title="Registros a cursos" endpoint="/gremial/course-registrations" statusEndpoint="/gremial/course-registrations" />}
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} title={selected?.title || 'Curso'} subtitle={selected?.description} fields={selected ? [["Categoría", selected.category], ["Modalidad", selected.modality], ["Instructor", selected.instructor], ["Estado", selected.state], ["Inicio", dateOnly(selected.starts_at)], ["Cupo", selected.capacity], ["Precio", money(selected.price)], ["Estatus", selected.status]] : []} actions={selected && (isMemberPortal ? <Button onClick={() => register(selected)}>Registrarme</Button> : <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar</Button><Button variant="outline" onClick={() => setCourseStatus(selected, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setCourseStatus(selected, 'closed')}>Cerrar</Button></>)} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar curso' : 'Nuevo curso'} fields={courseFields} initialValues={editInitial || { status: 'draft', category: 'capacitacion', modality: 'online', price: 0 }} onSubmit={save} />
   </PageShell>;
 };
@@ -674,35 +804,21 @@ export const GremialEventsPage = () => {
   const { api, user } = useAuth();
   const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/events', []);
+  const items = getItems(data);
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(null);
-  const [query, setQuery] = useState('');
-  const filtered = useMemo(() => (data || []).filter((item) => matchesQuery(item, query, ['title', 'event_type', 'venue', 'state', 'status', 'description'])), [data, query]);
+  const [selected, setSelected] = useState(null);
   const editInitial = editing ? { ...editing, starts_at: dateOnly(editing.starts_at), ends_at: dateOnly(editing.ends_at) } : null;
-  const register = async (item) => {
-    setMessage('');
-    try {
-      await api.post(`/gremial/events/${item.id}/register`, { notes: 'Registro enviado desde portal gremial' });
-      setMessage(`Registro confirmado: ${item.title}`);
-    } catch (err) {
-      setMessage(err.response?.data?.detail || 'No se pudo registrar al evento');
-    }
-  };
-  const save = async (values) => {
-    const payload = withDatePayload(values, ['starts_at', 'ends_at']);
-    if (editing?.id) await api.put(`/gremial/events/${editing.id}`, payload); else await api.post('/gremial/events', payload);
-    await reload();
-  };
+  const register = async (item) => { setMessage(''); try { await api.post(`/gremial/events/${item.id}/register`, { notes: 'Registro enviado desde portal gremial' }); setMessage(`Registro confirmado: ${item.title}`); } catch (err) { setMessage(err.response?.data?.detail || 'No se pudo registrar al evento'); } };
+  const save = async (values) => { const payload = withDatePayload(values, ['starts_at', 'ends_at']); if (editing?.id) await api.put(`/gremial/events/${editing.id}`, payload); else await api.post('/gremial/events', payload); await reload(); };
   const setEventStatus = async (item, status) => { await api.post(`/gremial/events/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Eventos gremiales" subtitle="Asambleas, networking, foros, expos y comités con registro y seguimiento por afiliado." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', event_type: 'networking', price: 0 })}>Nuevo evento</Button>}>
+  return <PageShell title="Eventos gremiales" subtitle="Asambleas, networking, foros, expos y comités con registro y seguimiento." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', event_type: 'networking', price: 0 })}>Nuevo evento</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <SummaryStrip items={[["Total", data?.length || 0], ["Publicados", countBy(data, 'status', 'published')], ["Abiertos", countBy(data, 'status', 'open')], ["Vista", filtered.length]]} />
-    <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Buscar evento por título, tipo, sede, estado o estatus..." />
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.event_type}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.venue || 'Sede por confirmar'} · {item.state || 'Nacional'}</p><p>Fecha: {dateOnly(item.starts_at) || 'Por definir'} · Cupo: {item.capacity || 'Abierto'}</p><p>Precio: {money(item.price)}</p><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => register(item)}>Registrarme</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setEventStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setEventStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setEventStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
-    {!filtered.length && <EmptyCard title="Sin eventos">No hay resultados con ese filtro.</EmptyCard>}
+    <CatalogExplorer items={items} searchFields={['title', 'event_type', 'venue', 'state', 'status', 'description']} filters={[{ field: 'status', label: 'Estatus', options: uniqueOptions(items, 'status') }, { field: 'event_type', label: 'Tipo', options: uniqueOptions(items, 'event_type') }, { field: 'state', label: 'Estado', options: uniqueOptions(items, 'state') }]} placeholder="Buscar evento por título, tipo, sede, estado o estatus..." emptyTitle="Sin eventos" summary={(ex) => [["Total", items.length], ["Publicados", countBy(items, 'status', 'published')], ["Vista", ex.filtered.length], ["Página", `${ex.page}/${ex.pages}`]]} renderItem={(item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.event_type}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.venue || 'Sede por confirmar'} · {item.state || 'Nacional'}</p><p>Fecha: {dateOnly(item.starts_at) || 'Por definir'} · Cupo: {item.capacity || 'Abierto'}</p><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setSelected(item)}>Detalle</Button>{isMemberPortal ? <Button variant="outline" onClick={() => register(item)}>Registrarme</Button> : <Button variant="outline" onClick={() => setEditing(item)}>Editar</Button>}</div></CardContent></Card>} />
     {!isMemberPortal && <RequestReviewPanel title="Registros a eventos" endpoint="/gremial/event-registrations" statusEndpoint="/gremial/event-registrations" />}
+    <DetailCardDialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} title={selected?.title || 'Evento'} subtitle={selected?.description} fields={selected ? [["Tipo", selected.event_type], ["Sede", selected.venue], ["Estado", selected.state], ["Inicio", dateOnly(selected.starts_at)], ["Cupo", selected.capacity], ["Precio", money(selected.price)], ["Estatus", selected.status]] : []} actions={selected && (isMemberPortal ? <Button onClick={() => register(selected)}>Registrarme</Button> : <><Button onClick={() => { setEditing(selected); setSelected(null); }}>Editar</Button><Button variant="outline" onClick={() => setEventStatus(selected, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setEventStatus(selected, 'closed')}>Cerrar</Button></>)} />
     <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar evento' : 'Nuevo evento'} fields={eventFields} initialValues={editInitial || { status: 'draft', event_type: 'networking', price: 0 }} onSubmit={save} />
   </PageShell>;
 };
@@ -741,3 +857,9 @@ export const GremialMemberOpportunitiesPage = GremialOpportunitiesPage;
 export const GremialMemberTendersPage = GremialTendersPage;
 export const GremialMemberCoursesPage = GremialCoursesPage;
 export const GremialMemberEventsPage = GremialEventsPage;
+
+
+
+
+
+
