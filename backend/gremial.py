@@ -166,6 +166,15 @@ class GremialServiceCreate(BaseModel):
     included_tiers: list[str] = Field(default_factory=list)
 
 
+class GremialServiceUpdate(BaseModel):
+    title: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    scope: Optional[str] = None
+    status: Optional[str] = None
+    included_tiers: Optional[list[str]] = None
+
+
 class GremialServiceRequestCreate(BaseModel):
     member_id: Optional[str] = None
     notes: Optional[str] = None
@@ -184,7 +193,26 @@ class GremialOpportunityCreate(BaseModel):
     closes_at: Optional[datetime] = None
 
 
+class GremialOpportunityUpdate(BaseModel):
+    title: Optional[str] = None
+    opportunity_type: Optional[str] = None
+    description: Optional[str] = None
+    state: Optional[str] = None
+    delegation_id: Optional[str] = None
+    sector: Optional[str] = None
+    specialties: Optional[list[str]] = None
+    budget: Optional[float] = None
+    status: Optional[str] = None
+    closes_at: Optional[datetime] = None
+
+
 class GremialTenderCreate(GremialOpportunityCreate):
+    dependency: Optional[str] = None
+    tender_number: Optional[str] = None
+    published_at: Optional[datetime] = None
+
+
+class GremialTenderUpdate(GremialOpportunityUpdate):
     dependency: Optional[str] = None
     tender_number: Optional[str] = None
     published_at: Optional[datetime] = None
@@ -566,13 +594,34 @@ def create_gremial_router(db) -> APIRouter:
         await db.gremial_services.insert_one(doc)
         return serialize(doc)
 
+    @router.put("/services/{service_id}", response_model=dict)
+    async def update_service(service_id: str, payload: GremialServiceUpdate, current_user: dict = Depends(require_gremial_admin)):
+        tenant_id = get_gremial_tenant_id(current_user)
+        update = payload.model_dump(exclude_unset=True)
+        if not update:
+            raise HTTPException(status_code=400, detail="No hay cambios para guardar")
+        update["updated_at"] = now_iso()
+        result = await db.gremial_services.update_one({"tenant_id": tenant_id, "id": service_id}, {"$set": update})
+        if not result.matched_count:
+            raise HTTPException(status_code=404, detail="Servicio no encontrado")
+        return serialize(await db.gremial_services.find_one({"tenant_id": tenant_id, "id": service_id}, {"_id": 0}))
+
+    @router.post("/services/{service_id}/status", response_model=dict)
+    async def update_service_status(service_id: str, payload: GremialReviewUpdate, current_user: dict = Depends(require_gremial_admin)):
+        tenant_id = get_gremial_tenant_id(current_user)
+        result = await db.gremial_services.update_one({"tenant_id": tenant_id, "id": service_id}, {"$set": {"status": payload.status, "status_notes": payload.notes, "updated_at": now_iso()}})
+        if not result.matched_count:
+            raise HTTPException(status_code=404, detail="Servicio no encontrado")
+        return serialize(await db.gremial_services.find_one({"tenant_id": tenant_id, "id": service_id}, {"_id": 0}))
+
     @router.post("/services/{service_id}/request", response_model=dict)
     async def request_service(service_id: str, payload: GremialServiceRequestCreate, current_user: dict = Depends(require_gremial_user)):
         tenant_id = get_gremial_tenant_id(current_user)
         member_id = payload.member_id or get_gremial_member_id(current_user)
         if not member_id:
             raise HTTPException(status_code=400, detail="No hay afiliado asociado")
-        doc = {"id": new_id("gsvcr"), "tenant_id": tenant_id, "service_id": service_id, "member_id": member_id, "status": "open", "notes": payload.notes, "created_at": now_iso(), "updated_at": now_iso()}
+        member = await db.gremial_members.find_one({"tenant_id": tenant_id, "id": member_id}, {"_id": 0, "delegation_id": 1})
+        doc = {"id": new_id("gsvcr"), "tenant_id": tenant_id, "delegation_id": member.get("delegation_id") if member else get_gremial_delegation_id(current_user), "service_id": service_id, "member_id": member_id, "status": "open", "notes": payload.notes, "created_at": now_iso(), "updated_at": now_iso()}
         await db.gremial_service_requests.insert_one(doc)
         return serialize(doc)
 
@@ -602,9 +651,35 @@ def create_gremial_router(db) -> APIRouter:
 
     @router.post("/opportunities", response_model=dict)
     async def create_opportunity(payload: GremialOpportunityCreate, current_user: dict = Depends(require_gremial_admin)):
-        doc = {"id": new_id("gopp"), "tenant_id": get_gremial_tenant_id(current_user), **payload.model_dump(), "delegation_id": payload.delegation_id or get_gremial_delegation_id(current_user), "created_at": now_iso(), "updated_at": now_iso()}
+        delegation_id = get_gremial_delegation_id(current_user) if is_gremial_delegation_user(current_user) else payload.delegation_id
+        doc = {"id": new_id("gopp"), "tenant_id": get_gremial_tenant_id(current_user), **payload.model_dump(), "delegation_id": delegation_id, "created_at": now_iso(), "updated_at": now_iso()}
         await db.gremial_opportunities.insert_one(doc)
         return serialize(doc)
+
+    @router.put("/opportunities/{opportunity_id}", response_model=dict)
+    async def update_opportunity(opportunity_id: str, payload: GremialOpportunityUpdate, current_user: dict = Depends(require_gremial_admin)):
+        scope = build_gremial_query_scope(current_user)
+        scope["id"] = opportunity_id
+        update = payload.model_dump(exclude_unset=True)
+        if is_gremial_delegation_user(current_user):
+            update.pop("delegation_id", None)
+        if not update:
+            raise HTTPException(status_code=400, detail="No hay cambios para guardar")
+        update["updated_at"] = now_iso()
+        result = await db.gremial_opportunities.update_one(scope, {"$set": update})
+        if not result.matched_count:
+            raise HTTPException(status_code=404, detail="Oportunidad no encontrada")
+        return serialize(await db.gremial_opportunities.find_one(scope, {"_id": 0}))
+
+    @router.post("/opportunities/{opportunity_id}/status", response_model=dict)
+    async def update_opportunity_status(opportunity_id: str, payload: GremialReviewUpdate, current_user: dict = Depends(require_gremial_admin)):
+        scope = build_gremial_query_scope(current_user)
+        scope["id"] = opportunity_id
+        update = {"status": payload.status, "status_notes": payload.notes, "updated_at": now_iso()}
+        result = await db.gremial_opportunities.update_one(scope, {"$set": update})
+        if not result.matched_count:
+            raise HTTPException(status_code=404, detail="Oportunidad no encontrada")
+        return serialize(await db.gremial_opportunities.find_one(scope, {"_id": 0}))
 
     @router.post("/opportunities/{opportunity_id}/apply", response_model=dict)
     async def apply_opportunity(opportunity_id: str, payload: GremialApplicationCreate | None = None, current_user: dict = Depends(require_gremial_user)):
@@ -644,9 +719,35 @@ def create_gremial_router(db) -> APIRouter:
 
     @router.post("/tenders", response_model=dict)
     async def create_tender(payload: GremialTenderCreate, current_user: dict = Depends(require_gremial_admin)):
-        doc = {"id": new_id("gtender"), "tenant_id": get_gremial_tenant_id(current_user), **payload.model_dump(), "delegation_id": payload.delegation_id or get_gremial_delegation_id(current_user), "created_at": now_iso(), "updated_at": now_iso()}
+        delegation_id = get_gremial_delegation_id(current_user) if is_gremial_delegation_user(current_user) else payload.delegation_id
+        doc = {"id": new_id("gtender"), "tenant_id": get_gremial_tenant_id(current_user), **payload.model_dump(), "delegation_id": delegation_id, "created_at": now_iso(), "updated_at": now_iso()}
         await db.gremial_tenders.insert_one(doc)
         return serialize(doc)
+
+    @router.put("/tenders/{tender_id}", response_model=dict)
+    async def update_tender(tender_id: str, payload: GremialTenderUpdate, current_user: dict = Depends(require_gremial_admin)):
+        scope = build_gremial_query_scope(current_user)
+        scope["id"] = tender_id
+        update = payload.model_dump(exclude_unset=True)
+        if is_gremial_delegation_user(current_user):
+            update.pop("delegation_id", None)
+        if not update:
+            raise HTTPException(status_code=400, detail="No hay cambios para guardar")
+        update["updated_at"] = now_iso()
+        result = await db.gremial_tenders.update_one(scope, {"$set": update})
+        if not result.matched_count:
+            raise HTTPException(status_code=404, detail="Licitación no encontrada")
+        return serialize(await db.gremial_tenders.find_one(scope, {"_id": 0}))
+
+    @router.post("/tenders/{tender_id}/status", response_model=dict)
+    async def update_tender_status(tender_id: str, payload: GremialReviewUpdate, current_user: dict = Depends(require_gremial_admin)):
+        scope = build_gremial_query_scope(current_user)
+        scope["id"] = tender_id
+        update = {"status": payload.status, "status_notes": payload.notes, "updated_at": now_iso()}
+        result = await db.gremial_tenders.update_one(scope, {"$set": update})
+        if not result.matched_count:
+            raise HTTPException(status_code=404, detail="Licitación no encontrada")
+        return serialize(await db.gremial_tenders.find_one(scope, {"_id": 0}))
 
     @router.post("/tenders/{tender_id}/apply", response_model=dict)
     async def apply_tender(tender_id: str, payload: GremialApplicationCreate | None = None, current_user: dict = Depends(require_gremial_user)):

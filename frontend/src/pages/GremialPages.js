@@ -199,6 +199,71 @@ const documentFields = [
   { name: 'notes', label: 'Notas', type: 'textarea' },
 ];
 
+const serviceFields = [
+  { name: 'title', label: 'Servicio' },
+  { name: 'category', label: 'Categoría', type: 'select', options: ['beneficio', 'consultoria', 'tramite', 'capacitacion', 'networking'] },
+  { name: 'scope', label: 'Alcance', type: 'select', options: ['national', 'delegation'] },
+  { name: 'status', label: 'Estatus', type: 'select', options: ['active', 'paused', 'archived'] },
+  { name: 'description', label: 'Descripción', type: 'textarea' },
+];
+
+const opportunityFields = [
+  { name: 'title', label: 'Título' },
+  { name: 'opportunity_type', label: 'Tipo', type: 'select', options: ['private', 'public', 'partner'] },
+  { name: 'state', label: 'Estado' },
+  { name: 'sector', label: 'Sector' },
+  { name: 'budget', label: 'Presupuesto', type: 'number' },
+  { name: 'status', label: 'Estatus', type: 'select', options: ['draft', 'published', 'open', 'closed', 'archived'] },
+  { name: 'closes_at', label: 'Cierra', type: 'date' },
+  { name: 'description', label: 'Descripción', type: 'textarea' },
+];
+
+const tenderFields = [
+  ...opportunityFields,
+  { name: 'dependency', label: 'Dependencia' },
+  { name: 'tender_number', label: 'Número de licitación' },
+  { name: 'published_at', label: 'Publicada', type: 'date' },
+];
+
+const isMemberPortalUser = (user) => user?.account_type === 'member_company' || String(user?.role || user?.active_role || '').startsWith('gremial_member');
+
+const withDatePayload = (values, dateFields = []) => {
+  const next = { ...values };
+  dateFields.forEach((field) => { next[field] = dateToApi(next[field]); });
+  return cleanPayload(next);
+};
+
+const RequestReviewPanel = ({ title, endpoint, statusEndpoint, itemIdField = 'id' }) => {
+  const { api } = useAuth();
+  const { data, loading, error, reload } = useGremialApi(endpoint, []);
+  const setStatus = async (item, status) => {
+    await api.post(`${statusEndpoint}/${item[itemIdField]}/status`, { status, notes: `Marcado como ${status} desde Gremial OS` });
+    await reload();
+  };
+  return (
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {loading && <p className="text-sm text-muted-foreground">Cargando...</p>}
+        {error && <p className="text-sm text-red-500">{error}</p>}
+        {!loading && !error && (data || []).slice(0, 8).map((item) => (
+          <div key={item.id} className="rounded-xl border p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3"><p className="font-medium">{item.member_id}</p><Badge>{item.status}</Badge></div>
+            {item.notes && <p className="text-sm text-muted-foreground">{item.notes}</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setStatus(item, 'reviewing')}>Revisando</Button>
+              <Button size="sm" onClick={() => setStatus(item, 'approved')}>Aprobar</Button>
+              <Button size="sm" variant="outline" onClick={() => setStatus(item, 'rejected')}>Rechazar</Button>
+              <Button size="sm" variant="outline" onClick={() => setStatus(item, 'completed')}>Completar</Button>
+            </div>
+          </div>
+        ))}
+        {!loading && !error && !(data || []).length && <p className="text-sm text-muted-foreground">Sin registros pendientes.</p>}
+      </CardContent>
+    </Card>
+  );
+};
+
 export const GremialDashboardPage = () => {
   const { data, loading, error, reload } = useGremialApi('/gremial/dashboard', {});
   if (loading) return <LoadingState />;
@@ -382,9 +447,11 @@ const SimpleListPage = ({ title, subtitle, endpoint, renderItem, emptyTitle }) =
 };
 
 export const GremialServicesPage = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/services', []);
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(null);
   const requestService = async (item) => {
     setMessage('');
     try {
@@ -394,19 +461,30 @@ export const GremialServicesPage = () => {
       setMessage(err.response?.data?.detail || 'No se pudo enviar la solicitud');
     }
   };
+  const save = async (values) => {
+    const payload = cleanPayload(values);
+    if (editing?.id) await api.put(`/gremial/services/${editing.id}`, payload); else await api.post('/gremial/services', payload);
+    await reload();
+  };
+  const setServiceStatus = async (item, status) => { await api.post(`/gremial/services/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Servicios y beneficios" subtitle="Catálogo medible de servicios de valor para afiliados." action={<Button onClick={reload}>Actualizar</Button>}>
+  return <PageShell title="Servicios y beneficios" subtitle="Catálogo medible de servicios de valor para afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'active', scope: 'national', category: 'beneficio' })}>Nuevo servicio</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><Badge>{item.category}</Badge><p className="text-sm text-muted-foreground">{item.description}</p><Button className="w-full" variant="outline" onClick={() => requestService(item)}>Solicitar servicio</Button></CardContent></Card>)}</div>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm text-muted-foreground">{item.description}</p>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => requestService(item)}>Solicitar servicio</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setServiceStatus(item, item.status === 'active' ? 'paused' : 'active')}>{item.status === 'active' ? 'Pausar' : 'Activar'}</Button><Button className="col-span-2" variant="outline" onClick={() => setServiceStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
     {!data?.length && <EmptyCard title="Sin servicios">Cuando existan datos aparecerán aquí.</EmptyCard>}
+    {!isMemberPortal && <RequestReviewPanel title="Solicitudes de servicios" endpoint="/gremial/service-requests" statusEndpoint="/gremial/service-requests" />}
+    <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar servicio' : 'Nuevo servicio'} fields={serviceFields} initialValues={editing || { status: 'active', scope: 'national', category: 'beneficio' }} onSubmit={save} />
   </PageShell>;
 };
 
 export const GremialOpportunitiesPage = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/opportunities', []);
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(null);
+  const editInitial = editing ? { ...editing, closes_at: dateOnly(editing.closes_at) } : null;
   const apply = async (item) => {
     setMessage('');
     try {
@@ -416,19 +494,30 @@ export const GremialOpportunitiesPage = () => {
       setMessage(err.response?.data?.detail || 'No se pudo postular');
     }
   };
+  const save = async (values) => {
+    const payload = withDatePayload(values, ['closes_at']);
+    if (editing?.id) await api.put(`/gremial/opportunities/${editing.id}`, payload); else await api.post('/gremial/opportunities', payload);
+    await reload();
+  };
+  const setOpportunityStatus = async (item, status) => { await api.post(`/gremial/opportunities/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Oportunidades privadas" subtitle="Marketplace interno de oportunidades comerciales para afiliados." action={<Button onClick={reload}>Actualizar</Button>}>
+  return <PageShell title="Oportunidades privadas" subtitle="Marketplace interno de oportunidades comerciales para afiliados." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', opportunity_type: 'private' })}>Nueva oportunidad</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p>Presupuesto: {money(item.budget)}</p><Badge>{item.status}</Badge><Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular</Button></CardContent></Card>)}</div>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.state} · {item.sector}</p><p>Presupuesto: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setOpportunityStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
     {!data?.length && <EmptyCard title="Sin oportunidades">Cuando existan datos aparecerán aquí.</EmptyCard>}
+    {!isMemberPortal && <RequestReviewPanel title="Postulaciones a oportunidades" endpoint="/gremial/opportunity-applications" statusEndpoint="/gremial/opportunity-applications" />}
+    <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar oportunidad' : 'Nueva oportunidad'} fields={opportunityFields} initialValues={editInitial || { status: 'draft', opportunity_type: 'private' }} onSubmit={save} />
   </PageShell>;
 };
 
 export const GremialTendersPage = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const isMemberPortal = isMemberPortalUser(user);
   const { data, loading, error, reload } = useGremialApi('/gremial/tenders', []);
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(null);
+  const editInitial = editing ? { ...editing, closes_at: dateOnly(editing.closes_at), published_at: dateOnly(editing.published_at) } : null;
   const apply = async (item) => {
     setMessage('');
     try {
@@ -438,12 +527,20 @@ export const GremialTendersPage = () => {
       setMessage(err.response?.data?.detail || 'No se pudo postular');
     }
   };
+  const save = async (values) => {
+    const payload = withDatePayload(values, ['closes_at', 'published_at']);
+    if (editing?.id) await api.put(`/gremial/tenders/${editing.id}`, payload); else await api.post('/gremial/tenders', payload);
+    await reload();
+  };
+  const setTenderStatus = async (item, status) => { await api.post(`/gremial/tenders/${item.id}/status`, { status }); await reload(); };
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
-  return <PageShell title="Licitaciones" subtitle="Seguimiento de licitaciones públicas por estado, dependencia y especialidad." action={<Button onClick={reload}>Actualizar</Button>}>
+  return <PageShell title="Licitaciones" subtitle="Seguimiento de licitaciones públicas por estado, dependencia y especialidad." action={isMemberPortal ? <Button onClick={reload}>Actualizar</Button> : <Button onClick={() => setEditing({ status: 'draft', opportunity_type: 'public' })}>Nueva licitación</Button>}>
     {message && <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p>Monto estimado: {money(item.budget)}</p><Badge>{item.status}</Badge><Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular a licitación</Button></CardContent></Card>)}</div>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(data || []).map((item) => <Card key={item.id}><CardHeader><CardTitle>{item.title}</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{item.dependency} · {item.state}</p><p>Monto estimado: {money(item.budget)}</p><Badge>{item.status}</Badge>{isMemberPortal ? <Button className="w-full" variant="outline" onClick={() => apply(item)}>Postular a licitación</Button> : <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setEditing(item)}>Editar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'published')}>Publicar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'closed')}>Cerrar</Button><Button variant="outline" onClick={() => setTenderStatus(item, 'archived')}>Archivar</Button></div>}</CardContent></Card>)}</div>
     {!data?.length && <EmptyCard title="Sin licitaciones">Cuando existan datos aparecerán aquí.</EmptyCard>}
+    {!isMemberPortal && <RequestReviewPanel title="Postulaciones a licitaciones" endpoint="/gremial/tender-applications" statusEndpoint="/gremial/tender-applications" />}
+    <FormDialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)} title={editing?.id ? 'Editar licitación' : 'Nueva licitación'} fields={tenderFields} initialValues={editInitial || { status: 'draft', opportunity_type: 'public' }} onSubmit={save} />
   </PageShell>;
 };
 export const GremialAnalyticsPage = () => <GremialDashboardPage />;
