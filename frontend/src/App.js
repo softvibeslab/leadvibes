@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Toaster } from './components/ui/sonner';
@@ -41,6 +41,8 @@ import { PricingCalculatorPage } from './pages/PricingCalculatorPage';
 import { BrokerLinkPage } from './pages/BrokerLinkPage';
 import { CopimPresentationPage } from './pages/CopimPresentationPage';
 import { CopimDashboardDemoPage } from './pages/CopimDashboardDemoPage';
+import { CmicMvpPage } from './pages/CmicMvpPage';
+import { CmicRoleOnboardingPage } from './pages/CmicRoleOnboardingPage';
 import { CopimOverviewPage } from './pages/CopimOverviewPage';
 import { CopimAssociationsPage } from './pages/CopimAssociationsPage';
 import { CopimMembersPage } from './pages/CopimMembersPage';
@@ -68,6 +70,7 @@ import { CopimMemberCommunityPage } from './pages/CopimMemberCommunityPage';
 import { CopimMemberModulesPage } from './pages/CopimMemberModulesPage';
 import { CopimMemberDirectoryPage } from './pages/CopimMemberDirectoryPage';
 import { NegotiationStrategiesPage } from './pages/NegotiationStrategiesPage';
+import { cmicAppRoutes } from './cmic-app/CmicAppRoutes';
 import {
   canManageCopimWorkspace,
   isCopimLocalAssociationUser,
@@ -329,6 +332,11 @@ function AppRoutes() {
       {/* Lead Search - Public (sin autenticación) */}
       <Route path="/lead-search" element={<LeadSearchDashboard />} />
 
+      {/* CMIC mobile app — shell propio mobile-first, sin Layout desktop */}
+      <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
+        {cmicAppRoutes}
+      </Route>
+
       {/* Protected routes with Layout */}
       <Route
         element={
@@ -464,6 +472,27 @@ function AppRoutes() {
             <RoviInternalRoute>
               <VibeLabPage />
             </RoviInternalRoute>
+          }
+        />
+        <Route path="/cmic" element={<Navigate to="/cmic/mvp" replace />} />
+        <Route
+          path="/cmic/mvp"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <CmicMvpPage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
+          }
+        />
+        <Route
+          path="/cmic/playbook"
+          element={
+            <CopimModuleRoute>
+              <CopimAssociationRoute>
+                <CmicRoleOnboardingPage />
+              </CopimAssociationRoute>
+            </CopimModuleRoute>
           }
         />
         <Route path="/copim" element={<CopimHomeRedirect />} />

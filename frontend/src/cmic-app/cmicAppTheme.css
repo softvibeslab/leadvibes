@@ -1,0 +1,280 @@
+/*
+ * CMIC Executive Mobile — design tokens portados desde el proyecto Stitch
+ * "CMIC Digital App Expansion" (asset 814cf38c3b1b4b0db8332b9f5f51e5db).
+ * Todo está scoped bajo .cmic-app-root para NO alterar la paleta global Rovi.
+ */
+
+.cmic-app-root {
+  --cmic-primary: #af101a;
+  --cmic-primary-container: #d32f2f;
+  --cmic-on-primary: #ffffff;
+  --cmic-secondary: #495f84; /* Navy */
+  --cmic-on-secondary: #ffffff;
+  --cmic-navy-deep: #001b3d;
+  --cmic-tertiary: #006358; /* Teal */
+  --cmic-tertiary-container: #e6f4f1;
+  --cmic-on-tertiary-container: #005048;
+  --cmic-warn: #b45309;
+  --cmic-warn-container: #fef3c7;
+  --cmic-error: #ba1a1a;
+  --cmic-error-container: #ffdad6;
+  --cmic-surface: #f9f9f9;
+  --cmic-surface-container: #eeeeee;
+  --cmic-surface-container-high: #e8e8e8;
+  --cmic-surface-container-highest: #e2e2e2;
+  --cmic-on-surface: #1a1c1c;
+  --cmic-on-surface-variant: #5b6b7c;
+  --cmic-outline: #d8dde3;
+  --cmic-card-border: #e0e0e0;
+
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--cmic-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Contenedor que simula el viewport móvil, centrado en desktop */
+.cmic-app-shell {
+  position: relative;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 440px;
+  min-height: 100dvh;
+  background-color: var(--cmic-surface);
+  background-image:
+    radial-gradient(at 0% 0%, #ffffff 0, transparent 50%),
+    radial-gradient(at 100% 100%, #e2e2e2 0, transparent 55%);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Top app bar */
+.cmic-appbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--cmic-surface);
+  border-bottom: 1px solid var(--cmic-surface-container-highest);
+}
+.cmic-appbar__title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--cmic-on-surface);
+}
+.cmic-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  color: var(--cmic-on-surface-variant);
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.cmic-iconbtn:active { transform: scale(0.94); }
+.cmic-iconbtn--primary { color: var(--cmic-primary); }
+
+/* Main scroll area */
+.cmic-main {
+  flex: 1 1 auto;
+  padding: 16px 20px 112px;
+}
+
+/* Cards */
+.cmic-card {
+  border: 1px solid var(--cmic-card-border);
+  background: #ffffff;
+  border-radius: 8px;
+}
+.cmic-card--pad { padding: 20px; }
+.cmic-card--pad-sm { padding: 16px; }
+
+.cmic-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cmic-on-surface-variant);
+  margin-bottom: 12px;
+}
+
+/* Typography helpers */
+.cmic-h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.cmic-h2 { font-size: 18px; font-weight: 600; color: var(--cmic-navy-deep); }
+.cmic-body { font-size: 14px; line-height: 20px; }
+.cmic-muted { color: var(--cmic-on-surface-variant); }
+.cmic-caption { font-size: 11px; line-height: 14px; color: var(--cmic-on-surface-variant); }
+
+/* Buttons */
+.cmic-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+}
+.cmic-btn:active { transform: scale(0.98); }
+.cmic-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.cmic-btn--primary { background: var(--cmic-primary); color: var(--cmic-on-primary); }
+.cmic-btn--primary:hover { background: var(--cmic-primary-container); }
+.cmic-btn--outline { background: #fff; color: var(--cmic-navy-deep); border-color: var(--cmic-secondary); }
+.cmic-btn--ghost { background: transparent; color: var(--cmic-primary); min-height: 40px; width: auto; }
+.cmic-btn--sm { min-height: 40px; width: auto; padding: 8px 14px; font-size: 13px; }
+
+/* Chips / badges */
+.cmic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--cmic-surface-container);
+  color: var(--cmic-on-surface-variant);
+}
+.cmic-chip--ok { background: var(--cmic-tertiary-container); color: var(--cmic-on-tertiary-container); }
+.cmic-chip--warn { background: var(--cmic-warn-container); color: var(--cmic-warn); }
+.cmic-chip--err { background: var(--cmic-error-container); color: #93000a; }
+.cmic-chip--navy { background: #e7edf6; color: var(--cmic-secondary); }
+.cmic-chip__dot { width: 8px; height: 8px; border-radius: 999px; background: var(--cmic-tertiary); }
+
+/* Filter chips row */
+.cmic-chiprow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.cmic-chiprow::-webkit-scrollbar { display: none; }
+.cmic-filter {
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--cmic-outline);
+  background: #fff;
+  color: var(--cmic-on-surface-variant);
+  cursor: pointer;
+}
+.cmic-filter--active { background: var(--cmic-secondary); color: #fff; border-color: var(--cmic-secondary); }
+
+/* Progress bar */
+.cmic-progress { width: 100%; height: 12px; background: var(--cmic-surface-container-highest); border-radius: 999px; overflow: hidden; }
+.cmic-progress__fill { height: 100%; background: var(--cmic-primary); border-radius: 999px; }
+
+/* Divider */
+.cmic-divider { height: 1px; background: var(--cmic-surface-container-highest); }
+
+/* List item */
+.cmic-list-item { display: flex; align-items: center; gap: 16px; padding: 16px; }
+.cmic-list-item + .cmic-list-item { border-top: 1px solid var(--cmic-surface-container-highest); }
+
+/* Hero navy card (resúmenes financieros) */
+.cmic-hero-navy {
+  border-radius: 8px;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--cmic-navy-deep), var(--cmic-secondary));
+  color: #fff;
+}
+
+/* Avatar with initials */
+.cmic-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--cmic-secondary);
+  color: #fff;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Bottom navigation */
+.cmic-bottomnav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 440px;
+  z-index: 40;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 76px;
+  padding: 0 8px env(safe-area-inset-bottom, 0);
+  background: var(--cmic-surface);
+  border-top: 1px solid var(--cmic-surface-container-highest);
+}
+.cmic-navitem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  color: var(--cmic-secondary);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 500;
+  transition: color 0.12s ease;
+}
+.cmic-navitem--active { color: var(--cmic-primary); font-weight: 700; }
+
+/* Quick-access grid (home) */
+.cmic-quickgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.cmic-quick {
+  text-align: left;
+  border: 1px solid var(--cmic-card-border);
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.cmic-quick:active { transform: scale(0.98); }
+.cmic-quick__icon {
+  display: inline-flex;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(175, 16, 26, 0.08);
+  color: var(--cmic-primary);
+  margin-bottom: 10px;
+}
+
+/* Material symbols sizing */
+.cmic-app-root .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+.cmic-app-root .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+
+/* Loading shimmer */
+.cmic-skel { background: var(--cmic-surface-container-high); border-radius: 8px; position: relative; overflow: hidden; }
+.cmic-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  animation: cmic-shimmer 1.3s infinite;
+}
+@keyframes cmic-shimmer { 100% { transform: translateX(100%); } }
