@@ -1,4 +1,5 @@
 import { getGremialHome, getGremialRoleLabel, getGremialWorkspaceTypeLabel, isGremialAccount, isGremialMemberUser } from './gremialAccess';
+import { isMenuVibesAccount } from './menuvibesAccess';
 
 const COPIM_TENANT_TYPES = new Set(['copim', 'council', 'association']);
 const COPIM_ASSOCIATION_ROLES = new Set(['copim_admin', 'copim_operator']);
@@ -68,6 +69,10 @@ export const resolveAppModeForUser = (user, preferredMode = 'rovi') => {
 };
 
 export const resolveAuthenticatedHome = (user, preferredMode = 'rovi') => {
+  if (isMenuVibesAccount(user)) {
+    return '/menuvibes/dashboard';
+  }
+
   if (isRoviInternalUser(user)) {
     return '/rovi/dashboard';
   }
@@ -96,6 +101,9 @@ export const resolveAuthenticatedHome = (user, preferredMode = 'rovi') => {
 };
 
 export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
+  if (accountType === 'menuvibes') {
+    return 'Ventas para restaurantes';
+  }
   if (accountType === 'rovi_internal') {
     return 'ROVI Internal';
   }
@@ -121,6 +129,9 @@ export const getAccountTypeLabel = (accountType, appMode = 'rovi') => {
 };
 
 export const getWorkspaceTypeLabel = (tenantType) => {
+  if (tenantType === 'menuvibes') {
+    return 'MenuVibes';
+  }
   if (tenantType === 'rovi_internal') {
     return 'ROVI Internal';
   }
@@ -159,6 +170,7 @@ export const getRoleLabel = (role) => {
     owner: 'Owner',
     admin: 'Admin',
     manager: 'Manager',
+    executive: 'Ejecutivo',
     property_manager: 'Property Manager',
     copim_admin: 'COPIM Nacional',
     copim_operator: 'Asociacion local',

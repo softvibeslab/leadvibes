@@ -57,7 +57,7 @@ class UserCreate(BaseModel):
     name: str
     role: str = "broker"
     phone: Optional[str] = None
-    account_type: str = "individual"  # individual, agency, copim, copim_member, rovi_internal
+    account_type: str = "individual"  # individual, agency, menuvibes, copim, copim_member, rovi_internal
     invitation_code: Optional[str] = None
 
 class UserLogin(BaseModel):
@@ -92,7 +92,7 @@ class User(UserBase):
     onboarding_completed: bool = False
     tenant_id: str = ""
     personal_tenant_id: Optional[str] = None
-    account_type: str = "individual"  # individual, agency, copim, copim_member, rovi_internal
+    account_type: str = "individual"  # individual, agency, menuvibes, copim, copim_member, rovi_internal
     linked_copim_association_id: Optional[str] = None
     ai_profile: Optional['AIProfile'] = None  # Perfil personalizado para el asistente IA (forward reference)
 
@@ -126,6 +126,7 @@ class AuthWorkspaceSummary(BaseModel):
 class TenantType(str, Enum):
     INDIVIDUAL = "individual"
     AGENCY = "agency"
+    MENUVIBES = "menuvibes"
     PROPERTY_MANAGEMENT = "property_management"
     COPIM = "copim"
     ASSOCIATION = "association"
@@ -141,6 +142,7 @@ class MembershipRole(str, Enum):
     OWNER = "owner"
     ADMIN = "admin"
     MANAGER = "manager"
+    EXECUTIVE = "executive"
     BROKER = "broker"
     PROPERTY_MANAGER = "property_manager"
     COPIM_ADMIN = "copim_admin"

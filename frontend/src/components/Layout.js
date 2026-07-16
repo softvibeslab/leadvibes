@@ -5,6 +5,7 @@ import { AIChat } from './AIChat';
 import { RealtimeNotifications } from './RealtimeNotifications';
 import { useAuth } from '../context/AuthContext';
 import { getEffectiveRole, isCopimAccount, isCopimRole } from '../lib/copimAccess';
+import { isMenuVibesAccount } from '../lib/menuvibesAccess';
 import { Menu } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -13,7 +14,7 @@ export const Layout = () => {
   const location = useLocation();
   const { isCopimMode, user } = useAuth();
   const effectiveRole = getEffectiveRole(user);
-  const showFloatingAgent = !isCopimMode || isCopimRole(effectiveRole) || isCopimAccount(user);
+  const showFloatingAgent = !isMenuVibesAccount(user) && (!isCopimMode || isCopimRole(effectiveRole) || isCopimAccount(user));
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -31,7 +32,7 @@ export const Layout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-transparent">
-      <RealtimeNotifications />
+      {!isMenuVibesAccount(user) ? <RealtimeNotifications /> : null}
 
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
@@ -63,7 +64,7 @@ export const Layout = () => {
           >
             <Menu className="w-5 h-5" />
           </Button>
-          <span className="font-display truncate text-lg font-bold">Rovi</span>
+          <span className="font-display truncate text-lg font-bold">{isMenuVibesAccount(user) ? 'MenuVibes CRM' : 'Rovi'}</span>
         </header>
         
         {/* Page Content */}

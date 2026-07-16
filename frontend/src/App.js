@@ -68,6 +68,11 @@ import { CopimMemberCommunityPage } from './pages/CopimMemberCommunityPage';
 import { CopimMemberModulesPage } from './pages/CopimMemberModulesPage';
 import { CopimMemberDirectoryPage } from './pages/CopimMemberDirectoryPage';
 import { NegotiationStrategiesPage } from './pages/NegotiationStrategiesPage';
+import { MenuVibesDashboardPage } from './pages/menuvibes/MenuVibesDashboardPage';
+import { MenuVibesProspectsPage } from './pages/menuvibes/MenuVibesProspectsPage';
+import { MenuVibesProspectDetailPage } from './pages/menuvibes/MenuVibesProspectDetailPage';
+import { MenuVibesPipelinePage } from './pages/menuvibes/MenuVibesPipelinePage';
+import { MenuVibesDemosPage } from './pages/menuvibes/MenuVibesDemosPage';
 import {
   GremialDashboardPage,
   GremialDelegationsPage,
@@ -109,6 +114,7 @@ import {
   isGremialMemberUser,
   isGremialNationalUser,
 } from './lib/gremialAccess';
+import { isMenuVibesAccount } from './lib/menuvibesAccess';
 import './App.css';
 
 // Protected Route component
@@ -132,6 +138,11 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/onboarding" replace />;
   }
 
+  // MenuVibes is an isolated vertical: direct legacy CRM URLs resolve home.
+  if (isMenuVibesAccount(user) && window.location.pathname !== '/onboarding' && !window.location.pathname.startsWith('/menuvibes')) {
+    return <Navigate to="/menuvibes/dashboard" replace />;
+  }
+
   return children;
 };
 
@@ -152,7 +163,7 @@ const PublicRoute = ({ children }) => {
     if (user && !user.onboarding_completed) {
       return <Navigate to="/onboarding" replace />;
     }
-    if (nextPath && nextPath.startsWith('/')) {
+    if (nextPath && nextPath.startsWith('/') && (!isMenuVibesAccount(user) || nextPath.startsWith('/menuvibes'))) {
       return <Navigate to={nextPath} replace />;
     }
     return <Navigate to={resolveAuthenticatedHome(user, appMode)} replace />;
@@ -279,10 +290,18 @@ const SalesCrmRoute = ({ children }) => {
   const tenantType = user?.active_workspace?.tenant_type || user?.account_type;
   const isSalesWorkspace = ['individual', 'agency'].includes(tenantType) || ['owner', 'admin', 'manager', 'broker'].includes(role);
 
-  if (!isSalesWorkspace || isPropertyManagerUser(user) || isCopimMemberUser(user) || isCopimLocalAssociationUser(user) || isCopimNationalUser(user) || isRoviInternalUser(user)) {
+  if (!isSalesWorkspace || isMenuVibesAccount(user) || isPropertyManagerUser(user) || isCopimMemberUser(user) || isCopimLocalAssociationUser(user) || isCopimNationalUser(user) || isRoviInternalUser(user)) {
     return <Navigate to={resolveAuthenticatedHome(user)} replace />;
   }
 
+  return children;
+};
+
+const MenuVibesModuleRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!isMenuVibesAccount(user)) {
+    return <Navigate to={resolveAuthenticatedHome(user)} replace />;
+  }
   return children;
 };
 
@@ -432,6 +451,12 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
+        <Route path="/menuvibes" element={<Navigate to="/menuvibes/dashboard" replace />} />
+        <Route path="/menuvibes/dashboard" element={<MenuVibesModuleRoute><MenuVibesDashboardPage /></MenuVibesModuleRoute>} />
+        <Route path="/menuvibes/prospects" element={<MenuVibesModuleRoute><MenuVibesProspectsPage /></MenuVibesModuleRoute>} />
+        <Route path="/menuvibes/prospects/:id" element={<MenuVibesModuleRoute><MenuVibesProspectDetailPage /></MenuVibesModuleRoute>} />
+        <Route path="/menuvibes/pipeline" element={<MenuVibesModuleRoute><MenuVibesPipelinePage /></MenuVibesModuleRoute>} />
+        <Route path="/menuvibes/demos" element={<MenuVibesModuleRoute><MenuVibesDemosPage /></MenuVibesModuleRoute>} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/brokers/manage" element={<BrokersPage />} />

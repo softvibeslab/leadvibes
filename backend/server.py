@@ -125,6 +125,7 @@ from tasks import create_tasks_router
 from copim_member_import import create_copim_member_import_router
 from gremial import create_gremial_router
 from openwa_integration import create_openwa_router
+from menuvibes import create_menuvibes_router
 from hermes_bridge import (
     build_hermes_profile_spec,
     build_qr_url,
@@ -240,6 +241,8 @@ async def get_or_create_tenant(user_id: str) -> str:
 
 
 def resolve_account_tenant_type(account_type: str) -> str:
+    if account_type == "menuvibes":
+        return "menuvibes"
     if account_type == "agency":
         return "agency"
     if account_type == "property_management":
@@ -264,6 +267,9 @@ def resolve_user_role(account_type: str, requested_role: str | None) -> str:
         "gremial_member_admin", "gremial_member_user",
     }
     rovi_internal_roles = {"rovi_admin", "rovi_sales", "rovi_marketing", "rovi_customer_success", "rovi_ops"}
+
+    if account_type == "menuvibes":
+        return requested_role if requested_role in {"owner", "manager", "executive"} else "owner"
 
     if account_type == "copim":
         return requested_role if requested_role in copim_roles else "copim_admin"
@@ -290,7 +296,7 @@ def resolve_user_role(account_type: str, requested_role: str | None) -> str:
 
 
 def uses_personal_workspace(account_type: str) -> bool:
-    return account_type not in {"individual", "copim_member", "member_company", "rovi_internal"}
+    return account_type not in {"individual", "copim_member", "member_company", "rovi_internal", "menuvibes"}
 
 
 def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -> str:
@@ -313,6 +319,8 @@ def build_workspace_name(user: dict, tenant_type: str, personal: bool = False) -
         return f"{base_name} Afiliado"
     if tenant_type == "rovi_internal":
         return "ROVI Internal"
+    if tenant_type == "menuvibes":
+        return f"{base_name} MenuVibes"
     return f"{base_name} Workspace"
 
 
@@ -324,8 +332,10 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
     user_id = user["id"]
     account_type = user.get("account_type", "individual")
     current_tenant_id = user.get("tenant_id") or f"tenant-{user_id[:8]}"
-    personal_tenant_id = user.get("personal_tenant_id") or (
-        current_tenant_id if not uses_personal_workspace(account_type) else f"personal-{user_id[:8]}"
+    personal_tenant_id = current_tenant_id if account_type == "menuvibes" else (
+        user.get("personal_tenant_id") or (
+            current_tenant_id if not uses_personal_workspace(account_type) else f"personal-{user_id[:8]}"
+        )
     )
     role = user.get("role", "broker")
     is_copim_member_account = account_type == "copim_member"
@@ -365,16 +375,17 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
     async def ensure_membership_doc(tenant_id: str, *, membership_role: str, is_default: bool):
         existing_membership = await db.tenant_memberships.find_one(
             {"tenant_id": tenant_id, "user_id": user_id},
-            {"_id": 0, "id": 1}
+            {"_id": 0}
         )
+        preserve_menuvibes_membership = account_type == "menuvibes" and existing_membership
         membership_payload = {
             "tenant_id": tenant_id,
             "user_id": user_id,
-            "role": membership_role,
-            "status": "active",
+            "role": existing_membership.get("role", membership_role) if preserve_menuvibes_membership else membership_role,
+            "status": existing_membership.get("status", "active") if preserve_menuvibes_membership else "active",
             "linked_via": "legacy_migration" if existing_membership else "self_signup",
             "is_default": is_default,
-            "accepted_at": now,
+            "accepted_at": existing_membership.get("accepted_at", now) if existing_membership else now,
             "created_by_user_id": user_id,
             "updated_at": now,
         }
@@ -417,12 +428,12 @@ async def ensure_workspace_infra_for_user(user: dict) -> dict:
         await ensure_membership_doc(
             personal_tenant_id,
             membership_role="owner",
-            is_default=account_type not in {"agency", "copim", "property_management", "gremial", "chamber"},
+            is_default=account_type not in {"agency", "copim", "property_management", "gremial", "chamber", "menuvibes"},
         )
         await ensure_membership_doc(
             current_tenant_id,
             membership_role="owner" if account_type == "agency" and role == "broker" else role,
-            is_default=account_type in {"agency", "copim", "property_management", "gremial", "chamber"},
+            is_default=account_type in {"agency", "copim", "property_management", "gremial", "chamber", "menuvibes"},
         )
 
     return user
@@ -465,15 +476,15 @@ def select_active_workspace(workspaces: list[dict], requested_tenant_id: str | N
         return None
     if requested_tenant_id:
         for workspace in workspaces:
-            if workspace["tenant_id"] == requested_tenant_id:
+            if workspace["tenant_id"] == requested_tenant_id and workspace.get("status") == "active":
                 return workspace
     for workspace in workspaces:
-        if workspace.get("is_default"):
+        if workspace.get("is_default") and workspace.get("status") == "active":
             return workspace
     for workspace in workspaces:
         if workspace.get("status") == "active":
             return workspace
-    return workspaces[0]
+    return None
 
 
 def build_user_response_payload(user: dict, ai_profile: dict | None = None) -> dict:
@@ -3832,8 +3843,12 @@ async def register(user_data: UserCreate):
     workspaces = await get_user_workspaces(user_doc)
     active_workspace = select_active_workspace(workspaces, resolve_auth_workspace_target(user_doc) or tenant_id)
     
+    # MenuVibes has its own pipeline and must not seed real-estate artifacts.
+    gamification_rules = [] if user_data.account_type == "menuvibes" else SEED_GAMIFICATION_RULES
+    default_scripts = [] if user_data.account_type == "menuvibes" else SEED_SCRIPTS
+
     # Seed default gamification rules for new tenant
-    for rule in SEED_GAMIFICATION_RULES:
+    for rule in gamification_rules:
         rule_doc = {**rule, "tenant_id": tenant_id, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
         await db.gamification_rules.update_one(
             {"id": rule["id"], "tenant_id": tenant_id},
@@ -3842,7 +3857,7 @@ async def register(user_data: UserCreate):
         )
     
     # Seed default scripts
-    for script in SEED_SCRIPTS:
+    for script in default_scripts:
         script_doc = {
             **script,
             "tenant_id": tenant_id,
@@ -21536,6 +21551,7 @@ api_router.include_router(create_vibe_lab_router(db))
 api_router.include_router(create_rentals_router(db))
 api_router.include_router(create_tasks_router(db))
 api_router.include_router(create_openwa_router(db))
+api_router.include_router(create_menuvibes_router(db))
 api_router.include_router(create_copim_member_import_router(
     db,
     require_copim_admin_workspace=require_copim_admin_workspace,

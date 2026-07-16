@@ -16,6 +16,7 @@ export const OnboardingPage = () => {
   const navigate = useNavigate();
   const { api, updateUser, user, setAppMode } = useAuth();
   const isCopim = user?.account_type === 'copim';
+  const isMenuVibes = user?.account_type === 'menuvibes' || user?.active_workspace?.tenant_type === 'menuvibes';
   const isSalesOnboarding = ['individual', 'agency'].includes(user?.account_type);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -45,7 +46,7 @@ export const OnboardingPage = () => {
     success_metric: 'renovacion y activacion institucional'
   });
 
-  const totalSteps = isCopim ? 3 : isSalesOnboarding ? 1 : 4;
+  const totalSteps = isMenuVibes ? 1 : isCopim ? 3 : isSalesOnboarding ? 1 : 4;
   const progress = (step / totalSteps) * 100;
 
   const handleNext = () => {
@@ -63,7 +64,12 @@ export const OnboardingPage = () => {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      if (isCopim) {
+      if (isMenuVibes) {
+        await api.post('/auth/complete-onboarding', {
+          context: 'menuvibes_crm',
+          metadata: { workspace: 'restaurant_sales' }
+        });
+      } else if (isCopim) {
         await api.post('/auth/complete-onboarding', {
           context: 'copim_institucional',
           metadata: institutionalProfile
@@ -94,9 +100,11 @@ export const OnboardingPage = () => {
         }
       }
 
-      toast.success(isCopim
-        ? 'COPIM institucional activado dentro de ROVI.'
-        : '¡Configuración completada! Tu asistente IA está personalizado.');
+      toast.success(isMenuVibes
+        ? 'MenuVibes CRM está listo para gestionar prospectos.'
+        : isCopim
+          ? 'COPIM institucional activado dentro de ROVI.'
+          : '¡Configuración completada! Tu asistente IA está personalizado.');
       const nextUser = { ...user, onboarding_completed: true };
       updateUser(nextUser);
       setAppMode(nextUser.account_type === 'copim' ? 'copim' : 'rovi');
@@ -118,10 +126,12 @@ export const OnboardingPage = () => {
             <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
               <Leaf className="w-7 h-7 text-primary-foreground" />
             </div>
-            <h1 className="text-3xl font-bold font-['Outfit']">Rovi CRM</h1>
+            <h1 className="text-3xl font-bold font-['Outfit']">{isMenuVibes ? 'MenuVibes CRM' : 'Rovi CRM'}</h1>
           </div>
           <p className="text-muted-foreground">
-            {isCopim
+            {isMenuVibes
+              ? 'Activa el workspace comercial para restaurantes y demos.'
+              : isCopim
               ? 'Configuremos tu workspace institucional para operar COPIM dentro de ROVI.'
               : isSalesOnboarding
                 ? 'Define tu punto de partida y tu meta mensual.'
@@ -140,6 +150,27 @@ export const OnboardingPage = () => {
 
         {/* Steps */}
         <Card className="shadow-xl">
+          {step === 1 && isMenuVibes && (
+            <>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Workspace comercial MenuVibes</CardTitle>
+                    <CardDescription>Pipeline, seguimiento y demos en un entorno separado del CRM inmobiliario.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+                  Cada prospecto representa un restaurante o una ubicación. Las siguientes acciones y sus fechas quedan visibles en el panel operativo.
+                </div>
+              </CardContent>
+            </>
+          )}
+
           {step === 1 && isCopim && (
             <>
               <CardHeader>
@@ -249,7 +280,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 1 && !isCopim && !isSalesOnboarding && (
+          {step === 1 && !isMenuVibes && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -358,7 +389,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 2 && !isCopim && !isSalesOnboarding && (
+          {step === 2 && !isMenuVibes && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -449,7 +480,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 3 && !isCopim && !isSalesOnboarding && (
+          {step === 3 && !isMenuVibes && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -506,7 +537,7 @@ export const OnboardingPage = () => {
             </>
           )}
 
-          {step === 4 && !isCopim && !isSalesOnboarding && (
+          {step === 4 && !isMenuVibes && !isCopim && !isSalesOnboarding && (
             <>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -592,7 +623,7 @@ export const OnboardingPage = () => {
                 data-testid="onboarding-finish"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {isCopim ? 'Activar modulo COPIM' : 'Comenzar'}
+                {isMenuVibes ? 'Activar MenuVibes CRM' : isCopim ? 'Activar modulo COPIM' : 'Comenzar'}
               </Button>
             )}
           </div>

@@ -22,6 +22,7 @@ import {
   isGremialMemberUser,
   isGremialNationalUser,
 } from '../lib/gremialAccess';
+import { getMenuVibesRoleLabel, isMenuVibesAccount } from '../lib/menuvibesAccess';
 import {
   LayoutDashboard,
   Users,
@@ -76,6 +77,13 @@ const individualNavItems = [
   { to: '/scripts', icon: FileText, label: 'Scripts' },
   { to: '/database-chat', icon: Database, label: 'Chat BD' },
   { to: '/settings', icon: Settings, label: 'Configuracion' },
+];
+
+const menuVibesNavItems = [
+  { to: '/menuvibes/dashboard', icon: LayoutDashboard, label: 'Panel comercial' },
+  { to: '/menuvibes/prospects', icon: Store, label: 'Prospectos' },
+  { to: '/menuvibes/pipeline', icon: FolderKanban, label: 'Pipeline' },
+  { to: '/menuvibes/demos', icon: FlaskConical, label: 'Demos' },
 ];
 
 // Navigation items for agency users
@@ -242,6 +250,7 @@ export const Sidebar = ({ onClose }) => {
   const isGremialMemberPortal = isGremialMemberUser(user);
   const isGremialDelegationWorkspace = isGremialDelegationUser(user);
   const isGremialNationalWorkspace = isGremialNationalUser(user);
+  const isMenuVibesWorkspace = isMenuVibesAccount(user);
 
   const handleWorkspaceChange = async (tenantId) => {
     if (!tenantId || tenantId === activeWorkspace?.tenant_id) return;
@@ -252,6 +261,8 @@ export const Sidebar = ({ onClose }) => {
       const targetRole = targetWorkspace?.role || getEffectiveRole(user);
       const nextPath = targetWorkspace?.tenant_type === 'rovi_internal' || String(targetRole).startsWith('rovi_')
         ? '/rovi/dashboard'
+        : targetWorkspace?.tenant_type === 'menuvibes'
+        ? '/menuvibes/dashboard'
         : targetWorkspace?.tenant_type === 'property_management' || targetRole === 'property_manager'
         ? '/rentals'
         : ['gremial', 'chamber', 'delegation', 'member_company'].includes(targetWorkspace?.tenant_type) || String(targetRole).startsWith('gremial_')
@@ -286,7 +297,9 @@ export const Sidebar = ({ onClose }) => {
     : location.pathname.startsWith('/copim')
       ? 'copim'
       : appMode;
-  const baseNavItems = isRoviInternalWorkspace || location.pathname.startsWith('/rovi')
+  const baseNavItems = isMenuVibesWorkspace || location.pathname.startsWith('/menuvibes')
+    ? menuVibesNavItems
+    : isRoviInternalWorkspace || location.pathname.startsWith('/rovi')
     ? roviInternalNavItems.filter((item) => item.to !== '/rovi/ai-control' || isControlTowerOwner)
     : isPropertyManagerWorkspace || location.pathname.startsWith('/rentals')
     ? propertyManagerNavItems
@@ -298,8 +311,10 @@ export const Sidebar = ({ onClose }) => {
       ? individualNavItems
       : agencyNavItems;
   const navItems = baseNavItems.filter((item) => !item.adminOnly || canAccessAgentStudio);
-  const accountLabel = getAccountTypeLabel(user?.account_type, currentModeValue);
-  const activeRoleLabel = getRoleLabel(getEffectiveRole(user));
+  const accountLabel = isMenuVibesWorkspace ? 'Ventas para restaurantes' : getAccountTypeLabel(user?.account_type, currentModeValue);
+  const activeRoleLabel = isMenuVibesWorkspace
+    ? getMenuVibesRoleLabel(user)
+    : getRoleLabel(getEffectiveRole(user));
 
   return (
     <div className="rovi-glass flex flex-col h-full w-64 rounded-none border-y-0 border-l-0 border-r border-border/70">
@@ -310,7 +325,7 @@ export const Sidebar = ({ onClose }) => {
             <Leaf className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="font-display text-lg font-bold text-foreground">Rovi</h1>
+            <h1 className="font-display text-lg font-bold text-foreground">{isMenuVibesWorkspace ? 'MenuVibes CRM' : 'Rovi'}</h1>
             <p className="text-xs text-muted-foreground">
               {accountLabel}
             </p>
@@ -332,7 +347,7 @@ export const Sidebar = ({ onClose }) => {
       
       <Separator />
 
-      {(hasCopimAccess || hasGremialAccess) && !isMemberPortal && !isGremialMemberPortal && (
+      {(hasCopimAccess || hasGremialAccess) && !isMenuVibesWorkspace && !isMemberPortal && !isGremialMemberPortal && (
         <div className="px-4 pt-4">
         <div className="rovi-card rounded-2xl p-3">
           <p className="rovi-label mb-2">
